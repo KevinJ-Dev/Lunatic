@@ -8,11 +8,13 @@ Rien à importer : les tables `lunatic_admin_ranks`, `lunatic_admin_staff` et `l
 
 ## Premier Fondateur
 
-Dans la console du serveur (txAdmin > Console) :
+Dans la console du serveur (console de l'hébergeur ou txAdmin) :
 
 ```
 lunatic_admin_founder <id du joueur connecté>
 ```
+
+Tapée sans id, la commande affiche la liste des joueurs connectés avec leur id.
 
 Pour retirer n'importe quel membre, y compris un Fondateur :
 
@@ -24,7 +26,7 @@ Ces deux commandes ne fonctionnent que depuis la console.
 
 ## En jeu
 
-- `/staff` ou **F10** (modifiable dans Paramètres > Raccourcis > FiveM) ouvre le panel.
+- **F10** (modifiable dans Paramètres > Raccourcis > FiveM) ou `staff` dans la console F8 ouvre le panel (`/staff` une fois le tchat installé).
 - Un membre ne peut modifier, dupliquer ou supprimer que les rangs **strictement inférieurs** au sien, et ne peut donner que les permissions qu'il possède.
 - Le rang Fondateur a toutes les permissions et ne peut pas être supprimé.
 - Toutes les actions sont revérifiées côté serveur et enregistrées dans `lunatic_admin_logs`.

@@ -511,7 +511,24 @@ end)
 -- Commandes console (jamais utilisables en jeu)
 ---------------------------------------------------------------------
 
--- lunatic_admin_founder <id> : nomme Fondateur un joueur connecté
+-- Affiche les joueurs connectés (id, nom, rang) dans la console
+local function printPlayers()
+    local players = GetPlayers()
+
+    if #players == 0 then
+        return print('[lunatic_admin] Aucun joueur connecté.')
+    end
+
+    print('[lunatic_admin] Joueurs connectés :')
+
+    for _, id in ipairs(players) do
+        local src = tonumber(id)
+        local rank = Staff.rankOf(src)
+        print(('  ID %s  |  %s%s'):format(id, GetPlayerName(src) or '?', rank and ('  |  ' .. rank.name) or ''))
+    end
+end
+
+-- lunatic_admin_founder <id> : nomme Fondateur un joueur connecté (sans id : liste les joueurs)
 RegisterCommand('lunatic_admin_founder', function(src, args)
     if src ~= 0 then
         return
@@ -525,6 +542,7 @@ RegisterCommand('lunatic_admin_founder', function(src, args)
     local license = target and Staff.licenseOf(target)
 
     if not license then
+        printPlayers()
         return print('[lunatic_admin] Usage : lunatic_admin_founder <id du joueur connecté>')
     end
 
