@@ -1,4 +1,4 @@
-# Fix holes and customize the map (Updated to Money Fronts DLC)
+# Fix holes and customize the map (Updated to The Kortz Center Heist)
 
 The purpose of this script is to fix the holes in the map by loading zones that aren’t loaded by default. I’ve added quite a lot of places to load, based on [Mikeeh’s script](https://forum.fivem.net/t/release-load-unloaded-ipls/5911). If you just want to fix the holes in the map, then use this resource as provided.
 
@@ -30,6 +30,27 @@ This resource has been completely rewritten from scratch since v2.0. You can cus
 (DD/MM/YYYY)
 
 ---
+04/10/2026 - 2.7.1
+- Add streaming files for Enhanced
+- Fix two syntax issues/typos
+
+23/07/2026 - 2.7.0
+- Added "The Kortz Center Heist" support
+- Revert asset refinement
+
+04/07/2026 - 2.6.1
+- Added missing aircraft carrier distance lights
+- Added missing mansions distance lights
+- Fixed mansions missing LODs
+- Fixed default tree model with weird hole
+- Refined assets with Alchemist
+- Removed broken collision
+
+20/12/2025 - 2.6.0
+- Added "A Safehouse in the Hills" support
+- Fix typos in "The Contract" files
+- Fix unloading disabled entities after resource restart
+
 18/06/2025 - 2.5.0
 - Added "Money Fronts" support
 - Added arcade interior

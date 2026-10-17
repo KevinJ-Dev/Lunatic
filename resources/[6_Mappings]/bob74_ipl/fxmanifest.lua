@@ -3,7 +3,7 @@ game 'gta5'
 
 author 'Bob_74'
 description 'Load and customize your map'
-version '2.5.0'
+version '2.7.1'
 
 lua54 "yes"
 
@@ -12,6 +12,7 @@ client_scripts {
     , "lib/observers/interiorIdObserver.lua"
     , "lib/observers/officeSafeDoorHandler.lua"
     , "lib/observers/officeCullHandler.lua"
+    , "lib/observers/mansionCullHandler.lua"
     , "client.lua"
 
     -- GTA V
@@ -169,4 +170,22 @@ client_scripts {
     , "dlc_money/carwash.lua"
     , "dlc_money/office.lua"
     , "dlc_money/construction.lua"
+
+    -- DLC A Safehouse in the Hills (Requires forced build 3717 or higher)
+    , "dlc_mansions/base.lua"
+    , "dlc_mansions/mansion1.lua"
+    , "dlc_mansions/mansion2.lua"
+    , "dlc_mansions/mansion3.lua"
+    , "dlc_mansions/mansion_basement1.lua"
+    , "dlc_mansions/mansion_basement2.lua"
+    , "dlc_mansions/mansion_basement3.lua"
+
+    -- DLC The Kortz Center Heist (Requires forced build 3889 or higher)
+    , "dlc_kortz/base.lua"
+    , "dlc_kortz/museum.lua"
+    , "dlc_kortz/exhibition.lua"
+    , "dlc_kortz/basement.lua"
+    , "dlc_kortz/loadingbay.lua"
+    , "dlc_kortz/sewers.lua"
+    , "dlc_kortz/mansion_workshop.lua"
 }

@@ -9,7 +9,7 @@ MpSecurityStudio = {
     Ipl = {
         Interior = {
             ipl = {
-                'sf_int_placement_sec_interior_1_dlc_studio_sec_milo_ '
+                'sf_int_placement_sec_interior_1_dlc_studio_sec_milo_'
             }
         },
 
@@ -40,6 +40,8 @@ MpSecurityStudio = {
             for entity, state in pairs(MpSecurityStudio.Entities) do
                 if type(entity) == 'string' and state then
                     ActivateInteriorEntitySet(MpSecurityStudio.InteriorId, entity)
+                elseif type(entity) == 'string' and not state then
+                    DeactivateInteriorEntitySet(MpSecurityStudio.InteriorId, entity)
                 end
             end
         end,
@@ -56,6 +58,6 @@ MpSecurityStudio = {
         MpSecurityStudio.Ipl.Load()
         MpSecurityStudio.Entities.Load()
 
-        RefreshInterior(MpSecurityStudio.interiorId)
+        RefreshInterior(MpSecurityStudio.InteriorId)
     end
 }
