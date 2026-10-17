@@ -104,10 +104,9 @@ function addMessage(message) {
     const node = el("div", `msg ${kind}`);
 
     if (kind === "announce") {
+        // L'auteur n'est pas montré aux joueurs (il reste dans la console et l'historique)
         const head = el("div", "head");
         head.append(el("span", "tag", "Annonce"));
-        const by = el("span", "by", `par ${stripCodes(message.author || "Staff")}${message.rank ? ` · ${message.rank.name}` : ""}`);
-        head.append(by);
         node.append(head, el("div", "text", message.text));
         return pushMessage(node, ANNOUNCE_FADE);
     }
