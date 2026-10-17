@@ -344,3 +344,5 @@ Panel.actions['player.kick'] = function(src, actor, data)
 
     return { ok = true }
 end
+
+print('[lunatic_admin] Module Joueurs chargé.')
