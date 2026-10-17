@@ -13,6 +13,18 @@ local function close()
     SendNUIMessage({ action = 'close' })
 end
 
+-- Touche liée à la commande (F10 par défaut, ou celle choisie par le joueur) :
+-- l'interface a le focus clavier, c'est donc elle qui referme le panel avec cette touche
+local function toggleKey()
+    local button = GetControlInstructionalButton(0, joaat(Config.Command) | 0x80000000, true)
+
+    if type(button) == 'string' and button:sub(1, 2) == 't_' then
+        return button:sub(3)
+    end
+
+    return Config.DefaultKey
+end
+
 local function open()
     if isOpen then
         return
@@ -27,7 +39,7 @@ local function open()
 
     isOpen = true
     SetNuiFocus(true, true)
-    SendNUIMessage({ action = 'open', state = state })
+    SendNUIMessage({ action = 'open', state = state, toggleKey = toggleKey() })
 end
 
 RegisterCommand(Config.Command, open, false)

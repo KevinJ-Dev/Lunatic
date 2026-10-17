@@ -702,11 +702,31 @@ function toast(message, kind) {
 
 $("close").addEventListener("click", closePanel);
 
+// Touche d'ouverture (F10 par défaut) : la même touche referme le panel
+let toggleKey = "F10";
+
+function isToggleKey(e) {
+    if (e.key.toUpperCase() !== toggleKey.toUpperCase()) return false;
+    // Une touche lettre ne ferme pas le panel pendant la saisie dans un champ
+    const typing = ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement && document.activeElement.tagName);
+    return e.key.length > 1 || !typing;
+}
+
 window.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape" || document.body.classList.contains("hidden")) return;
-    if ($("backdrop").classList.contains("on")) closeModal(false);
-    else closePanel();
+    if (document.body.classList.contains("hidden")) return;
+    if (e.key === "Escape") {
+        if ($("backdrop").classList.contains("on")) closeModal(false);
+        else closePanel();
+    } else if (isToggleKey(e)) {
+        e.preventDefault();
+        closePanel();
+    }
 });
+
+// Le panel devient transparent quand la souris en sort, pour voir le jeu derrière
+const panelWindow = document.querySelector(".window");
+panelWindow.addEventListener("mouseleave", () => document.body.classList.add("see-through"));
+panelWindow.addEventListener("mouseenter", () => document.body.classList.remove("see-through"));
 
 window.addEventListener("message", (event) => {
     const msg = event.data;
@@ -714,8 +734,9 @@ window.addEventListener("message", (event) => {
 
     if (msg.action === "open") {
         draft = null;
+        if (typeof msg.toggleKey === "string" && msg.toggleKey) toggleKey = msg.toggleKey;
         applyState(msg.state, true);
-        document.body.classList.remove("hidden");
+        document.body.classList.remove("hidden", "see-through");
         render();
     } else if (msg.action === "state") {
         const keptDraft = applyState(msg.state, false);
