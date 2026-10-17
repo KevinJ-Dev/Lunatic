@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Lunatic - Panel staff</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="hidden">
+<svg style="display:none">
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 4l9 5-9 5-9-5z"/><path d="M3 14l9 5 9-5"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M3 19c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 13.5c1.9.9 3 2.9 3 5.5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-crown" viewBox="0 0 24 24"><path d="M4 8l4 4 4-7 4 7 4-4-2 11H6z"/></symbol>
+    <symbol id="i-user-plus" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M3 19c0-3.3 2.7-6 6-6s6 2.7 6 6M19 8v6M16 11h6"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></symbol>
+</svg>
+
+<div class="app">
+    <div class="window">
+        <div class="sky"></div>
+        <svg class="wave" viewBox="0 0 1600 400" preserveAspectRatio="none">
+            <defs>
+                <linearGradient id="wv1" x1="0" y1="0" x2="1" y2="0"><stop offset="0" style="stop-color: rgb(var(--accent-rgb)); stop-opacity: .05"/><stop offset=".6" style="stop-color: rgb(var(--accent-rgb)); stop-opacity: .22"/><stop offset="1" style="stop-color: rgb(var(--accent-rgb)); stop-opacity: .1"/></linearGradient>
+                <linearGradient id="wv2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".25"/><stop offset=".55" stop-color="#fff" stop-opacity=".05"/><stop offset="1" stop-color="#fff" stop-opacity=".2"/></linearGradient>
+            </defs>
+            <path d="M0 260 C 300 230 500 300 800 250 S 1300 150 1600 200 L 1600 400 L 0 400 Z" fill="url(#wv1)"/>
+            <path d="M0 300 C 350 330 600 330 900 290 S 1350 230 1600 270" fill="none" stroke="url(#wv2)" stroke-width="1.5"/>
+        </svg>
+
+        <div class="shell">
+            <header class="topbar">
+                <div class="brand">
+                    <div class="brand-logo"><img src="logo.png" alt=""></div>
+                    <div>
+                        <div class="brand-name">Lunatic</div>
+                        <div class="brand-sub">Panel staff</div>
+                    </div>
+                </div>
+                <nav class="navbar" id="nav"></nav>
+                <div class="top-right">
+                    <div class="me-chip" id="me"></div>
+                    <button class="icon-btn" id="close" title="Fermer (Échap)"><svg class="i"><use href="#i-x"/></svg></button>
+                </div>
+            </header>
+
+            <main class="workspace">
+                <section class="view" id="view-home"></section>
+                <section class="view" id="view-ranks"></section>
+                <section class="view" id="view-members"></section>
+            </main>
+        </div>
+
+        <div class="backdrop" id="backdrop"><div class="modal" id="modal"></div></div>
+        <div class="toasts" id="toasts"></div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,777 @@
+"use strict";
+
+// ====================================================================
+//  lunatic_admin — interface du panel staff
+//  L'interface n'a aucun pouvoir : chaque action est revérifiée par le serveur.
+// ====================================================================
+
+const IN_GAME = typeof GetParentResourceName === "function";
+const RESOURCE = IN_GAME ? GetParentResourceName() : "lunatic_admin";
+const SWATCHES = ["#9650ff", "#ff6b6b", "#f2c26b", "#5fd3a0", "#6bb8f2", "#ff8ad8", "#a3a3b2", "#ffffff"];
+
+let state = null;
+let view = "home";
+let selectedRankId = null;
+let draft = null; // copie modifiable du rang affiché dans l'éditeur
+let busy = false;
+const memberFilter = { text: "", onlineOnly: false };
+
+// ---------- Outils DOM ----------
+
+const $ = (id) => document.getElementById(id);
+
+function h(tag, attrs, ...children) {
+    const el = document.createElement(tag);
+    for (const [key, value] of Object.entries(attrs || {})) {
+        if (value === null || value === undefined || value === false) continue;
+        if (key === "class") el.className = value;
+        else if (key.startsWith("on")) el.addEventListener(key.slice(2), value);
+        else if (value === true) el.setAttribute(key, "");
+        else el.setAttribute(key, value);
+    }
+    for (const child of children.flat()) {
+        if (child === null || child === undefined || child === false) continue;
+        el.append(child instanceof Node ? child : document.createTextNode(String(child)));
+    }
+    return el;
+}
+
+function icon(name) {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "i");
+    const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+    use.setAttribute("href", `#${name}`);
+    svg.append(use);
+    return svg;
+}
+
+function dot(color) {
+    const el = h("span", { class: "dot" });
+    el.style.background = color;
+    return el;
+}
+
+function rankPill(rank) {
+    if (!rank) return h("span", { class: "rank-pill muted" }, "Rang inconnu");
+    return h("span", { class: "rank-pill" }, dot(rank.color), rank.name);
+}
+
+function initials(name) {
+    return (name || "?").trim().slice(0, 1).toUpperCase();
+}
+
+function shortLicense(license) {
+    if (!license) return "";
+    const id = license.replace(/^license:/, "");
+    return `license:${id.slice(0, 6)}…${id.slice(-4)}`;
+}
+
+// ---------- Communication avec le jeu ----------
+
+async function nui(name, data) {
+    if (!IN_GAME) return demoNui(name, data);
+    const response = await fetch(`https://${RESOURCE}/${name}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=UTF-8" },
+        body: JSON.stringify(data || {}),
+    });
+    return response.json();
+}
+
+async function act(action, payload, okMessage) {
+    if (busy) return null;
+    busy = true;
+    try {
+        const res = await nui("action", { action, payload });
+        if (!res || !res.ok) {
+            toast((res && res.error) || "Action impossible.", "error");
+            return null;
+        }
+        if (res.state) applyState(res.state, true);
+        if (okMessage) toast(okMessage, "ok");
+        return res;
+    } catch (e) {
+        toast("Pas de réponse du serveur.", "error");
+        return null;
+    } finally {
+        busy = false;
+    }
+}
+
+function closePanel() {
+    closeModal();
+    document.body.classList.add("hidden");
+    nui("close");
+}
+
+// ---------- Permissions (affichage seulement) ----------
+
+const can = (perm) => !!state && state.me.permissions.includes(perm);
+const myLevel = () => state.me.rank.level;
+const iAmOwner = () => state.me.rank.owner;
+const ranks = () => state.ranks || [];
+const staff = () => state.staff || [];
+const rankById = (id) => ranks().find((r) => r.id === id);
+
+function canEditRank(rank) {
+    if (!can("ranks.manage")) return false;
+    return rank.owner ? iAmOwner() : rank.level < myLevel();
+}
+
+function canAssign(rank) {
+    return can("staff.manage") && !rank.owner && rank.level < myLevel();
+}
+
+function canManageMember(member) {
+    if (!can("staff.manage") || member.license === state.me.license) return false;
+    const rank = rankById(member.rankId);
+    return !rank || rank.level < myLevel();
+}
+
+function freeLevelBelow(max) {
+    for (let level = max - 1; level >= 1; level--) {
+        if (!ranks().some((r) => r.level === level)) return level;
+    }
+    return null;
+}
+
+// ---------- État ----------
+
+// Une table Lua vide peut arriver sous forme d'objet {} : on force des tableaux partout
+const list = (value) => (Array.isArray(value) ? value : []);
+
+function normalize(raw) {
+    raw.me.permissions = list(raw.me.permissions);
+    raw.catalogue.families = list(raw.catalogue.families);
+    raw.catalogue.permissions = list(raw.catalogue.permissions);
+    if (raw.ranks) raw.ranks = list(raw.ranks).map((r) => ({ ...r, permissions: r.permissions === undefined ? undefined : list(r.permissions) }));
+    if (raw.staff) raw.staff = list(raw.staff);
+    if (raw.candidates) raw.candidates = list(raw.candidates);
+    return raw;
+}
+
+function applyState(next, fromAction) {
+    const keepDraft = !fromAction && draft && isDirty();
+    state = normalize(next);
+
+    if (!NAV.find((n) => n.id === view && n.show())) view = "home";
+
+    if (draft && draft.id !== null && !rankById(draft.id)) {
+        draft = null;
+        selectedRankId = null;
+    }
+
+    if (!keepDraft) loadDraft();
+    return keepDraft;
+}
+
+function loadDraft() {
+    if (draft && draft.id === null && isDirty()) return;
+    const rank = rankById(selectedRankId);
+    if (!rank) {
+        draft = null;
+        return;
+    }
+    draft = {
+        id: rank.id,
+        name: rank.name,
+        color: rank.color,
+        level: rank.level,
+        owner: rank.owner,
+        permissions: new Set(rank.permissions || []),
+    };
+}
+
+function isDirty() {
+    if (!draft) return false;
+    if (draft.id === null) return true;
+    const rank = rankById(draft.id);
+    if (!rank) return false;
+    const perms = rank.permissions || [];
+    return draft.name !== rank.name
+        || draft.color !== rank.color
+        || Number(draft.level) !== rank.level
+        || perms.length !== draft.permissions.size
+        || perms.some((p) => !draft.permissions.has(p));
+}
+
+// ---------- Rendu général ----------
+
+const NAV = [
+    { id: "home", label: "Accueil", icon: "i-home", show: () => true },
+    { id: "ranks", label: "Rangs", icon: "i-layers", show: () => can("ranks.view") },
+    { id: "members", label: "Membres", icon: "i-users", show: () => can("staff.view") },
+];
+
+function render() {
+    if (!state) return;
+
+    $("nav").replaceChildren(...NAV.filter((n) => n.show()).map((n) =>
+        h("button", { class: `nav-link${view === n.id ? " active" : ""}`, onclick: () => go(n.id) }, icon(n.icon), n.label)
+    ));
+
+    const me = state.me;
+    $("me").replaceChildren(
+        h("span", { class: "avatar" }, initials(me.name)),
+        h("span", { class: "who" }, h("b", null, me.name), h("span", { class: "muted" }, me.rank.name))
+    );
+    $("me").querySelector(".avatar").style.background = me.rank.color;
+
+    for (const id of ["home", "ranks", "members"]) {
+        $(`view-${id}`).classList.toggle("on", view === id);
+    }
+
+    if (view === "home") renderHome();
+    if (view === "ranks") renderRanks();
+    if (view === "members") renderMembers();
+}
+
+function go(target) {
+    if (view === "ranks" && target !== "ranks" && isDirty()) {
+        confirmBox("Modifications non enregistrées", "Quitter cette page annule les changements du rang en cours.", "Quitter sans enregistrer", true)
+            .then((yes) => {
+                if (!yes) return;
+                draft = null;
+                loadDraft();
+                view = target;
+                render();
+            });
+        return;
+    }
+    view = target;
+    render();
+}
+
+// ---------- Accueil ----------
+
+function renderHome() {
+    const me = state.me;
+    const total = state.catalogue.permissions.length;
+    const kpis = [
+        h("div", { class: "kpi" }, h("span", null, "Permissions"), h("b", null, `${me.permissions.length}`), h("small", null, `sur ${total} disponibles`)),
+    ];
+
+    if (state.staff) {
+        const online = staff().filter((m) => m.online).length;
+        kpis.push(h("div", { class: "kpi" }, h("span", null, "Staff en ligne"), h("b", null, `${online}`), h("small", null, `sur ${staff().length} membres`)));
+    }
+    if (state.ranks && can("ranks.view")) {
+        kpis.push(h("div", { class: "kpi" }, h("span", null, "Rangs"), h("b", null, `${ranks().length}`), h("small", null, "du plus haut au plus bas")));
+    }
+
+    const families = state.catalogue.families.map((family) => {
+        const perms = state.catalogue.permissions.filter((p) => p.family === family.id && me.permissions.includes(p.id));
+        if (!perms.length) return null;
+        return h("div", { class: "section" },
+            h("div", { class: "section-head" }, family.label, h("span", { class: "count" }, `${perms.length}`)),
+            h("div", { class: "chips" }, perms.map((p) => h("span", { class: "chip" }, p.label)))
+        );
+    });
+
+    $("view-home").replaceChildren(h("div", { class: "home" },
+        h("div", { class: "hero" },
+            h("img", { src: "logo.png", alt: "" }),
+            h("div", null,
+                h("h2", null, `Bonjour, ${me.name}`),
+                h("p", null, rankPill(me.rank), " ", me.rank.owner ? "Toutes les permissions" : `Niveau ${me.rank.level}`)
+            )
+        ),
+        h("div", { class: "kpis" }, kpis),
+        h("div", { class: "card", style: "margin-top:16px" }, h("h3", { class: "card-title" }, "Vos permissions"), families)
+    ));
+}
+
+// ---------- Rangs ----------
+
+function renderRanks(onlySidebar) {
+    const manage = can("ranks.manage");
+    const sidebar = h("aside", { class: "sidebar" },
+        h("div", { class: "side-head" }, h("h3", null, "Rangs"), h("span", { class: "muted mono" }, `${ranks().length}`)),
+        h("div", { class: "side-scroll" }, ranks().map((rank) => {
+            const active = draft ? draft.id === rank.id : selectedRankId === rank.id;
+            return h("button", { class: `list-row${active ? " active" : ""}`, onclick: () => selectRank(rank.id) },
+                dot(rank.color),
+                h("span", { class: "name" }, rank.name),
+                rank.owner ? icon("i-crown") : (!canEditRank(rank) && manage ? icon("i-lock") : null),
+                h("span", { class: "lvl" }, rank.owner ? "MAX" : `${rank.level}`),
+                h("span", { class: "cnt", title: "Membres" }, `${rank.members}`)
+            );
+        })),
+        manage ? h("div", { class: "side-foot" },
+            h("button", { class: "btn primary wide", onclick: newRank }, icon("i-plus"), "Nouveau rang")
+        ) : null
+    );
+
+    const root = $("view-ranks");
+    if (onlySidebar && root.querySelector(".sidebar")) {
+        root.querySelector(".sidebar").replaceWith(sidebar);
+        return;
+    }
+    root.replaceChildren(sidebar, renderEditor());
+}
+
+function selectRank(id) {
+    if (draft && draft.id === id) return;
+    const open = () => {
+        selectedRankId = id;
+        draft = null;
+        loadDraft();
+        renderRanks();
+    };
+    if (isDirty()) {
+        confirmBox("Modifications non enregistrées", "Changer de rang annule les changements en cours.", "Changer sans enregistrer", true)
+            .then((yes) => yes && open());
+        return;
+    }
+    open();
+}
+
+function newRank() {
+    const level = freeLevelBelow(myLevel());
+    if (level === null) return toast("Aucun niveau libre sous le vôtre.", "error");
+    const create = () => {
+        const used = new Set(ranks().map((r) => r.color));
+        draft = {
+            id: null,
+            name: "Nouveau rang",
+            color: SWATCHES.find((c) => !used.has(c)) || SWATCHES[0],
+            level,
+            owner: false,
+            permissions: new Set(["panel.open"].filter(can)),
+        };
+        selectedRankId = null;
+        renderRanks();
+        const input = document.querySelector("#rank-name");
+        if (input) { input.focus(); input.select(); }
+    };
+    if (isDirty()) {
+        confirmBox("Modifications non enregistrées", "Créer un rang annule les changements en cours.", "Continuer", true).then((yes) => yes && create());
+        return;
+    }
+    create();
+}
+
+function renderEditor() {
+    if (!draft) {
+        return h("div", { class: "content" }, h("div", { class: "empty" }, icon("i-layers"), "Sélectionnez un rang pour voir ses permissions."));
+    }
+
+    const rank = draft.id === null ? null : rankById(draft.id);
+    const editable = rank ? canEditRank(rank) : can("ranks.manage");
+    const structural = editable && !draft.owner; // niveau et permissions
+    const members = staff().filter((m) => m.rankId === draft.id);
+
+    // En-tête
+    const titleDot = dot(draft.color);
+    const titleText = h("span", null, draft.name || "Sans nom");
+    const sub = h("div", { class: "page-sub" });
+    const saveBtn = h("button", { class: "btn primary", onclick: saveDraft }, icon("i-save"), draft.id === null ? "Créer le rang" : "Enregistrer");
+    const resetBtn = h("button", { class: "btn ghost", onclick: resetDraft, title: "Annuler les modifications" }, icon("i-undo"), "Annuler");
+
+    function refreshChrome() {
+        titleDot.style.background = draft.color;
+        titleText.textContent = draft.name || "Sans nom";
+        const parts = draft.owner
+            ? ["Fondateur", "Toutes les permissions"]
+            : [`Niveau ${draft.level}`, `${draft.permissions.size} permission${draft.permissions.size > 1 ? "s" : ""}`];
+        if (rank) parts.push(`${rank.members} membre${rank.members > 1 ? "s" : ""}`);
+        sub.replaceChildren(...parts.flatMap((p, i) => (i ? [h("span", { class: "sep" }), p] : [p])));
+        const dirty = isDirty();
+        saveBtn.disabled = !dirty;
+        resetBtn.style.display = dirty && draft.id !== null ? "" : "none";
+        renderRanks(true);
+    }
+
+    const actions = h("div", { class: "actions" });
+    if (editable) {
+        actions.append(resetBtn);
+        if (rank && !rank.owner) {
+            actions.append(
+                h("button", { class: "btn", onclick: () => duplicateRank(rank) }, icon("i-copy"), "Dupliquer"),
+                h("button", { class: "btn danger", onclick: () => deleteRank(rank) }, icon("i-trash"), "Supprimer")
+            );
+        }
+        actions.append(saveBtn);
+    }
+
+    // Formulaire
+    const nameInput = h("input", { id: "rank-name", class: "input", maxlength: "32", value: draft.name, disabled: !editable });
+    nameInput.addEventListener("input", () => { draft.name = nameInput.value; refreshChrome(); });
+
+    const swatches = h("div", { class: "swatches" });
+    const picker = h("input", { type: "color", value: draft.color, disabled: !editable });
+    function paintSwatches() {
+        swatches.replaceChildren(
+            ...SWATCHES.map((color) => {
+                const b = h("button", { class: `swatch${draft.color === color ? " on" : ""}`, disabled: !editable, title: color });
+                b.style.background = color;
+                b.addEventListener("click", () => { draft.color = color; picker.value = color; paintSwatches(); refreshChrome(); });
+                return b;
+            }),
+            h("label", { class: "color-pick", title: "Couleur personnalisée" }, picker, icon("i-plus"))
+        );
+    }
+    picker.addEventListener("input", () => { draft.color = picker.value.toLowerCase(); paintSwatches(); refreshChrome(); });
+    paintSwatches();
+
+    const maxLevel = myLevel() - 1;
+    const levelInput = h("input", { class: "input mono", type: draft.owner ? "text" : "number", min: "1", max: String(maxLevel), value: draft.owner ? "MAX" : String(draft.level), disabled: !structural });
+    levelInput.addEventListener("input", () => { draft.level = levelInput.value === "" ? "" : Number(levelInput.value); refreshChrome(); });
+
+    const form = h("div", { class: "card" },
+        h("div", { class: "fields" },
+            h("div", { class: "field" }, h("label", { for: "rank-name" }, "Nom"), nameInput),
+            h("div", { class: "field" }, h("label", null, "Couleur"), swatches),
+            h("div", { class: "field" }, h("label", null, "Niveau"), levelInput,
+                h("span", { class: "hint" }, draft.owner ? "Niveau maximal" : `De 1 à ${maxLevel}, plus haut = prioritaire`))
+        )
+    );
+
+    // Permissions par famille
+    const permSections = state.catalogue.families.map((family) => {
+        const perms = state.catalogue.permissions.filter((p) => p.family === family.id);
+        if (!perms.length) return null;
+        const count = h("span", { class: "count" });
+        const updateCount = () => { count.textContent = `${perms.filter((p) => draft.owner || draft.permissions.has(p.id)).length}/${perms.length}`; };
+        updateCount();
+        return h("div", { class: "section" },
+            h("div", { class: "section-head" }, family.label, count),
+            h("div", { class: "perm-grid" }, perms.map((perm) => {
+                const on = draft.owner || draft.permissions.has(perm.id);
+                const locked = !structural || !can(perm.id);
+                const row = h("div", {
+                    class: `perm${on ? " on" : ""}${locked ? " locked" : ""}`,
+                    title: locked && structural ? "Vous ne pouvez pas donner une permission que vous n'avez pas." : null,
+                },
+                h("span", { class: "switch" }),
+                h("span", { class: "txt" }, h("span", null, perm.label), h("code", null, perm.id))
+                );
+                if (!locked) {
+                    row.addEventListener("click", () => {
+                        if (draft.permissions.has(perm.id)) draft.permissions.delete(perm.id);
+                        else draft.permissions.add(perm.id);
+                        row.classList.toggle("on", draft.permissions.has(perm.id));
+                        updateCount();
+                        refreshChrome();
+                    });
+                }
+                return row;
+            }))
+        );
+    });
+
+    const banner = !editable
+        ? h("div", { class: "banner" }, icon("i-lock"), draft.owner
+            ? "Seul un Fondateur peut modifier ce rang."
+            : can("ranks.manage") ? "Ce rang est égal ou supérieur au vôtre : lecture seule." : "Lecture seule : vous n'avez pas la permission de gérer les rangs.")
+        : draft.owner ? h("div", { class: "banner info" }, icon("i-crown"), "Le Fondateur a toutes les permissions. Seuls son nom et sa couleur sont modifiables.")
+            : null;
+
+    const membersCard = rank && state.staff ? h("div", { class: "card" },
+        h("h3", { class: "card-title" }, `Membres (${members.length})`),
+        members.length
+            ? h("div", { class: "chips" }, members.map((m) => h("span", { class: "chip" }, h("span", { class: `status${m.online ? " on" : ""}` }), m.name)))
+            : h("span", { class: "muted" }, "Aucun membre n'a ce rang.")
+    ) : null;
+
+    const content = h("div", { class: "content" },
+        h("div", { class: "page-head" },
+            h("div", { class: "grow" }, h("h1", { class: "page-title" }, titleDot, titleText), sub),
+            actions
+        ),
+        h("div", { class: "scroll" }, banner, form, h("div", { class: "card" }, h("h3", { class: "card-title" }, "Permissions"), permSections), membersCard)
+    );
+
+    queueMicrotask(refreshChrome);
+    return content;
+}
+
+function resetDraft() {
+    draft = null;
+    loadDraft();
+    renderRanks();
+}
+
+async function saveDraft() {
+    const payload = {
+        name: (draft.name || "").trim(),
+        color: draft.color,
+        level: Number(draft.level),
+        permissions: [...draft.permissions],
+    };
+    if (draft.id !== null) payload.id = draft.id;
+
+    const creating = draft.id === null;
+    const res = await act("rank.save", payload, creating ? "Rang créé." : "Rang enregistré.");
+    if (!res) return;
+    selectedRankId = res.id;
+    draft = null;
+    loadDraft();
+    render();
+}
+
+async function duplicateRank(rank) {
+    if (isDirty()) {
+        const yes = await confirmBox("Modifications non enregistrées", "Dupliquer annule les changements en cours.", "Continuer", true);
+        if (!yes) return;
+    }
+    const res = await act("rank.duplicate", { id: rank.id }, `« ${rank.name} » dupliqué.`);
+    if (!res) return;
+    selectedRankId = res.id;
+    draft = null;
+    loadDraft();
+    render();
+}
+
+async function deleteRank(rank) {
+    const yes = await confirmBox(`Supprimer « ${rank.name} » ?`, "Cette action est définitive. Le rang doit être vide pour être supprimé.", "Supprimer", true);
+    if (!yes) return;
+    const res = await act("rank.delete", { id: rank.id }, "Rang supprimé.");
+    if (!res) return;
+    selectedRankId = null;
+    draft = null;
+    render();
+}
+
+// ---------- Membres ----------
+
+function renderMembers() {
+    const online = staff().filter((m) => m.online).length;
+    const search = h("input", { placeholder: "Rechercher un membre", value: memberFilter.text });
+    search.addEventListener("input", () => {
+        memberFilter.text = search.value;
+        $("members-table").replaceChildren(...memberRows());
+    });
+
+    const segmented = h("div", { class: "segmented", role: "radiogroup" },
+        h("button", { "aria-checked": String(!memberFilter.onlineOnly), onclick: () => { memberFilter.onlineOnly = false; renderMembers(); } }, "Tous"),
+        h("button", { "aria-checked": String(memberFilter.onlineOnly), onclick: () => { memberFilter.onlineOnly = true; renderMembers(); } }, "En ligne")
+    );
+
+    function memberRows() {
+        const rows = staff()
+            .filter((m) => !memberFilter.onlineOnly || m.online)
+            .filter((m) => !memberFilter.text || m.name.toLowerCase().includes(memberFilter.text.toLowerCase()))
+            .sort((a, b) => ((rankById(b.rankId) || {}).level || 0) - ((rankById(a.rankId) || {}).level || 0) || a.name.localeCompare(b.name))
+            .map(memberRow);
+        return rows.length ? rows : [h("div", { class: "empty" }, icon("i-users"), "Aucun membre ne correspond.")];
+    }
+
+    $("view-members").replaceChildren(h("div", { class: "content" },
+        h("div", { class: "page-head" },
+            h("div", { class: "grow" },
+                h("h1", { class: "page-title" }, "Membres du staff"),
+                h("div", { class: "page-sub" }, `${online} en ligne`, h("span", { class: "sep" }), `${staff().length} membre${staff().length > 1 ? "s" : ""}`)
+            ),
+            can("staff.manage") ? h("button", { class: "btn primary", onclick: openAddMember }, icon("i-user-plus"), "Ajouter un membre") : null
+        ),
+        h("div", { class: "toolbar" }, h("label", { class: "search" }, icon("i-search"), search), segmented),
+        h("div", { class: "scroll" }, h("div", { class: "table", id: "members-table" }, memberRows()))
+    ));
+}
+
+function memberRow(member) {
+    const rank = rankById(member.rankId);
+    const isMe = member.license === state.me.license;
+    let control;
+
+    if (canManageMember(member)) {
+        const select = h("select", { class: "input" },
+            ranks().filter(canAssign).map((r) => h("option", { value: String(r.id), selected: r.id === member.rankId }, r.name))
+        );
+        select.addEventListener("change", async () => {
+            const res = await act("staff.setRank", { license: member.license, rankId: Number(select.value) }, `${member.name} est maintenant ${rankById(Number(select.value))?.name || "promu"}.`);
+            if (!res) select.value = String(member.rankId);
+            else renderMembers();
+        });
+        control = select;
+    } else {
+        control = isMe ? h("span", { class: "you" }, "Vous") : h("span", { class: "muted" }, "—");
+    }
+
+    return h("div", { class: "row" },
+        h("span", { class: `status${member.online ? " on" : ""}`, title: member.online ? "En ligne" : "Hors ligne" }),
+        h("div", { class: "who" },
+            h("b", null, member.name),
+            h("span", null, member.online ? `ID ${member.serverId} · ${shortLicense(member.license)}` : shortLicense(member.license))
+        ),
+        rankPill(rank),
+        control,
+        canManageMember(member)
+            ? h("button", { class: "btn small ghost", title: "Retirer du staff", onclick: () => removeMember(member) }, icon("i-trash"))
+            : h("span")
+    );
+}
+
+async function removeMember(member) {
+    const yes = await confirmBox(`Retirer ${member.name} du staff ?`, "Il perdra immédiatement l'accès au panel et à ses permissions.", "Retirer", true);
+    if (!yes) return;
+    const res = await act("staff.remove", { license: member.license }, `${member.name} a été retiré du staff.`);
+    if (res) renderMembers();
+}
+
+function openAddMember() {
+    const assignable = ranks().filter(canAssign);
+    if (!assignable.length) return toast("Aucun rang inférieur au vôtre à attribuer.", "error");
+
+    let chosen = null;
+    let filter = "";
+    const list = h("div", { class: "pick-list" });
+    const confirmBtn = h("button", { class: "btn primary", disabled: true }, icon("i-user-plus"), "Ajouter");
+    const select = h("select", { class: "input" }, assignable.map((r, i) => h("option", { value: String(r.id), selected: i === assignable.length - 1 }, r.name)));
+    const search = h("input", { placeholder: "Nom ou ID" });
+
+    function paint() {
+        const candidates = (state.candidates || []).filter((c) => !filter || c.name.toLowerCase().includes(filter) || String(c.serverId) === filter);
+        list.replaceChildren(...(candidates.length
+            ? candidates.map((c) => {
+                const b = h("button", { class: `pick${chosen === c.serverId ? " on" : ""}` }, h("span", { class: "id" }, `#${c.serverId}`), c.name);
+                b.addEventListener("click", () => { chosen = c.serverId; confirmBtn.disabled = false; paint(); });
+                return b;
+            })
+            : [h("div", { class: "muted" }, "Aucun joueur connecté hors staff.")]));
+    }
+    search.addEventListener("input", () => { filter = search.value.trim().toLowerCase(); paint(); });
+    paint();
+
+    openModal((close) => {
+        confirmBtn.addEventListener("click", async () => {
+            const res = await act("staff.add", { serverId: chosen, rankId: Number(select.value) }, "Membre ajouté au staff.");
+            if (res) { close(); renderMembers(); }
+        });
+        return [
+            h("header", null, h("h3", null, "Ajouter un membre"), h("p", null, "Choisissez un joueur connecté et son rang.")),
+            h("div", { class: "body" },
+                h("label", { class: "search" }, icon("i-search"), search),
+                list,
+                h("div", { class: "field" }, h("label", null, "Rang"), select)
+            ),
+            h("footer", null, h("button", { class: "btn ghost", onclick: () => close() }, "Annuler"), confirmBtn),
+        ];
+    });
+    search.focus();
+}
+
+// ---------- Fenêtres de dialogue et notifications ----------
+
+let modalResolve = null;
+
+function openModal(build) {
+    const close = (value) => closeModal(value);
+    $("modal").replaceChildren(...build(close));
+    $("backdrop").classList.add("on");
+}
+
+function closeModal(value) {
+    $("backdrop").classList.remove("on");
+    $("modal").replaceChildren();
+    if (modalResolve) {
+        const resolve = modalResolve;
+        modalResolve = null;
+        resolve(value === true);
+    }
+}
+
+function confirmBox(title, text, label, danger) {
+    return new Promise((resolve) => {
+        openModal((close) => [
+            h("header", null, h("h3", null, title), h("p", null, text)),
+            h("footer", null,
+                h("button", { class: "btn ghost", onclick: () => close(false) }, "Annuler"),
+                h("button", { class: `btn ${danger ? "danger" : "primary"}`, onclick: () => close(true) }, label)
+            ),
+        ]);
+        modalResolve = resolve;
+    });
+}
+
+$("backdrop").addEventListener("mousedown", (e) => {
+    if (e.target === $("backdrop")) closeModal(false);
+});
+
+function toast(message, kind) {
+    const el = h("div", { class: `toast ${kind || ""}` }, message);
+    $("toasts").append(el);
+    setTimeout(() => {
+        el.classList.add("out");
+        setTimeout(() => el.remove(), 300);
+    }, 3200);
+}
+
+// ---------- Événements ----------
+
+$("close").addEventListener("click", closePanel);
+
+window.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || document.body.classList.contains("hidden")) return;
+    if ($("backdrop").classList.contains("on")) closeModal(false);
+    else closePanel();
+});
+
+window.addEventListener("message", (event) => {
+    const msg = event.data;
+    if (!msg || typeof msg !== "object") return;
+
+    if (msg.action === "open") {
+        draft = null;
+        applyState(msg.state, true);
+        document.body.classList.remove("hidden");
+        render();
+    } else if (msg.action === "state") {
+        const keptDraft = applyState(msg.state, false);
+        if (keptDraft && view === "ranks") renderRanks(true);
+        else render();
+    } else if (msg.action === "close") {
+        closeModal();
+        document.body.classList.add("hidden");
+    }
+});
+
+// ---------- Aperçu hors jeu (navigateur) ----------
+
+function demoState() {
+    return {
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        ownerLevel: 100,
+        catalogue: {
+            families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],
+            permissions: [
+                { id: "panel.open", family: "manage", label: "Ouvrir le panel staff" },
+                { id: "ranks.view", family: "manage", label: "Voir les rangs et leurs permissions" },
+                { id: "ranks.manage", family: "manage", label: "Créer, modifier et supprimer les rangs inférieurs" },
+                { id: "staff.view", family: "manage", label: "Voir les membres du staff" },
+                { id: "staff.manage", family: "manage", label: "Ajouter, promouvoir et retirer des membres inférieurs" },
+            ],
+        },
+        ranks: [
+            { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true, members: 1, permissions: ["panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+            { id: 2, name: "Admin", color: "#ff6b6b", level: 80, owner: false, members: 1, permissions: ["panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+            { id: 3, name: "Responsable staff", color: "#f2c26b", level: 60, owner: false, members: 0, permissions: ["panel.open", "ranks.view", "staff.view", "staff.manage"] },
+            { id: 4, name: "Modérateur", color: "#5fd3a0", level: 40, owner: false, members: 2, permissions: ["panel.open", "ranks.view", "staff.view"] },
+            { id: 5, name: "Modérateur test", color: "#6bb8f2", level: 20, owner: false, members: 0, permissions: ["panel.open"] },
+        ],
+        staff: [
+            { license: "license:aaa111", name: "Kévin", rankId: 1, online: true, serverId: 1 },
+            { license: "license:bbb222", name: "Alex", rankId: 2, online: true, serverId: 4 },
+            { license: "license:ccc333", name: "Sam", rankId: 4, online: false },
+            { license: "license:ddd444", name: "Léa", rankId: 4, online: true, serverId: 9 },
+        ],
+        candidates: [{ serverId: 2, name: "Joueur Test" }, { serverId: 7, name: "Marco" }],
+    };
+}
+
+async function demoNui(name) {
+    if (name === "action") return { ok: false, error: "Aperçu navigateur : rien n'est envoyé au serveur." };
+    return { ok: true };
+}
+
+if (!IN_GAME) {
+    // ?view=ranks&rank=2 ou ?view=members pour prévisualiser une page précise
+    const params = new URLSearchParams(location.search);
+    window.postMessage({ action: "open", state: demoState() }, "*");
+    setTimeout(() => {
+        if (params.get("rank")) selectedRankId = Number(params.get("rank"));
+        if (params.get("view")) go(params.get("view"));
+        if (params.get("rank")) selectRank(Number(params.get("rank")));
+    }, 0);
+}

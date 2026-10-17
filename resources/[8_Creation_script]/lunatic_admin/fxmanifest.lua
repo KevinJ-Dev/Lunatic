@@ -1,0 +1,44 @@
+fx_version 'cerulean'
+game 'gta5'
+lua54 'yes'
+
+name 'lunatic_admin'
+author 'Lunatic RP'
+description 'Panel staff : rangs modifiables en jeu, permissions et gestion du staff'
+version '0.1.0'
+
+shared_scripts {
+    '@es_extended/imports.lua',
+    '@ox_lib/init.lua',
+    'config.lua',
+    'shared/permissions.lua',
+}
+
+server_scripts {
+    '@oxmysql/lib/MySQL.lua',
+    'server/db.lua',
+    'server/logs.lua',
+    'server/ranks.lua',
+    'server/staff.lua',
+    'server/main.lua',
+}
+
+client_scripts {
+    'client/main.lua',
+}
+
+ui_page 'web/index.html'
+
+files {
+    'web/index.html',
+    'web/style.css',
+    'web/app.js',
+    'web/logo.png',
+    'web/fonts/*.woff2',
+}
+
+dependencies {
+    'es_extended',
+    'ox_lib',
+    'oxmysql',
+}
