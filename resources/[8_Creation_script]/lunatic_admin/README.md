@@ -26,7 +26,7 @@ Ces deux commandes ne fonctionnent que depuis la console.
 
 ## En jeu
 
-- **F10** (modifiable dans Paramètres > Raccourcis > FiveM) ou `staff` dans la console F8 ouvre le panel (`/staff` une fois le tchat installé).
+- **F10** (modifiable dans Paramètres > Raccourcis > FiveM) ou `/staff` dans le tchat (ou `staff` dans la console F8) ouvre le panel.
 - Un membre ne peut modifier, dupliquer ou supprimer que les rangs **strictement inférieurs** au sien, et ne peut donner que les permissions qu'il possède.
 - Le rang Fondateur a toutes les permissions et ne peut pas être supprimé.
 - Toutes les actions sont revérifiées côté serveur et enregistrées dans `lunatic_admin_logs`.
@@ -34,3 +34,11 @@ Ces deux commandes ne fonctionnent que depuis la console.
 ## Ajouter une permission (lots suivants)
 
 Déclarer la permission dans `shared/permissions.lua`, puis la vérifier côté serveur avec `Staff.can(source, 'id.permission')`.
+
+## Exports serveur
+
+```lua
+exports.lunatic_admin:can(source, 'chat.staff')   -- true / false
+exports.lunatic_admin:getRank(source)             -- { id, name, color, level, owner } ou nil
+exports.lunatic_admin:getDisplayName(source)      -- "Prénom Nom" (pseudo si pas d'identité)
+```

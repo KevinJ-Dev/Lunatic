@@ -596,3 +596,26 @@ RegisterCommand('lunatic_admin_unstaff', function(src, args)
     Staff.broadcastRefresh()
     print(('[lunatic_admin] %s a été retiré du staff.'):format(member.name))
 end, true)
+
+---------------------------------------------------------------------
+-- Exports pour les autres scripts Lunatic (lunatic_chat…)
+---------------------------------------------------------------------
+
+-- exports.lunatic_admin:can(source, 'chat.staff') -> true si le joueur a la permission
+exports('can', function(src, permission)
+    return ready and Staff.can(tonumber(src), permission) or false
+end)
+
+-- exports.lunatic_admin:getRank(source) -> { id, name, color, level, owner } ou nil
+exports('getRank', function(src)
+    local rank = ready and Staff.rankOf(tonumber(src))
+
+    if rank then
+        return { id = rank.id, name = rank.name, color = rank.color, level = rank.level, owner = rank.owner }
+    end
+end)
+
+-- exports.lunatic_admin:getDisplayName(source) -> "Prénom Nom" (ou pseudo sans identité)
+exports('getDisplayName', function(src)
+    return Staff.displayName(tonumber(src))
+end)

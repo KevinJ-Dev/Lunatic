@@ -19,8 +19,8 @@ Config.RateLimit = { max = 15, windowMs = 5000 }
 -- owner = true : rang Fondateur (toutes les permissions, ne peut pas être supprimé)
 Config.DefaultRanks = {
     { name = 'Fondateur',         color = '#9650ff', level = 100, owner = true },
-    { name = 'Admin',             color = '#ff6b6b', level = 80, permissions = { 'panel.open', 'ranks.view', 'ranks.manage', 'staff.view', 'staff.manage' } },
-    { name = 'Responsable staff', color = '#f2c26b', level = 60, permissions = { 'panel.open', 'ranks.view', 'staff.view', 'staff.manage' } },
-    { name = 'Modérateur',        color = '#5fd3a0', level = 40, permissions = { 'panel.open', 'ranks.view', 'staff.view' } },
-    { name = 'Modérateur test',   color = '#6bb8f2', level = 20, permissions = { 'panel.open' } },
+    { name = 'Admin',             color = '#ff6b6b', level = 80, permissions = { 'panel.open', 'ranks.view', 'ranks.manage', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce', 'chat.clear' } },
+    { name = 'Responsable staff', color = '#f2c26b', level = 60, permissions = { 'panel.open', 'ranks.view', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce' } },
+    { name = 'Modérateur',        color = '#5fd3a0', level = 40, permissions = { 'panel.open', 'ranks.view', 'staff.view', 'chat.staff' } },
+    { name = 'Modérateur test',   color = '#6bb8f2', level = 20, permissions = { 'panel.open', 'chat.staff' } },
 }
