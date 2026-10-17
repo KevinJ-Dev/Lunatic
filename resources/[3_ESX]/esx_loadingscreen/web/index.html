@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novyra Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app" id="app">
+
+        <!-- Fond -->
+        <div class="bg">
+            <div class="bg-glow bg-glow--cyan"></div>
+            <div class="bg-glow bg-glow--violet"></div>
+            <div class="bg-grid"></div>
+            <canvas id="stars"></canvas>
+            <div class="bg-vignette"></div>
+        </div>
+
+        <!-- Coins HUD -->
+        <span class="corner corner--tl"></span>
+        <span class="corner corner--tr"></span>
+        <span class="corner corner--bl"></span>
+        <span class="corner corner--br"></span>
+
+        <!-- Barre du haut -->
+        <header class="topbar">
+            <div class="topbar__tag">
+                <span class="dot-live"></span>
+                <span id="serverName">NOVYRA STUDIO</span>
+            </div>
+            <div class="topbar__meta">
+                <span id="clock">00:00</span>
+                <span class="sep"></span>
+                <span id="serverTagline">Roleplay · ESX</span>
+            </div>
+        </header>
+
+        <!-- Centre -->
+        <main class="center">
+            <div class="logo-wrap">
+                <svg class="orbits" viewBox="0 0 600 600" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="gOrbit" x1="0" y1="0" x2="1" y2="1">
+                            <stop offset="0%" stop-color="#2ee6ff"/>
+                            <stop offset="55%" stop-color="#3d5bff"/>
+                            <stop offset="100%" stop-color="#a35cff"/>
+                        </linearGradient>
+                    </defs>
+                    <g class="orbit orbit--a">
+                        <circle cx="300" cy="300" r="270" fill="none" stroke="url(#gOrbit)" stroke-width="1.5" stroke-dasharray="2 10" opacity=".55"/>
+                        <circle cx="570" cy="300" r="5" fill="#a35cff"/>
+                    </g>
+                    <g class="orbit orbit--b">
+                        <circle cx="300" cy="300" r="232" fill="none" stroke="url(#gOrbit)" stroke-width="1" opacity=".35"/>
+                        <circle cx="68" cy="300" r="4" fill="#2ee6ff"/>
+                    </g>
+                </svg>
+                <div class="logo-halo"></div>
+                <img src="logo.png" alt="Novyra Studio" class="logo" id="logo">
+            </div>
+
+            <section class="loader">
+                <div class="loader__head">
+                    <div class="loader__label">
+                        <span class="loader__step" id="loadingStep">ÉTAPE 1/6</span>
+                        <span class="loader__text" id="loadingText">Initialisation...</span>
+                    </div>
+                    <div class="loader__pct"><span id="progressPercentage">0</span><small>%</small></div>
+                </div>
+
+                <div class="bar">
+                    <div class="bar__fill" id="progressBar"><span class="bar__head"></span></div>
+                    <div class="bar__ticks"></div>
+                </div>
+
+                <div class="loader__foot">
+                    <span class="loader__log" id="progressStatus">Connexion au serveur</span>
+                    <span class="loader__dots"><i></i><i></i><i></i></span>
+                </div>
+            </section>
+        </main>
+
+        <!-- Bas -->
+        <footer class="bottom">
+            <div class="tip">
+                <div class="tip__icon">
+                    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z"/></svg>
+                </div>
+                <div class="tip__body">
+                    <div class="tip__label">LE SAVIEZ-VOUS ?</div>
+                    <div class="tip__text" id="tipText"></div>
+                </div>
+                <div class="tip__pager" id="tipPager"></div>
+            </div>
+
+            <div class="links" id="links"></div>
+        </footer>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

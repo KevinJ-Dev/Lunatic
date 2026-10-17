@@ -1,0 +1,355 @@
+/* novyra_hud | NightCraft Studio */
+
+:root {
+    --scale: 1;
+    --u: calc(1vh * var(--scale));
+    /* Position de la minimap en % de hauteur d'ecran, envoyee par le jeu */
+    --map-left: 4.4;
+    --map-bottom: 2.5;
+    --map-width: 25;
+    --edge: calc(max(var(--map-bottom) * 1vh, 1.4vh));
+    --low: #ff3b4e;
+    --dead: #8b91a1;
+    --shadow: 0 calc(var(--u) * 0.35) calc(var(--u) * 1.3) rgba(0, 0, 0, 0.5),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+    user-select: none;
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* ------------------------------------------------------------------ */
+/* Conteneur                                                           */
+/* ------------------------------------------------------------------ */
+
+.hud {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: var(--edge);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+}
+
+.hud.visible {
+    opacity: 1;
+}
+
+.hud[data-position='bottom-right'] {
+    justify-content: flex-end;
+    padding-right: calc(max(var(--map-left) * 1vh, 1.4vh) + var(--u) * 0.6);
+}
+
+/* A droite de la minimap : suit sa vraie position (format d'ecran, zone de securite) */
+.hud[data-position='minimap'] {
+    justify-content: flex-start;
+    padding-left: calc((var(--map-left) + var(--map-width)) * 1vh + var(--u) * 0.9);
+}
+
+/* ------------------------------------------------------------------ */
+/* Un statut                                                           */
+/* ------------------------------------------------------------------ */
+
+.status {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: calc(var(--u) * 5);
+    margin: 0 calc(var(--u) * 0.42);
+    transition: width 0.3s ease, margin 0.3s ease, opacity 0.25s ease;
+}
+
+.status.hidden {
+    width: 0;
+    margin: 0;
+    opacity: 0;
+}
+
+/* Arrivee en cascade a l'affichage du HUD */
+.hud.visible .status {
+    animation: rise 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.25) backwards;
+    animation-delay: calc(var(--i) * 45ms);
+}
+
+@keyframes rise {
+    from {
+        transform: translateY(calc(var(--u) * 1.6)) scale(0.7);
+    }
+}
+
+.orb {
+    position: relative;
+    flex: none;
+    width: calc(var(--u) * 5);
+    height: calc(var(--u) * 5);
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 26%, rgba(52, 57, 78, 0.9) 0%, rgba(17, 19, 30, 0.9) 68%);
+    box-shadow: var(--shadow);
+    transition: transform 0.3s ease;
+}
+
+.status.hidden .orb {
+    transform: scale(0.5);
+}
+
+.orb svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.icon {
+    padding: 30%;
+    fill: var(--color2);
+    transition: fill 0.25s ease;
+}
+
+.percent {
+    margin-top: calc(var(--u) * 0.45);
+    font-size: calc(var(--u) * 1.3);
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ */
+/* Style "ring" et "segments" : jauge circulaire                       */
+/* ------------------------------------------------------------------ */
+
+.gauge.ring {
+    transform: rotate(-90deg);
+}
+
+.gauge.ring circle {
+    fill: none;
+    stroke-width: 3.2;
+}
+
+.gauge.ring .track {
+    stroke: rgba(255, 255, 255, 0.1);
+}
+
+.gauge.ring .value {
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 2.5px var(--color));
+    transition: stroke-dashoffset 0.4s ease;
+}
+
+.hud[data-style='segments'] .gauge.ring circle {
+    stroke-width: 3.6;
+}
+
+.hud[data-style='segments'] .gauge.ring .value {
+    stroke-linecap: butt;
+}
+
+/* ------------------------------------------------------------------ */
+/* Style "liquid" : bulle qui se remplit                               */
+/* ------------------------------------------------------------------ */
+
+.gauge.liquid .level {
+    transition: transform 0.6s ease;
+}
+
+.gauge.liquid .wave {
+    animation: wave 3.6s linear infinite;
+}
+
+.gauge.liquid .wave.back {
+    fill: var(--color);
+    opacity: 0.4;
+    animation-duration: 5.5s;
+    animation-direction: reverse;
+    animation-delay: -1.7s;
+}
+
+.gauge.liquid .rim {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.16);
+    stroke-width: 1.2;
+}
+
+@keyframes wave {
+    to {
+        transform: translateX(48px);
+    }
+}
+
+.hud[data-style='liquid'] .icon {
+    fill: #fff;
+    filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.55));
+}
+
+/* ------------------------------------------------------------------ */
+/* Niveau bas                                                          */
+/* ------------------------------------------------------------------ */
+
+.status.low .gauge.ring .value {
+    stroke: var(--low);
+    filter: drop-shadow(0 0 3px var(--low));
+}
+
+.status.low .gauge.liquid .wave {
+    fill: var(--low);
+}
+
+.status.low .icon {
+    fill: var(--low);
+    transform-origin: center;
+    animation: pulse 0.9s ease-in-out infinite;
+}
+
+.hud[data-style='liquid'] .status.low .icon {
+    fill: #fff;
+}
+
+.orb::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 2px solid var(--low);
+    opacity: 0;
+}
+
+.status.low .orb::after {
+    animation: ping 1.3s ease-out infinite;
+}
+
+@keyframes pulse {
+    50% {
+        opacity: 0.45;
+        transform: scale(0.88);
+    }
+}
+
+@keyframes ping {
+    from {
+        opacity: 0.75;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(1.5);
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* Mort                                                                */
+/* ------------------------------------------------------------------ */
+
+.status.dead .icon {
+    fill: var(--dead);
+}
+
+.status.dead .orb {
+    box-shadow: var(--shadow), inset 0 0 0 2px rgba(139, 145, 161, 0.35);
+}
+
+/* ------------------------------------------------------------------ */
+/* Reactions : degats et gain                                          */
+/* ------------------------------------------------------------------ */
+
+.orb.hit {
+    animation: hit 0.4s ease-out;
+}
+
+.orb.gain {
+    animation: gain 0.6s ease-out;
+}
+
+@keyframes hit {
+    0% {
+        transform: translateX(0);
+        box-shadow: var(--shadow), 0 0 0 0 rgba(255, 59, 78, 0.95);
+    }
+    20% {
+        transform: translateX(calc(var(--u) * -0.4));
+    }
+    45% {
+        transform: translateX(calc(var(--u) * 0.32));
+    }
+    70% {
+        transform: translateX(calc(var(--u) * -0.16));
+    }
+    100% {
+        transform: translateX(0);
+        box-shadow: var(--shadow), 0 0 0 calc(var(--u) * 1.1) rgba(255, 59, 78, 0);
+    }
+}
+
+@keyframes gain {
+    0% {
+        box-shadow: var(--shadow), 0 0 0 0 var(--color);
+    }
+    100% {
+        box-shadow: var(--shadow), 0 0 0 calc(var(--u) * 1.1) rgba(255, 255, 255, 0);
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* Animations desactivees (Config.Animations = false)                  */
+/* ------------------------------------------------------------------ */
+
+body.no-anim .status,
+body.no-anim .orb,
+body.no-anim .orb::after,
+body.no-anim .icon,
+body.no-anim .wave {
+    animation: none !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* Apercu dans un navigateur (hors FiveM)                              */
+/* ------------------------------------------------------------------ */
+
+body.preview {
+    background:
+        radial-gradient(120% 80% at 50% 110%, #f2a65a 0%, rgba(242, 166, 90, 0) 55%),
+        linear-gradient(180deg, #1b2440 0%, #3a3f6b 45%, #8a5a6e 78%, #2a2230 100%);
+}
+
+.preview-help {
+    position: absolute;
+    top: 24px;
+    left: 28px;
+    font-size: 15px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.preview-help b {
+    display: inline-block;
+    min-width: 22px;
+    padding: 0 6px;
+    margin-right: 4px;
+    border-radius: 5px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.16);
+}

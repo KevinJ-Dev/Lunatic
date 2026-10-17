@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Identité</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body class="none">
+    <div class="backdrop"></div>
+
+    <main class="panel">
+        <!-- ============ FORMULAIRE ============ -->
+        <section class="form-side">
+            <header class="form-head">
+                <span class="eyebrow"><i class="fas fa-landmark"></i> Préfecture de Los Santos</span>
+                <h1>Création de votre <em>identité</em></h1>
+                <p>Ces informations figureront sur votre carte d'identité et ne pourront plus être modifiées.</p>
+            </header>
+
+            <form id="register" novalidate autocomplete="off">
+                <div class="row">
+                    <div class="field" data-field="firstname">
+                        <label for="firstname">Prénom</label>
+                        <div class="control">
+                            <i class="fas fa-user"></i>
+                            <input id="firstname" name="firstname" type="text" placeholder="Jean" maxlength="19" />
+                        </div>
+                        <span class="msg"></span>
+                    </div>
+
+                    <div class="field" data-field="lastname">
+                        <label for="lastname">Nom</label>
+                        <div class="control">
+                            <i class="fas fa-signature"></i>
+                            <input id="lastname" name="lastname" type="text" placeholder="Dupont" maxlength="19" />
+                        </div>
+                        <span class="msg"></span>
+                    </div>
+                </div>
+
+                <div class="field" data-field="dob">
+                    <label for="dob">Date de naissance</label>
+                    <div class="control">
+                        <i class="fas fa-calendar-day"></i>
+                        <input id="dob" name="dob" type="text" inputmode="numeric" placeholder="JJ/MM/AAAA" maxlength="10" />
+                        <span class="hint" id="age-hint"></span>
+                    </div>
+                    <span class="msg"></span>
+                </div>
+
+                <div class="field" data-field="gender">
+                    <label>Sexe</label>
+                    <div class="choices">
+                        <input type="radio" id="male" name="gender" value="m" />
+                        <label class="choice choice--m" for="male"><i class="fas fa-mars"></i><span>Homme</span></label>
+                        <input type="radio" id="female" name="gender" value="f" />
+                        <label class="choice choice--f" for="female"><i class="fas fa-venus"></i><span>Femme</span></label>
+                    </div>
+                    <span class="msg"></span>
+                </div>
+
+                <div class="field" data-field="height">
+                    <label for="height">Taille <b id="height-value">175 cm</b></label>
+                    <div class="range">
+                        <span id="height-min">120</span>
+                        <input id="height" name="height" type="range" min="120" max="220" step="1" value="175" />
+                        <span id="height-max">220</span>
+                    </div>
+                    <span class="msg"></span>
+                </div>
+
+                <button class="submit" id="submit" type="submit">
+                    <span>Valider mon identité</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </form>
+        </section>
+
+        <!-- ============ APERÇU CARTE ============ -->
+        <aside class="card-side">
+            <p class="preview-label">Aperçu de votre carte</p>
+
+            <div class="idcard" id="idcard">
+                <div class="idcard__shine"></div>
+                <div class="idcard__top">
+                    <div class="idcard__seal"><i class="fas fa-star"></i></div>
+                    <div>
+                        <small>ÉTAT DE SAN ANDREAS</small>
+                        <strong>CARTE NATIONALE D'IDENTITÉ</strong>
+                    </div>
+                </div>
+
+                <div class="idcard__body">
+                    <div class="idcard__photo">
+                        <i class="fas fa-user" id="card-avatar"></i>
+                    </div>
+                    <dl class="idcard__data">
+                        <div><dt>Nom</dt><dd id="card-lastname">—</dd></div>
+                        <div><dt>Prénom</dt><dd id="card-firstname">—</dd></div>
+                        <div class="split">
+                            <div><dt>Sexe</dt><dd id="card-sex">—</dd></div>
+                            <div><dt>Taille</dt><dd id="card-height">175 cm</dd></div>
+                        </div>
+                        <div><dt>Né(e) le</dt><dd id="card-dob">JJ/MM/AAAA</dd></div>
+                    </dl>
+                </div>
+
+                <div class="idcard__mrz" id="card-mrz">IDSAN&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</div>
+            </div>
+
+            <ul class="rules">
+                <li><i class="fas fa-circle-check"></i> Prénom et nom réalistes (pas de pseudo)</li>
+                <li><i class="fas fa-circle-check"></i> <span id="rule-age">Âge entre 18 et 100 ans</span></li>
+                <li><i class="fas fa-circle-check"></i> Identité définitive après validation</li>
+            </ul>
+        </aside>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>

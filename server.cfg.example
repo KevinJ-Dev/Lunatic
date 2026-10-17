@@ -1,0 +1,67 @@
+# Modèle de server.cfg sans secret. Copier en server.cfg et remplir les valeurs CHANGE_MOI.
+
+### AUTOMATICALLY SET BY PTERODACTYL ###
+# Ne touche pas à ce bloc : Pterodactyl le remplit tout seul (port, slots, clés).
+endpoint_add_tcp "0.0.0.0:30025"
+endpoint_add_udp "0.0.0.0:30025"
+
+sv_maxclients 4
+
+set steam_webApiKey "CHANGE_MOI"
+
+sv_licenseKey "CHANGE_MOI"
+########################################
+
+
+# --------------------------------------------------
+#  IDENTITÉ DU SERVEUR (ce que voient les joueurs dans la liste)
+# --------------------------------------------------
+sv_hostname "^5Lunatic ^7| ^2FR"
+sets sv_projectName "TEST"
+sets sv_projectDesc "Serveur FiveM francophone - Lunatic"
+
+sets tags "fr, francais, roleplay, novyra"
+sets locale "fr-FR"
+setr illenium-appearance:locale "fr"
+
+sets Discord "https://discord.gg/"
+
+# Logo du serveur : fichier PNG de 96x96 à mettre à côté de ce fichier.
+#load_server_icon logo.png
+
+# Bannières (lien direct vers une image).
+#sets banner_detail "https://url.de/ton-image.png"
+#sets banner_connecting "https://url.de/ton-image.png"
+
+# Décommente cette ligne pour cacher le serveur de la liste publique
+# (pratique tant qu'il est en développement).
+sv_master1 ""
+
+# --------------------------------------------------
+#  JEU ET SÉCURITÉ
+# --------------------------------------------------
+# Version du jeu : donne accès aux DLC récents (véhicules, vêtements).
+sv_enforceGameBuild 3889
+
+# Interdit les plugins scripthook côté joueur (menus de triche, etc.).
+sv_scriptHookAllowed 0
+
+# Cache l'adresse IP des joueurs dans les logs.
+sv_endpointprivacy false
+
+set ox:ignoreSecurityAdvisory ["stateBagStrictMode"]
+
+# OneSync : obligatoire pour ESX et ox_inventory.
+# Il se règle dans txAdmin (Settings > FXServer > OneSync), PAS ici.
+set onesync on
+
+# --------------------------------------------------
+#  BASE DE DONNÉES
+# --------------------------------------------------
+set mysql_connection_string "mysql://UTILISATEUR:MOT_DE_PASSE@HOTE:3306/BASE?charset=utf8mb4"
+
+# --------------------------------------------------
+#  FICHIERS SÉPARÉS (garder cet ordre)
+# --------------------------------------------------
+exec permission.cfg
+exec resources.cfg

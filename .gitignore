@@ -1,0 +1,21 @@
+# Fichiers contenant des secrets (clé de licence, clé Steam, accès MySQL)
+# -> modèle sans secret : server.cfg.example
+server.cfg
+server1.cfg
+
+# Fichiers générés par le serveur
+cache/
+logs_backup/
+*.log
+core.*
+txData/
+
+# Dépendances et outils
+node_modules/
+.vscode/
+.idea/
+
+# Système
+Thumbs.db
+desktop.ini
+.DS_Store
