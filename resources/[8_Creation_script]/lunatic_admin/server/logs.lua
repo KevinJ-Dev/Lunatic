@@ -11,7 +11,7 @@ function Logs.add(actor, action, target, details)
 
     if actor and actor > 0 then
         license = GetPlayerIdentifierByType(actor, 'license')
-        name = GetPlayerName(actor) or 'Inconnu'
+        name = Staff.displayName(actor)
     end
 
     MySQL.insert('INSERT INTO `lunatic_admin_logs` (`actor_license`, `actor_name`, `action`, `target`, `details`) VALUES (?, ?, ?, ?, ?)', {

@@ -137,7 +137,7 @@ local function buildState(src)
         me = {
             serverId = src,
             license = Staff.licenseOf(src),
-            name = GetPlayerName(src),
+            name = Staff.displayName(src),
             rank = publicRank(rank),
             permissions = Ranks.permissionList(rank),
         },
@@ -165,6 +165,11 @@ local function buildState(src)
 
         for _, member in ipairs(Staff.all()) do
             local online = Staff.sourceOf(member.license)
+
+            -- Le nom RP peut avoir changé depuis l'ajout (identité créée ou modifiée)
+            if online then
+                Staff.refreshName(online)
+            end
 
             state.staff[#state.staff + 1] = {
                 license = member.license,
@@ -374,7 +379,7 @@ Actions['staff.add'] = function(src, actor, data)
         return fail('Vous ne pouvez attribuer que des rangs inférieurs au vôtre.')
     end
 
-    local name = GetPlayerName(target) or ('Joueur ' .. target)
+    local name = Staff.displayName(target)
     Staff.set(license, rank.id, name, Staff.licenseOf(src))
     Logs.add(src, 'staff.add', name, { license = license, rank = rank.name })
     notify(target, ('Vous avez rejoint le staff en tant que %s.'):format(rank.name), 'success')
@@ -524,7 +529,7 @@ local function printPlayers()
     for _, id in ipairs(players) do
         local src = tonumber(id)
         local rank = Staff.rankOf(src)
-        print(('  ID %s  |  %s%s'):format(id, GetPlayerName(src) or '?', rank and ('  |  ' .. rank.name) or ''))
+        print(('  ID %s  |  %s (%s)%s'):format(id, Staff.displayName(src), GetPlayerName(src) or '?', rank and ('  |  ' .. rank.name) or ''))
     end
 end
 
@@ -552,7 +557,7 @@ RegisterCommand('lunatic_admin_founder', function(src, args)
         return print('[lunatic_admin] Aucun rang Fondateur en base.')
     end
 
-    local name = GetPlayerName(target) or ('Joueur ' .. target)
+    local name = Staff.displayName(target)
     Staff.set(license, owner.id, name, nil)
     Logs.add(0, 'staff.founder', name, { license = license })
     Staff.broadcastRefresh()

@@ -13,13 +13,71 @@ local members = {}
 ---@type table<number, string> source -> licence des joueurs connectés
 local licenseBySource = {}
 
+-- Identifiant ESX (table users) d'une licence : la licence sans le préfixe "license:"
+local function esxIdentifier(license)
+    return (license:gsub('^license:', ''))
+end
+
+local function rpName(firstname, lastname)
+    if type(firstname) == 'string' and firstname ~= '' and type(lastname) == 'string' and lastname ~= '' then
+        return ('%s %s'):format(firstname, lastname)
+    end
+end
+
+-- Nom RP (prénom nom) d'un joueur connecté, ou son pseudo FiveM s'il n'a pas encore créé son identité
+function Staff.displayName(src)
+    local state = Player(src).state
+
+    return rpName(state.firstName, state.lastName) or GetPlayerName(src) or ('Joueur ' .. src)
+end
+
+local function saveName(member, name)
+    if name and member.name ~= name then
+        member.name = name
+        MySQL.update('UPDATE `lunatic_admin_staff` SET `name` = ? WHERE `license` = ?', { name, member.license })
+    end
+end
+
 function Staff.load()
     members = {}
 
     local rows = MySQL.query.await('SELECT `license`, `rank_id`, `name`, `added_at` FROM `lunatic_admin_staff`')
+    local identifiers = {}
 
     for _, row in ipairs(rows or {}) do
         members[row.license] = { license = row.license, rankId = row.rank_id, name = row.name, addedAt = row.added_at }
+        identifiers[#identifiers + 1] = esxIdentifier(row.license)
+    end
+
+    -- Remplace les noms enregistrés par le nom RP du personnage (table users d'ESX)
+    if #identifiers > 0 then
+        local users = MySQL.query.await('SELECT `identifier`, `firstname`, `lastname` FROM `users` WHERE `identifier` IN (?)', { identifiers })
+
+        for _, user in ipairs(users or {}) do
+            local member = members['license:' .. user.identifier]
+
+            if member then
+                saveName(member, rpName(user.firstname, user.lastname))
+            end
+        end
+    end
+end
+
+-- Met à jour le nom RP d'un membre connecté (appelé à l'ouverture du panel)
+function Staff.refreshName(src)
+    local license = licenseBySource[src]
+    local member = license and members[license]
+
+    if not member then
+        return
+    end
+
+    -- Tant que l'identité n'est pas chargée, on garde le nom déjà enregistré
+    local state = Player(src).state
+    local name = rpName(state.firstName, state.lastName)
+
+    if name or member.name == '' then
+        saveName(member, name or Staff.displayName(src))
     end
 end
 
@@ -45,15 +103,6 @@ function Staff.trackPlayer(src)
     end
 
     licenseBySource[src] = license
-
-    -- Garde le nom affiché à jour pour la liste du staff
-    local member = members[license]
-    local name = GetPlayerName(src)
-
-    if member and name and member.name ~= name then
-        member.name = name
-        MySQL.update('UPDATE `lunatic_admin_staff` SET `name` = ? WHERE `license` = ?', { name, license })
-    end
 end
 
 function Staff.untrackPlayer(src)
@@ -138,7 +187,7 @@ function Staff.candidates()
 
     for src, license in pairs(licenseBySource) do
         if not members[license] then
-            list[#list + 1] = { serverId = src, name = GetPlayerName(src) or ('Joueur ' .. src) }
+            list[#list + 1] = { serverId = src, name = Staff.displayName(src) }
         end
     end
 
