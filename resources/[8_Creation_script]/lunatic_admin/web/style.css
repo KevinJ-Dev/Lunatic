@@ -12,7 +12,7 @@
     --surface: #ffffff0a; --surface-2: #ffffff12; --surface-3: #ffffff1c;
     --line: #e9e1ff14; --line-strong: #e9e1ff24;
     --ink: #f3f1f7; --ink-2: #fffc; --muted: #ffffff94; --muted-2: #fff6;
-    --ok: #5fd3a0; --warn: #f2c26b; --danger: #ff8a84;
+    --ok: #5fd3a0; --warn: #f2c26b; --danger: #ff8a84; --info: #6bb8f2;
     --glass: #130f1c85; --glass-strong: #100c18d1; --glass-line: #e4d8ff26; --blur: blur(28px) saturate(150%);
     --font: "Public Sans", "Segoe UI", system-ui, sans-serif;
     --mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
@@ -224,3 +224,30 @@ select.input option { background: #16121f; }
 .toast.error::before { background: var(--danger); }
 .toast.out { opacity: 0; transform: translateY(6px); transition: opacity .25s, transform .25s; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
+
+/* Page Joueurs */
+.side-search { padding: 0 12px 10px; }
+.side-search .search { width: 100%; }
+.side-search input { width: 100%; }
+.side-empty { padding: 14px 10px; font-size: 12.5px; }
+.player-row .pid { min-width: 30px; color: var(--muted); font: 500 11.5px var(--mono); }
+.player-row .who { flex: 1; min-width: 0; display: grid; line-height: 1.25; }
+.player-row .who b { font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.player-row .who span { color: var(--muted-2); font-size: 11.5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.player-row .dot { width: 8px; height: 8px; }
+.page-title .rank-pill { font-size: 12px; }
+.you { color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+
+.action-groups { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.action-group { display: grid; gap: 8px; align-content: start; }
+.group-title { color: var(--muted-2); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.btn.action { width: 100%; justify-content: flex-start; }
+
+.info-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.info-grid .card { margin-top: 0; }
+.info-row { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.info-row span { color: var(--muted); }
+.info-row b { font-weight: 600; text-align: right; }
+.bar { height: 6px; margin: 0 0 6px; border-radius: 6px; background: var(--surface-3); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 6px; transition: width .4s var(--ease); }
+.textarea { height: 96px; padding: 10px 14px; resize: none; line-height: 1.4; }

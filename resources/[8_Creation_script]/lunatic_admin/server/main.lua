@@ -21,21 +21,30 @@ MySQL.ready(function()
     print(('[lunatic_admin] Prêt : %d rangs, %d membres du staff.'):format(Ranks.count(), #Staff.all()))
 end)
 
+-- Arrivées et départs : la liste des joueurs des panels ouverts se met à jour
 AddEventHandler('playerJoining', function()
     Staff.trackPlayer(source)
+    Staff.broadcastRefresh()
 end)
 
 AddEventHandler('playerDropped', function()
     Staff.untrackPlayer(source)
+    Staff.broadcastRefresh()
 end)
 
 ---------------------------------------------------------------------
 -- Outils de validation
 ---------------------------------------------------------------------
 
+-- Point d'extension pour les autres fichiers du panel (server/players.lua…) :
+-- Panel.actions reçoit leurs actions, Panel.stateHooks complète l'état envoyé au panel
+Panel = { stateHooks = {} }
+
 local function notify(src, message, kind)
     TriggerClientEvent('esx:showNotification', src, message, kind or 'info')
 end
+
+Panel.notify = notify
 
 ---@return string|nil nom nettoyé, ou nil s'il est invalide
 local function cleanName(value)
@@ -186,6 +195,10 @@ local function buildState(src)
         state.candidates = Staff.candidates()
     end
 
+    for _, hook in ipairs(Panel.stateHooks) do
+        hook(state, src, rank)
+    end
+
     return state
 end
 
@@ -206,6 +219,9 @@ local Actions = {}
 local function fail(message)
     return { ok = false, error = message }
 end
+
+Panel.actions = Actions
+Panel.fail = fail
 
 -- rank.save : création (sans id) ou modification d'un rang
 Actions['rank.save'] = function(src, actor, data)
@@ -504,11 +520,13 @@ lib.callback.register('lunatic_admin:action', function(src, action, data)
         return fail('Erreur serveur, consultez la console.')
     end
 
-    if result.ok then
+    -- silent = action de lecture ou sans effet sur les autres panels (fiche joueur, téléportation…)
+    if result.ok and not result.silent then
         Staff.broadcastRefresh(src)
         result.state = buildState(src)
     end
 
+    result.silent = nil
     return result
 end)
 

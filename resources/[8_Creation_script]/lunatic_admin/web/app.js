@@ -147,6 +147,7 @@ function normalize(raw) {
     if (raw.ranks) raw.ranks = list(raw.ranks).map((r) => ({ ...r, permissions: r.permissions === undefined ? undefined : list(r.permissions) }));
     if (raw.staff) raw.staff = list(raw.staff);
     if (raw.candidates) raw.candidates = list(raw.candidates);
+    if (raw.players) raw.players = list(raw.players);
     return raw;
 }
 
@@ -199,6 +200,7 @@ function isDirty() {
 
 const NAV = [
     { id: "home", label: "Accueil", icon: "i-home", show: () => true },
+    { id: "players", label: "Joueurs", icon: "i-player", show: () => can("players.view") },
     { id: "ranks", label: "Rangs", icon: "i-layers", show: () => can("ranks.view") },
     { id: "members", label: "Membres", icon: "i-users", show: () => can("staff.view") },
 ];
@@ -217,11 +219,12 @@ function render() {
     );
     $("me").querySelector(".avatar").style.background = me.rank.color;
 
-    for (const id of ["home", "ranks", "members"]) {
+    for (const id of ["home", "players", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
     }
 
     if (view === "home") renderHome();
+    if (view === "players") renderPlayers();
     if (view === "ranks") renderRanks();
     if (view === "members") renderMembers();
 }
@@ -280,6 +283,226 @@ function renderHome() {
         h("div", { class: "card", style: "margin-top:16px" }, h("h3", { class: "card-title" }, "Vos permissions"), families)
     ));
 }
+
+// ---------- Joueurs ----------
+
+let selectedPlayerId = null;
+let playerInfo = null; // fiche chargée depuis le serveur, false = joueur introuvable
+const playerFilter = { text: "" };
+let playersDom = null;
+
+const money = (n) => (typeof n === "number" ? `${new Intl.NumberFormat("fr-FR").format(n)} $` : "—");
+const players = () => state.players || [];
+
+function renderPlayers() {
+    const root = $("view-players");
+
+    // La structure est gardée entre deux rafraîchissements (recherche et défilement conservés)
+    if (!playersDom || !root.contains(playersDom.list)) {
+        const search = h("input", { placeholder: "Nom ou ID", value: playerFilter.text });
+        search.addEventListener("input", () => {
+            playerFilter.text = search.value;
+            paintPlayerList();
+        });
+        playersDom = {
+            count: h("span", { class: "muted mono" }),
+            list: h("div", { class: "side-scroll" }),
+            fiche: h("div", { class: "content" }),
+        };
+        root.replaceChildren(
+            h("aside", { class: "sidebar" },
+                h("div", { class: "side-head" }, h("h3", null, "Joueurs en ligne"), playersDom.count),
+                h("div", { class: "side-search" }, h("label", { class: "search" }, icon("i-search"), search)),
+                playersDom.list
+            ),
+            playersDom.fiche
+        );
+    }
+
+    paintPlayerList();
+    paintFiche();
+}
+
+function paintPlayerList() {
+    const text = playerFilter.text.trim().toLowerCase();
+    const rows = players().filter((p) => !text || p.name.toLowerCase().includes(text) || String(p.serverId) === text);
+    playersDom.count.textContent = String(players().length);
+
+    playersDom.list.replaceChildren(...(rows.length ? rows.map((p) => {
+        const row = h("button", { class: `list-row player-row${p.serverId === selectedPlayerId ? " active" : ""}`, onclick: () => selectPlayer(p.serverId) },
+            h("span", { class: "pid" }, `${p.serverId}`),
+            h("span", { class: "who" },
+                h("b", null, p.name),
+                h("span", null, [p.job, `${p.ping} ms`].filter(Boolean).join(" · "))
+            ),
+            p.frozen ? icon("i-snow") : null,
+            p.rank ? dot(p.rank.color) : null
+        );
+        if (p.rank) row.title = p.rank.name;
+        return row;
+    }) : [h("div", { class: "muted side-empty" }, "Aucun joueur ne correspond.")]));
+}
+
+function selectPlayer(id) {
+    if (selectedPlayerId === id) return;
+    selectedPlayerId = id;
+    playerInfo = null;
+    paintPlayerList();
+    paintFiche();
+    loadPlayerInfo();
+}
+
+async function loadPlayerInfo() {
+    const id = selectedPlayerId;
+    if (id === null) return;
+    try {
+        const res = await nui("action", { action: "player.info", payload: { serverId: id } });
+        if (id !== selectedPlayerId) return;
+        playerInfo = res && res.ok ? res.info : false;
+    } catch (e) {
+        return;
+    }
+    paintFiche();
+}
+
+function infoRow(label, value) {
+    return h("div", { class: "info-row" }, h("span", null, label), h("b", null, value === undefined || value === null || value === "" ? "—" : value));
+}
+
+function bar(label, value, pct, color) {
+    const fill = h("i");
+    fill.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+    fill.style.background = color;
+    return h("div", { class: "bar-row" }, h("div", { class: "info-row" }, h("span", null, label), h("b", null, value)), h("div", { class: "bar" }, fill));
+}
+
+function paintFiche() {
+    const fiche = playersDom.fiche;
+
+    if (selectedPlayerId === null) {
+        return fiche.replaceChildren(h("div", { class: "empty" }, icon("i-player"), "Sélectionnez un joueur pour voir sa fiche."));
+    }
+    if (playerInfo === false || !players().some((p) => p.serverId === selectedPlayerId)) {
+        return fiche.replaceChildren(h("div", { class: "empty" }, icon("i-door"), "Ce joueur n'est plus connecté."));
+    }
+    if (!playerInfo) {
+        return fiche.replaceChildren(h("div", { class: "empty" }, icon("i-player"), "Chargement de la fiche…"));
+    }
+
+    const info = playerInfo;
+    const reason = (perm, opts = {}) => {
+        if (!can(perm)) return "Permission manquante";
+        if (opts.notSelf && info.isSelf) return "Impossible sur vous-même";
+        if (opts.protect && info.protected) return "Rang égal ou supérieur au vôtre";
+        return opts.extra || null;
+    };
+    const button = (label, iconName, perm, opts, onclick) => {
+        const blocked = reason(perm, opts);
+        return h("button", { class: `btn action${opts.danger ? " danger" : ""}`, disabled: !!blocked, title: blocked, onclick }, icon(iconName), label);
+    };
+    const run = (action, okMessage, payload) => playerAction(action, okMessage, payload);
+
+    const health = typeof info.health === "number" ? info.health : null;
+    const maxHealth = info.maxHealth || 200;
+    // Pour un joueur GTA, la vie va de 100 (au sol) à 200
+    const healthPct = health === null ? 0 : ((health - 100) / Math.max(1, maxHealth - 100)) * 100;
+    const down = health !== null && health <= 100;
+
+    const sex = info.sex === "m" ? "Homme" : info.sex === "f" ? "Femme" : null;
+
+    fiche.replaceChildren(
+        h("div", { class: "page-head" },
+            h("div", { class: "grow" },
+                h("h1", { class: "page-title" }, info.name, info.rank ? rankPill(info.rank) : null),
+                h("div", { class: "page-sub" },
+                    `ID ${info.serverId}`, h("span", { class: "sep" }), info.pseudo || "—", h("span", { class: "sep" }),
+                    h("span", { class: "mono" }, shortLicense(info.license)),
+                    info.isSelf ? [h("span", { class: "sep" }), h("span", { class: "you" }, "Vous")] : null
+                )
+            )
+        ),
+        h("div", { class: "scroll" },
+            h("div", { class: "card" },
+                h("div", { class: "action-groups" },
+                    h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Déplacement"),
+                        button("Aller vers", "i-goto", "players.goto", { notSelf: true }, () => run("player.goto", "Téléportation vers le joueur.")),
+                        button("Ramener", "i-bring", "players.bring", { notSelf: true, protect: true }, () => run("player.bring", "Joueur ramené.")),
+                        button("Renvoyer", "i-undo", "players.bring", { notSelf: true, protect: true, extra: info.canReturn ? null : "Le joueur n'a pas été ramené" }, () => run("player.return", "Joueur renvoyé à sa position."))
+                    ),
+                    h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Surveillance"),
+                        button("Observer", "i-eye", "players.spectate", { notSelf: true }, () => run("player.spectate", null)),
+                        button(info.frozen ? "Libérer" : "Figer", "i-snow", "players.freeze", { notSelf: true, protect: true }, () => run("player.freeze", info.frozen ? "Joueur libéré." : "Joueur figé."))
+                    ),
+                    h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Soins"),
+                        button("Soigner", "i-heart", "players.heal", {}, () => run("player.heal", "Joueur soigné.")),
+                        button("Réanimer", "i-pulse", "players.heal", {}, () => run("player.revive", "Joueur réanimé."))
+                    ),
+                    h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Sanction"),
+                        button("Expulser", "i-door", "players.kick", { notSelf: true, protect: true, danger: true }, () => openKick(info))
+                    )
+                )
+            ),
+            h("div", { class: "info-grid" },
+                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Identité"),
+                    infoRow("Naissance", info.dateofbirth), infoRow("Sexe", sex), infoRow("Taille", info.height ? `${info.height} cm` : null)),
+                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Métier"),
+                    infoRow("Emploi", info.job && info.job.label), infoRow("Grade", info.job && info.job.grade)),
+                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Argent"),
+                    infoRow("Liquide", money(info.money)), infoRow("Banque", money(info.bank))),
+                h("div", { class: "card" }, h("h3", { class: "card-title" }, "État"),
+                    bar("Santé", health === null ? "—" : down ? "Au sol" : `${Math.round(healthPct)} %`, healthPct, down ? "var(--danger)" : "var(--ok)"),
+                    bar("Armure", typeof info.armor === "number" ? `${info.armor} %` : "—", info.armor || 0, "var(--info)"),
+                    infoRow("Ping", `${info.ping} ms`),
+                    infoRow("Figé", info.frozen ? "Oui" : "Non"))
+            )
+        )
+    );
+}
+
+async function playerAction(action, okMessage, payload) {
+    const res = await act(action, { serverId: selectedPlayerId, ...(payload || {}) }, okMessage);
+    if (res) loadPlayerInfo();
+    return res;
+}
+
+function openKick(info) {
+    const textarea = h("textarea", { class: "input textarea", maxlength: "120", placeholder: "Raison visible par le joueur (3 caractères minimum)" });
+    const confirmBtn = h("button", { class: "btn danger", disabled: true }, icon("i-door"), "Expulser");
+    textarea.addEventListener("input", () => { confirmBtn.disabled = textarea.value.trim().length < 3; });
+
+    openModal((close) => {
+        confirmBtn.addEventListener("click", async () => {
+            const res = await playerAction("player.kick", `${info.name} a été expulsé.`, { reason: textarea.value.trim() });
+            if (res) {
+                close();
+                selectedPlayerId = null;
+                playerInfo = null;
+                renderPlayers();
+            }
+        });
+        return [
+            h("header", null, h("h3", null, `Expulser ${info.name} ?`), h("p", null, "Le joueur est déconnecté immédiatement et voit la raison.")),
+            h("div", { class: "body" }, textarea),
+            h("footer", null, h("button", { class: "btn ghost", onclick: () => close() }, "Annuler"), confirmBtn),
+        ];
+    });
+    textarea.focus();
+}
+
+// Rafraîchissement automatique de la page Joueurs (ping, joueurs, fiche)
+setInterval(async () => {
+    if (!state || view !== "players" || document.body.classList.contains("hidden")) return;
+    try {
+        const next = await nui("refresh");
+        if (next && typeof next === "object") {
+            applyState(next, false);
+            render();
+        }
+    } catch (e) {
+        // panel fermé entre-temps
+    }
+    loadPlayerInfo();
+}, 5000);
 
 // ---------- Rangs ----------
 
@@ -752,7 +975,7 @@ window.addEventListener("message", (event) => {
 
 function demoState() {
     return {
-        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],
@@ -778,10 +1001,25 @@ function demoState() {
             { license: "license:ddd444", name: "Léa", rankId: 4, online: true, serverId: 9 },
         ],
         candidates: [{ serverId: 2, name: "Joueur Test" }, { serverId: 7, name: "Marco" }],
+        players: [
+            { serverId: 1, name: "Ramiro Lotus", job: "Sans emploi", ping: 38, rank: { name: "Fondateur", color: "#9650ff" } },
+            { serverId: 2, name: "Jean Dupont", job: "Mécanicien", ping: 54 },
+            { serverId: 4, name: "Alex Moreau", job: "Police", ping: 61, rank: { name: "Admin", color: "#ff6b6b" } },
+            { serverId: 7, name: "Marco Rossi", job: "Taxi", ping: 112, frozen: true },
+        ],
     };
 }
 
-async function demoNui(name) {
+async function demoNui(name, data) {
+    if (name === "action" && data && data.action === "player.info") {
+        const p = (demoState().players || []).find((x) => x.serverId === data.payload.serverId) || {};
+        return { ok: true, info: {
+            serverId: p.serverId, name: p.name, pseudo: "Pseudo_FiveM", license: "license:25c2692702c6aa11bb", ping: p.ping,
+            rank: p.rank, frozen: !!p.frozen, canReturn: false, isSelf: p.serverId === 1, protected: p.serverId === 4 ? false : false,
+            health: 164, maxHealth: 200, armor: 40, job: { label: p.job, grade: "Employé" }, money: 2350, bank: 48200,
+            dateofbirth: "14/03/1996", sex: "m", height: 182,
+        } };
+    }
     if (name === "action") return { ok: false, error: "Aperçu navigateur : rien n'est envoyé au serveur." };
     return { ok: true };
 }
@@ -794,5 +1032,6 @@ if (!IN_GAME) {
         if (params.get("rank")) selectedRankId = Number(params.get("rank"));
         if (params.get("view")) go(params.get("view"));
         if (params.get("rank")) selectRank(Number(params.get("rank")));
+        if (params.get("player")) selectPlayer(Number(params.get("player")));
     }, 0);
 }

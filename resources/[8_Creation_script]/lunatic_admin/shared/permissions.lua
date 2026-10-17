@@ -12,6 +12,15 @@ Permissions.Families = {
 }
 
 Permissions.List = {
+    -- Lot 2 : joueurs
+    { id = 'players.view',     family = 'players', label = 'Voir la liste des joueurs et leur fiche' },
+    { id = 'players.goto',     family = 'players', label = 'Aller vers un joueur' },
+    { id = 'players.bring',    family = 'players', label = 'Ramener un joueur à soi et le renvoyer' },
+    { id = 'players.spectate', family = 'players', label = 'Observer un joueur (caméra invisible)' },
+    { id = 'players.freeze',   family = 'players', label = 'Figer et libérer un joueur' },
+    { id = 'players.heal',     family = 'players', label = 'Soigner et réanimer un joueur' },
+    { id = 'players.kick',     family = 'players', label = 'Expulser un joueur du serveur' },
+
     { id = 'panel.open',   family = 'manage', label = 'Ouvrir le panel staff' },
     { id = 'ranks.view',   family = 'manage', label = 'Voir les rangs et leurs permissions' },
     { id = 'ranks.manage', family = 'manage', label = 'Créer, modifier et supprimer les rangs inférieurs' },

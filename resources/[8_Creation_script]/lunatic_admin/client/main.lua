@@ -13,6 +13,9 @@ local function close()
     SendNUIMessage({ action = 'close' })
 end
 
+-- Utilisé par client/players.lua (le panel se ferme pendant l'observation d'un joueur)
+ClosePanel = close
+
 -- Touche liée à la commande (F10 par défaut, ou celle choisie par le joueur) :
 -- l'interface a le focus clavier, c'est donc elle qui referme le panel avec cette touche
 local function toggleKey()
@@ -48,6 +51,15 @@ RegisterKeyMapping(Config.Command, 'Ouvrir le panel staff', 'keyboard', Config.D
 RegisterNUICallback('close', function(_, cb)
     close()
     cb(1)
+end)
+
+-- Rafraîchissement périodique de la page Joueurs
+RegisterNUICallback('refresh', function(_, cb)
+    if not isOpen then
+        return cb(false)
+    end
+
+    cb(lib.callback.await('lunatic_admin:open', false) or false)
 end)
 
 RegisterNUICallback('action', function(data, cb)

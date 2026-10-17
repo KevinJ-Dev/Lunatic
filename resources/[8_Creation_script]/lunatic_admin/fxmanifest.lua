@@ -4,8 +4,8 @@ lua54 'yes'
 
 name 'lunatic_admin'
 author 'Lunatic RP'
-description 'Panel staff : rangs modifiables en jeu, permissions et gestion du staff'
-version '0.1.0'
+description 'Panel staff : rangs, permissions, staff et gestion des joueurs'
+version '0.2.0'
 
 shared_scripts {
     '@es_extended/imports.lua',
@@ -21,10 +21,12 @@ server_scripts {
     'server/ranks.lua',
     'server/staff.lua',
     'server/main.lua',
+    'server/players.lua',
 }
 
 client_scripts {
     'client/main.lua',
+    'client/players.lua',
 }
 
 ui_page 'web/index.html'

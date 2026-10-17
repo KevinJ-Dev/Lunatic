@@ -42,3 +42,18 @@ exports.lunatic_admin:can(source, 'chat.staff')   -- true / false
 exports.lunatic_admin:getRank(source)             -- { id, name, color, level, owner } ou nil
 exports.lunatic_admin:getDisplayName(source)      -- "Prénom Nom" (pseudo si pas d'identité)
 ```
+
+## Page Joueurs (lot 2)
+
+Liste des joueurs connectés (rafraîchie toutes les 5 secondes) et fiche détaillée : identité, métier, argent, santé, armure.
+
+| Action | Permission | Sur un staff de rang égal ou supérieur |
+|---|---|---|
+| Aller vers | `players.goto` | autorisé |
+| Ramener / Renvoyer | `players.bring` | refusé |
+| Observer (Retour arrière pour arrêter) | `players.spectate` | autorisé |
+| Figer / Libérer | `players.freeze` | refusé |
+| Soigner / Réanimer | `players.heal` | autorisé |
+| Expulser (raison obligatoire) | `players.kick` | refusé |
+
+Toutes les actions sont enregistrées dans `lunatic_admin_logs`.
