@@ -21,6 +21,15 @@ Permissions.List = {
     { id = 'players.heal',     family = 'players', label = 'Soigner et réanimer un joueur' },
     { id = 'players.kick',     family = 'players', label = 'Expulser un joueur du serveur' },
 
+    -- Lot 4 : outils staff
+    { id = 'tools.noclip',    family = 'tools', label = 'Noclip (vol libre, invisible et invincible)' },
+    { id = 'tools.invisible', family = 'tools', label = 'Se rendre invisible' },
+    { id = 'tools.godmode',   family = 'tools', label = 'Se rendre invincible' },
+    { id = 'tools.names',     family = 'tools', label = 'Voir les noms et ID au-dessus des têtes' },
+    { id = 'tools.coords',    family = 'tools', label = 'Afficher et copier ses coordonnées' },
+    { id = 'tools.tpm',       family = 'tools', label = 'Se téléporter au marqueur de la carte' },
+    { id = 'tools.vehicles',  family = 'tools', label = 'Faire apparaître, réparer et supprimer des véhicules' },
+
     -- Lot 3 : sanctions
     { id = 'sanctions.view',          family = 'sanctions', label = 'Voir les sanctions et les historiques' },
     { id = 'sanctions.warn',          family = 'sanctions', label = 'Avertir un joueur' },

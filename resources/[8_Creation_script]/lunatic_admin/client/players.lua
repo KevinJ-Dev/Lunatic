@@ -4,7 +4,8 @@
 -- Téléportation (aller vers, ramener, renvoyer)
 ---------------------------------------------------------------------
 
-local function teleport(coords)
+-- Utilisé aussi par client/tools.lua (téléportation au marqueur)
+function Teleport(coords)
     local ped = PlayerPedId()
     local vehicle = GetVehiclePedIsIn(ped, false)
     -- Le conducteur emmène son véhicule avec lui
@@ -31,7 +32,7 @@ end
 
 RegisterNetEvent('lunatic_admin:teleport', function(coords)
     if type(coords) == 'vector3' then
-        teleport(coords)
+        Teleport(coords)
     end
 end)
 

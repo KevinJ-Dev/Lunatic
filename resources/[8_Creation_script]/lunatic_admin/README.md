@@ -76,3 +76,19 @@ Toutes les actions sont enregistrées dans `lunatic_admin_logs`.
 Commande console de secours : `lunatic_admin_unban <référence>` (ex. `lunatic_admin_unban 42`).
 
 Table `lunatic_admin_sanctions` créée au démarrage ; dates en secondes Unix.
+
+## Outils (lot 4)
+
+Page « Outils » du panel. Les modes restent actifs panel fermé ; un badge en haut de l'écran les rappelle. Si un membre perd une permission, l'outil se coupe dans les 5 secondes.
+
+| Outil | Permission | Détail |
+|---|---|---|
+| Noclip | `tools.noclip` | Touche **F2** (raccourci FiveM « Staff : noclip »). Z/Q/S/D, E monter, A descendre, Maj rapide, Ctrl lent, molette = vitesse |
+| Invisibilité | `tools.invisible` | Le staff se voit lui-même en transparence |
+| Invincibilité | `tools.godmode` | |
+| Noms au-dessus des têtes | `tools.names` | `[ID] Prénom Nom` à 50 m, couleur du rang pour le staff |
+| Coordonnées | `tools.coords` | À l'écran + copie `vector3` / `vector4` depuis le panel |
+| Téléportation au marqueur | `tools.tpm` | Bouton du panel ou raccourci FiveM « Staff : téléportation au marqueur » (sans touche par défaut) |
+| Véhicules | `tools.vehicles` | Faire apparaître (créé par le serveur, plaque `STAFF`), réparer, retourner, supprimer le sien ou les véhicules vides autour (50 m max) |
+
+Noclip, invisibilité, invincibilité, apparitions et suppressions de véhicules sont enregistrés dans `lunatic_admin_logs`.
