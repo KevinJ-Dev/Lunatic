@@ -35,7 +35,7 @@ svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor;
 .window { position: relative; width: min(1280px, 94vw); height: min(800px, 90vh); border: 1px solid var(--glass-line); border-radius: 26px; background: var(--bg); box-shadow: 0 40px 120px -20px #000; overflow: hidden; animation: pop-in .28s var(--ease); }
 /* Souris hors du panel : il devient transparent pour laisser voir le jeu */
 .window { transition: opacity .25s var(--ease); }
-body.see-through .window { opacity: .3; }
+body.see-through .window { opacity: .8; }
 @keyframes fade-in { from { opacity: 0; } }
 @keyframes pop-in { from { opacity: 0; transform: translateY(10px) scale(.985); } }
 
