@@ -249,8 +249,12 @@ window.addEventListener("message", (event) => {
     const data = event.data;
     if (!data || data.type !== "enableui") return;
 
-    if (data.config) {
-        Object.assign(limits, data.config);
+    // ESX 1.16 envoie les limites dans "settings" (ancien nom : "config")
+    const settings = data.settings || data.config;
+    if (settings) {
+        Object.keys(limits).forEach((key) => {
+            if (typeof settings[key] === "number") limits[key] = settings[key];
+        });
         applyLimits();
     }
 

@@ -1,7 +1,10 @@
+-- SPDX-License-Identifier: GPL-3.0-only
+-- Copyright (C) 2022-2026 ESX Framework
+
 Config = {}
 
--- Langue utilisée (fichier dans locales/). "fr" par défaut si la convar esx:locale n'est pas définie.
-Config.Locale = GetConvar("esx:locale", "fr")
+-- Langue utilisée (fichier dans locales/) : reprend celle d'es_extended ("fr").
+Config.Locale = ESX.GetConfig().Locale
 
 -- Active les commandes /char et /chardel
 Config.EnableCommands = ESX.GetConfig().EnableDebug
