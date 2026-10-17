@@ -45,6 +45,8 @@ end)
 -- Outils
 ---------------------------------------------------------------------
 
+local warnedMissingExport = false
+
 local function can(src, permission)
     if src == 0 then
         return true -- console de l'hébergeur
@@ -57,6 +59,12 @@ local function can(src, permission)
     local ok, allowed = pcall(function()
         return exports.lunatic_admin:can(src, permission)
     end)
+
+    -- Ancienne version de lunatic_admin (sans l'export "can") : les outils staff restent bloqués
+    if not ok and not warnedMissingExport then
+        warnedMissingExport = true
+        print('^1[lunatic_chat] lunatic_admin ne fournit pas l\'export "can" : envoyez sa dernière version et redémarrez le serveur.^0')
+    end
 
     return ok and allowed == true
 end

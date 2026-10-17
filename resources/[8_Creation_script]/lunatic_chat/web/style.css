@@ -1,4 +1,5 @@
 /* Tchat Lunatic : même identité visuelle que le panel staff */
+/* Pas de backdrop-filter : dans FiveM, sans page derrière, il s'affiche en noir plein */
 @font-face { font-family: "Public Sans"; src: url(fonts/public-sans-400.woff2) format("woff2"); font-weight: 400; }
 @font-face { font-family: "Public Sans"; src: url(fonts/public-sans-600.woff2) format("woff2"); font-weight: 600; }
 @font-face { font-family: "Public Sans"; src: url(fonts/public-sans-700.woff2) format("woff2"); font-weight: 700; }
@@ -8,7 +9,7 @@
     --accent-rgb: 150, 80, 255; --accent: rgb(var(--accent-rgb));
     --ink: #f3f1f7; --ink-2: #fffc; --muted: #ffffff94; --muted-2: #fff6;
     --ok: #5fd3a0; --warn: #f2c26b; --danger: #ff8a84; --info: #6bb8f2;
-    --glass: #130f1cb8; --glass-strong: #100c18e6; --glass-line: #e4d8ff26; --line: #e9e1ff14;
+    --glass: #130f1cdb; --glass-strong: #100c18f5; --glass-line: #e4d8ff26; --line: #e9e1ff14;
     --font: "Public Sans", "Segoe UI", system-ui, sans-serif; --mono: "JetBrains Mono", Consolas, monospace;
     --ease: cubic-bezier(.2, .8, .2, 1);
 }
@@ -23,7 +24,7 @@ body.paused .chat { display: none; }
 .messages { max-height: 36vh; overflow-y: hidden; display: flex; flex-direction: column; gap: 4px; padding: 2px; border-radius: 16px; scrollbar-width: none; transition: background-color .2s, padding .2s; }
 .messages::-webkit-scrollbar { width: 6px; }
 .messages::-webkit-scrollbar-thumb { background: #ffffff26; border-radius: 6px; }
-.chat.open .messages { overflow-y: auto; padding: 10px; border: 1px solid var(--glass-line); background: var(--glass); backdrop-filter: blur(20px) saturate(140%); }
+.chat.open .messages { overflow-y: auto; padding: 10px; border: 1px solid var(--glass-line); background: var(--glass); }
 
 .msg { display: flex; align-items: baseline; gap: 8px; padding: 6px 11px; border-radius: 11px; background: #0d0a14b3; text-shadow: 0 1px 2px #0009; word-break: break-word; transition: opacity .6s var(--ease), transform .6s var(--ease); animation: msg-in .25s var(--ease); }
 .chat.open .msg { text-shadow: none; }
@@ -60,14 +61,14 @@ body.paused .chat { display: none; }
 /* Zone de saisie */
 .composer { display: none; flex-direction: column; gap: 6px; }
 .chat.open .composer { display: flex; animation: msg-in .18s var(--ease); }
-.input-wrap { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px; border: 1px solid rgba(var(--accent-rgb), .55); border-radius: 14px; background: var(--glass-strong); box-shadow: 0 0 0 4px rgba(var(--accent-rgb), .12), 0 20px 40px -20px #000; backdrop-filter: blur(20px); }
+.input-wrap { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px; border: 1px solid rgba(var(--accent-rgb), .55); border-radius: 14px; background: var(--glass-strong); box-shadow: 0 0 0 4px rgba(var(--accent-rgb), .12), 0 20px 40px -20px #000; }
 .prompt { color: var(--accent); font: 700 20px/1 var(--font); }
 #input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; color: var(--ink); font: 400 14.5px var(--font); }
 #input::placeholder { color: var(--muted-2); }
 .counter { color: var(--muted-2); font: 500 11px var(--mono); }
 .counter.full { color: var(--danger); }
 
-.suggestions { display: none; flex-direction: column; overflow: hidden; border: 1px solid var(--glass-line); border-radius: 14px; background: var(--glass-strong); backdrop-filter: blur(20px); }
+.suggestions { display: none; flex-direction: column; overflow: hidden; border: 1px solid var(--glass-line); border-radius: 14px; background: var(--glass-strong); }
 .suggestions.on { display: flex; }
 .sugg { display: grid; grid-template-columns: auto 1fr; column-gap: 12px; padding: 8px 14px; border-top: 1px solid var(--line); }
 .sugg:first-child { border-top: 0; }
