@@ -148,6 +148,7 @@ function normalize(raw) {
     if (raw.staff) raw.staff = list(raw.staff);
     if (raw.candidates) raw.candidates = list(raw.candidates);
     if (raw.players) raw.players = list(raw.players);
+    if (raw.recent) raw.recent = list(raw.recent);
     return raw;
 }
 
@@ -201,6 +202,7 @@ function isDirty() {
 const NAV = [
     { id: "home", label: "Accueil", icon: "i-home", show: () => true },
     { id: "players", label: "Joueurs", icon: "i-player", show: () => can("players.view") },
+    { id: "sanctions", label: "Sanctions", icon: "i-gavel", show: () => can("sanctions.view") },
     { id: "ranks", label: "Rangs", icon: "i-layers", show: () => can("ranks.view") },
     { id: "members", label: "Membres", icon: "i-users", show: () => can("staff.view") },
 ];
@@ -219,12 +221,13 @@ function render() {
     );
     $("me").querySelector(".avatar").style.background = me.rank.color;
 
-    for (const id of ["home", "players", "ranks", "members"]) {
+    for (const id of ["home", "players", "sanctions", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
     }
 
     if (view === "home") renderHome();
     if (view === "players") renderPlayers();
+    if (view === "sanctions") renderSanctions();
     if (view === "ranks") renderRanks();
     if (view === "members") renderMembers();
 }
@@ -347,6 +350,7 @@ function selectPlayer(id) {
     if (selectedPlayerId === id) return;
     selectedPlayerId = id;
     playerInfo = null;
+    playerHistory = null;
     paintPlayerList();
     paintFiche();
     loadPlayerInfo();
@@ -362,6 +366,7 @@ async function loadPlayerInfo() {
     } catch (e) {
         return;
     }
+    if (playerInfo && can("sanctions.view") && (!playerHistory || playerHistory.license !== playerInfo.license)) loadPlayerHistory(playerInfo.license);
     paintFiche();
 }
 
@@ -438,7 +443,9 @@ function paintFiche() {
                         button("Réanimer", "i-pulse", "players.heal", {}, () => run("player.revive", "Joueur réanimé."))
                     ),
                     h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Sanction"),
-                        button("Expulser", "i-door", "players.kick", { notSelf: true, protect: true, danger: true }, () => openKick(info))
+                        button("Avertir", "i-warn", "sanctions.warn", { notSelf: true, protect: true }, () => openWarn(info)),
+                        button("Bannir", "i-ban", "sanctions.ban", { notSelf: true, protect: true, danger: true }, () => openBan({ serverId: info.serverId, name: info.name })),
+                        button("Expulser", "i-door", "players.kick", { notSelf: true, protect: true }, () => openKick(info))
                     )
                 )
             ),
@@ -454,7 +461,8 @@ function paintFiche() {
                     bar("Armure", typeof info.armor === "number" ? `${info.armor} %` : "—", info.armor || 0, "var(--info)"),
                     infoRow("Ping", `${info.ping} ms`),
                     infoRow("Figé", info.frozen ? "Oui" : "Non"))
-            )
+            ),
+            can("sanctions.view") ? historyCard(info) : null
         )
     );
 }
@@ -965,6 +973,8 @@ window.addEventListener("message", (event) => {
         const keptDraft = applyState(msg.state, false);
         if (keptDraft && view === "ranks") renderRanks(true);
         else render();
+    } else if (msg.action === "warning") {
+        showWarning(msg.warning);
     } else if (msg.action === "close") {
         closeModal();
         document.body.classList.add("hidden");
@@ -975,7 +985,7 @@ window.addEventListener("message", (event) => {
 
 function demoState() {
     return {
-        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],
@@ -1007,6 +1017,10 @@ function demoState() {
             { serverId: 4, name: "Alex Moreau", job: "Police", ping: 61, rank: { name: "Admin", color: "#ff6b6b" } },
             { serverId: 7, name: "Marco Rossi", job: "Taxi", ping: 112, frozen: true },
         ],
+        recent: [
+            { license: "license:9f1e22aa00bb11", name: "Tony Vega", serverId: 9, droppedAt: Math.floor(Date.now() / 1000) - 240, banned: false },
+            { license: "license:77aa00cc11dd22", name: "Sarah Klein", serverId: 5, droppedAt: Math.floor(Date.now() / 1000) - 3600, banned: true },
+        ],
     };
 }
 
@@ -1020,11 +1034,21 @@ async function demoNui(name, data) {
             dateofbirth: "14/03/1996", sex: "m", height: 182,
         } };
     }
+    if (name === "action" && data && (data.action === "sanctions.list" || data.action === "sanctions.history")) {
+        const t = Math.floor(Date.now() / 1000);
+        return { ok: true, sanctions: [
+            { id: 42, type: "ban", name: "Tony Vega", license: "license:9f1e22aa00bb11", reason: "Freekill répété sur la place des cubes", staff: "Ramiro Lotus", created: t - 7200, expires: t + 3 * 86400, active: true, canRevoke: true },
+            { id: 41, type: "warn", name: "Jean Dupont", license: "license:25c2692702c6aa", reason: "Langage HRP en pleine scène", staff: "Alex Moreau", created: t - 86400, active: true, canRevoke: true },
+            { id: 37, type: "ban", name: "Marco Rossi", license: "license:abcd1234ef5678", reason: "Cheat (menu)", staff: "Ramiro Lotus", created: t - 9 * 86400, expires: null, active: true, canRevoke: false },
+            { id: 30, type: "ban", name: "Léa Martin", license: "license:00ff11ee22dd33", reason: "Insultes", staff: "Alex Moreau", created: t - 20 * 86400, expires: t - 10 * 86400, active: false, revoked: true, revokedBy: "Ramiro Lotus", revokeReason: "Erreur" },
+        ] };
+    }
     if (name === "action") return { ok: false, error: "Aperçu navigateur : rien n'est envoyé au serveur." };
     return { ok: true };
 }
 
-if (!IN_GAME) {
+// Démo lancée après le chargement de tous les scripts (sanctions.js compris)
+if (!IN_GAME) window.addEventListener("load", () => {
     // ?view=ranks&rank=2 ou ?view=members pour prévisualiser une page précise
     const params = new URLSearchParams(location.search);
     window.postMessage({ action: "open", state: demoState() }, "*");
@@ -1033,5 +1057,6 @@ if (!IN_GAME) {
         if (params.get("view")) go(params.get("view"));
         if (params.get("rank")) selectRank(Number(params.get("rank")));
         if (params.get("player")) selectPlayer(Number(params.get("player")));
-    }, 0);
-}
+        if (params.get("warning")) window.postMessage({ action: "warning", warning: { id: 41, reason: "Langage HRP en pleine scène, merci de rester dans ton personnage.", date: Math.floor(Date.now() / 1000) } }, "*");
+    }, 50);
+});

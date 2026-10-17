@@ -45,4 +45,28 @@ function DB.init()
             KEY `idx_lunatic_admin_logs_actor` (`actor_license`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ]])
+
+    -- Lot 3 : avertissements et bans. Dates en secondes Unix (os.time) pour éviter les écarts de fuseau horaire.
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `lunatic_admin_sanctions` (
+            `id` INT NOT NULL AUTO_INCREMENT,
+            `type` VARCHAR(10) NOT NULL,
+            `license` VARCHAR(60) NOT NULL,
+            `name` VARCHAR(80) NOT NULL DEFAULT '',
+            `identifiers` LONGTEXT NULL DEFAULT NULL,
+            `tokens` LONGTEXT NULL DEFAULT NULL,
+            `reason` VARCHAR(255) NOT NULL,
+            `staff_license` VARCHAR(60) NULL DEFAULT NULL,
+            `staff_name` VARCHAR(80) NOT NULL DEFAULT '',
+            `staff_level` INT NOT NULL DEFAULT 0,
+            `created_at` BIGINT NOT NULL,
+            `expires_at` BIGINT NULL DEFAULT NULL,
+            `revoked_at` BIGINT NULL DEFAULT NULL,
+            `revoked_by` VARCHAR(80) NULL DEFAULT NULL,
+            `revoke_reason` VARCHAR(255) NULL DEFAULT NULL,
+            PRIMARY KEY (`id`),
+            KEY `idx_lunatic_admin_sanctions_license` (`license`),
+            KEY `idx_lunatic_admin_sanctions_active` (`type`, `revoked_at`, `expires_at`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ]])
 end

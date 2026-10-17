@@ -21,6 +21,13 @@ Permissions.List = {
     { id = 'players.heal',     family = 'players', label = 'Soigner et réanimer un joueur' },
     { id = 'players.kick',     family = 'players', label = 'Expulser un joueur du serveur' },
 
+    -- Lot 3 : sanctions
+    { id = 'sanctions.view',          family = 'sanctions', label = 'Voir les sanctions et les historiques' },
+    { id = 'sanctions.warn',          family = 'sanctions', label = 'Avertir un joueur' },
+    { id = 'sanctions.ban',           family = 'sanctions', label = 'Bannir temporairement' },
+    { id = 'sanctions.ban_permanent', family = 'sanctions', label = 'Bannir définitivement' },
+    { id = 'sanctions.revoke',        family = 'sanctions', label = 'Révoquer une sanction (rang inférieur ou soi-même)' },
+
     { id = 'panel.open',   family = 'manage', label = 'Ouvrir le panel staff' },
     { id = 'ranks.view',   family = 'manage', label = 'Voir les rangs et leurs permissions' },
     { id = 'ranks.manage', family = 'manage', label = 'Créer, modifier et supprimer les rangs inférieurs' },

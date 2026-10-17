@@ -28,6 +28,9 @@
     <symbol id="i-snow" viewBox="0 0 24 24"><path d="M12 2v20M4.9 6.5l14.2 11M4.9 17.5l14.2-11M9 4l3 2 3-2M9 20l3-2 3 2"/></symbol>
     <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></symbol>
     <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></symbol>
+    <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4M12 17.5h.01"/></symbol>
+    <symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/></symbol>
+    <symbol id="i-gavel" viewBox="0 0 24 24"><path d="M14 4l6 6M11 7l6 6M12.5 5.5l-6 6 3 3 6-6M8 13l-5 5 2 2 5-5M13 21h8"/></symbol>
     <symbol id="i-door" viewBox="0 0 24 24"><path d="M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 16l-4-4 4-4M6 12h10"/></symbol>
 </svg>
 
@@ -62,6 +65,7 @@
             <main class="workspace">
                 <section class="view" id="view-home"></section>
                 <section class="view" id="view-players"></section>
+                <section class="view" id="view-sanctions"></section>
                 <section class="view" id="view-ranks"></section>
                 <section class="view" id="view-members"></section>
             </main>
@@ -72,6 +76,18 @@
     </div>
 </div>
 
+<!-- Avertissement reçu par un joueur : affiché même quand le panel est fermé -->
+<div class="warning" id="warning">
+    <div class="warning-card">
+        <div class="warning-icon"><svg class="i"><use href="#i-warn"/></svg></div>
+        <h2>Avertissement du staff</h2>
+        <p class="warning-reason" id="warning-reason"></p>
+        <p class="warning-meta" id="warning-meta"></p>
+        <button class="btn primary wide" id="warning-ack">J'ai compris</button>
+    </div>
+</div>
+
 <script src="app.js"></script>
+<script src="sanctions.js"></script>
 </body>
 </html>

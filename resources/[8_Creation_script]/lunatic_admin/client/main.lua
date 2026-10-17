@@ -9,12 +9,16 @@ local function close()
     end
 
     isOpen = false
-    SetNuiFocus(false, false)
+    -- Un avertissement affiché garde la souris (client/sanctions.lua)
+    SetNuiFocus(WarningOpen == true, WarningOpen == true)
     SendNUIMessage({ action = 'close' })
 end
 
 -- Utilisé par client/players.lua (le panel se ferme pendant l'observation d'un joueur)
 ClosePanel = close
+IsPanelOpen = function()
+    return isOpen
+end
 
 -- Touche liée à la commande (F10 par défaut, ou celle choisie par le joueur) :
 -- l'interface a le focus clavier, c'est donc elle qui referme le panel avec cette touche

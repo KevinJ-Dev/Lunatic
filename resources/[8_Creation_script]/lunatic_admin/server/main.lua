@@ -13,6 +13,10 @@ MySQL.ready(function()
     Ranks.seed()
     Staff.load()
 
+    for _, hook in ipairs(Panel.readyHooks) do
+        hook()
+    end
+
     for _, id in ipairs(GetPlayers()) do
         Staff.trackPlayer(tonumber(id))
     end
@@ -37,8 +41,9 @@ end)
 ---------------------------------------------------------------------
 
 -- Point d'extension pour les autres fichiers du panel (server/players.lua…) :
--- Panel.actions reçoit leurs actions, Panel.stateHooks complète l'état envoyé au panel
-Panel = { stateHooks = {} }
+-- Panel.actions reçoit leurs actions, Panel.stateHooks complète l'état envoyé au panel,
+-- Panel.readyHooks s'exécute une fois la base prête (chargement des bans…)
+Panel = { stateHooks = {}, readyHooks = {} }
 
 local function notify(src, message, kind)
     TriggerClientEvent('esx:showNotification', src, message, kind or 'info')

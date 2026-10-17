@@ -57,3 +57,22 @@ Liste des joueurs connectés (rafraîchie toutes les 5 secondes) et fiche détai
 | Expulser (raison obligatoire) | `players.kick` | refusé |
 
 Toutes les actions sont enregistrées dans `lunatic_admin_logs`.
+
+## Sanctions (lot 3)
+
+- **Avertir** (fiche joueur) : le joueur voit une fenêtre plein écran à valider avec « J'ai compris ».
+- **Bannir** : 1 h, 6 h, 1 j, 3 j, 7 j, 30 j, durée personnalisée (1 an maximum) ou définitif. Le ban vise la licence, les autres identifiants (Discord, Steam, FiveM… mais pas l'IP) et les identifiants matériels du PC : un second compte sur le même PC est bloqué.
+- **Déconnexions récentes** (page Sanctions) : les 50 derniers joueurs partis peuvent être bannis hors ligne.
+- **Révoquer** : uniquement les sanctions données par un rang inférieur au sien ou par soi-même (le Fondateur peut tout révoquer). La sanction reste dans l'historique.
+
+| Permission | Effet |
+|---|---|
+| `sanctions.view` | Page Sanctions et historique sur la fiche |
+| `sanctions.warn` | Avertir |
+| `sanctions.ban` | Bannir temporairement (et voir les déconnexions récentes) |
+| `sanctions.ban_permanent` | Bannir définitivement |
+| `sanctions.revoke` | Révoquer |
+
+Commande console de secours : `lunatic_admin_unban <référence>` (ex. `lunatic_admin_unban 42`).
+
+Table `lunatic_admin_sanctions` créée au démarrage ; dates en secondes Unix.
