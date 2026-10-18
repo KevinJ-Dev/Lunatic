@@ -20,6 +20,8 @@ Permissions.List = {
     { id = 'players.spectate', family = 'players', label = 'Observer un joueur (caméra invisible)' },
     { id = 'players.freeze',   family = 'players', label = 'Figer et libérer un joueur' },
     { id = 'players.heal',     family = 'players', label = 'Soigner, réanimer et nourrir un joueur' },
+    { id = 'players.appearance', family = 'players', label = "Ouvrir le menu d'apparence d'un joueur" },
+    { id = 'players.recreate', family = 'players', label = 'Renvoyer un joueur à la création de personnage' },
     { id = 'players.kick',     family = 'players', label = 'Expulser un joueur du serveur' },
 
     -- Lot 5 : économie, métier, inventaire

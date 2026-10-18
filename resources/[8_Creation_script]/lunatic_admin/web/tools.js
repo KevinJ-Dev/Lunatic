@@ -18,10 +18,11 @@ const DELETE_RADII = [10, 25, 50];
 let toolsDom = null;
 let coordsTimer = null;
 let deleteRadius = 25;
+let careRadius = 25;
 const pendingModes = new Set();
 
 function hasAnyTool() {
-    return ["noclip", "invisible", "godmode", "names", "coords", "tpm", "vehicles"].some((t) => can(`tools.${t}`));
+    return can("players.heal") || ["noclip", "invisible", "godmode", "names", "coords", "tpm", "vehicles"].some((t) => can(`tools.${t}`));
 }
 
 function renderTools() {
@@ -49,7 +50,7 @@ function renderTools() {
     paintModes();
 
     // Reconstruit la colonne de droite si les permissions ont changé
-    const signature = ["tpm", "coords", "vehicles"].map((tool) => (can(`tools.${tool}`) ? 1 : 0)).join("");
+    const signature = ["tpm", "coords", "vehicles"].map((tool) => (can(`tools.${tool}`) ? 1 : 0)).join("") + (can("players.heal") ? 1 : 0);
     if (toolsDom.signature !== signature) {
         toolsDom.signature = signature;
         toolsDom.coords = null;
@@ -89,6 +90,24 @@ async function toggleMode(mode, enabled) {
 
 function buildToolsRight() {
     const cards = [];
+
+    if (can("players.heal")) {
+        const radius = h("div", { class: "segmented" });
+        const paintCare = () => radius.replaceChildren(...DELETE_RADII.map((r) =>
+            h("button", { "aria-checked": String(careRadius === r), onclick: () => { careRadius = r; paintCare(); } }, `${r} m`)));
+        paintCare();
+        cards.push(h("div", { class: "card" },
+            h("h3", { class: "card-title" }, "Soins de zone"),
+            h("div", { class: "btn-row", style: "align-items:center" },
+                radius,
+                h("button", { class: "btn primary", onclick: async () => {
+                    const res = await act("player.careZone", { radius: careRadius }, null);
+                    if (res) toast(`${res.count || 0} joueur(s) soigné(s), réanimé(s) et nourri(s).`, "ok");
+                } }, icon("i-heart"), "Soigner la zone")
+            ),
+            h("p", { class: "hint-line" }, "Relève, soigne et nourrit tous les joueurs dans le rayon, vous compris.")
+        ));
+    }
 
     if (can("tools.tpm")) {
         cards.push(h("div", { class: "card" },

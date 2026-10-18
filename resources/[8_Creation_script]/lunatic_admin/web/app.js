@@ -519,6 +519,13 @@ function paintFiche() {
                         button("Réanimer", "i-pulse", "players.heal", {}, () => run("player.revive", "Joueur réanimé.")),
                         button("Nourrir", "i-food", "players.heal", {}, () => run("player.feed", "Faim et soif remplies."))
                     ),
+                    h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Personnage"),
+                        button("Apparence", "i-player", "players.appearance", { protect: true }, async () => {
+                            const res = await playerAction("player.appearance", info.isSelf ? null : "Menu d'apparence ouvert chez le joueur.");
+                            if (res && info.isSelf) closePanel(); // le menu s'ouvre sur votre écran
+                        }),
+                        button("Recréer", "i-undo", "players.recreate", { protect: true, danger: true }, () => openRecreate(info))
+                    ),
                     h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Sanction"),
                         button("Avertir", "i-warn", "sanctions.warn", { notSelf: true, protect: true }, () => openWarn(info)),
                         button("Bannir", "i-ban", "sanctions.ban", { notSelf: true, protect: true, danger: true }, () => openBan({ serverId: info.serverId, name: info.name })),
@@ -552,6 +559,28 @@ async function playerAction(action, okMessage, payload) {
     const res = await act(action, { serverId: selectedPlayerId, ...(payload || {}) }, okMessage);
     if (res) loadPlayerInfo();
     return res;
+}
+
+function openRecreate(info) {
+    const textarea = h("textarea", { class: "input textarea", maxlength: "120", placeholder: "Raison (3 caractères minimum), ex. personnage raté, crash pendant la création" });
+    const confirmBtn = h("button", { class: "btn danger", disabled: true }, icon("i-undo"), "Renvoyer à la création");
+    textarea.addEventListener("input", () => { confirmBtn.disabled = textarea.value.trim().length < 3; });
+
+    openModal((close) => {
+        confirmBtn.addEventListener("click", async () => {
+            const res = await playerAction("player.recreate", `${info.name} repasse par la création de personnage.`, { reason: textarea.value.trim() });
+            if (!res) return;
+            close();
+            if (info.isSelf) closePanel();
+        });
+        return [
+            h("header", null, h("h3", null, `Renvoyer ${info.name} à la création ?`),
+                h("p", null, "Son identité (prénom, nom, date de naissance) et son apparence sont effacées. Il repasse aussitôt par l'écran d'identité puis la création d'apparence. L'argent, l'inventaire et le métier sont conservés.")),
+            h("div", { class: "body" }, textarea),
+            h("footer", null, h("button", { class: "btn ghost", onclick: () => close() }, "Annuler"), confirmBtn),
+        ];
+    });
+    textarea.focus();
 }
 
 function openKick(info) {
@@ -1066,7 +1095,7 @@ window.addEventListener("message", (event) => {
 
 function demoState() {
     return {
-        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],

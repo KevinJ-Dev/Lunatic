@@ -13,6 +13,9 @@ Config.RankNameMin = 2
 Config.RankNameMax = 32
 Config.MaxRanks = 30
 
+-- Soins de zone : rayon maximal
+Config.CareZoneMaxRadius = 50.0
+
 -- Raison d'une expulsion : longueur minimale et maximale
 Config.KickReasonMin = 3
 Config.KickReasonMax = 120

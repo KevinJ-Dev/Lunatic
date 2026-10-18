@@ -343,6 +343,105 @@ Panel.actions['player.feed'] = function(src, actor, data)
     return ok()
 end
 
+-- Soigne, réanime et nourrit tous les joueurs proches (même instance), le membre du staff compris
+Panel.actions['player.careZone'] = function(src, actor, data)
+    if not Ranks.hasPermission(actor, 'players.heal') then
+        return Panel.fail("Vous n'avez pas la permission.")
+    end
+
+    local radius = tonumber(data.radius)
+
+    if not radius or radius < 1 or radius > Config.CareZoneMaxRadius then
+        return Panel.fail(('Rayon invalide (1 à %d m).'):format(Config.CareZoneMaxRadius))
+    end
+
+    local origin = pedCoords(src)
+
+    if not origin then
+        return Panel.fail("Votre personnage n'est pas encore apparu.")
+    end
+
+    local bucket = GetPlayerRoutingBucket(src)
+    local count = 0
+
+    for _, id in ipairs(GetPlayers()) do
+        local target = tonumber(id)
+        local coords = pedCoords(target)
+
+        if coords and GetPlayerRoutingBucket(target) == bucket and #(coords - origin) <= radius then
+            TriggerClientEvent('lunatic_admin:revive', target) -- relève si besoin, puis soigne
+            TriggerClientEvent('lunatic_admin:feed', target)
+            count = count + 1
+
+            if target ~= src then
+                Panel.notify(target, 'Le staff a soigné les joueurs autour de vous.', 'success')
+            end
+        end
+    end
+
+    Logs.add(src, 'player.careZone', ('%d joueur(s) dans %d m'):format(count, radius), { radius = radius, count = count })
+    return { ok = true, silent = true, count = count }
+end
+
+-- Ouvre chez le joueur le menu complet d'illenium-appearance (gratuit, comme /pedmenu)
+Panel.actions['player.appearance'] = function(src, actor, data)
+    local target, err = check(src, actor, data, 'players.appearance', { protect = true })
+
+    if not target then
+        return err
+    end
+
+    if GetResourceState('illenium-appearance') ~= 'started' then
+        return Panel.fail("illenium-appearance n'est pas démarré.")
+    end
+
+    TriggerClientEvent('illenium-appearance:client:openClothingShopMenu', target, true)
+
+    if target ~= src then
+        Panel.notify(target, "Le staff vous a ouvert le menu d'apparence : modifiez puis enregistrez.", 'info')
+    end
+
+    Logs.add(src, 'player.appearance', Staff.displayName(target), { serverId = target })
+    return { ok = true, silent = true }
+end
+
+-- Renvoie le joueur à la création de personnage (identité puis apparence), via l'export ajouté à esx_identity
+Panel.actions['player.recreate'] = function(src, actor, data)
+    local target, err = check(src, actor, data, 'players.recreate', { protect = true })
+
+    if not target then
+        return err
+    end
+
+    local reason = cleanReason(data.reason)
+
+    if not reason then
+        return Panel.fail(('La raison doit faire entre %d et %d caractères.'):format(Config.KickReasonMin, Config.KickReasonMax))
+    end
+
+    if GetResourceState('esx_identity') ~= 'started' then
+        return Panel.fail("esx_identity n'est pas démarré.")
+    end
+
+    local name = Staff.displayName(target)
+    local ok, done = pcall(function()
+        return exports.esx_identity:resetIdentity(target)
+    end)
+
+    if not ok or not done then
+        print(('[lunatic_admin] resetIdentity a échoué : %s'):format(tostring(done)))
+        return Panel.fail("La remise à zéro a échoué (esx_identity est-il à jour ? voir la console).")
+    end
+
+    Logs.add(src, 'player.recreate', name, { serverId = target, reason = reason })
+
+    if target ~= src then
+        Panel.notify(target, 'Le staff vous renvoie à la création de personnage.', 'info')
+    end
+
+    return { ok = true, silent = true }
+end
+
 Panel.actions['player.kick'] = function(src, actor, data)
     local target, err = check(src, actor, data, 'players.kick', { notSelf = true, protect = true })
 

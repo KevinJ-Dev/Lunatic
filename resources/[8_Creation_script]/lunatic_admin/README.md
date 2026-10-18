@@ -114,3 +114,14 @@ Chaque opération est enregistrée dans `lunatic_admin_logs` avec l'ancienne et 
   - *Actions du staff* (`logs.view`) : filtres catégorie / membre / période, recherche, « Charger plus », détail complet au clic (avant, après, raison…).
   - *Tchat* (`logs.chat`) : historique de `lunatic_chat` (HRP, /me, /do, staff, annonces), filtre par canal, recherche.
 - Les actions du staff de plus de `Config.LogRetentionDays` jours (90 par défaut) sont supprimées automatiquement.
+
+## Ajouts (lot B)
+
+| Action | Où | Permission |
+|---|---|---|
+| Nourrir (faim et soif au maximum) | Fiche, Soins | `players.heal` |
+| Soigner la zone (10 / 25 / 50 m : relève, soigne, nourrit) | Outils | `players.heal` |
+| Apparence (menu complet illenium-appearance, gratuit, comme `/pedmenu`) | Fiche, Personnage | `players.appearance` |
+| Recréer (identité + apparence effacées, retour à la création ; argent, inventaire et métier conservés) | Fiche, Personnage | `players.recreate` |
+
+« Recréer » utilise l'export `resetIdentity` ajouté à **esx_identity** (modification locale à reporter lors des mises à jour d'ESX).
