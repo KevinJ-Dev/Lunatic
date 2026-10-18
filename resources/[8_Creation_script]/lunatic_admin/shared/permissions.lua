@@ -34,6 +34,9 @@ Permissions.List = {
     -- Lot H : gestion globale
     { id = 'server.manage', family = 'server', label = 'Gestion Global : redémarrage planifié, maintenance, actions de masse' },
 
+    -- Lot I : pôles (métiers ESX)
+    { id = 'poles.manage', family = 'server', label = 'Gestion Pôle : métiers, grades, salaires et membres' },
+
     -- Lot G : Premium et boutique
     { id = 'premium.manage', family = 'shop', label = 'Premium / Premium+ : attribuer et retirer les abonnements' },
     { id = 'shop.manage',    family = 'shop', label = 'Gestion Boutique : donner et retirer des crédits boutique' },

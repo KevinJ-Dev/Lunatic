@@ -208,6 +208,7 @@ const NAV = [
     { id: "logs", label: "Logs", icon: "i-list", show: () => can("logs.view") || can("logs.chat") },
     { id: "world", label: "Monde", icon: "i-sun", show: () => hasWorld() },
     { id: "server", label: "Serveur", icon: "i-server", show: () => can("server.manage") },
+    { id: "poles", label: "Pôles", icon: "i-briefcase", show: () => can("poles.manage") },
     { id: "ranks", label: "Rangs", icon: "i-layers", show: () => can("ranks.view") },
     { id: "members", label: "Membres", icon: "i-users", show: () => can("staff.view") },
 ];
@@ -226,7 +227,7 @@ function render() {
     );
     $("me").querySelector(".avatar").style.background = me.rank.color;
 
-    for (const id of ["home", "players", "sanctions", "tools", "logs", "world", "server", "ranks", "members"]) {
+    for (const id of ["home", "players", "sanctions", "tools", "logs", "world", "server", "poles", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
     }
 
@@ -237,6 +238,7 @@ function render() {
     if (view === "logs") renderLogs();
     if (view === "world") renderWorld();
     if (view === "server") renderGlobal();
+    if (view === "poles") renderPoles();
     if (view === "ranks") renderRanks();
     if (view === "members") renderMembers();
 }
@@ -1178,7 +1180,7 @@ window.addEventListener("message", (event) => {
 
 function demoState() {
     return {
-        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["poles.manage", "server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],
@@ -1254,6 +1256,26 @@ async function demoNui(name, data) {
         lastSeen: Math.floor(Date.now() / 1000) - 7200, createdAt: Math.floor(Date.now() / 1000) - 20 * 86400,
         licenses: [{ type: "dmv", label: "Code de la route", owned: true }, { type: "drive", label: "Permis voiture", owned: false }, { type: "weapon", label: "Port d'arme", owned: false }],
     } };
+    if (name === "action" && data && data.action === "poles.list") return { ok: true, jobs: [
+        { name: "unemployed", label: "Chômeur", grades: 1, online: 14, total: 212, whitelisted: false, protected: true },
+        { name: "mechanic", label: "Mécanicien", grades: 3, online: 2, total: 6, whitelisted: true },
+        { name: "realestate", label: "Agent immobilier", grades: 4, online: 0, total: 3, whitelisted: true },
+        { name: "taxi", label: "Taxi", grades: 2, online: 1, total: 4, whitelisted: false },
+    ] };
+    if (name === "action" && data && data.action === "poles.info") return { ok: true, job: data.payload.job === "unemployed"
+        ? { name: "unemployed", label: "Chômeur", whitelisted: false, protected: true, membersHidden: true, members: [], grades: [{ grade: 0, name: "unemployed", label: "Chômeur", salary: 200, members: 0 }] }
+        : { name: "mechanic", label: "Mécanicien", whitelisted: true, grades: [
+            { grade: 0, name: "recrue", label: "Recrue", salary: 250, members: 3 },
+            { grade: 1, name: "employe", label: "Employé", salary: 400, members: 2 },
+            { grade: 2, name: "boss", label: "Patron", salary: 700, members: 1 },
+        ], members: [
+            { identifier: "aa11", name: "Jean Dupont", grade: 2, online: 2 },
+            { identifier: "bb22", name: "Alex Moreau", grade: 1, online: 4, protected: true },
+            { identifier: "cc33", name: "Lina Petit", grade: 1 },
+            { identifier: "dd44", name: "Hugo Martin", grade: 0 },
+            { identifier: "ee55", name: "Sam Leroy", grade: 0 },
+            { identifier: "ff66", name: "Nora Diaz", grade: 0 },
+        ] } };
     if (name === "action" && data && data.action === "credits.history") return { ok: true, history: [
         { amount: 1000, after: 1250, reason: "Achat pack Tebex #4412", staff: "Ramiro Lotus", created: Math.floor(Date.now() / 1000) - 3600 },
         { amount: 250, after: 250, reason: "Gagnant de l'event course", staff: "Alex Moreau", created: Math.floor(Date.now() / 1000) - 5 * 86400 },
@@ -1293,6 +1315,7 @@ if (!IN_GAME) window.addEventListener("load", () => {
     setTimeout(() => {
         if (params.get("rank")) selectedRankId = Number(params.get("rank"));
         if (params.get("view")) go(params.get("view"));
+        if (params.get("pole")) setTimeout(() => selectPole(params.get("pole")), 300);
         if (params.get("rank")) selectRank(Number(params.get("rank")));
         if (params.get("player")) selectPlayer(Number(params.get("player")));
         if (params.get("offline")) { switchPlayersTab("offline"); playerFilter.text = "to"; scheduleOfflineSearch("to"); setTimeout(() => selectOffline("9f1e22aa00bb11"), 500); }

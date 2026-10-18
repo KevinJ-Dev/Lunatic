@@ -395,3 +395,20 @@ button.log-row:hover { background: var(--surface-2); border-color: var(--line-st
 .credit-row .reason { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
 .restart-body > .btn { margin-top: 12px; }
+
+/* Pôles (lot I) */
+.grade-row, .member-job-row { min-height: 48px; }
+.grade-row { grid-template-columns: 30px minmax(0, 1.6fr) 150px minmax(0, 1fr) auto; }
+.member-job-row { grid-template-columns: 26px minmax(0, 1.5fr) minmax(0, 1fr) auto; }
+.grade-row .pid { color: var(--muted); font: 500 11.5px var(--mono); }
+.grade-row .input, .member-job-row .input { height: 34px; font-size: 12.5px; }
+.salary { display: flex; align-items: center; gap: 6px; }
+.grade-add { display: grid; grid-template-columns: minmax(0, 1.6fr) 150px auto auto; gap: 10px; margin-top: 12px; }
+.grade-add .input { height: 36px; }
+.pole-fields { grid-template-columns: 1fr 1fr; }
+.salary .input { flex: 1; min-width: 0; width: auto; }
+
+/* 10 onglets : la barre de navigation se resserre au lieu de chevaucher le logo */
+.topbar { grid-template-columns: auto minmax(0, 1fr) auto; }
+.navbar { justify-self: center; min-width: 0; max-width: 100%; overflow: hidden; }
+.nav-link { padding: 7px 11px; white-space: nowrap; }

@@ -56,6 +56,10 @@ Config.PremiumMaxDays = 3650         -- durée maximale d'un abonnement (hors «
 Config.CreditsMaxAction = 100000     -- crédits maximum par opération
 Config.CreditsName = 'crédits'       -- nom affiché de la monnaie boutique
 
+-- Pôles (lot I)
+Config.PolesMaxGrades = 20           -- grades maximum par métier
+Config.PolesMaxSalary = 100000       -- salaire maximum d'un grade (par paie ESX)
+
 -- Outils staff (lot 4)
 Config.GhostKey = ''                    -- touche du mode fantôme (aucune par défaut, à choisir dans les raccourcis FiveM)
 Config.NoclipKey = 'F2'                 -- touche par défaut du noclip (modifiable dans les raccourcis FiveM)
@@ -83,7 +87,7 @@ local world = { 'world.weather', 'world.time' }
 local economy = { 'economy.money', 'economy.black_money', 'economy.job', 'economy.items', 'economy.clear' }
 local tools = { 'tools.noclip', 'tools.invisible', 'tools.godmode', 'tools.ghost', 'tools.names', 'tools.coords', 'tools.tpm', 'tools.vehicles' }
 local profile = { 'players.licenses', 'players.copy_appearance', 'staff.online', 'players.offline' }
-local shop = { 'premium.manage', 'shop.manage', 'server.manage' }
+local shop = { 'premium.manage', 'shop.manage', 'server.manage', 'poles.manage' }
 local sanctions = { 'sanctions.view', 'sanctions.warn', 'sanctions.ban', 'sanctions.jail' }
 local players = { 'players.view', 'players.goto', 'players.bring', 'players.spectate', 'players.freeze', 'players.heal', 'players.kick' }
 

@@ -181,3 +181,14 @@ Page « Serveur » du panel, permission `server.manage` (Gestion Global).
 - **Redémarrage planifié** : délai de 1 à 30 min (1 à 60 côté serveur) et raison facultative. Annonces automatiques à 15, 10, 5, 2 et 1 min puis 30 et 10 s, puis tous les joueurs sont expulsés (ESX les sauvegarde à la déconnexion). Relancer ensuite le serveur depuis le panel de l'hébergeur. Annulable tant que le compte à rebours tourne.
 - **Mode maintenance** : seuls les membres du staff peuvent se connecter, les autres voient le message choisi (5 à 200 caractères). L'état est conservé après un redémarrage (KVP de la resource) et signalé dans la console au démarrage.
 - **Actions de masse** : soigner tout le serveur (réanimation, soin, faim/soif), téléporter tout le monde à soi, expulser tout le monde (le staff connecté reste).
+
+## Pôles (lot I)
+
+Page « Pôles » du panel, permission `poles.manage` (Gestion Pôle). Travaille directement sur les métiers ESX (tables `jobs` et `job_grades`) puis recharge le métier avec `ESX.RefreshJob` : aucun redémarrage, les membres connectés sont mis à jour tout de suite (salaire compris).
+
+- **Liste** : chaque métier avec ses membres connectés, son effectif total (joueurs hors ligne compris) et ses grades.
+- **Fiche** : renommer (nom affiché), liste blanche (pas proposé au pôle emploi), grades (nom et salaire), ajout d'un grade au-dessus des autres, retrait du grade le plus haut s'il est vide, membres (changer de grade, renvoyer), connectés ou non. Le staff de rang égal ou supérieur n'est pas modifiable.
+- **Création** : nom affiché, nom technique (minuscules, chiffres, `_`), liste blanche, grades du plus bas (embauche) au plus haut (patron).
+- **Suppression** : seulement sans aucun membre ; `unemployed` est protégé.
+
+Le grade le plus haut d'un métier a toujours le nom technique `boss` (repère ESX des patrons, utile pour les futures entreprises) ; les autres grades prennent un nom technique tiré de leur libellé. Limites dans `config.lua` : `Config.PolesMaxGrades`, `Config.PolesMaxSalary`.

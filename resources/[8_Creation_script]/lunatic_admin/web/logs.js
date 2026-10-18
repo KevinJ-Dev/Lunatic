@@ -37,6 +37,15 @@ const ACTION_LABELS = {
     "server.healAll": "a soigné tout le serveur",
     "server.bringAll": "a téléporté tout le monde à lui",
     "server.kickAll": "a expulsé tout le monde",
+    "poles.create": "a créé un métier",
+    "poles.rename": "a renommé un métier",
+    "poles.whitelist": "a modifié la liste blanche d'un métier",
+    "poles.delete": "a supprimé un métier",
+    "poles.grade": "a modifié un grade",
+    "poles.addGrade": "a ajouté un grade",
+    "poles.removeGrade": "a supprimé un grade",
+    "poles.member": "a changé le poste de",
+    "poles.fire": "a renvoyé de son poste",
     "license.give": "a donné un permis à",
     "license.remove": "a retiré un permis à",
     "tool.ghost.on": "a activé le mode fantôme",
@@ -149,6 +158,33 @@ function describeLog(log) {
             break;
         case "server.bringAll":
             summary = `${d.count} joueur(s)`;
+            break;
+        case "poles.create":
+            summary = `${d.label} (${d.job}) · ${d.grades} grade(s)`;
+            break;
+        case "poles.rename":
+            summary = `${d.job} : ${d.before} → ${d.after}`;
+            break;
+        case "poles.whitelist":
+            summary = `${d.job} · ${d.enabled ? "liste blanche" : "ouvert à tous"}`;
+            break;
+        case "poles.delete":
+            summary = `${d.label} (${d.job})`;
+            break;
+        case "poles.grade":
+            summary = `${d.job} · ${d.label} · salaire ${d.before} → ${d.after}`;
+            break;
+        case "poles.addGrade":
+            summary = `${d.job} · ${d.label} (${d.salary})`;
+            break;
+        case "poles.removeGrade":
+            summary = `${d.job} · ${d.label}`;
+            break;
+        case "poles.member":
+            summary = `${d.job} · ${d.gradeLabel}`;
+            break;
+        case "poles.fire":
+            summary = d.job || "";
             break;
         case "server.kickAll":
             summary = `${d.count} joueur(s) · ${d.reason || ""}`;

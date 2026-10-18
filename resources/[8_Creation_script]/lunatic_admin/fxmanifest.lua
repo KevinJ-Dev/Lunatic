@@ -32,6 +32,7 @@ server_scripts {
     'server/offline.lua',
     'server/premium.lua',
     'server/global.lua',
+    'server/poles.lua',
 }
 
 client_scripts {
@@ -56,6 +57,7 @@ files {
     'web/offline.js',
     'web/premium.js',
     'web/global.js',
+    'web/poles.js',
     'web/logo.png',
     'web/fonts/*.woff2',
 }
