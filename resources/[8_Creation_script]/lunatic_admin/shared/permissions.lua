@@ -34,6 +34,9 @@ Permissions.List = {
     -- Lot H : gestion globale
     { id = 'server.manage', family = 'server', label = 'Gestion Global : redémarrage planifié, maintenance, actions de masse' },
 
+    -- Lot J : planning d'events
+    { id = 'events.manage', family = 'server', label = 'Gestion des events : créer, modifier, annuler et annoncer' },
+
     -- Lot I : pôles (métiers ESX)
     { id = 'poles.manage', family = 'server', label = 'Gestion Pôle : métiers, grades, salaires et membres' },
 

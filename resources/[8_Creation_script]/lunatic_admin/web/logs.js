@@ -46,6 +46,10 @@ const ACTION_LABELS = {
     "poles.removeGrade": "a supprimé un grade",
     "poles.member": "a changé le poste de",
     "poles.fire": "a renvoyé de son poste",
+    "events.create": "a programmé un event",
+    "events.update": "a modifié un event",
+    "events.cancel": "a annulé un event",
+    "events.finish": "a terminé un event",
     "license.give": "a donné un permis à",
     "license.remove": "a retiré un permis à",
     "tool.ghost.on": "a activé le mode fantôme",
@@ -182,6 +186,12 @@ function describeLog(log) {
             break;
         case "poles.member":
             summary = `${d.job} · ${d.gradeLabel}`;
+            break;
+        case "events.create":
+        case "events.update":
+        case "events.cancel":
+        case "events.finish":
+            summary = `${d.title} · ${new Date(d.startsAt * 1000).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
             break;
         case "poles.fire":
             summary = d.job || "";

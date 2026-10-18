@@ -5,7 +5,7 @@ lua54 'yes'
 name 'lunatic_chat'
 author 'Lunatic RP'
 description 'Tchat Lunatic : HRP local, /me et /do en texte 3D, outils staff'
-version '0.1.0'
+version '0.2.0'
 
 -- Remplace la resource "chat" de FiveM : ESX, ox_lib et les autres scripts y envoient leurs messages
 provide 'chat'

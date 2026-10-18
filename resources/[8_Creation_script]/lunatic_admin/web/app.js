@@ -209,6 +209,7 @@ const NAV = [
     { id: "world", label: "Monde", icon: "i-sun", show: () => hasWorld() },
     { id: "server", label: "Serveur", icon: "i-server", show: () => can("server.manage") },
     { id: "poles", label: "Pôles", icon: "i-briefcase", show: () => can("poles.manage") },
+    { id: "events", label: "Events", icon: "i-calendar", show: () => can("events.manage") },
     { id: "ranks", label: "Rangs", icon: "i-layers", show: () => can("ranks.view") },
     { id: "members", label: "Membres", icon: "i-users", show: () => can("staff.view") },
 ];
@@ -227,7 +228,7 @@ function render() {
     );
     $("me").querySelector(".avatar").style.background = me.rank.color;
 
-    for (const id of ["home", "players", "sanctions", "tools", "logs", "world", "server", "poles", "ranks", "members"]) {
+    for (const id of ["home", "players", "sanctions", "tools", "logs", "world", "server", "poles", "events", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
     }
 
@@ -239,6 +240,7 @@ function render() {
     if (view === "world") renderWorld();
     if (view === "server") renderGlobal();
     if (view === "poles") renderPoles();
+    if (view === "events") renderEvents();
     if (view === "ranks") renderRanks();
     if (view === "members") renderMembers();
 }
@@ -1180,7 +1182,7 @@ window.addEventListener("message", (event) => {
 
 function demoState() {
     return {
-        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["poles.manage", "server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["events.manage", "poles.manage", "server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],
@@ -1256,6 +1258,16 @@ async function demoNui(name, data) {
         lastSeen: Math.floor(Date.now() / 1000) - 7200, createdAt: Math.floor(Date.now() / 1000) - 20 * 86400,
         licenses: [{ type: "dmv", label: "Code de la route", owned: true }, { type: "drive", label: "Permis voiture", owned: false }, { type: "weapon", label: "Port d'arme", owned: false }],
     } };
+    if (name === "action" && data && data.action === "events.list") {
+        const t = Math.floor(Date.now() / 1000);
+        return { ok: true, reminder: 15, events: [
+            { id: 4, title: "Course de rue nocturne", description: "Départ devant le garage central, véhicules de série uniquement. Récompense pour les 3 premiers.", place: "Garage central", coords: { x: 215.7, y: -810.1, z: 30.7 }, startsAt: t + 7200, status: "scheduled", createdBy: "Ramiro Lotus" },
+            { id: 5, title: "Soirée au Bahama Mamas", description: "", place: "Bahama Mamas", startsAt: t + 3 * 86400, status: "scheduled", createdBy: "Alex Moreau" },
+            { id: 3, title: "Chasse au trésor", description: "Indices dans toute la ville.", place: "Plage de Vespucci", coords: { x: -1600, y: -1000, z: 13 }, startsAt: t - 900, status: "started", createdBy: "Ramiro Lotus" },
+            { id: 2, title: "Concert au Vinewood Bowl", description: "", place: "Vinewood Bowl", startsAt: t - 2 * 86400, status: "done", createdBy: "Alex Moreau" },
+            { id: 1, title: "Rallye du désert", description: "", place: "Sandy Shores", startsAt: t - 5 * 86400, status: "cancelled", createdBy: "Ramiro Lotus" },
+        ] };
+    }
     if (name === "action" && data && data.action === "poles.list") return { ok: true, jobs: [
         { name: "unemployed", label: "Chômeur", grades: 1, online: 14, total: 212, whitelisted: false, protected: true },
         { name: "mechanic", label: "Mécanicien", grades: 3, online: 2, total: 6, whitelisted: true },

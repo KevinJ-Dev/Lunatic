@@ -27,3 +27,7 @@ Tchat de Lunatic RP. Remplace la resource `chat` de FiveM (`provide 'chat'`) : E
 - Historique dans la table `lunatic_chat_logs` (créée au démarrage), purgé après `Config.LogRetentionDays` jours.
 
 Dépend de `lunatic_admin` pour les permissions staff.
+
+## Messages des autres resources
+
+`TriggerClientEvent('lunatic_chat:message', cible, { kind = 'announce', tag = 'Event', text = '...' })` : `tag` remplace l'étiquette « Annonce » (20 caractères max). Dans une annonce ou un message système, un jeton `{date:1760814000}` (secondes Unix) s'affiche à l'heure du PC du joueur, par exemple « sam. 18 oct. à 21:00 ».

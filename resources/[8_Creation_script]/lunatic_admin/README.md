@@ -192,3 +192,14 @@ Page « Pôles » du panel, permission `poles.manage` (Gestion Pôle). Travaille
 - **Suppression** : seulement sans aucun membre ; `unemployed` est protégé.
 
 Le grade le plus haut d'un métier a toujours le nom technique `boss` (repère ESX des patrons, utile pour les futures entreprises) ; les autres grades prennent un nom technique tiré de leur libellé. Limites dans `config.lua` : `Config.PolesMaxGrades`, `Config.PolesMaxSalary`.
+
+## Events (lot J)
+
+Page « Events » du panel, permission `events.manage` (Gestion des events). Table `lunatic_admin_events` créée au démarrage.
+
+- **Programmer** un event : titre, date et heure (celles du PC du staff), lieu, description, point sur la carte facultatif (« Ma position actuelle »), annonce immédiate facultative.
+- **Modifier** (event pas encore commencé, annonce facultative), **annuler** (annoncé), **terminer** un event en cours.
+- **Automatique** : rappel `Config.EventReminderMinutes` (15) min avant, annonce au début, point sur la carte des joueurs du rappel jusqu'à `Config.EventBlipMinutes` (30) min après le début. Un event raté pendant que le serveur était éteint est clos sans annonce.
+- **Joueurs** : `/events` (events à venir dans le tchat), `/eventgps` (itinéraire vers le prochain event avec un point).
+
+Les annonces passent par lunatic_chat (étiquette « Event ») : les dates y sont envoyées en jeton `{date:...}` et affichées à l'heure du PC de chaque joueur. Sans lunatic_chat, une notification ESX à l'heure du serveur.

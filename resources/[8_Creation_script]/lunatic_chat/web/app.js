@@ -46,6 +46,13 @@ function el(tag, className, text) {
 
 // ---------- Mise en forme ----------
 
+// {date:1760814000} (secondes Unix envoyées par le serveur) -> « sam. 18 oct. à 21:00 » à l'heure du PC du joueur
+const DATE_FORMAT = new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+
+function withDates(text) {
+    return String(text ?? "").replace(/\{date:(\d{1,12})\}/g, (_, ts) => DATE_FORMAT.format(new Date(Number(ts) * 1000)).replace(", ", " à "));
+}
+
 const stripCodes = (text) => String(text ?? "").replace(/\^[0-9*_~=r]/g, "");
 
 // Codes couleur ^0 à ^9 des scripts FiveM, rendus en <span> (texte brut uniquement)
@@ -106,8 +113,8 @@ function addMessage(message) {
     if (kind === "announce") {
         // L'auteur n'est pas montré aux joueurs (il reste dans la console et l'historique)
         const head = el("div", "head");
-        head.append(el("span", "tag", "Annonce"));
-        node.append(head, el("div", "text", message.text));
+        head.append(el("span", "tag", typeof message.tag === "string" && message.tag ? message.tag.slice(0, 20) : "Annonce"));
+        node.append(head, el("div", "text", withDates(message.text)));
         return pushMessage(node, ANNOUNCE_FADE);
     }
 
@@ -125,7 +132,7 @@ function addMessage(message) {
         node.append(rank);
     }
 
-    node.append(el("span", "text", message.text));
+    node.append(el("span", "text", kind === "system" ? withDates(message.text) : message.text));
     pushMessage(node);
 }
 
