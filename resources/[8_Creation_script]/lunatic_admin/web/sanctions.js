@@ -244,7 +244,8 @@ function openBan(target) {
         confirmBtn.addEventListener("click", async () => {
             const payload = { reason, duration: duration === "permanent" ? "permanent" : hours() };
             if (target.serverId) payload.serverId = target.serverId;
-            else payload.license = target.license;
+            else if (target.identifier) payload.identifier = target.identifier; // recherche hors ligne
+            else payload.license = target.license; // déconnexion récente
             const res = await act("sanction.ban", payload, null);
             if (!res) return;
             toast(`${target.name} a été banni (référence #${res.id}).`, "ok");
@@ -255,7 +256,9 @@ function openBan(target) {
             h("header", null, h("h3", null, `Bannir ${target.name}`),
                 h("p", null, target.serverId
                     ? "Le joueur est expulsé immédiatement et ne pourra plus se connecter, même avec un autre compte sur le même PC."
-                    : "Le joueur est déjà parti : il ne pourra plus se reconnecter.")),
+                    : target.identifier
+                        ? "Joueur hors ligne : le ban vise sa licence Rockstar (ses autres identifiants seront connus à sa prochaine tentative de connexion)."
+                        : "Le joueur est déjà parti : il ne pourra plus se reconnecter.")),
             h("div", { class: "body" },
                 h("div", { class: "field" }, h("label", null, "Durée"), chips, custom),
                 h("div", { class: "field" }, h("label", null, "Raison"), field)

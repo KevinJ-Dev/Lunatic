@@ -146,3 +146,9 @@ Page « Monde » : heure (raccourcis aube / midi / soir / nuit, heure précise, 
 | Wipe un joueur (argent de départ, inventaire, métier, véhicules, permis, identité, apparence ; nom à retaper ; état avant wipe dans les logs) | Fiche, Personnage | `players.wipe` |
 | Godmod invisible (mode fantôme, raccourci FiveM « Staff : mode fantôme » sans touche par défaut) | Outils | `tools.ghost` |
 | Liste des staff en ligne (accueil) | Accueil | `staff.online` |
+
+## Joueurs hors ligne (lot F)
+
+Page Joueurs → onglet **Hors ligne** (permission `players.offline`) : recherche dans la table `users` par nom RP ou licence, fiche en base (identité, argent, métier, permis, sanctions, dernière connexion).
+
+Actions (chacune exige aussi sa propre permission) : bannir (par licence), argent, métier, permis, recréer à la prochaine connexion, wipe. Un joueur connecté est refusé ici : ses données se modifient depuis l'onglet En ligne (sinon ESX les écraserait à la sauvegarde).

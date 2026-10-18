@@ -29,6 +29,7 @@ server_scripts {
     'server/jail.lua',
     'server/world.lua',
     'server/profile.lua',
+    'server/offline.lua',
 }
 
 client_scripts {
@@ -50,6 +51,7 @@ files {
     'web/economy.js',
     'web/logs.js',
     'web/world.js',
+    'web/offline.js',
     'web/logo.png',
     'web/fonts/*.woff2',
 }

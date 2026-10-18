@@ -379,16 +379,21 @@ function renderPlayers() {
         const search = h("input", { placeholder: "Nom ou ID", value: playerFilter.text });
         search.addEventListener("input", () => {
             playerFilter.text = search.value;
-            paintPlayerList();
+            if (playersTab === "offline") scheduleOfflineSearch(search.value);
+            else paintPlayerList();
         });
         playersDom = {
+            title: h("h3", null, "Joueurs en ligne"),
             count: h("span", { class: "muted mono" }),
+            tabs: h("div", { class: "segmented block" }),
+            search,
             list: h("div", { class: "side-scroll" }),
             fiche: h("div", { class: "content" }),
         };
         root.replaceChildren(
             h("aside", { class: "sidebar" },
-                h("div", { class: "side-head" }, h("h3", null, "Joueurs en ligne"), playersDom.count),
+                h("div", { class: "side-head" }, playersDom.title, playersDom.count),
+                h("div", { class: "side-search" }, playersDom.tabs),
                 h("div", { class: "side-search" }, h("label", { class: "search" }, icon("i-search"), search)),
                 playersDom.list
             ),
@@ -396,11 +401,20 @@ function renderPlayers() {
         );
     }
 
+    // Onglets En ligne / Hors ligne (permission players.offline)
+    if (!can("players.offline")) playersTab = "online";
+    playersDom.tabs.style.display = can("players.offline") ? "" : "none";
+    playersDom.tabs.replaceChildren(...[["online", "En ligne"], ["offline", "Hors ligne"]].map(([value, label]) =>
+        h("button", { "aria-checked": String(playersTab === value), onclick: () => switchPlayersTab(value) }, label)));
+    playersDom.title.textContent = playersTab === "offline" ? "Recherche en base" : "Joueurs en ligne";
+    playersDom.search.placeholder = playersTab === "offline" ? "Nom RP ou licence (2 caractères min.)" : "Nom ou ID";
+
     paintPlayerList();
     paintFiche();
 }
 
 function paintPlayerList() {
+    if (playersTab === "offline") return paintOfflineList();
     const text = playerFilter.text.trim().toLowerCase();
     const rows = players().filter((p) => !text || p.name.toLowerCase().includes(text) || String(p.serverId) === text);
     playersDom.count.textContent = String(players().length);
@@ -458,6 +472,7 @@ function bar(label, value, pct, color) {
 }
 
 function paintFiche() {
+    if (playersTab === "offline") return paintOfflineFiche();
     const fiche = playersDom.fiche;
 
     if (selectedPlayerId === null) {
@@ -1159,7 +1174,7 @@ window.addEventListener("message", (event) => {
 
 function demoState() {
     return {
-        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],
@@ -1224,6 +1239,16 @@ async function demoNui(name, data) {
         { id: 8, name: "[4] Léa Martin", channel: "me", message: "sort son téléphone", created: Math.floor(Date.now() / 1000) - 400 },
         { id: 7, name: "[1] Ramiro Lotus", channel: "staff", message: "Je m'occupe du ticket de Marco", created: Math.floor(Date.now() / 1000) - 900 },
     ] };
+    if (name === "action" && data && data.action === "offline.search") return { ok: true, players: [
+        { identifier: "9f1e22aa00bb11", name: "Tony Vega", lastSeen: Math.floor(Date.now() / 1000) - 7200 },
+        { identifier: "77aa00cc11dd22", name: "Sarah Klein", lastSeen: Math.floor(Date.now() / 1000) - 4 * 86400 },
+    ] };
+    if (name === "action" && data && data.action === "offline.info") return { ok: true, info: {
+        identifier: "9f1e22aa00bb11", license: "license:9f1e22aa00bb11", name: "Tony Vega", hasIdentity: true, dateofbirth: "02/08/1993", sex: "m", height: 178,
+        money: 820, bank: 15400, blackMoney: 0, job: { name: "mechanic", label: "Mécanicien", grade: "Recrue", level: 0 },
+        lastSeen: Math.floor(Date.now() / 1000) - 7200, createdAt: Math.floor(Date.now() / 1000) - 20 * 86400,
+        licenses: [{ type: "dmv", label: "Code de la route", owned: true }, { type: "drive", label: "Permis voiture", owned: false }, { type: "weapon", label: "Port d'arme", owned: false }],
+    } };
     if (name === "getCoords") return { x: 215.76, y: -810.12, z: 30.73, h: 157.5 };
     if (name === "vehicleSpawn") return { ok: false, error: "Aperçu navigateur : rien n'est créé." };
     if (name === "action" && data && data.action === "player.info") {
@@ -1259,6 +1284,7 @@ if (!IN_GAME) window.addEventListener("load", () => {
         if (params.get("view")) go(params.get("view"));
         if (params.get("rank")) selectRank(Number(params.get("rank")));
         if (params.get("player")) selectPlayer(Number(params.get("player")));
+        if (params.get("offline")) { switchPlayersTab("offline"); playerFilter.text = "to"; scheduleOfflineSearch("to"); setTimeout(() => selectOffline("9f1e22aa00bb11"), 500); }
         if (params.get("logtab")) setTimeout(() => [...document.querySelectorAll("#view-logs .segmented button")].find((b) => b.textContent === "Tchat")?.click(), 300);
         if (params.get("scroll")) setTimeout(() => document.querySelectorAll(".view.on .scroll").forEach((e) => { e.scrollTop = Number(params.get("scroll")); }), 600);
         if (params.get("warning")) window.postMessage({ action: "warning", warning: { id: 41, reason: "Langage HRP en pleine scène, merci de rester dans ton personnage.", date: Math.floor(Date.now() / 1000) } }, "*");

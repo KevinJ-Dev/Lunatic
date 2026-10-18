@@ -26,6 +26,7 @@ Permissions.List = {
     { id = 'players.licenses', family = 'players', label = 'Give un permis : donner et retirer les permis' },
     { id = 'players.copy_appearance', family = 'players', label = "Récupérer l'apparence d'un joueur" },
     { id = 'players.wipe', family = 'players', label = 'Wipe un joueur : réinitialiser complètement son personnage' },
+    { id = 'players.offline', family = 'players', label = 'Gérer les joueurs offline (recherche en base et actions)' },
     { id = 'players.kick',     family = 'players', label = 'Expulser un joueur du serveur' },
 
     -- Lot D : météo et heure (lunatic_world)
