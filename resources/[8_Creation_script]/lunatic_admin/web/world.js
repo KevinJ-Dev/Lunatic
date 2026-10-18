@@ -76,7 +76,7 @@ function renderWorld() {
 
         root.replaceChildren(h("div", { class: "content" },
             h("div", { class: "page-head" }, h("div", { class: "grow" },
-                h("h1", { class: "page-title" }, "Monde"),
+                h("h1", { class: "page-title" }, "Météo et heure"),
                 h("div", { class: "page-sub" }, "Météo et heure identiques pour tous les joueurs")
             )),
             h("div", { class: "scroll" }, h("div", { class: "world-grid" }, cards))

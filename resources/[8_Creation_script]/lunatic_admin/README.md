@@ -215,3 +215,7 @@ Page « Dév » du panel, permission `dev.manage` (Gestion Développeur, réserv
   ```
 - **Infos entité** : un viseur au centre de l'écran ; l'entité visée est surlignée avec son type, modèle, hash, position, heading, santé, id réseau, joueur qui la gère, plaque. **E** envoie ces infos dans la page (boutons de copie) et dans la console F8.
 - **Affichage de debug** : en haut à gauche, ID serveur, FPS, position, rue et zone, intérieur, santé et armure, nombre de peds / véhicules / objets, véhicule actuel (modèle, vitesse, moteur, plaque).
+
+## Navigation
+
+L'accueil du panel est une grille de tuiles (une par page autorisée, avec les chiffres clés au-dessus). Dans une page, la barre du haut affiche `← GESTION  NOM DE LA PAGE` ; la flèche ou « Gestion » ramène à la grille. Rangs et Membres sont réunis dans la tuile « Permissions » (onglets dans la barre). Pour ajouter une page : une entrée dans `NAV` (`web/app.js`), une `<section class="view">` dans `index.html` et sa fonction de rendu.

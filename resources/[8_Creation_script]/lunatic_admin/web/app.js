@@ -200,27 +200,68 @@ function isDirty() {
 
 // ---------- Rendu général ----------
 
+// Pages du panel. L'accueil affiche une tuile par page visible (dans cet ordre) ;
+// les pages d'un même groupe partagent une tuile et s'affichent en onglets dans la barre du haut.
 const NAV = [
-    { id: "home", label: "Accueil", icon: "i-home", show: () => true },
+    { id: "home", label: "Gestion", icon: "i-home", show: () => true, tile: false },
+    { id: "dashboard", label: "Tableau de bord", icon: "i-pulse", show: () => true },
     { id: "players", label: "Joueurs", icon: "i-player", show: () => can("players.view") },
     { id: "sanctions", label: "Sanctions", icon: "i-gavel", show: () => can("sanctions.view") },
     { id: "tools", label: "Outils", icon: "i-tool", show: () => hasAnyTool() },
     { id: "logs", label: "Logs", icon: "i-list", show: () => can("logs.view") || can("logs.chat") },
-    { id: "world", label: "Monde", icon: "i-sun", show: () => hasWorld() },
-    { id: "server", label: "Serveur", icon: "i-server", show: () => can("server.manage") },
-    { id: "poles", label: "Pôles", icon: "i-briefcase", show: () => can("poles.manage") },
+    { id: "ranks", label: "Rangs", icon: "i-layers", show: () => can("ranks.view"), group: "perms" },
+    { id: "members", label: "Membres", icon: "i-users", show: () => can("staff.view"), group: "perms" },
+    { id: "poles", label: "Service public", icon: "i-shield", show: () => can("poles.manage") },
     { id: "events", label: "Events", icon: "i-calendar", show: () => can("events.manage") },
-    { id: "dev", label: "Dév", icon: "i-code", show: () => can("dev.manage") },
-    { id: "ranks", label: "Rangs", icon: "i-layers", show: () => can("ranks.view") },
-    { id: "members", label: "Membres", icon: "i-users", show: () => can("staff.view") },
+    { id: "world", label: "Météo", icon: "i-sun", show: () => hasWorld() },
+    { id: "server", label: "Serveur", icon: "i-server", show: () => can("server.manage") },
+    { id: "dev", label: "Développeur", icon: "i-code", show: () => can("dev.manage") },
 ];
+const GROUPS = { perms: { label: "Permissions", icon: "i-lock" } };
+
+// Tuiles de l'accueil : une par page, une seule par groupe (vers la première page autorisée du groupe)
+function tiles() {
+    const list = [];
+    const seen = new Set();
+    for (const page of NAV) {
+        if (page.tile === false || !page.show()) continue;
+        if (page.group) {
+            if (seen.has(page.group)) continue;
+            seen.add(page.group);
+            list.push({ target: page.id, label: GROUPS[page.group].label, icon: GROUPS[page.group].icon });
+        } else {
+            list.push({ target: page.id, label: page.label, icon: page.icon });
+        }
+    }
+    return list;
+}
+
+function renderTopbar() {
+    const page = NAV.find((n) => n.id === view) || NAV[0];
+    const home = view === "home";
+    $("brand").style.display = home ? "" : "none";
+    $("crumb").style.display = home ? "none" : "";
+
+    if (!home) {
+        const title = page.group ? GROUPS[page.group].label : page.label;
+        $("crumb").replaceChildren(
+            h("button", { class: "crumb-back", title: "Retour à la gestion", onclick: () => go("home") }, icon("i-back")),
+            h("button", { class: "crumb-root", onclick: () => go("home") }, "Gestion"),
+            h("span", { class: "crumb-page" }, title)
+        );
+    }
+
+    // Onglets du groupe de la page (ex. Permissions : Rangs / Membres)
+    const siblings = page.group ? NAV.filter((n) => n.group === page.group && n.show()) : [];
+    $("nav").classList.toggle("empty", siblings.length < 2);
+    $("nav").replaceChildren(...(siblings.length < 2 ? [] : siblings.map((n) =>
+        h("button", { class: `nav-link${view === n.id ? " active" : ""}`, onclick: () => go(n.id) }, icon(n.icon), n.label))));
+}
 
 function render() {
     if (!state) return;
 
-    $("nav").replaceChildren(...NAV.filter((n) => n.show()).map((n) =>
-        h("button", { class: `nav-link${view === n.id ? " active" : ""}`, onclick: () => go(n.id) }, icon(n.icon), n.label)
-    ));
+    renderTopbar();
 
     const me = state.me;
     $("me").replaceChildren(
@@ -229,11 +270,12 @@ function render() {
     );
     $("me").querySelector(".avatar").style.background = me.rank.color;
 
-    for (const id of ["home", "players", "sanctions", "tools", "logs", "world", "server", "poles", "events", "dev", "ranks", "members"]) {
+    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "poles", "events", "dev", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
     }
 
     if (view === "home") renderHome();
+    if (view === "dashboard") renderDashboard();
     if (view === "players") renderPlayers();
     if (view === "sanctions") renderSanctions();
     if (view === "tools") renderTools();
@@ -263,9 +305,27 @@ function go(target) {
     render();
 }
 
-// ---------- Accueil ----------
+// ---------- Accueil : grille de tuiles ----------
+
+function homeKpis() {
+    const d = state.dashboard || {};
+    const kpis = [h("div", { class: "kpi" }, h("span", null, "Joueurs en ligne"), h("b", null, `${d.players ?? "—"}`), h("small", null, `sur ${d.maxPlayers ?? "?"} places`))];
+    if (Array.isArray(d.staff)) kpis.push(h("div", { class: "kpi" }, h("span", null, "Staff en ligne"), h("b", null, `${d.staff.length}`), h("small", null, d.staff.length ? "membres connectés" : "aucun membre connecté")));
+    if (d.sanctions) kpis.push(h("div", { class: "kpi" }, h("span", null, "Bans (24 h)"), h("b", null, `${d.sanctions.bans24h ?? 0}`), h("small", null, `${d.sanctions.activeBans ?? 0} bans actifs`)));
+    return kpis;
+}
 
 function renderHome() {
+    $("view-home").replaceChildren(h("div", { class: "home menu" },
+        h("div", { class: "kpis menu-kpis" }, homeKpis()),
+        h("div", { class: "tiles" }, tiles().map((t) =>
+            h("button", { class: "tile", onclick: () => go(t.target) }, icon(t.icon), h("span", null, t.label))))
+    ));
+}
+
+// ---------- Tableau de bord ----------
+
+function renderDashboard() {
     const d = state.dashboard || {};
     const showStaff = Array.isArray(d.staff); // permission staff.online
     const staffOnline = showStaff ? d.staff : [];
@@ -321,7 +381,7 @@ function renderHome() {
             : h("span", { class: "muted" }, "Aucune action enregistrée.")
     ) : null;
 
-    $("view-home").replaceChildren(h("div", { class: "home" },
+    $("view-dashboard").replaceChildren(h("div", { class: "home" },
         h("div", { class: "kpis", style: "margin-top:0" }, kpis),
         h("div", { class: `dash-grid${showStaff ? "" : " single"}` }, chartCard, staffCard),
         recentCard
@@ -698,7 +758,7 @@ function openKick(info) {
 
 // Rafraîchissement automatique de la page Joueurs (ping, joueurs, fiche)
 setInterval(async () => {
-    if (!state || !["players", "home", "world", "server"].includes(view) || document.body.classList.contains("hidden")) return;
+    if (!state || !["players", "home", "dashboard", "world", "server"].includes(view) || document.body.classList.contains("hidden")) return;
     try {
         const next = await nui("refresh");
         if (next && typeof next === "object") {

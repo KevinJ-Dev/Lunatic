@@ -447,3 +447,24 @@ button.log-row:hover { background: var(--surface-2); border-color: var(--line-st
 .dev-toolbar { margin-bottom: 12px; }
 .dev-row { grid-template-columns: 26px minmax(0, 1fr) auto auto; min-height: 50px; }
 .banner code { padding: 2px 6px; border-radius: 6px; background: var(--surface-2); font-size: 11.5px; }
+
+/* Navigation en tuiles */
+.crumb { display: flex; align-items: center; gap: 12px; min-width: 0; height: 46px; }
+.crumb-back { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--glass-line); border-radius: 50%; background: var(--glass); color: var(--ink); transition: background-color .15s, border-color .15s; }
+.crumb-back:hover { background: rgba(var(--accent-rgb), .25); border-color: rgba(var(--accent-rgb), .6); }
+.crumb-back svg.i { width: 18px; height: 18px; }
+.crumb-root { padding: 0; border: 0; background: none; color: #fff; font-size: 17px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.crumb-root:hover { color: rgb(var(--accent-rgb)); }
+.crumb-page { overflow: hidden; color: var(--ink-2); font-size: 17px; font-weight: 400; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; text-overflow: ellipsis; }
+.navbar.empty { visibility: hidden; }
+@media (max-width: 1800px) { .nav-link svg.i { display: inline-block; } }
+
+.menu { display: flex; flex-direction: column; gap: 22px; }
+.menu-kpis { margin-top: 0; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.menu-kpis .kpi { padding: 14px 18px; }
+.menu-kpis .kpi b { font-size: 24px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.tile { display: grid; justify-items: center; align-content: center; gap: 18px; aspect-ratio: 1 / 0.82; padding: 18px 10px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); color: var(--ink-2); font-size: 14px; font-weight: 500; transition: background-color .18s var(--ease), border-color .18s var(--ease), color .18s var(--ease), transform .18s var(--ease); }
+.tile svg.i { width: 40px; height: 40px; stroke-width: 1.6; color: var(--ink); transition: color .18s var(--ease); }
+.tile:hover { border-color: rgba(var(--accent-rgb), .55); background: rgba(var(--accent-rgb), .14); color: #fff; transform: translateY(-2px); }
+.tile:hover svg.i { color: rgb(var(--accent-rgb)); }
