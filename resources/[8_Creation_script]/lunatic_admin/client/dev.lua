@@ -90,6 +90,9 @@ local function entityInfo(entity)
     return info
 end
 
+-- Utilisé aussi par le menu contextuel (client/context.lua)
+DevEntityInfo = entityInfo
+
 local function infoLines(info)
     local lines = {
         ('%s · %s%s'):format(info.type, info.model or info.hashHex, info.model and (' (' .. info.hashHex .. ')') or ''),

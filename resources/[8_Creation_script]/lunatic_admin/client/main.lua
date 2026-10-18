@@ -49,6 +49,15 @@ local function open()
     SendNUIMessage({ action = 'open', state = state, toggleKey = toggleKey() })
 end
 
+-- Menu contextuel : ouvre le panel sur la fiche d'un joueur
+function OpenPanelOnPlayer(serverId)
+    open()
+
+    if isOpen then
+        SendNUIMessage({ action = 'focusPlayer', serverId = serverId })
+    end
+end
+
 RegisterCommand(Config.Command, open, false)
 RegisterKeyMapping(Config.Command, 'Ouvrir le panel staff', 'keyboard', Config.DefaultKey)
 

@@ -1268,6 +1268,12 @@ window.addEventListener("message", (event) => {
         const keptDraft = applyState(msg.state, false);
         if (keptDraft && view === "ranks") renderRanks(true);
         else render();
+    } else if (msg.action === "focusPlayer") {
+        // Menu contextuel : fiche du joueur visé
+        if (!can("players.view")) return;
+        go("players");
+        if (playersTab !== "online") switchPlayersTab("online");
+        selectPlayer(Number(msg.serverId));
     } else if (msg.action === "warning") {
         showWarning(msg.warning);
     } else if (msg.action === "close") {

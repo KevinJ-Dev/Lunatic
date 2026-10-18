@@ -36,6 +36,7 @@ server_scripts {
     'server/events.lua',
     'server/dev.lua',
     'server/commands.lua',
+    'server/context.lua',
 }
 
 client_scripts {
@@ -46,6 +47,7 @@ client_scripts {
     'client/jail.lua',
     'client/events.lua',
     'client/dev.lua',
+    'client/context.lua',
 }
 
 ui_page 'web/index.html'

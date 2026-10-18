@@ -232,3 +232,13 @@ Les commandes qui n'existaient ni dans le tchat ni dans le panel ; elles passent
 | `/annoncemodo <message>` | `chat.announce_mod` | Annonce signée « Modération » (dans lunatic_chat). |
 
 Perquisition, menottes, propriétés, prise de service, stocks et mode créateur viendront avec leurs systèmes.
+
+## Menu contextuel ox_target (lot M)
+
+Avec ox_target (Alt, puis clic), le staff a des options en plus sur ce qu'il vise, jusqu'à 20 m :
+
+- **Joueur → Staff** (`contextmenu.use`) : ouvrir sa fiche dans le panel, aller vers, ramener, figer / libérer, soigner, réanimer, observer, inventaire. Chaque option demande aussi la permission du panel correspondante.
+- **Véhicule → Staff** (`contextmenu.use` + `tools.vehicles`) : réparer, retourner, monter dedans (place libre), propriétaire (d'après `owned_vehicles`), supprimer (refusé si un joueur est dedans).
+- **Dév** (`contextmenu.dev`), sur joueurs, véhicules, PNJ et objets : copier `vector3` / `vector4` / modèle (presse-papiers), infos complètes (page Dév + console F8), geler / dégeler, supprimer l'entité (pas un joueur ; un décor non synchronisé n'est retiré que pour soi).
+
+Le serveur envoie au client les droits du menu (rafraîchis toutes les 5 s s'ils changent) et revérifie chaque action ; tout est dans les logs. Sans ox_target, le module ne fait rien.
