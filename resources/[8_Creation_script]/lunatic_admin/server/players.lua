@@ -24,7 +24,7 @@ end
 
 local function jobOf(xPlayer)
     local job = xPlayer and xPlayer.getJob()
-    return job and { label = job.label, grade = job.grade_label } or nil
+    return job and { name = job.name, label = job.label, grade = job.grade_label, level = job.grade } or nil
 end
 
 local function pedCoords(src)
@@ -159,11 +159,12 @@ Panel.actions['player.info'] = function(src, actor, data)
     end
 
     if xPlayer then
-        local money, bank = xPlayer.getAccount('money'), xPlayer.getAccount('bank')
+        local money, bank, black = xPlayer.getAccount('money'), xPlayer.getAccount('bank'), xPlayer.getAccount('black_money')
 
         info.job = jobOf(xPlayer)
         info.money = money and money.money or nil
         info.bank = bank and bank.money or nil
+        info.blackMoney = black and black.money or nil
         info.dateofbirth = xPlayer.get('dateofbirth')
         info.sex = xPlayer.get('sex')
         info.height = xPlayer.get('height')

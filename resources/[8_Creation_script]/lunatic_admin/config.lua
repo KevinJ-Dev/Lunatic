@@ -31,11 +31,17 @@ Config.NamesDistance = 50.0               -- portée des noms au-dessus des têt
 Config.VehicleDeleteMaxRadius = 50.0      -- rayon maximal de suppression des véhicules
 Config.VehiclePlate = 'STAFF'            -- plaque des véhicules apparus via le panel
 
+-- Économie (lot 5)
+Config.MaxMoneyAction = 1000000           -- montant maximal par opération (le Fondateur n'a pas de limite)
+Config.MaxItemCount = 1000                -- quantité maximale d'objets donnée en une fois
+Config.EconomyReasonMin = 3
+
 -- Anti-spam : nombre maximal d'actions du panel par joueur et par fenêtre de temps
 Config.RateLimit = { max = 15, windowMs = 5000 }
 
 -- Rangs créés au premier démarrage (table vide). Ils restent ensuite modifiables en jeu.
 -- owner = true : rang Fondateur (toutes les permissions, ne peut pas être supprimé)
+local economy = { 'economy.money', 'economy.black_money', 'economy.job', 'economy.items', 'economy.clear' }
 local tools = { 'tools.noclip', 'tools.invisible', 'tools.godmode', 'tools.names', 'tools.coords', 'tools.tpm', 'tools.vehicles' }
 local sanctions = { 'sanctions.view', 'sanctions.warn', 'sanctions.ban' }
 local players = { 'players.view', 'players.goto', 'players.bring', 'players.spectate', 'players.freeze', 'players.heal', 'players.kick' }
@@ -54,8 +60,8 @@ end
 
 Config.DefaultRanks = {
     { name = 'Fondateur',         color = '#9650ff', level = 100, owner = true },
-    { name = 'Admin',             color = '#ff6b6b', level = 80, permissions = with(players, sanctions, tools, { 'sanctions.ban_permanent', 'sanctions.revoke', 'panel.open', 'ranks.view', 'ranks.manage', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce', 'chat.clear' }) },
-    { name = 'Responsable staff', color = '#f2c26b', level = 60, permissions = with(players, sanctions, tools, { 'sanctions.revoke', 'panel.open', 'ranks.view', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce' }) },
+    { name = 'Admin',             color = '#ff6b6b', level = 80, permissions = with(players, sanctions, tools, economy, { 'sanctions.ban_permanent', 'sanctions.revoke', 'panel.open', 'ranks.view', 'ranks.manage', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce', 'chat.clear' }) },
+    { name = 'Responsable staff', color = '#f2c26b', level = 60, permissions = with(players, sanctions, tools, { 'economy.money', 'economy.job', 'economy.items', 'sanctions.revoke', 'panel.open', 'ranks.view', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce' }) },
     { name = 'Modérateur',        color = '#5fd3a0', level = 40, permissions = with(players, sanctions, { 'tools.noclip', 'tools.names', 'tools.tpm', 'tools.vehicles', 'panel.open', 'ranks.view', 'staff.view', 'chat.staff' }) },
     { name = 'Modérateur test',   color = '#6bb8f2', level = 20, permissions = { 'panel.open', 'chat.staff', 'players.view', 'players.goto', 'players.spectate', 'players.heal', 'sanctions.view', 'sanctions.warn', 'tools.noclip', 'tools.names' } },
 }

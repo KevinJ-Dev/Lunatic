@@ -311,3 +311,18 @@ select.input option { background: #16121f; }
 .spawn-row .input { flex: 1; }
 .hint-line { margin: 10px 0 0; color: var(--muted-2); font-size: 12px; }
 .card .durations { margin-bottom: 12px; }
+
+/* Fiche joueur : économie, métier, inventaire */
+.eco-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-top: 16px; }
+.eco-grid .card { margin-top: 0; }
+.eco-inventory { grid-column: 1 / -1; }
+.eco-line { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; }
+.eco-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 8px; }
+.eco-form.job { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.eco-form.job .btn { grid-column: 1 / -1; justify-self: start; }
+.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.card-head .card-title { margin-bottom: 10px; }
+.inv-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px; margin-top: 12px; }
+.inv-row { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 10px; min-height: 42px; padding: 4px 6px 4px 12px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-raise); font-size: 13px; }
+.inv-row b { font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.inv-row .muted { font-size: 11px; }

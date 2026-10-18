@@ -351,6 +351,7 @@ function paintPlayerList() {
 
 function selectPlayer(id) {
     if (selectedPlayerId === id) return;
+    economyPanel = null;
     selectedPlayerId = id;
     playerInfo = null;
     playerHistory = null;
@@ -398,6 +399,12 @@ function paintFiche() {
     }
 
     const info = playerInfo;
+
+    // Garde la position de défilement entre deux rafraîchissements de la même fiche
+    const previous = fiche.querySelector(".scroll");
+    const keepScroll = previous && fiche.dataset.player === String(info.serverId) ? previous.scrollTop : 0;
+    fiche.dataset.player = String(info.serverId);
+
     const reason = (perm, opts = {}) => {
         if (!can(perm)) return "Permission manquante";
         if (opts.notSelf && info.isSelf) return "Impossible sur vous-même";
@@ -465,9 +472,13 @@ function paintFiche() {
                     infoRow("Ping", `${info.ping} ms`),
                     infoRow("Figé", info.frozen ? "Oui" : "Non"))
             ),
+            economySection(info),
             can("sanctions.view") ? historyCard(info) : null
         )
     );
+
+    const scroller = fiche.querySelector(".scroll");
+    if (scroller) scroller.scrollTop = keepScroll;
 }
 
 async function playerAction(action, okMessage, payload) {
@@ -988,7 +999,7 @@ window.addEventListener("message", (event) => {
 
 function demoState() {
     return {
-        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],
@@ -1029,6 +1040,8 @@ function demoState() {
 }
 
 async function demoNui(name, data) {
+    if (name === "action" && data && data.action === "economy.jobs") return { ok: true, jobs: [{ name: "unemployed", label: "Sans emploi", grades: [{ grade: 0, label: "Chômeur" }] }, { name: "mechanic", label: "Mécanicien", grades: [{ grade: 0, label: "Recrue" }, { grade: 1, label: "Employé" }, { grade: 2, label: "Patron" }] }] };
+    if (name === "action" && data && data.action === "economy.inventory") return { ok: true, weight: 4300, maxWeight: 24000, items: [{ name: "bread", label: "Pain", count: 3 }, { name: "water", label: "Eau", count: 2 }, { name: "phone", label: "Téléphone", count: 1 }] };
     if (name === "getCoords") return { x: 215.76, y: -810.12, z: 30.73, h: 157.5 };
     if (name === "vehicleSpawn") return { ok: false, error: "Aperçu navigateur : rien n'est créé." };
     if (name === "action" && data && data.action === "player.info") {
@@ -1036,7 +1049,7 @@ async function demoNui(name, data) {
         return { ok: true, info: {
             serverId: p.serverId, name: p.name, pseudo: "Pseudo_FiveM", license: "license:25c2692702c6aa11bb", ping: p.ping,
             rank: p.rank, frozen: !!p.frozen, canReturn: false, isSelf: p.serverId === 1, protected: p.serverId === 4 ? false : false,
-            health: 164, maxHealth: 200, armor: 40, job: { label: p.job, grade: "Employé" }, money: 2350, bank: 48200,
+            health: 164, maxHealth: 200, armor: 40, job: { name: "mechanic", label: p.job, grade: "Employé", level: 1 }, money: 2350, bank: 48200, blackMoney: 0,
             dateofbirth: "14/03/1996", sex: "m", height: 182,
         } };
     }
@@ -1063,6 +1076,7 @@ if (!IN_GAME) window.addEventListener("load", () => {
         if (params.get("view")) go(params.get("view"));
         if (params.get("rank")) selectRank(Number(params.get("rank")));
         if (params.get("player")) selectPlayer(Number(params.get("player")));
+        if (params.get("scroll")) setTimeout(() => document.querySelectorAll(".view.on .scroll").forEach((e) => { e.scrollTop = Number(params.get("scroll")); }), 600);
         if (params.get("warning")) window.postMessage({ action: "warning", warning: { id: 41, reason: "Langage HRP en pleine scène, merci de rester dans ton personnage.", date: Math.floor(Date.now() / 1000) } }, "*");
     }, 50);
 });

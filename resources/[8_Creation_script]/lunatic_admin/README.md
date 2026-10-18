@@ -92,3 +92,17 @@ Page « Outils » du panel. Les modes restent actifs panel fermé ; un badge en 
 | Véhicules | `tools.vehicles` | Faire apparaître (créé par le serveur, plaque `STAFF`), réparer, retourner, supprimer le sien ou les véhicules vides autour (50 m max) |
 
 Noclip, invisibilité, invincibilité, apparitions et suppressions de véhicules sont enregistrés dans `lunatic_admin_logs`.
+
+## Économie, métier et inventaire (lot 5)
+
+Section ajoutée à la fiche joueur (joueurs connectés uniquement ; masquée pour un staff de rang égal ou supérieur).
+
+| Section | Permission | Détail |
+|---|---|---|
+| Argent (liquide, banque) | `economy.money` | Donner, retirer, fixer. Raison obligatoire, 1 000 000 $ max par opération (`Config.MaxMoneyAction`) sauf pour le Fondateur |
+| Argent sale | `economy.black_money` | Pareil, permission séparée |
+| Métier | `economy.job` | Métier et grade parmi les métiers ESX en base |
+| Inventaire | `economy.items` | Voir (ox_inventory), donner un objet (1 000 max), retirer une quantité ou tout |
+| Vider l'inventaire | `economy.clear` | Raison obligatoire ; la liste des objets supprimés est gardée dans les logs |
+
+Chaque opération est enregistrée dans `lunatic_admin_logs` avec l'ancienne et la nouvelle valeur.

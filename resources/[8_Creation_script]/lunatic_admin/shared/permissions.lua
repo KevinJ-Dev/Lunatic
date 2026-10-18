@@ -7,6 +7,7 @@ Permissions.Families = {
     { id = 'players',   label = 'Joueurs' },
     { id = 'sanctions', label = 'Sanctions' },
     { id = 'tools',     label = 'Outils' },
+    { id = 'economy',   label = 'Économie' },
     { id = 'chat',      label = 'Tchat' },
     { id = 'manage',    label = 'Gestion' },
 }
@@ -20,6 +21,13 @@ Permissions.List = {
     { id = 'players.freeze',   family = 'players', label = 'Figer et libérer un joueur' },
     { id = 'players.heal',     family = 'players', label = 'Soigner et réanimer un joueur' },
     { id = 'players.kick',     family = 'players', label = 'Expulser un joueur du serveur' },
+
+    -- Lot 5 : économie, métier, inventaire
+    { id = 'economy.money',       family = 'economy', label = 'Donner, retirer et fixer liquide et banque' },
+    { id = 'economy.black_money', family = 'economy', label = "Donner, retirer et fixer l'argent sale" },
+    { id = 'economy.job',         family = 'economy', label = 'Changer le métier et le grade' },
+    { id = 'economy.items',       family = 'economy', label = "Voir l'inventaire, donner et retirer des objets" },
+    { id = 'economy.clear',       family = 'economy', label = "Vider l'inventaire d'un joueur" },
 
     -- Lot 4 : outils staff
     { id = 'tools.noclip',    family = 'tools', label = 'Noclip (vol libre, invisible et invincible)' },
