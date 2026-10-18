@@ -58,6 +58,7 @@ Config.RateLimit = { max = 15, windowMs = 5000 }
 
 -- Rangs créés au premier démarrage (table vide). Ils restent ensuite modifiables en jeu.
 -- owner = true : rang Fondateur (toutes les permissions, ne peut pas être supprimé)
+local world = { 'world.weather', 'world.time' }
 local economy = { 'economy.money', 'economy.black_money', 'economy.job', 'economy.items', 'economy.clear' }
 local tools = { 'tools.noclip', 'tools.invisible', 'tools.godmode', 'tools.names', 'tools.coords', 'tools.tpm', 'tools.vehicles' }
 local sanctions = { 'sanctions.view', 'sanctions.warn', 'sanctions.ban', 'sanctions.jail' }
@@ -77,8 +78,8 @@ end
 
 Config.DefaultRanks = {
     { name = 'Fondateur',         color = '#9650ff', level = 100, owner = true },
-    { name = 'Admin',             color = '#ff6b6b', level = 80, permissions = with(players, sanctions, tools, economy, { 'logs.view', 'logs.chat', 'sanctions.ban_permanent', 'sanctions.revoke', 'panel.open', 'ranks.view', 'ranks.manage', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce', 'chat.clear' }) },
-    { name = 'Responsable staff', color = '#f2c26b', level = 60, permissions = with(players, sanctions, tools, { 'logs.view', 'economy.money', 'economy.job', 'economy.items', 'sanctions.revoke', 'panel.open', 'ranks.view', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce' }) },
+    { name = 'Admin',             color = '#ff6b6b', level = 80, permissions = with(players, sanctions, tools, economy, world, { 'logs.view', 'logs.chat', 'sanctions.ban_permanent', 'sanctions.revoke', 'panel.open', 'ranks.view', 'ranks.manage', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce', 'chat.clear' }) },
+    { name = 'Responsable staff', color = '#f2c26b', level = 60, permissions = with(players, sanctions, tools, world, { 'logs.view', 'economy.money', 'economy.job', 'economy.items', 'sanctions.revoke', 'panel.open', 'ranks.view', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce' }) },
     { name = 'Modérateur',        color = '#5fd3a0', level = 40, permissions = with(players, sanctions, { 'tools.noclip', 'tools.names', 'tools.tpm', 'tools.vehicles', 'panel.open', 'ranks.view', 'staff.view', 'chat.staff' }) },
     { name = 'Modérateur test',   color = '#6bb8f2', level = 20, permissions = { 'panel.open', 'chat.staff', 'players.view', 'players.goto', 'players.spectate', 'players.heal', 'sanctions.view', 'sanctions.warn', 'tools.noclip', 'tools.names' } },
 }

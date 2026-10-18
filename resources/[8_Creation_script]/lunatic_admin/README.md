@@ -132,3 +132,7 @@ Chaque opération est enregistrée dans `lunatic_admin_logs` avec l'ancienne et 
 - Le temps ne s'écoule que joueur connecté ; à la reconnexion (ou au redémarrage de la resource), il retourne en prison.
 - À la fin, il est relâché devant le portail. **Sortir de prison** (fiche) ou **Révoquer** (page Sanctions) le libère plus tôt.
 - Permission `sanctions.jail` ; peines visibles dans l'historique (type « Prison ») ; table `lunatic_admin_jail` créée au démarrage.
+
+## Monde (lot D)
+
+Page « Monde » : heure (raccourcis aube / midi / soir / nuit, heure précise, figer), météo (14 météos, transition progressive), cycle météo automatique et panne de courant. Nécessite la resource `lunatic_world`. Permissions `world.weather` et `world.time`.

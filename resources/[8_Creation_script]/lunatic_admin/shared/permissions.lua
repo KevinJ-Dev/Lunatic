@@ -8,6 +8,7 @@ Permissions.Families = {
     { id = 'sanctions', label = 'Sanctions' },
     { id = 'tools',     label = 'Outils' },
     { id = 'economy',   label = 'Économie' },
+    { id = 'world',     label = 'Monde' },
     { id = 'chat',      label = 'Tchat' },
     { id = 'manage',    label = 'Gestion' },
 }
@@ -23,6 +24,10 @@ Permissions.List = {
     { id = 'players.appearance', family = 'players', label = "Ouvrir le menu d'apparence d'un joueur" },
     { id = 'players.recreate', family = 'players', label = 'Renvoyer un joueur à la création de personnage' },
     { id = 'players.kick',     family = 'players', label = 'Expulser un joueur du serveur' },
+
+    -- Lot D : météo et heure (lunatic_world)
+    { id = 'world.weather', family = 'world', label = 'Changer la météo, le cycle météo et les pannes de courant' },
+    { id = 'world.time',    family = 'world', label = "Changer et figer l'heure" },
 
     -- Lot 5 : économie, métier, inventaire
     { id = 'economy.money',       family = 'economy', label = 'Donner, retirer et fixer liquide et banque' },

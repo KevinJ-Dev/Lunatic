@@ -364,3 +364,15 @@ button.log-row:hover { background: var(--surface-2); border-color: var(--line-st
 .link { border: 0; background: none; padding: 0; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; transition: color .15s; }
 .link:hover { color: var(--ink); }
 .badge.jail { background: #6bb8f224; color: var(--info); }
+
+/* Page Monde */
+.world-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 16px; align-items: start; }
+.world-grid .card + .card { margin-top: 0; }
+.world-time { display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px; }
+.world-clock { font-size: 44px; font-weight: 500; letter-spacing: -.02em; }
+.weather-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; margin-bottom: 14px; }
+.weather-tile { display: grid; justify-items: center; gap: 4px; padding: 12px 8px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg-raise); color: var(--ink-2); font-size: 12.5px; font-weight: 600; transition: border-color .15s, background-color .15s; }
+.weather-tile:hover { border-color: var(--line-strong); }
+.weather-tile.on { border-color: rgba(var(--accent-rgb), .6); background: rgba(var(--accent-rgb), .14); color: #fff; }
+.weather-icon { font-size: 24px; line-height: 1.1; }
+.card .mode-list { margin-top: 4px; }

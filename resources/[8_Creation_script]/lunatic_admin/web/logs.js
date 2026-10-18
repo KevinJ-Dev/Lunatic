@@ -46,6 +46,11 @@ const ACTION_LABELS = {
     "economy.removeItem": "a retiré un objet à",
     "economy.clearInventory": "a vidé l'inventaire de",
     "economy.inspect": "a ouvert l'inventaire de",
+    "world.weather": "a changé la météo",
+    "world.cycle": "a réglé le cycle météo",
+    "world.blackout": "a réglé la panne de courant",
+    "world.time": "a changé l'heure",
+    "world.freeze": "a figé / relancé l'heure",
 };
 
 const ACCOUNT_LABELS = { money: "liquide", bank: "banque", black_money: "argent sale" };
@@ -103,6 +108,17 @@ function describeLog(log) {
             break;
         case "sanction.ban":
             summary = `${d.hours === "permanent" ? "définitif" : `${d.hours} h`} · ${d.reason || ""}`;
+            break;
+        case "world.weather":
+            summary = d.weather || "";
+            break;
+        case "world.time":
+            summary = `${String(d.hour).padStart(2, "0")}:${String(d.minute).padStart(2, "0")}`;
+            break;
+        case "world.cycle":
+        case "world.blackout":
+        case "world.freeze":
+            summary = d.enabled ? "activé" : "désactivé";
             break;
         case "sanction.jail":
             summary = `${d.minutes} min · ${d.reason || ""}`;

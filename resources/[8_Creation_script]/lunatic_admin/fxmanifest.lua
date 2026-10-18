@@ -27,6 +27,7 @@ server_scripts {
     'server/economy.lua',
     'server/history.lua',
     'server/jail.lua',
+    'server/world.lua',
 }
 
 client_scripts {
@@ -47,6 +48,7 @@ files {
     'web/tools.js',
     'web/economy.js',
     'web/logs.js',
+    'web/world.js',
     'web/logo.png',
     'web/fonts/*.woff2',
 }
