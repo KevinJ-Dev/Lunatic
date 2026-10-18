@@ -4,8 +4,8 @@ lua54 'yes'
 
 name 'lunatic_admin'
 author 'Lunatic RP'
-description 'Panel staff : rangs, permissions, staff, joueurs, sanctions, outils et économie'
-version '0.5.0'
+description 'Panel staff Lunatic : rangs, staff, joueurs, sanctions, outils, économie, logs et tableau de bord'
+version '0.6.0'
 
 shared_scripts {
     '@es_extended/imports.lua',
@@ -25,6 +25,7 @@ server_scripts {
     'server/sanctions.lua',
     'server/tools.lua',
     'server/economy.lua',
+    'server/history.lua',
 }
 
 client_scripts {
@@ -43,6 +44,7 @@ files {
     'web/sanctions.js',
     'web/tools.js',
     'web/economy.js',
+    'web/logs.js',
     'web/logo.png',
     'web/fonts/*.woff2',
 }

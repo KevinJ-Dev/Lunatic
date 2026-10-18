@@ -106,3 +106,11 @@ Section ajoutée à la fiche joueur (joueurs connectés uniquement ; masquée po
 | Vider l'inventaire | `economy.clear` | Raison obligatoire ; la liste des objets supprimés est gardée dans les logs |
 
 Chaque opération est enregistrée dans `lunatic_admin_logs` avec l'ancienne et la nouvelle valeur.
+
+## Logs et tableau de bord (lot 6)
+
+- **Accueil = tableau de bord**, rafraîchi toutes les 5 secondes : joueurs en ligne et courbe des 24 h (relevé toutes les 5 min, en mémoire : repart de zéro au redémarrage), staff en ligne, bans actifs et sanctions des 24 h (`sanctions.view`), 8 dernières actions du staff (`logs.view`).
+- **Page Logs** :
+  - *Actions du staff* (`logs.view`) : filtres catégorie / membre / période, recherche, « Charger plus », détail complet au clic (avant, après, raison…).
+  - *Tchat* (`logs.chat`) : historique de `lunatic_chat` (HRP, /me, /do, staff, annonces), filtre par canal, recherche.
+- Les actions du staff de plus de `Config.LogRetentionDays` jours (90 par défaut) sont supprimées automatiquement.

@@ -94,6 +94,19 @@ table.insert(Panel.readyHooks, function()
     print(('[lunatic_admin] Module Sanctions chargé : %d ban(s) actif(s).'):format(#(rows or {})))
 end)
 
+-- Nombre de bans actifs (tableau de bord)
+function Panel.countActiveBans()
+    local count = 0
+
+    for _, ban in pairs(activeBans) do
+        if isActive(ban) then
+            count = count + 1
+        end
+    end
+
+    return count
+end
+
 ---------------------------------------------------------------------
 -- Identifiants d'un joueur (sans l'adresse IP, partagée entre plusieurs personnes)
 ---------------------------------------------------------------------

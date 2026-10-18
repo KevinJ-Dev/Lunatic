@@ -205,6 +205,7 @@ const NAV = [
     { id: "players", label: "Joueurs", icon: "i-player", show: () => can("players.view") },
     { id: "sanctions", label: "Sanctions", icon: "i-gavel", show: () => can("sanctions.view") },
     { id: "tools", label: "Outils", icon: "i-tool", show: () => hasAnyTool() },
+    { id: "logs", label: "Logs", icon: "i-list", show: () => can("logs.view") || can("logs.chat") },
     { id: "ranks", label: "Rangs", icon: "i-layers", show: () => can("ranks.view") },
     { id: "members", label: "Membres", icon: "i-users", show: () => can("staff.view") },
 ];
@@ -223,7 +224,7 @@ function render() {
     );
     $("me").querySelector(".avatar").style.background = me.rank.color;
 
-    for (const id of ["home", "players", "sanctions", "tools", "ranks", "members"]) {
+    for (const id of ["home", "players", "sanctions", "tools", "logs", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
     }
 
@@ -231,6 +232,7 @@ function render() {
     if (view === "players") renderPlayers();
     if (view === "sanctions") renderSanctions();
     if (view === "tools") renderTools();
+    if (view === "logs") renderLogs();
     if (view === "ranks") renderRanks();
     if (view === "members") renderMembers();
 }
@@ -255,39 +257,111 @@ function go(target) {
 
 function renderHome() {
     const me = state.me;
-    const total = state.catalogue.permissions.length;
+    const d = state.dashboard || {};
+    const staffOnline = Array.isArray(d.staff) ? d.staff : [];
+
+    // Chiffres clés
     const kpis = [
-        h("div", { class: "kpi" }, h("span", null, "Permissions"), h("b", null, `${me.permissions.length}`), h("small", null, `sur ${total} disponibles`)),
+        h("div", { class: "kpi" }, h("span", null, "Joueurs en ligne"), h("b", null, `${d.players ?? "—"}`), h("small", null, `sur ${d.maxPlayers ?? "?"} places`)),
+        h("div", { class: "kpi" }, h("span", null, "Staff en ligne"), h("b", null, `${staffOnline.length}`), h("small", null, staffOnline.length ? "membres connectés" : "aucun membre connecté")),
     ];
-
-    if (state.staff) {
-        const online = staff().filter((m) => m.online).length;
-        kpis.push(h("div", { class: "kpi" }, h("span", null, "Staff en ligne"), h("b", null, `${online}`), h("small", null, `sur ${staff().length} membres`)));
-    }
-    if (state.ranks && can("ranks.view")) {
-        kpis.push(h("div", { class: "kpi" }, h("span", null, "Rangs"), h("b", null, `${ranks().length}`), h("small", null, "du plus haut au plus bas")));
-    }
-
-    const families = state.catalogue.families.map((family) => {
-        const perms = state.catalogue.permissions.filter((p) => p.family === family.id && me.permissions.includes(p.id));
-        if (!perms.length) return null;
-        return h("div", { class: "section" },
-            h("div", { class: "section-head" }, family.label, h("span", { class: "count" }, `${perms.length}`)),
-            h("div", { class: "chips" }, perms.map((p) => h("span", { class: "chip" }, p.label)))
+    if (d.sanctions) {
+        kpis.push(
+            h("div", { class: "kpi" }, h("span", null, "Bans actifs"), h("b", null, `${d.sanctions.activeBans ?? 0}`), h("small", null, `${d.sanctions.bans24h ?? 0} sur les dernières 24 h`)),
+            h("div", { class: "kpi" }, h("span", null, "Avertissements"), h("b", null, `${d.sanctions.warns24h ?? 0}`), h("small", null, "sur les dernières 24 h"))
         );
-    });
+    }
+
+    // Courbe de fréquentation
+    const chartCard = h("div", { class: "card dash-chart" },
+        h("h3", { class: "card-title" }, "Fréquentation (24 h)"),
+        playersChart(Array.isArray(d.history) ? d.history : [], d.maxPlayers)
+    );
+
+    // Staff en ligne
+    const staffCard = h("div", { class: "card" },
+        h("h3", { class: "card-title" }, "Staff en ligne"),
+        staffOnline.length
+            ? h("div", { class: "dash-staff" }, staffOnline.map((m) => h("div", { class: "dash-staff-row" },
+                h("span", { class: "status on" }),
+                h("b", null, m.name),
+                h("span", { class: "muted mono" }, `ID ${m.serverId}`),
+                rankPill(m.rank))))
+            : h("span", { class: "muted" }, "Aucun membre du staff connecté.")
+    );
+
+    // Dernières actions du staff
+    const recent = Array.isArray(d.recent) ? d.recent : null;
+    const recentCard = recent ? h("div", { class: "card dash-recent" },
+        h("div", { class: "card-head" },
+            h("h3", { class: "card-title" }, "Dernières actions du staff"),
+            h("button", { class: "link", onclick: () => go("logs") }, "Voir tous les logs →")
+        ),
+        recent.length
+            ? h("div", { class: "table" }, recent.map((log) => {
+                const { verb, summary } = describeLog(log);
+                return h("div", { class: "dash-log" },
+                    h("span", { class: "log-date" }, ago(log.created)),
+                    h("span", { class: "log-text" }, h("b", null, log.actor || "?"), ` ${verb} `, log.target ? h("b", null, log.target) : null,
+                        summary ? h("span", { class: "log-summary" }, summary) : null)
+                );
+            }))
+            : h("span", { class: "muted" }, "Aucune action enregistrée.")
+    ) : null;
 
     $("view-home").replaceChildren(h("div", { class: "home" },
         h("div", { class: "hero" },
             h("img", { src: "logo.png", alt: "" }),
             h("div", null,
                 h("h2", null, `Bonjour, ${me.name}`),
-                h("p", null, rankPill(me.rank), " ", me.rank.owner ? "Toutes les permissions" : `Niveau ${me.rank.level}`)
+                h("p", null, rankPill(me.rank), " ", me.rank.owner ? "Toutes les permissions" : `Niveau ${me.rank.level} · ${me.permissions.length} permission${me.permissions.length > 1 ? "s" : ""}`)
             )
         ),
         h("div", { class: "kpis" }, kpis),
-        h("div", { class: "card", style: "margin-top:16px" }, h("h3", { class: "card-title" }, "Vos permissions"), families)
+        h("div", { class: "dash-grid" }, chartCard, staffCard),
+        recentCard
     ));
+}
+
+// Courbe SVG du nombre de joueurs (relevés du serveur, 24 h glissantes)
+function playersChart(samples, maxPlayers) {
+    if (samples.length < 2) {
+        return h("div", { class: "muted dash-empty" }, "Pas encore assez de relevés : la courbe se remplit toutes les 5 minutes depuis le démarrage du serveur.");
+    }
+
+    const width = 600;
+    const height = 150;
+    const pad = 6;
+    const first = samples[0].t;
+    const last = samples[samples.length - 1].t;
+    const span = Math.max(1, last - first);
+    const top = Math.max(4, ...samples.map((s) => s.n));
+    const x = (t) => pad + ((t - first) / span) * (width - pad * 2);
+    const y = (n) => height - pad - (n / top) * (height - pad * 2);
+    const points = samples.map((s) => `${x(s.t).toFixed(1)},${y(s.n).toFixed(1)}`).join(" ");
+    const area = `${pad},${height - pad} ${points} ${width - pad},${height - pad}`;
+    const peak = Math.max(...samples.map((s) => s.n));
+
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.setAttribute("preserveAspectRatio", "none");
+    svg.setAttribute("class", "chart");
+    svg.innerHTML = `
+        <defs><linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="rgb(150,80,255)" stop-opacity=".45"/><stop offset="1" stop-color="rgb(150,80,255)" stop-opacity="0"/>
+        </linearGradient></defs>
+        <polygon points="${area}" fill="url(#chartFill)"/>
+        <polyline points="${points}" fill="none" stroke="rgb(170,110,255)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`;
+
+    const time = (t) => new Date(t * 1000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    return h("div", null,
+        svg,
+        h("div", { class: "chart-legend" },
+            h("span", null, time(first)),
+            h("span", null, `Pic : ${peak} joueur${peak > 1 ? "s" : ""}${maxPlayers ? ` / ${maxPlayers}` : ""}`),
+            h("span", null, time(last))
+        )
+    );
 }
 
 // ---------- Joueurs ----------
@@ -513,7 +587,7 @@ function openKick(info) {
 
 // Rafraîchissement automatique de la page Joueurs (ping, joueurs, fiche)
 setInterval(async () => {
-    if (!state || view !== "players" || document.body.classList.contains("hidden")) return;
+    if (!state || (view !== "players" && view !== "home") || document.body.classList.contains("hidden")) return;
     try {
         const next = await nui("refresh");
         if (next && typeof next === "object") {
@@ -523,7 +597,7 @@ setInterval(async () => {
     } catch (e) {
         // panel fermé entre-temps
     }
-    loadPlayerInfo();
+    if (view === "players") loadPlayerInfo();
 }, 5000);
 
 // ---------- Rangs ----------
@@ -999,7 +1073,7 @@ window.addEventListener("message", (event) => {
 
 function demoState() {
     return {
-        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],
@@ -1032,6 +1106,18 @@ function demoState() {
             { serverId: 7, name: "Marco Rossi", job: "Taxi", ping: 112, frozen: true },
         ],
         tools: { noclip: true, names: true },
+        dashboard: {
+            players: 23, maxPlayers: 64,
+            history: Array.from({ length: 60 }, (_, i) => ({ t: Math.floor(Date.now() / 1000) - (59 - i) * 1440, n: Math.max(0, Math.round(18 + 12 * Math.sin(i / 7) + (i % 5)))})),
+            staff: [{ serverId: 1, name: "Ramiro Lotus", rank: { name: "Fondateur", color: "#9650ff" } }, { serverId: 4, name: "Alex Moreau", rank: { name: "Admin", color: "#ff6b6b" } }],
+            sanctions: { activeBans: 3, bans24h: 1, warns24h: 4 },
+            recent: [
+                { id: 120, actor: "Ramiro Lotus", action: "economy.money", target: "Jean Dupont", details: { account: "money", operation: "add", amount: 500, before: 2350, after: 2850, reason: "Remboursement bug garage" }, created: Math.floor(Date.now() / 1000) - 300 },
+                { id: 119, actor: "Alex Moreau", action: "sanction.ban", target: "Tony Vega", details: { id: 42, hours: 72, reason: "Freekill répété" }, created: Math.floor(Date.now() / 1000) - 3600 },
+                { id: 118, actor: "Ramiro Lotus", action: "tool.noclip.on", details: null, created: Math.floor(Date.now() / 1000) - 5400 },
+                { id: 117, actor: "Alex Moreau", action: "player.bring", target: "Marco Rossi", details: { serverId: 7 }, created: Math.floor(Date.now() / 1000) - 7200 },
+            ],
+        },
         recent: [
             { license: "license:9f1e22aa00bb11", name: "Tony Vega", serverId: 9, droppedAt: Math.floor(Date.now() / 1000) - 240, banned: false },
             { license: "license:77aa00cc11dd22", name: "Sarah Klein", serverId: 5, droppedAt: Math.floor(Date.now() / 1000) - 3600, banned: true },
@@ -1042,6 +1128,12 @@ function demoState() {
 async function demoNui(name, data) {
     if (name === "action" && data && data.action === "economy.jobs") return { ok: true, jobs: [{ name: "unemployed", label: "Sans emploi", grades: [{ grade: 0, label: "Chômeur" }] }, { name: "mechanic", label: "Mécanicien", grades: [{ grade: 0, label: "Recrue" }, { grade: 1, label: "Employé" }, { grade: 2, label: "Patron" }] }] };
     if (name === "action" && data && data.action === "economy.inventory") return { ok: true, weight: 4300, maxWeight: 24000, items: [{ name: "bread", label: "Pain", count: 3 }, { name: "water", label: "Eau", count: 2 }, { name: "phone", label: "Téléphone", count: 1 }] };
+    if (name === "action" && data && data.action === "logs.list") return { ok: true, more: true, staff: [{ license: "license:a", name: "Alex Moreau" }, { license: "license:b", name: "Ramiro Lotus" }], logs: demoState().dashboard.recent };
+    if (name === "action" && data && data.action === "logs.chat") return { ok: true, messages: [
+        { id: 9, name: "[12] Jean Dupont", channel: "hrp", message: "Quelqu'un sait où est le garage ?", created: Math.floor(Date.now() / 1000) - 120 },
+        { id: 8, name: "[4] Léa Martin", channel: "me", message: "sort son téléphone", created: Math.floor(Date.now() / 1000) - 400 },
+        { id: 7, name: "[1] Ramiro Lotus", channel: "staff", message: "Je m'occupe du ticket de Marco", created: Math.floor(Date.now() / 1000) - 900 },
+    ] };
     if (name === "getCoords") return { x: 215.76, y: -810.12, z: 30.73, h: 157.5 };
     if (name === "vehicleSpawn") return { ok: false, error: "Aperçu navigateur : rien n'est créé." };
     if (name === "action" && data && data.action === "player.info") {
@@ -1076,6 +1168,7 @@ if (!IN_GAME) window.addEventListener("load", () => {
         if (params.get("view")) go(params.get("view"));
         if (params.get("rank")) selectRank(Number(params.get("rank")));
         if (params.get("player")) selectPlayer(Number(params.get("player")));
+        if (params.get("logtab")) setTimeout(() => [...document.querySelectorAll("#view-logs .segmented button")].find((b) => b.textContent === "Tchat")?.click(), 300);
         if (params.get("scroll")) setTimeout(() => document.querySelectorAll(".view.on .scroll").forEach((e) => { e.scrollTop = Number(params.get("scroll")); }), 600);
         if (params.get("warning")) window.postMessage({ action: "warning", warning: { id: 41, reason: "Langage HRP en pleine scène, merci de rester dans ton personnage.", date: Math.floor(Date.now() / 1000) } }, "*");
     }, 50);

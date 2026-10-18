@@ -1,0 +1,312 @@
+"use strict";
+
+// ====================================================================
+//  lunatic_admin — lot 6 : page Logs (actions du staff, historique du tchat)
+//  et traduction des actions en phrases (utilisée aussi par le tableau de bord).
+// ====================================================================
+
+const ACTION_LABELS = {
+    "rank.create": "a créé le rang",
+    "rank.update": "a modifié le rang",
+    "rank.duplicate": "a dupliqué un rang en",
+    "rank.delete": "a supprimé le rang",
+    "staff.add": "a ajouté au staff",
+    "staff.setRank": "a changé le rang de",
+    "staff.remove": "a retiré du staff",
+    "staff.founder": "a nommé Fondateur",
+    "player.goto": "est allé vers",
+    "player.bring": "a ramené",
+    "player.return": "a renvoyé",
+    "player.spectate": "a observé",
+    "player.freeze": "a figé",
+    "player.unfreeze": "a libéré",
+    "player.heal": "a soigné",
+    "player.revive": "a réanimé",
+    "player.kick": "a expulsé",
+    "sanction.warn": "a averti",
+    "sanction.ban": "a banni",
+    "sanction.revoke": "a révoqué une sanction de",
+    "tool.noclip.on": "a activé le noclip",
+    "tool.noclip.off": "a coupé le noclip",
+    "tool.invisible.on": "s'est rendu invisible",
+    "tool.invisible.off": "est redevenu visible",
+    "tool.godmode.on": "s'est rendu invincible",
+    "tool.godmode.off": "a coupé l'invincibilité",
+    "vehicle.spawn": "a fait apparaître le véhicule",
+    "vehicle.delete": "a supprimé",
+    "economy.money": "a modifié l'argent de",
+    "economy.setJob": "a changé le métier de",
+    "economy.giveItem": "a donné un objet à",
+    "economy.removeItem": "a retiré un objet à",
+    "economy.clearInventory": "a vidé l'inventaire de",
+};
+
+const ACCOUNT_LABELS = { money: "liquide", bank: "banque", black_money: "argent sale" };
+const DETAIL_LABELS = {
+    reason: "Raison", before: "Avant", after: "Après", amount: "Montant", account: "Compte", operation: "Opération",
+    count: "Quantité", item: "Objet", serverId: "ID joueur", license: "Licence", id: "Référence", hours: "Durée (heures)",
+    removed: "Objets supprimés", permissions: "Permissions", level: "Niveau", rank: "Rang", from: "De", to: "Vers",
+    type: "Type", color: "Couleur", name: "Nom",
+};
+const LOG_CATEGORIES = [
+    { value: "", label: "Toutes les catégories" },
+    { value: "staff", label: "Rangs et staff" },
+    { value: "players", label: "Joueurs" },
+    { value: "sanctions", label: "Sanctions" },
+    { value: "tools", label: "Outils" },
+    { value: "economy", label: "Économie" },
+];
+const LOG_PERIODS = [
+    { value: "today", label: "Aujourd'hui" },
+    { value: "week", label: "7 jours" },
+    { value: "month", label: "30 jours" },
+    { value: "all", label: "Tout" },
+];
+const CHAT_CHANNELS = [
+    { value: "", label: "Tous les canaux" },
+    { value: "hrp", label: "HRP" },
+    { value: "me", label: "/me" },
+    { value: "do", label: "/do" },
+    { value: "staff", label: "Tchat staff" },
+    { value: "announce", label: "Annonces" },
+];
+
+// Phrase lisible pour une action du staff : { verb, summary }
+function describeLog(log) {
+    const d = log.details && typeof log.details === "object" ? log.details : {};
+    const verb = ACTION_LABELS[log.action] || log.action;
+    let summary = "";
+
+    switch (log.action) {
+        case "economy.money": {
+            const sign = d.operation === "add" ? "+" : d.operation === "remove" ? "−" : "=";
+            summary = `${sign}${money(d.amount)} ${ACCOUNT_LABELS[d.account] || d.account || ""} (${money(d.before)} → ${money(d.after)})`;
+            break;
+        }
+        case "economy.giveItem":
+        case "economy.removeItem":
+            summary = `${d.count}x ${d.item}`;
+            break;
+        case "economy.setJob":
+        case "staff.setRank":
+            summary = `${d.before || d.from || "?"} → ${d.after || d.to || "?"}`;
+            break;
+        case "staff.add":
+            summary = d.rank ? `rang ${d.rank}` : "";
+            break;
+        case "sanction.ban":
+            summary = `${d.hours === "permanent" ? "définitif" : `${d.hours} h`} · ${d.reason || ""}`;
+            break;
+        case "sanction.revoke":
+            summary = `#${d.id} · ${d.reason || ""}`;
+            break;
+        case "economy.clearInventory":
+            summary = `${Array.isArray(d.removed) ? d.removed.length : 0} emplacement(s) · ${d.reason || ""}`;
+            break;
+        default:
+            summary = d.reason || "";
+    }
+
+    return { verb, summary };
+}
+
+// ---------- Page Logs ----------
+
+const logsView = {
+    tab: "actions",
+    category: "", staff: "", period: "week", search: "",
+    channel: "", chatPeriod: "today", chatSearch: "",
+    logs: null, more: false, staffList: [],
+    messages: null, chatMore: false,
+};
+let logsDom = null;
+let logsTimer = null;
+let logsRequest = 0; // une réponse arrivée après un changement de filtre est ignorée
+
+function renderLogs() {
+    const root = $("view-logs");
+    const tabs = [];
+    if (can("logs.view")) tabs.push({ value: "actions", label: "Actions du staff" });
+    if (can("logs.chat")) tabs.push({ value: "chat", label: "Tchat" });
+    if (!tabs.some((t) => t.value === logsView.tab)) logsView.tab = tabs.length ? tabs[0].value : "actions";
+
+    // Structure gardée entre deux rafraîchissements (recherche conservée)
+    if (!logsDom || !root.contains(logsDom.body)) {
+        logsDom = {
+            tabs: h("div", { class: "segmented" }),
+            filters: h("div", { class: "filters" }),
+            body: h("div", { class: "table" }),
+            footer: h("div", { class: "logs-footer" }),
+        };
+        root.replaceChildren(h("div", { class: "content" },
+            h("div", { class: "page-head" }, h("div", { class: "grow" },
+                h("h1", { class: "page-title" }, "Logs"),
+                h("div", { class: "page-sub" }, "Historique des actions du staff et du tchat")
+            ), logsDom.tabs),
+            h("div", { class: "toolbar logs-toolbar" }, logsDom.filters),
+            h("div", { class: "scroll" }, logsDom.body, logsDom.footer)
+        ));
+        paintLogsFilters(tabs);
+        fetchLogs(false);
+        return;
+    }
+
+    logsDom.tabs.replaceChildren(...segmentedButtons(tabs, logsView.tab, (value) => { logsView.tab = value; paintLogsFilters(tabs); fetchLogs(false); }));
+}
+
+function selectInput(options, current, onChange) {
+    const el = h("select", { class: "input" }, options.map((o) => h("option", { value: o.value, selected: o.value === current }, o.label)));
+    el.addEventListener("change", () => onChange(el.value));
+    return el;
+}
+
+function searchBox(placeholder, value, onChange) {
+    const input = h("input", { placeholder, value });
+    input.addEventListener("input", () => {
+        clearTimeout(logsTimer);
+        logsTimer = setTimeout(() => onChange(input.value), 300);
+    });
+    return h("label", { class: "search" }, icon("i-search"), input);
+}
+
+function paintLogsFilters(tabs) {
+    const v = logsView;
+    logsDom.tabs.replaceChildren(...segmentedButtons(tabs, v.tab, (value) => { v.tab = value; paintLogsFilters(tabs); fetchLogs(false); }));
+
+    if (v.tab === "actions") {
+        logsDom.staffSelect = selectInput([{ value: "", label: "Tous les membres" }, ...v.staffList.map((m) => ({ value: m.license, label: m.name }))], v.staff, (value) => { v.staff = value; fetchLogs(false); });
+        logsDom.filters.replaceChildren(
+            selectInput(LOG_CATEGORIES, v.category, (value) => { v.category = value; fetchLogs(false); }),
+            logsDom.staffSelect,
+            h("div", { class: "segmented" }, ...segmentedButtons(LOG_PERIODS, v.period, (value) => { v.period = value; paintLogsFilters(tabs); fetchLogs(false); })),
+            h("span", { class: "grow" }),
+            searchBox("Joueur, membre, raison…", v.search, (value) => { v.search = value; fetchLogs(false); })
+        );
+    } else {
+        logsDom.filters.replaceChildren(
+            selectInput(CHAT_CHANNELS, v.channel, (value) => { v.channel = value; fetchLogs(false); }),
+            h("div", { class: "segmented" }, ...segmentedButtons(LOG_PERIODS, v.chatPeriod, (value) => { v.chatPeriod = value; paintLogsFilters(tabs); fetchLogs(false); })),
+            h("span", { class: "grow" }),
+            searchBox("Joueur ou texte du message", v.chatSearch, (value) => { v.chatSearch = value; fetchLogs(false); })
+        );
+    }
+}
+
+async function fetchLogs(append) {
+    const v = logsView;
+    const chat = v.tab === "chat";
+    const list = chat ? v.messages : v.logs;
+    const before = append && list && list.length ? list[list.length - 1].id : undefined;
+
+    if (!append) {
+        if (chat) v.messages = null; else v.logs = null;
+        paintLogs();
+    }
+
+    const payload = chat
+        ? { channel: v.channel, period: v.chatPeriod, search: v.chatSearch, before }
+        : { category: v.category, staff: v.staff, period: v.period, search: v.search, before };
+
+    const request = ++logsRequest;
+    let res;
+    try {
+        res = await nui("action", { action: chat ? "logs.chat" : "logs.list", payload });
+    } catch (e) {
+        return;
+    }
+    if (request !== logsRequest) return;
+
+    if (!res || !res.ok) {
+        if (res && res.error) toast(res.error, "error");
+        if (chat) v.messages = v.messages || []; else v.logs = v.logs || [];
+        return paintLogs();
+    }
+
+    if (chat) {
+        const rows = Array.isArray(res.messages) ? res.messages : [];
+        v.messages = append ? [...(v.messages || []), ...rows] : rows;
+        v.chatMore = !!res.more;
+    } else {
+        const rows = Array.isArray(res.logs) ? res.logs : [];
+        v.logs = append ? [...(v.logs || []), ...rows] : rows;
+        v.more = !!res.more;
+        const staffList = Array.isArray(res.staff) ? res.staff : [];
+        if (JSON.stringify(staffList) !== JSON.stringify(v.staffList)) {
+            v.staffList = staffList;
+            const tabs = [];
+            if (can("logs.view")) tabs.push({ value: "actions", label: "Actions du staff" });
+            if (can("logs.chat")) tabs.push({ value: "chat", label: "Tchat" });
+            paintLogsFilters(tabs);
+        }
+    }
+    paintLogs();
+}
+
+function logRow(log) {
+    const { verb, summary } = describeLog(log);
+    const row = h("button", { class: "log-row" },
+        h("span", { class: "log-date" }, fmtDate(log.created)),
+        h("span", { class: "log-text" },
+            h("b", null, log.actor || "?"), ` ${verb} `,
+            log.target ? h("b", null, log.target) : null,
+            summary ? h("span", { class: "log-summary" }, summary) : null
+        ),
+        icon("i-search")
+    );
+    row.addEventListener("click", () => openLogDetail(log));
+    return row;
+}
+
+const CHANNEL_BADGES = { hrp: "HRP", me: "/me", do: "/do", staff: "Staff", announce: "Annonce", clear: "Vidage" };
+
+function chatRow(m) {
+    return h("div", { class: "log-row chat" },
+        h("span", { class: "log-date" }, fmtDate(m.created)),
+        h("span", { class: `badge ${m.channel === "staff" || m.channel === "announce" ? "warn" : "muted"}` }, CHANNEL_BADGES[m.channel] || m.channel),
+        h("span", { class: "log-text" }, h("b", null, m.name), " ", m.message || (m.channel === "clear" ? "a vidé le tchat" : ""))
+    );
+}
+
+function paintLogs() {
+    const v = logsView;
+    const chat = v.tab === "chat";
+    const list = chat ? v.messages : v.logs;
+
+    if (!list) {
+        logsDom.body.replaceChildren(h("div", { class: "empty" }, "Chargement…"));
+        logsDom.footer.replaceChildren();
+        return;
+    }
+
+    logsDom.body.replaceChildren(...(list.length
+        ? list.map(chat ? chatRow : logRow)
+        : [h("div", { class: "empty" }, icon("i-list"), chat ? "Aucun message ne correspond." : "Aucune action ne correspond.")]));
+
+    const more = chat ? v.chatMore : v.more;
+    logsDom.footer.replaceChildren(more ? h("button", { class: "btn", onclick: () => fetchLogs(true) }, "Charger plus") : h("span"));
+}
+
+function detailValue(value) {
+    if (value === null || value === undefined || value === "") return "—";
+    if (typeof value === "object") return h("pre", { class: "detail-pre" }, JSON.stringify(value, null, 2));
+    return String(value);
+}
+
+function openLogDetail(log) {
+    const { verb, summary } = describeLog(log);
+    const d = log.details && typeof log.details === "object" ? log.details : {};
+    const rows = [
+        ["Date", fmtDate(log.created)],
+        ["Auteur", log.actor],
+        ["Action", `${verb} (${log.action})`],
+        ["Cible", log.target],
+        ...Object.keys(d).map((key) => [DETAIL_LABELS[key] || key, d[key]]),
+    ];
+
+    openModal((close) => [
+        h("header", null, h("h3", null, `${log.actor || "?"} ${verb}${log.target ? ` ${log.target}` : ""}`), summary ? h("p", null, summary) : null),
+        h("div", { class: "body" }, h("div", { class: "detail-list" }, rows.map(([label, value]) =>
+            h("div", { class: "detail-row" }, h("span", null, label), h("div", null, detailValue(value)))))),
+        h("footer", null, h("button", { class: "btn", onclick: () => close() }, "Fermer")),
+    ]);
+}

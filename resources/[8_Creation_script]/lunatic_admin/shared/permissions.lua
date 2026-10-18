@@ -49,6 +49,8 @@ Permissions.List = {
     { id = 'ranks.view',   family = 'manage', label = 'Voir les rangs et leurs permissions' },
     { id = 'ranks.manage', family = 'manage', label = 'Créer, modifier et supprimer les rangs inférieurs' },
     { id = 'staff.view',   family = 'manage', label = 'Voir les membres du staff' },
+    { id = 'logs.view',    family = 'manage', label = 'Voir les actions du staff (page Logs, tableau de bord)' },
+    { id = 'logs.chat',    family = 'manage', label = "Lire l'historique du tchat" },
     { id = 'staff.manage', family = 'manage', label = 'Ajouter, promouvoir et retirer des membres inférieurs' },
 
     -- lunatic_chat

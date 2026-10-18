@@ -36,6 +36,11 @@ Config.MaxMoneyAction = 1000000           -- montant maximal par opération (le 
 Config.MaxItemCount = 1000                -- quantité maximale d'objets donnée en une fois
 Config.EconomyReasonMin = 3
 
+-- Logs et tableau de bord (lot 6)
+Config.LogRetentionDays = 90              -- les actions du staff plus anciennes sont supprimées
+Config.DashboardSampleMinutes = 5         -- relevé du nombre de joueurs pour la courbe des 24 h
+Config.LogsPageSize = 50
+
 -- Anti-spam : nombre maximal d'actions du panel par joueur et par fenêtre de temps
 Config.RateLimit = { max = 15, windowMs = 5000 }
 
@@ -60,8 +65,8 @@ end
 
 Config.DefaultRanks = {
     { name = 'Fondateur',         color = '#9650ff', level = 100, owner = true },
-    { name = 'Admin',             color = '#ff6b6b', level = 80, permissions = with(players, sanctions, tools, economy, { 'sanctions.ban_permanent', 'sanctions.revoke', 'panel.open', 'ranks.view', 'ranks.manage', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce', 'chat.clear' }) },
-    { name = 'Responsable staff', color = '#f2c26b', level = 60, permissions = with(players, sanctions, tools, { 'economy.money', 'economy.job', 'economy.items', 'sanctions.revoke', 'panel.open', 'ranks.view', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce' }) },
+    { name = 'Admin',             color = '#ff6b6b', level = 80, permissions = with(players, sanctions, tools, economy, { 'logs.view', 'logs.chat', 'sanctions.ban_permanent', 'sanctions.revoke', 'panel.open', 'ranks.view', 'ranks.manage', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce', 'chat.clear' }) },
+    { name = 'Responsable staff', color = '#f2c26b', level = 60, permissions = with(players, sanctions, tools, { 'logs.view', 'economy.money', 'economy.job', 'economy.items', 'sanctions.revoke', 'panel.open', 'ranks.view', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce' }) },
     { name = 'Modérateur',        color = '#5fd3a0', level = 40, permissions = with(players, sanctions, { 'tools.noclip', 'tools.names', 'tools.tpm', 'tools.vehicles', 'panel.open', 'ranks.view', 'staff.view', 'chat.staff' }) },
     { name = 'Modérateur test',   color = '#6bb8f2', level = 20, permissions = { 'panel.open', 'chat.staff', 'players.view', 'players.goto', 'players.spectate', 'players.heal', 'sanctions.view', 'sanctions.warn', 'tools.noclip', 'tools.names' } },
 }
