@@ -22,6 +22,7 @@ const ACTION_LABELS = {
     "player.unfreeze": "a libéré",
     "player.heal": "a soigné",
     "player.revive": "a réanimé",
+    "player.feed": "a nourri",
     "player.kick": "a expulsé",
     "sanction.warn": "a averti",
     "sanction.ban": "a banni",
@@ -39,6 +40,7 @@ const ACTION_LABELS = {
     "economy.giveItem": "a donné un objet à",
     "economy.removeItem": "a retiré un objet à",
     "economy.clearInventory": "a vidé l'inventaire de",
+    "economy.inspect": "a ouvert l'inventaire de",
 };
 
 const ACCOUNT_LABELS = { money: "liquide", bank: "banque", black_money: "argent sale" };

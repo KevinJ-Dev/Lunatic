@@ -256,7 +256,6 @@ function go(target) {
 // ---------- Accueil ----------
 
 function renderHome() {
-    const me = state.me;
     const d = state.dashboard || {};
     const staffOnline = Array.isArray(d.staff) ? d.staff : [];
 
@@ -310,14 +309,7 @@ function renderHome() {
     ) : null;
 
     $("view-home").replaceChildren(h("div", { class: "home" },
-        h("div", { class: "hero" },
-            h("img", { src: "logo.png", alt: "" }),
-            h("div", null,
-                h("h2", null, `Bonjour, ${me.name}`),
-                h("p", null, rankPill(me.rank), " ", me.rank.owner ? "Toutes les permissions" : `Niveau ${me.rank.level} · ${me.permissions.length} permission${me.permissions.length > 1 ? "s" : ""}`)
-            )
-        ),
-        h("div", { class: "kpis" }, kpis),
+        h("div", { class: "kpis", style: "margin-top:0" }, kpis),
         h("div", { class: "dash-grid" }, chartCard, staffCard),
         recentCard
     ));
@@ -524,7 +516,8 @@ function paintFiche() {
                     ),
                     h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Soins"),
                         button("Soigner", "i-heart", "players.heal", {}, () => run("player.heal", "Joueur soigné.")),
-                        button("Réanimer", "i-pulse", "players.heal", {}, () => run("player.revive", "Joueur réanimé."))
+                        button("Réanimer", "i-pulse", "players.heal", {}, () => run("player.revive", "Joueur réanimé.")),
+                        button("Nourrir", "i-food", "players.heal", {}, () => run("player.feed", "Faim et soif remplies."))
                     ),
                     h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Sanction"),
                         button("Avertir", "i-warn", "sanctions.warn", { notSelf: true, protect: true }, () => openWarn(info)),

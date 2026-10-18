@@ -74,15 +74,26 @@ end)
 -- Soigner / réanimer
 ---------------------------------------------------------------------
 
+-- Soin : la vie seulement (l'armure et la faim / soif ne sont pas touchées)
 local function heal()
     local ped = PlayerPedId()
 
-    -- esx_basicneeds remet la vie au maximum et remplit la faim et la soif
-    TriggerEvent('esx_basicneeds:healPlayer')
     SetEntityHealth(ped, GetEntityMaxHealth(ped))
-    SetPedArmour(ped, 100)
     ClearPedBloodDamage(ped)
 end
+
+-- Nourrir : faim et soif au maximum (statuts d'esx_status, 1 000 000 = plein)
+local function feed()
+    TriggerEvent('esx_status:set', 'hunger', 1000000)
+    TriggerEvent('esx_status:set', 'thirst', 1000000)
+end
+
+-- Utilisés aussi par client/tools.lua (soin de zone)
+HealSelf, FeedSelf = heal, feed
+
+RegisterNetEvent('lunatic_admin:feed', function()
+    feed()
+end)
 
 RegisterNetEvent('lunatic_admin:heal', function()
     if not IsEntityDead(PlayerPedId()) then

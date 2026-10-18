@@ -326,6 +326,23 @@ Panel.actions['player.revive'] = function(src, actor, data)
     return ok()
 end
 
+Panel.actions['player.feed'] = function(src, actor, data)
+    local target, err = check(src, actor, data, 'players.heal', {})
+
+    if not target then
+        return err
+    end
+
+    TriggerClientEvent('lunatic_admin:feed', target)
+
+    if target ~= src then
+        Panel.notify(target, 'Le staff vous a rassasié et désaltéré.', 'success')
+    end
+
+    Logs.add(src, 'player.feed', Staff.displayName(target), { serverId = target })
+    return ok()
+end
+
 Panel.actions['player.kick'] = function(src, actor, data)
     local target, err = check(src, actor, data, 'players.kick', { notSelf = true, protect = true })
 

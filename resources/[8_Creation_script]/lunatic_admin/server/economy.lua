@@ -238,15 +238,20 @@ Panel.actions['economy.inventory'] = function(src, actor, data)
         return err
     end
 
-    local inventory = ox:GetInventory(target)
+    -- GetInventoryItems renvoie seulement les emplacements (GetInventory renvoie un objet complet,
+    -- plus fragile à transmettre entre deux resources)
+    local ok, slots = pcall(function()
+        return ox:GetInventoryItems(target)
+    end)
 
-    if not inventory then
-        return Panel.fail("Inventaire introuvable.")
+    if not ok or type(slots) ~= 'table' then
+        print(("[lunatic_admin] Lecture de l'inventaire impossible : %s"):format(tostring(slots)))
+        return Panel.fail("Inventaire introuvable (voir la console du serveur).")
     end
 
-    local items = {}
+    local items, weight = {}, 0
 
-    for _, slot in pairs(inventory.items or {}) do
+    for _, slot in pairs(slots) do
         if type(slot) == 'table' and slot.name then
             items[#items + 1] = {
                 name = slot.name,
@@ -255,11 +260,34 @@ Panel.actions['economy.inventory'] = function(src, actor, data)
                 weight = slot.weight,
                 slot = slot.slot,
             }
+            weight = weight + (tonumber(slot.weight) or 0)
         end
     end
 
     table.sort(items, function(a, b) return (a.slot or 0) < (b.slot or 0) end)
-    return { ok = true, silent = true, items = items, weight = inventory.weight, maxWeight = inventory.maxWeight }
+    return { ok = true, silent = true, items = items, weight = weight, maxWeight = GetConvarInt('inventory:weight', 30000) }
+end
+
+-- Ouvre le vrai inventaire ox_inventory du joueur chez le membre du staff (lecture seule, comme /viewinv)
+Panel.actions['economy.inspect'] = function(src, actor, data)
+    if not Ranks.hasPermission(actor, 'economy.items') then
+        return denied()
+    end
+
+    local target, _, err = targetOf(src, actor, data)
+
+    if not target then
+        return err
+    end
+
+    if target == src then
+        return Panel.fail('Ouvrez votre propre inventaire avec la touche habituelle.')
+    end
+
+    ox:InspectInventory(src, target)
+    Logs.add(src, 'economy.inspect', Staff.displayName(target), { serverId = target })
+
+    return { ok = true, silent = true }
 end
 
 Panel.actions['economy.giveItem'] = function(src, actor, data)

@@ -142,6 +142,13 @@ function buildEconomy(info) {
             )) : [h("span", { class: "muted" }, "Inventaire vide.")]));
         };
 
+        if (can("economy.items") && !info.isSelf) {
+            // Le vrai inventaire ox_inventory s'ouvre à l'écran : le panel se ferme pour le laisser apparaître
+            actions.append(h("button", { class: "btn small", onclick: async () => {
+                const res = await act("economy.inspect", { serverId: panel.serverId }, null);
+                if (res) closePanel();
+            } }, icon("i-eye"), "Ouvrir son inventaire"));
+        }
         if (can("economy.items")) actions.append(h("button", { class: "btn small primary", onclick: () => openGiveItem(panel, info) }, icon("i-plus"), "Donner un objet"));
         if (can("economy.clear")) actions.append(h("button", { class: "btn small danger", onclick: () => openClearInventory(panel, info) }, icon("i-trash"), "Vider l'inventaire"));
         actions.append(h("button", { class: "btn small ghost", onclick: () => panel.loadInventory() }, icon("i-undo"), "Actualiser"));
