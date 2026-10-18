@@ -180,7 +180,8 @@ Panel.actions['offline.info'] = function(_, actor, data)
             rank = rank and { name = rank.name, color = rank.color } or nil,
             protected = rank ~= nil and rank.level >= actor.level,
             licenses = Panel.licensesOf and Panel.licensesOf(identifier) or {},
-            jail = nil,
+            premium = Panel.premiumOf and Panel.premiumOf(license) or nil,
+            credits = Panel.creditsOf and Panel.creditsOf(license) or nil,
         },
     }
 end

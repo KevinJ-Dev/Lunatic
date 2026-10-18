@@ -30,6 +30,7 @@ server_scripts {
     'server/world.lua',
     'server/profile.lua',
     'server/offline.lua',
+    'server/premium.lua',
 }
 
 client_scripts {
@@ -52,6 +53,7 @@ files {
     'web/logs.js',
     'web/world.js',
     'web/offline.js',
+    'web/premium.js',
     'web/logo.png',
     'web/fonts/*.woff2',
 }

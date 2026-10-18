@@ -47,6 +47,15 @@ Config.Jail = {
     maxMinutes = 600,                           -- durée maximale d'une peine
 }
 
+-- Premium et boutique (lot G)
+Config.PremiumTiers = {
+    premium = { label = 'Premium', color = '#f2c26b' },
+    premium_plus = { label = 'Premium+', color = '#9650ff' },
+}
+Config.PremiumMaxDays = 3650         -- durée maximale d'un abonnement (hors « à vie »)
+Config.CreditsMaxAction = 100000     -- crédits maximum par opération
+Config.CreditsName = 'crédits'       -- nom affiché de la monnaie boutique
+
 -- Outils staff (lot 4)
 Config.GhostKey = ''                    -- touche du mode fantôme (aucune par défaut, à choisir dans les raccourcis FiveM)
 Config.NoclipKey = 'F2'                 -- touche par défaut du noclip (modifiable dans les raccourcis FiveM)
@@ -74,6 +83,7 @@ local world = { 'world.weather', 'world.time' }
 local economy = { 'economy.money', 'economy.black_money', 'economy.job', 'economy.items', 'economy.clear' }
 local tools = { 'tools.noclip', 'tools.invisible', 'tools.godmode', 'tools.ghost', 'tools.names', 'tools.coords', 'tools.tpm', 'tools.vehicles' }
 local profile = { 'players.licenses', 'players.copy_appearance', 'staff.online', 'players.offline' }
+local shop = { 'premium.manage', 'shop.manage' }
 local sanctions = { 'sanctions.view', 'sanctions.warn', 'sanctions.ban', 'sanctions.jail' }
 local players = { 'players.view', 'players.goto', 'players.bring', 'players.spectate', 'players.freeze', 'players.heal', 'players.kick' }
 
@@ -91,7 +101,7 @@ end
 
 Config.DefaultRanks = {
     { name = 'Fondateur',         color = '#9650ff', level = 100, owner = true },
-    { name = 'Admin',             color = '#ff6b6b', level = 80, permissions = with(players, sanctions, tools, economy, world, profile, { 'players.wipe', 'logs.view', 'logs.chat', 'sanctions.ban_permanent', 'sanctions.revoke', 'panel.open', 'ranks.view', 'ranks.manage', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce', 'chat.clear' }) },
+    { name = 'Admin',             color = '#ff6b6b', level = 80, permissions = with(players, sanctions, tools, economy, world, profile, shop, { 'players.wipe', 'logs.view', 'logs.chat', 'sanctions.ban_permanent', 'sanctions.revoke', 'panel.open', 'ranks.view', 'ranks.manage', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce', 'chat.clear' }) },
     { name = 'Responsable staff', color = '#f2c26b', level = 60, permissions = with(players, sanctions, tools, world, profile, { 'logs.view', 'economy.money', 'economy.job', 'economy.items', 'sanctions.revoke', 'panel.open', 'ranks.view', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce' }) },
     { name = 'Modérateur',        color = '#5fd3a0', level = 40, permissions = with(players, sanctions, { 'staff.online', 'tools.noclip', 'tools.names', 'tools.tpm', 'tools.vehicles', 'panel.open', 'ranks.view', 'staff.view', 'chat.staff' }) },
     { name = 'Modérateur test',   color = '#6bb8f2', level = 20, permissions = { 'panel.open', 'chat.staff', 'players.view', 'players.goto', 'players.spectate', 'players.heal', 'sanctions.view', 'sanctions.warn', 'tools.noclip', 'tools.names' } },

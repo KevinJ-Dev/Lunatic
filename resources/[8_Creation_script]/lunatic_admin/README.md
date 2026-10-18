@@ -152,3 +152,24 @@ Page « Monde » : heure (raccourcis aube / midi / soir / nuit, heure précise, 
 Page Joueurs → onglet **Hors ligne** (permission `players.offline`) : recherche dans la table `users` par nom RP ou licence, fiche en base (identité, argent, métier, permis, sanctions, dernière connexion).
 
 Actions (chacune exige aussi sa propre permission) : bannir (par licence), argent, métier, permis, recréer à la prochaine connexion, wipe. Un joueur connecté est refusé ici : ses données se modifient depuis l'onglet En ligne (sinon ESX les écraserait à la sauvegarde).
+
+## Premium et boutique (lot G)
+
+Carte « Premium et boutique » des fiches (en ligne et hors ligne).
+
+- **Premium / Premium+** (`premium.manage`) : 7, 30, 90 jours, 1 an ou à vie ; un même abonnement encore actif est prolongé. Expiration automatique (vérifiée chaque minute).
+- **Crédits boutique** (`shop.manage`) : donner / retirer avec raison, solde jamais négatif, historique des 15 derniers mouvements.
+
+Pour les autres scripts :
+
+```lua
+-- serveur
+exports.lunatic_admin:getPremium(source)                 -- { tier, label, expires } ou nil
+exports.lunatic_admin:isPremium(source, 'premium_plus')  -- Premium+ inclut Premium
+exports.lunatic_admin:getCredits(source)
+exports.lunatic_admin:removeCredits(source, montant, raison) -- true si le solde suffisait (achat boutique)
+-- client
+LocalPlayer.state.premium                                 -- 'premium', 'premium_plus' ou nil
+```
+
+Tables `lunatic_admin_premium`, `lunatic_admin_credits`, `lunatic_admin_credit_log` créées au démarrage.

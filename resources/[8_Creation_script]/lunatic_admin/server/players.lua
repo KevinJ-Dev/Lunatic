@@ -150,6 +150,8 @@ Panel.actions['player.info'] = function(src, actor, data)
         frozen = frozen[target] == true,
         canReturn = returnPoints[target] ~= nil,
         jail = Panel.jailOf and Panel.jailOf(target) or nil,
+        premium = Panel.premiumOf and Panel.premiumOf(GetPlayerIdentifierByType(target, 'license')) or nil,
+        credits = Panel.creditsOf and Panel.creditsOf(GetPlayerIdentifierByType(target, 'license')) or nil,
         isSelf = target == src,
         protected = target ~= src and isProtected(actor, target),
     }

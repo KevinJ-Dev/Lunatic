@@ -438,6 +438,7 @@ function paintPlayerList() {
 function selectPlayer(id) {
     if (selectedPlayerId === id) return;
     economyPanel = null;
+    premiumPanel = null;
     selectedPlayerId = id;
     playerInfo = null;
     playerHistory = null;
@@ -577,6 +578,7 @@ function paintFiche() {
             ),
             licensesCard(info),
             economySection(info),
+            premiumCard(info, { serverId: info.serverId }, () => loadPlayerInfo()),
             can("sanctions.view") ? historyCard(info) : null
         )
     );
@@ -1174,7 +1176,7 @@ window.addEventListener("message", (event) => {
 
 function demoState() {
     return {
-        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],
@@ -1249,6 +1251,10 @@ async function demoNui(name, data) {
         lastSeen: Math.floor(Date.now() / 1000) - 7200, createdAt: Math.floor(Date.now() / 1000) - 20 * 86400,
         licenses: [{ type: "dmv", label: "Code de la route", owned: true }, { type: "drive", label: "Permis voiture", owned: false }, { type: "weapon", label: "Port d'arme", owned: false }],
     } };
+    if (name === "action" && data && data.action === "credits.history") return { ok: true, history: [
+        { amount: 1000, after: 1250, reason: "Achat pack Tebex #4412", staff: "Ramiro Lotus", created: Math.floor(Date.now() / 1000) - 3600 },
+        { amount: 250, after: 250, reason: "Gagnant de l'event course", staff: "Alex Moreau", created: Math.floor(Date.now() / 1000) - 5 * 86400 },
+    ] };
     if (name === "getCoords") return { x: 215.76, y: -810.12, z: 30.73, h: 157.5 };
     if (name === "vehicleSpawn") return { ok: false, error: "Aperçu navigateur : rien n'est créé." };
     if (name === "action" && data && data.action === "player.info") {
@@ -1258,6 +1264,8 @@ async function demoNui(name, data) {
             rank: p.rank, frozen: !!p.frozen, canReturn: false, isSelf: p.serverId === 1, protected: p.serverId === 4 ? false : false,
             health: 164, maxHealth: 200, armor: 40, job: { name: "mechanic", label: p.job, grade: "Employé", level: 1 }, money: 2350, bank: 48200, blackMoney: 0,
             dateofbirth: "14/03/1996", sex: "m", height: 182, jail: p.serverId === 7 ? { remaining: 540, reason: "Freekill" } : undefined,
+            premium: p.serverId === 2 ? { tier: "premium_plus", label: "Premium+", color: "#9650ff", expires: Math.floor(Date.now() / 1000) + 25 * 86400 } : undefined,
+            credits: 1250,
             licenses: [{ type: "dmv", label: "Code de la route", owned: true }, { type: "drive", label: "Permis voiture", owned: true }, { type: "drive_bike", label: "Permis moto", owned: false }, { type: "drive_truck", label: "Permis poids lourd", owned: false }, { type: "boat", label: "Permis bateau", owned: false }, { type: "weapon", label: "Port d'arme", owned: false }],
         } };
     }

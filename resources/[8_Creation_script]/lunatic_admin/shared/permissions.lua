@@ -9,6 +9,7 @@ Permissions.Families = {
     { id = 'tools',     label = 'Outils' },
     { id = 'economy',   label = 'Économie' },
     { id = 'world',     label = 'Monde' },
+    { id = 'shop',      label = 'Premium et boutique' },
     { id = 'chat',      label = 'Tchat' },
     { id = 'manage',    label = 'Gestion' },
 }
@@ -28,6 +29,10 @@ Permissions.List = {
     { id = 'players.wipe', family = 'players', label = 'Wipe un joueur : réinitialiser complètement son personnage' },
     { id = 'players.offline', family = 'players', label = 'Gérer les joueurs offline (recherche en base et actions)' },
     { id = 'players.kick',     family = 'players', label = 'Expulser un joueur du serveur' },
+
+    -- Lot G : Premium et boutique
+    { id = 'premium.manage', family = 'shop', label = 'Premium / Premium+ : attribuer et retirer les abonnements' },
+    { id = 'shop.manage',    family = 'shop', label = 'Gestion Boutique : donner et retirer des crédits boutique' },
 
     -- Lot D : météo et heure (lunatic_world)
     { id = 'world.weather', family = 'world', label = 'Changer la météo, le cycle météo et les pannes de courant' },

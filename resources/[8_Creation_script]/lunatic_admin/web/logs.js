@@ -28,6 +28,9 @@ const ACTION_LABELS = {
     "player.recreate": "a renvoyé à la création de personnage",
     "player.copyAppearance": "a copié l'apparence de",
     "player.wipe": "a wipe",
+    "premium.set": "a donné un abonnement à",
+    "premium.remove": "a retiré l'abonnement de",
+    "credits.change": "a modifié les crédits boutique de",
     "license.give": "a donné un permis à",
     "license.remove": "a retiré un permis à",
     "tool.ghost.on": "a activé le mode fantôme",
@@ -125,6 +128,12 @@ function describeLog(log) {
         case "world.blackout":
         case "world.freeze":
             summary = d.enabled ? "activé" : "désactivé";
+            break;
+        case "premium.set":
+            summary = `${d.tier === "premium_plus" ? "Premium+" : "Premium"} · ${d.days === "lifetime" ? "à vie" : `${d.days} jours`}`;
+            break;
+        case "credits.change":
+            summary = `${d.amount > 0 ? "+" : ""}${d.amount} (${d.before} → ${d.after}) · ${d.reason || ""}`;
             break;
         case "license.give":
         case "license.remove":

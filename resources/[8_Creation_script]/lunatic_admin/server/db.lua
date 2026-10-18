@@ -70,6 +70,41 @@ function DB.init()
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ]])
 
+    -- Abonnements Premium / Premium+ (expires_at NULL = à vie, secondes Unix sinon)
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `lunatic_admin_premium` (
+            `license` VARCHAR(60) NOT NULL,
+            `tier` VARCHAR(16) NOT NULL,
+            `expires_at` BIGINT NULL DEFAULT NULL,
+            `granted_by` VARCHAR(80) NOT NULL DEFAULT '',
+            `granted_at` BIGINT NOT NULL,
+            PRIMARY KEY (`license`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ]])
+
+    -- Crédits boutique : solde par joueur et historique des mouvements
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `lunatic_admin_credits` (
+            `license` VARCHAR(60) NOT NULL,
+            `balance` INT NOT NULL DEFAULT 0,
+            PRIMARY KEY (`license`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ]])
+
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `lunatic_admin_credit_log` (
+            `id` BIGINT NOT NULL AUTO_INCREMENT,
+            `license` VARCHAR(60) NOT NULL,
+            `amount` INT NOT NULL,
+            `balance_after` INT NOT NULL,
+            `reason` VARCHAR(255) NOT NULL DEFAULT '',
+            `staff_name` VARCHAR(80) NOT NULL DEFAULT '',
+            `created_at` BIGINT NOT NULL,
+            PRIMARY KEY (`id`),
+            KEY `idx_lunatic_admin_credit_log_license` (`license`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ]])
+
     -- Prison staff : temps restant (secondes) des peines en cours, décompté seulement joueur connecté
     MySQL.query.await([[
         CREATE TABLE IF NOT EXISTS `lunatic_admin_jail` (

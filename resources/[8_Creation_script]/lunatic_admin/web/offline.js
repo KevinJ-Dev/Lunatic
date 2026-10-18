@@ -55,6 +55,7 @@ async function selectOffline(identifier) {
     offlineSelected = identifier;
     offlineInfo = null;
     offlineForms = null;
+    premiumPanel = null;
     playerHistory = null;
     paintOfflineList();
     paintOfflineFiche();
@@ -146,6 +147,7 @@ function paintOfflineFiche() {
             ),
             offlineLicensesCard(info, locked),
             locked ? null : offlineFormsNode(info),
+            info.online ? null : premiumCard(info, { identifier: info.identifier }, () => loadOfflineInfo()),
             can("sanctions.view") ? historyCard(info) : null
         )
     );

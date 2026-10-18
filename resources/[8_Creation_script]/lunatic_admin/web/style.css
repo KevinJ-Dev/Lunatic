@@ -379,3 +379,17 @@ button.log-row:hover { background: var(--surface-2); border-color: var(--line-st
 .dash-grid.single { grid-template-columns: minmax(0, 1fr); }
 .segmented.block { display: flex; }
 .segmented.block button { flex: 1; }
+
+/* Premium et boutique (fiche joueur) */
+.premium-card { margin-top: 16px; }
+.premium-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
+.premium-col { display: grid; gap: 10px; align-content: start; }
+.premium-col .card-title { margin-bottom: 2px; }
+.premium-current { display: flex; align-items: center; gap: 8px; min-height: 28px; font-size: 13px; }
+.credits-balance { font-size: 26px; font-weight: 500; }
+.credit-history { display: grid; gap: 4px; max-height: 180px; overflow-y: auto; }
+.credit-row { display: grid; grid-template-columns: 70px 1fr auto; gap: 10px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 12.5px; }
+.credit-row:first-child { border-top: 0; }
+.credit-row .plus { color: var(--ok); }
+.credit-row .minus { color: var(--danger); }
+.credit-row .reason { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
