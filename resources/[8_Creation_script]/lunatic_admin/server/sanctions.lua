@@ -297,7 +297,15 @@ end
 local function publicSanction(row, src, actor)
     local expires = tonumber(row.expires_at)
     local revoked = row.revoked_at ~= nil
-    local active = not revoked and (row.type == 'warn' or expires == nil or expires > now())
+    local active, remaining
+
+    if row.type == 'jail' then
+        -- Une peine de prison est active tant qu'il lui reste du temps (server/jail.lua)
+        remaining = Panel.jailRemaining and Panel.jailRemaining(row.id) or nil
+        active = not revoked and remaining ~= nil
+    else
+        active = not revoked and (row.type == 'warn' or expires == nil or expires > now())
+    end
 
     return {
         id = row.id,
@@ -308,6 +316,7 @@ local function publicSanction(row, src, actor)
         staff = row.staff_name,
         created = tonumber(row.created_at),
         expires = expires,
+        remaining = remaining,
         active = active,
         revoked = revoked,
         revokedAt = tonumber(row.revoked_at),
@@ -484,6 +493,8 @@ Panel.actions['sanction.revoke'] = function(src, actor, data)
 
     if row.type == 'ban' then
         removeBan(id)
+    elseif row.type == 'jail' and Panel.releaseJailBySanction then
+        Panel.releaseJailBySanction(id)
     end
 
     Logs.add(src, 'sanction.revoke', row.name, { id = id, type = row.type, reason = reason })
@@ -499,13 +510,15 @@ Panel.actions['sanctions.list'] = function(src, actor, data)
 
     local where, params = {}, {}
 
-    if data.type == 'warn' or data.type == 'ban' then
+    if data.type == 'warn' or data.type == 'ban' or data.type == 'jail' then
         where[#where + 1] = '`type` = ?'
         params[#params + 1] = data.type
     end
 
     if data.status == 'active' then
-        where[#where + 1] = "`revoked_at` IS NULL AND (`type` = 'warn' OR `expires_at` IS NULL OR `expires_at` > ?)"
+        where[#where + 1] = "`revoked_at` IS NULL AND (`type` = 'warn'"
+            .. " OR (`type` = 'ban' AND (`expires_at` IS NULL OR `expires_at` > ?))"
+            .. " OR (`type` = 'jail' AND `id` IN (SELECT `sanction_id` FROM `lunatic_admin_jail`)))"
         params[#params + 1] = now()
     end
 
@@ -553,6 +566,14 @@ Panel.actions['sanctions.history'] = function(src, actor, data)
 
     return { ok = true, silent = true, sanctions = list }
 end
+
+-- Outils partagés avec server/jail.lua (chargé après ce fichier)
+Panel.sanctions = {
+    create = createSanction,
+    onlineTarget = onlineTarget,
+    cleanReason = cleanReason,
+    isProtectedLicense = isProtectedLicense,
+}
 
 ---------------------------------------------------------------------
 -- Commande console de secours

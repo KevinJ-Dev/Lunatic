@@ -117,6 +117,7 @@ table.insert(Panel.stateHooks, function(state, _, rank)
             ping = GetPlayerPing(target),
             rank = rankBadge(target),
             frozen = frozen[target] == true,
+            jailed = Panel.jailOf and Panel.jailOf(target) ~= nil or false,
         }
     end
 
@@ -148,6 +149,7 @@ Panel.actions['player.info'] = function(src, actor, data)
         rank = rankBadge(target),
         frozen = frozen[target] == true,
         canReturn = returnPoints[target] ~= nil,
+        jail = Panel.jailOf and Panel.jailOf(target) or nil,
         isSelf = target == src,
         protected = target ~= src and isProtected(actor, target),
     }

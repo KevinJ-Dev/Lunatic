@@ -27,6 +27,15 @@ Config.SanctionReasonMax = 200
 Config.BanMaxHours = 8760            -- durée maximale d'un ban temporaire (1 an)
 Config.RecentDisconnects = 50        -- joueurs récemment partis, bannissables depuis le panel
 
+-- Prison staff (hors RP) : cour de la prison de Bolingbroke
+-- (ajustables avec l'outil Coordonnées du panel)
+Config.Jail = {
+    spawn = vector3(1641.64, 2571.08, 45.56),    -- arrivée dans la cour
+    radius = 40.0,                              -- distance maximale autour de l'arrivée avant d'y être renvoyé
+    release = vector3(1847.07, 2585.69, 45.67), -- sortie, devant le portail
+    maxMinutes = 600,                           -- durée maximale d'une peine
+}
+
 -- Outils staff (lot 4)
 Config.NoclipKey = 'F2'                 -- touche par défaut du noclip (modifiable dans les raccourcis FiveM)
 Config.NoclipSpeed = 12.0                 -- vitesse de base du noclip (m/s), Maj x4, Ctrl x0.25
@@ -51,7 +60,7 @@ Config.RateLimit = { max = 15, windowMs = 5000 }
 -- owner = true : rang Fondateur (toutes les permissions, ne peut pas être supprimé)
 local economy = { 'economy.money', 'economy.black_money', 'economy.job', 'economy.items', 'economy.clear' }
 local tools = { 'tools.noclip', 'tools.invisible', 'tools.godmode', 'tools.names', 'tools.coords', 'tools.tpm', 'tools.vehicles' }
-local sanctions = { 'sanctions.view', 'sanctions.warn', 'sanctions.ban' }
+local sanctions = { 'sanctions.view', 'sanctions.warn', 'sanctions.ban', 'sanctions.jail' }
 local players = { 'players.view', 'players.goto', 'players.bring', 'players.spectate', 'players.freeze', 'players.heal', 'players.kick' }
 
 local function with(...)

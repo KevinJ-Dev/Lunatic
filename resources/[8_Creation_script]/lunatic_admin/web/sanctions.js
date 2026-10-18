@@ -35,13 +35,18 @@ function ago(ts) {
 // ---------- Affichage d'une sanction ----------
 
 function typeBadge(s) {
-    return s.type === "ban"
-        ? h("span", { class: "badge ban" }, icon("i-ban"), "Ban")
-        : h("span", { class: "badge warn" }, icon("i-warn"), "Avertissement");
+    if (s.type === "ban") return h("span", { class: "badge ban" }, icon("i-ban"), "Ban");
+    if (s.type === "jail") return h("span", { class: "badge jail" }, icon("i-lock"), "Prison");
+    return h("span", { class: "badge warn" }, icon("i-warn"), "Avertissement");
 }
 
 function statusBadge(s) {
     if (s.revoked) return h("span", { class: "badge muted", title: `Révoqué par ${s.revokedBy || "?"} : ${s.revokeReason || ""}` }, "Révoqué");
+    if (s.type === "jail") {
+        return s.active
+            ? h("span", { class: "badge jail" }, `En cours · ${Math.ceil((s.remaining || 0) / 60)} min`)
+            : h("span", { class: "badge muted" }, "Purgée");
+    }
     if (s.type === "warn") return h("span", { class: "badge muted" }, "Donné");
     if (!s.active) return h("span", { class: "badge muted" }, "Expiré");
     return h("span", { class: "badge ban" }, s.expires ? `Jusqu'au ${fmtDate(s.expires)}` : "Définitif");
@@ -131,7 +136,7 @@ function paintSanctions() {
     sanctionsDom.search.style.display = history ? "" : "none";
     sanctionsDom.filters.replaceChildren(
         h("div", { class: "segmented" }, ...segmentedButtons([{ value: "active", label: "Actives" }, { value: "all", label: "Toutes" }], v.status, (value) => { v.status = value; paintSanctions(); fetchSanctions(); })),
-        h("div", { class: "segmented" }, ...segmentedButtons([{ value: "all", label: "Tout" }, { value: "warn", label: "Avertissements" }, { value: "ban", label: "Bans" }], v.type, (value) => { v.type = value; paintSanctions(); fetchSanctions(); }))
+        h("div", { class: "segmented" }, ...segmentedButtons([{ value: "all", label: "Tout" }, { value: "warn", label: "Avertissements" }, { value: "ban", label: "Bans" }, { value: "jail", label: "Prisons" }], v.type, (value) => { v.type = value; paintSanctions(); fetchSanctions(); }))
     );
 
     if (history) {
@@ -275,6 +280,40 @@ function openRevoke(s) {
             h("header", null, h("h3", null, `Révoquer la sanction #${s.id}`),
                 h("p", null, `${s.type === "ban" ? "Le ban est levé immédiatement." : "L'avertissement est annulé."} Elle reste visible dans l'historique, marquée « révoquée ».`)),
             h("div", { class: "body" }, field),
+            h("footer", null, h("button", { class: "btn ghost", onclick: () => close() }, "Annuler"), confirmBtn),
+        ];
+    });
+    field.focus();
+}
+
+function openJail(info) {
+    let reason = "";
+    let minutes = 10;
+    const confirmBtn = h("button", { class: "btn danger", disabled: true }, icon("i-lock"), "Mettre en prison");
+    const chips = h("div", { class: "durations" });
+    const custom = h("input", { class: "input mono", type: "number", min: "1", max: "600", value: "10" });
+    const update = () => { confirmBtn.disabled = !(reason.length >= 3 && Number.isInteger(minutes) && minutes >= 1 && minutes <= 600); };
+    const paintChips = () => chips.replaceChildren(...[5, 10, 15, 30, 60].map((m) => {
+        const chip = h("button", { class: minutes === m ? "on" : "" }, `${m} min`);
+        chip.addEventListener("click", () => { minutes = m; custom.value = String(m); paintChips(); update(); });
+        return chip;
+    }));
+    paintChips();
+    custom.addEventListener("input", () => { minutes = Number(custom.value); paintChips(); update(); });
+    const field = reasonField("Raison affichée au joueur (3 caractères minimum)", (value) => { reason = value; update(); });
+
+    openModal((close) => {
+        confirmBtn.addEventListener("click", async () => {
+            const res = await act("sanction.jail", { serverId: info.serverId, minutes, reason }, `${info.name} est en prison pour ${minutes} min.`);
+            if (res) { close(); afterSanction(); loadPlayerInfo(); }
+        });
+        return [
+            h("header", null, h("h3", null, `Mettre ${info.name} en prison`),
+                h("p", null, "Prison staff (hors RP) : le joueur est envoyé dans la cour de Bolingbroke. Le temps ne s'écoule que s'il est connecté.")),
+            h("div", { class: "body" },
+                h("div", { class: "field" }, h("label", null, "Durée (minutes)"), chips, custom),
+                h("div", { class: "field" }, h("label", null, "Raison"), field)
+            ),
             h("footer", null, h("button", { class: "btn ghost", onclick: () => close() }, "Annuler"), confirmBtn),
         ];
     });

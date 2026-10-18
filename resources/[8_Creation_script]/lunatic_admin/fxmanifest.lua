@@ -26,6 +26,7 @@ server_scripts {
     'server/tools.lua',
     'server/economy.lua',
     'server/history.lua',
+    'server/jail.lua',
 }
 
 client_scripts {
@@ -33,6 +34,7 @@ client_scripts {
     'client/players.lua',
     'client/sanctions.lua',
     'client/tools.lua',
+    'client/jail.lua',
 }
 
 ui_page 'web/index.html'

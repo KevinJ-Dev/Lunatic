@@ -408,6 +408,7 @@ function paintPlayerList() {
                 h("span", null, [p.job, `${p.ping} ms`].filter(Boolean).join(" · "))
             ),
             p.frozen ? icon("i-snow") : null,
+            p.jailed ? icon("i-lock") : null,
             p.rank ? dot(p.rank.color) : null
         );
         if (p.rank) row.title = p.rank.name;
@@ -528,6 +529,9 @@ function paintFiche() {
                     ),
                     h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Sanction"),
                         button("Avertir", "i-warn", "sanctions.warn", { notSelf: true, protect: true }, () => openWarn(info)),
+                        info.jail
+                            ? button("Sortir de prison", "i-lock", "sanctions.jail", { notSelf: true }, () => run("sanction.unjail", "Joueur libéré de prison."))
+                            : button("Prison", "i-lock", "sanctions.jail", { notSelf: true, protect: true }, () => openJail(info)),
                         button("Bannir", "i-ban", "sanctions.ban", { notSelf: true, protect: true, danger: true }, () => openBan({ serverId: info.serverId, name: info.name })),
                         button("Expulser", "i-door", "players.kick", { notSelf: true, protect: true }, () => openKick(info))
                     )
@@ -544,7 +548,8 @@ function paintFiche() {
                     bar("Santé", health === null ? "—" : down ? "Au sol" : `${Math.round(healthPct)} %`, healthPct, down ? "var(--danger)" : "var(--ok)"),
                     bar("Armure", typeof info.armor === "number" ? `${info.armor} %` : "—", info.armor || 0, "var(--info)"),
                     infoRow("Ping", `${info.ping} ms`),
-                    infoRow("Figé", info.frozen ? "Oui" : "Non"))
+                    infoRow("Figé", info.frozen ? "Oui" : "Non"),
+                    info.jail ? infoRow("Prison", `${Math.ceil(info.jail.remaining / 60)} min restantes`) : null)
             ),
             economySection(info),
             can("sanctions.view") ? historyCard(info) : null
@@ -1095,7 +1100,7 @@ window.addEventListener("message", (event) => {
 
 function demoState() {
     return {
-        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],
@@ -1164,7 +1169,7 @@ async function demoNui(name, data) {
             serverId: p.serverId, name: p.name, pseudo: "Pseudo_FiveM", license: "license:25c2692702c6aa11bb", ping: p.ping,
             rank: p.rank, frozen: !!p.frozen, canReturn: false, isSelf: p.serverId === 1, protected: p.serverId === 4 ? false : false,
             health: 164, maxHealth: 200, armor: 40, job: { name: "mechanic", label: p.job, grade: "Employé", level: 1 }, money: 2350, bank: 48200, blackMoney: 0,
-            dateofbirth: "14/03/1996", sex: "m", height: 182,
+            dateofbirth: "14/03/1996", sex: "m", height: 182, jail: p.serverId === 7 ? { remaining: 540, reason: "Freekill" } : undefined,
         } };
     }
     if (name === "action" && data && (data.action === "sanctions.list" || data.action === "sanctions.history")) {

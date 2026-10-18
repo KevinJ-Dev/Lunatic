@@ -125,3 +125,10 @@ Chaque opération est enregistrée dans `lunatic_admin_logs` avec l'ancienne et 
 | Recréer (identité + apparence effacées, retour à la création ; argent, inventaire et métier conservés) | Fiche, Personnage | `players.recreate` |
 
 « Recréer » utilise l'export `resetIdentity` ajouté à **esx_identity** (modification locale à reporter lors des mises à jour d'ESX).
+
+## Prison staff (lot C)
+
+- Fiche joueur → **Prison** : durée en minutes (1 à 600) et raison. Le joueur est envoyé dans la cour de Bolingbroke (`Config.Jail`), voit un compte à rebours, ne peut ni tirer ni sortir de la zone (renvoyé dans la cour, contrôle aussi côté serveur).
+- Le temps ne s'écoule que joueur connecté ; à la reconnexion (ou au redémarrage de la resource), il retourne en prison.
+- À la fin, il est relâché devant le portail. **Sortir de prison** (fiche) ou **Révoquer** (page Sanctions) le libère plus tôt.
+- Permission `sanctions.jail` ; peines visibles dans l'historique (type « Prison ») ; table `lunatic_admin_jail` créée au démarrage.

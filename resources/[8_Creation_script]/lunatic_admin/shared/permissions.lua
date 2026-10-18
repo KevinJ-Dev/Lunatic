@@ -45,6 +45,7 @@ Permissions.List = {
     { id = 'sanctions.warn',          family = 'sanctions', label = 'Avertir un joueur' },
     { id = 'sanctions.ban',           family = 'sanctions', label = 'Bannir temporairement' },
     { id = 'sanctions.ban_permanent', family = 'sanctions', label = 'Bannir définitivement' },
+    { id = 'sanctions.jail',          family = 'sanctions', label = 'Mettre en prison staff et libérer' },
     { id = 'sanctions.revoke',        family = 'sanctions', label = 'Révoquer une sanction (rang inférieur ou soi-même)' },
 
     { id = 'panel.open',   family = 'manage', label = 'Ouvrir le panel staff' },

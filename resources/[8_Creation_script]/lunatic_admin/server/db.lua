@@ -69,4 +69,17 @@ function DB.init()
             KEY `idx_lunatic_admin_sanctions_active` (`type`, `revoked_at`, `expires_at`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ]])
+
+    -- Prison staff : temps restant (secondes) des peines en cours, décompté seulement joueur connecté
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `lunatic_admin_jail` (
+            `license` VARCHAR(60) NOT NULL,
+            `sanction_id` INT NOT NULL,
+            `remaining` INT NOT NULL,
+            `reason` VARCHAR(255) NOT NULL DEFAULT '',
+            `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`license`),
+            KEY `idx_lunatic_admin_jail_sanction` (`sanction_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ]])
 end

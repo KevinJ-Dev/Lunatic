@@ -30,6 +30,8 @@ const ACTION_LABELS = {
     "sanction.warn": "a averti",
     "sanction.ban": "a banni",
     "sanction.revoke": "a révoqué une sanction de",
+    "sanction.jail": "a mis en prison",
+    "sanction.unjail": "a libéré de prison",
     "tool.noclip.on": "a activé le noclip",
     "tool.noclip.off": "a coupé le noclip",
     "tool.invisible.on": "s'est rendu invisible",
@@ -101,6 +103,9 @@ function describeLog(log) {
             break;
         case "sanction.ban":
             summary = `${d.hours === "permanent" ? "définitif" : `${d.hours} h`} · ${d.reason || ""}`;
+            break;
+        case "sanction.jail":
+            summary = `${d.minutes} min · ${d.reason || ""}`;
             break;
         case "sanction.revoke":
             summary = `#${d.id} · ${d.reason || ""}`;

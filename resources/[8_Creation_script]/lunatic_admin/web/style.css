@@ -363,3 +363,4 @@ button.log-row:hover { background: var(--surface-2); border-color: var(--line-st
 .modal { max-height: 86%; }
 .link { border: 0; background: none; padding: 0; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; transition: color .15s; }
 .link:hover { color: var(--ink); }
+.badge.jail { background: #6bb8f224; color: var(--info); }
