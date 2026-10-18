@@ -142,12 +142,18 @@ function buildEconomy(info) {
             )) : [h("span", { class: "muted" }, "Inventaire vide.")]));
         };
 
-        if (can("economy.items") && !info.isSelf) {
-            // Le vrai inventaire ox_inventory s'ouvre à l'écran : le panel se ferme pour le laisser apparaître
-            actions.append(h("button", { class: "btn small", onclick: async () => {
-                const res = await act("economy.inspect", { serverId: panel.serverId }, null);
-                if (res) closePanel();
-            } }, icon("i-eye"), "Ouvrir son inventaire"));
+        if (can("economy.items")) {
+            // Le vrai inventaire ox_inventory s'ouvre à l'écran : le panel se ferme pour le laisser apparaître.
+            // Sur sa propre fiche, ox_inventory ne le permet pas : bouton grisé avec explication.
+            actions.append(h("button", {
+                class: "btn small",
+                disabled: info.isSelf,
+                title: info.isSelf ? "Sur votre propre fiche : ouvrez votre inventaire avec la touche habituelle." : "Voir son inventaire (lecture seule)",
+                onclick: async () => {
+                    const res = await act("economy.inspect", { serverId: panel.serverId }, null);
+                    if (res) closePanel();
+                },
+            }, icon("i-eye"), "Ouvrir son inventaire"));
         }
         if (can("economy.items")) actions.append(h("button", { class: "btn small primary", onclick: () => openGiveItem(panel, info) }, icon("i-plus"), "Donner un objet"));
         if (can("economy.clear")) actions.append(h("button", { class: "btn small danger", onclick: () => openClearInventory(panel, info) }, icon("i-trash"), "Vider l'inventaire"));
