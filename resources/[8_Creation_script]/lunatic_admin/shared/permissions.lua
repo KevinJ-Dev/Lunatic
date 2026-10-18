@@ -9,6 +9,7 @@ Permissions.Families = {
     { id = 'tools',     label = 'Outils' },
     { id = 'economy',   label = 'Économie' },
     { id = 'world',     label = 'Monde' },
+    { id = 'server',    label = 'Serveur' },
     { id = 'shop',      label = 'Premium et boutique' },
     { id = 'chat',      label = 'Tchat' },
     { id = 'manage',    label = 'Gestion' },
@@ -29,6 +30,9 @@ Permissions.List = {
     { id = 'players.wipe', family = 'players', label = 'Wipe un joueur : réinitialiser complètement son personnage' },
     { id = 'players.offline', family = 'players', label = 'Gérer les joueurs offline (recherche en base et actions)' },
     { id = 'players.kick',     family = 'players', label = 'Expulser un joueur du serveur' },
+
+    -- Lot H : gestion globale
+    { id = 'server.manage', family = 'server', label = 'Gestion Global : redémarrage planifié, maintenance, actions de masse' },
 
     -- Lot G : Premium et boutique
     { id = 'premium.manage', family = 'shop', label = 'Premium / Premium+ : attribuer et retirer les abonnements' },

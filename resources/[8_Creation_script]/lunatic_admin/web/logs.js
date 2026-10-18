@@ -31,6 +31,12 @@ const ACTION_LABELS = {
     "premium.set": "a donné un abonnement à",
     "premium.remove": "a retiré l'abonnement de",
     "credits.change": "a modifié les crédits boutique de",
+    "server.restart": "a programmé un redémarrage du serveur",
+    "server.cancelRestart": "a annulé le redémarrage du serveur",
+    "server.maintenance": "a modifié le mode maintenance",
+    "server.healAll": "a soigné tout le serveur",
+    "server.bringAll": "a téléporté tout le monde à lui",
+    "server.kickAll": "a expulsé tout le monde",
     "license.give": "a donné un permis à",
     "license.remove": "a retiré un permis à",
     "tool.ghost.on": "a activé le mode fantôme",
@@ -131,6 +137,21 @@ function describeLog(log) {
             break;
         case "premium.set":
             summary = `${d.tier === "premium_plus" ? "Premium+" : "Premium"} · ${d.days === "lifetime" ? "à vie" : `${d.days} jours`}`;
+            break;
+        case "server.restart":
+            summary = `dans ${d.minutes} min${d.reason ? ` · ${d.reason}` : ""}`;
+            break;
+        case "server.maintenance":
+            summary = `${d.enabled ? "activée" : "désactivée"} · ${d.message || ""}`;
+            break;
+        case "server.healAll":
+            summary = `${d.players} joueur(s)`;
+            break;
+        case "server.bringAll":
+            summary = `${d.count} joueur(s)`;
+            break;
+        case "server.kickAll":
+            summary = `${d.count} joueur(s) · ${d.reason || ""}`;
             break;
         case "credits.change":
             summary = `${d.amount > 0 ? "+" : ""}${d.amount} (${d.before} → ${d.after}) · ${d.reason || ""}`;

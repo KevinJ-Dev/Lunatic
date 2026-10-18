@@ -207,6 +207,7 @@ const NAV = [
     { id: "tools", label: "Outils", icon: "i-tool", show: () => hasAnyTool() },
     { id: "logs", label: "Logs", icon: "i-list", show: () => can("logs.view") || can("logs.chat") },
     { id: "world", label: "Monde", icon: "i-sun", show: () => hasWorld() },
+    { id: "server", label: "Serveur", icon: "i-server", show: () => can("server.manage") },
     { id: "ranks", label: "Rangs", icon: "i-layers", show: () => can("ranks.view") },
     { id: "members", label: "Membres", icon: "i-users", show: () => can("staff.view") },
 ];
@@ -225,7 +226,7 @@ function render() {
     );
     $("me").querySelector(".avatar").style.background = me.rank.color;
 
-    for (const id of ["home", "players", "sanctions", "tools", "logs", "world", "ranks", "members"]) {
+    for (const id of ["home", "players", "sanctions", "tools", "logs", "world", "server", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
     }
 
@@ -235,6 +236,7 @@ function render() {
     if (view === "tools") renderTools();
     if (view === "logs") renderLogs();
     if (view === "world") renderWorld();
+    if (view === "server") renderGlobal();
     if (view === "ranks") renderRanks();
     if (view === "members") renderMembers();
 }
@@ -690,7 +692,7 @@ function openKick(info) {
 
 // Rafraîchissement automatique de la page Joueurs (ping, joueurs, fiche)
 setInterval(async () => {
-    if (!state || !["players", "home", "world"].includes(view) || document.body.classList.contains("hidden")) return;
+    if (!state || !["players", "home", "world", "server"].includes(view) || document.body.classList.contains("hidden")) return;
     try {
         const next = await nui("refresh");
         if (next && typeof next === "object") {
@@ -1176,7 +1178,7 @@ window.addEventListener("message", (event) => {
 
 function demoState() {
     return {
-        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],
@@ -1213,6 +1215,7 @@ function demoState() {
             available: true, weather: "CLOUDS", hour: 18, minute: 42, frozen: false, cycle: true, blackout: false, cycleMinutes: 30,
             weathers: [["EXTRASUNNY", "Grand soleil"], ["CLEAR", "Dégagé"], ["CLOUDS", "Nuageux"], ["OVERCAST", "Couvert"], ["CLEARING", "Éclaircies"], ["RAIN", "Pluie"], ["THUNDER", "Orage"], ["FOGGY", "Brouillard"], ["SMOG", "Smog"], ["SNOWLIGHT", "Neige légère"], ["SNOW", "Neige"], ["BLIZZARD", "Blizzard"], ["XMAS", "Noël"], ["HALLOWEEN", "Halloween"]].map(([id, label]) => ({ id, label })),
         },
+        server: { maintenance: false, maintenanceMessage: "Le serveur est en maintenance. Revenez un peu plus tard !", players: 23, restart: null },
         dashboard: {
             players: 23, maxPlayers: 64,
             history: Array.from({ length: 60 }, (_, i) => ({ t: Math.floor(Date.now() / 1000) - (59 - i) * 1440, n: Math.max(0, Math.round(18 + 12 * Math.sin(i / 7) + (i % 5)))})),

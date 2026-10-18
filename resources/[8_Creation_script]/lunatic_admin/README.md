@@ -173,3 +173,11 @@ LocalPlayer.state.premium                                 -- 'premium', 'premium
 ```
 
 Tables `lunatic_admin_premium`, `lunatic_admin_credits`, `lunatic_admin_credit_log` créées au démarrage.
+
+## Serveur (lot H)
+
+Page « Serveur » du panel, permission `server.manage` (Gestion Global).
+
+- **Redémarrage planifié** : délai de 1 à 30 min (1 à 60 côté serveur) et raison facultative. Annonces automatiques à 15, 10, 5, 2 et 1 min puis 30 et 10 s, puis tous les joueurs sont expulsés (ESX les sauvegarde à la déconnexion). Relancer ensuite le serveur depuis le panel de l'hébergeur. Annulable tant que le compte à rebours tourne.
+- **Mode maintenance** : seuls les membres du staff peuvent se connecter, les autres voient le message choisi (5 à 200 caractères). L'état est conservé après un redémarrage (KVP de la resource) et signalé dans la console au démarrage.
+- **Actions de masse** : soigner tout le serveur (réanimation, soin, faim/soif), téléporter tout le monde à soi, expulser tout le monde (le staff connecté reste).

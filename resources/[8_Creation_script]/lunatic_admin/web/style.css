@@ -393,3 +393,5 @@ button.log-row:hover { background: var(--surface-2); border-color: var(--line-st
 .credit-row .plus { color: var(--ok); }
 .credit-row .minus { color: var(--danger); }
 .credit-row .reason { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+.restart-body > .btn { margin-top: 12px; }

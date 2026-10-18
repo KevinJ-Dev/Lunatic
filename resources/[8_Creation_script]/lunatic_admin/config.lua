@@ -83,7 +83,7 @@ local world = { 'world.weather', 'world.time' }
 local economy = { 'economy.money', 'economy.black_money', 'economy.job', 'economy.items', 'economy.clear' }
 local tools = { 'tools.noclip', 'tools.invisible', 'tools.godmode', 'tools.ghost', 'tools.names', 'tools.coords', 'tools.tpm', 'tools.vehicles' }
 local profile = { 'players.licenses', 'players.copy_appearance', 'staff.online', 'players.offline' }
-local shop = { 'premium.manage', 'shop.manage' }
+local shop = { 'premium.manage', 'shop.manage', 'server.manage' }
 local sanctions = { 'sanctions.view', 'sanctions.warn', 'sanctions.ban', 'sanctions.jail' }
 local players = { 'players.view', 'players.goto', 'players.bring', 'players.spectate', 'players.freeze', 'players.heal', 'players.kick' }
 
