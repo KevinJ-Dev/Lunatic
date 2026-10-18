@@ -87,6 +87,29 @@ Config.StructureTypes = {
     },
 }
 
+-- Points d'interaction (lot E2) : kinds = 'company', 'public' ou 'both' ; ready = utilisable en jeu (lunatic_business)
+Config.StructurePointTypes = {
+    { id = 'management', label = 'Gestion', kinds = 'both', ready = true },
+    { id = 'storage', label = 'Stockage', kinds = 'both', ready = true },
+    { id = 'locker', label = 'Casier', kinds = 'both', ready = true },
+    { id = 'wardrobe', label = 'Vestiaire', kinds = 'both', ready = true },
+    { id = 'doorbell', label = 'Sonnette', kinds = 'both', ready = true },
+    { id = 'custom', label = 'Custom', kinds = 'both', ready = true },
+    { id = 'catalog', label = 'Catalogue', kinds = 'both' },
+    { id = 'craft', label = 'Craft', kinds = 'both' },
+    { id = 'garage', label = 'Garages', kinds = 'both' },
+    { id = 'vehicles', label = 'Véhicules', kinds = 'both' },
+    { id = 'dj', label = 'DJ', kinds = 'both' },
+    { id = 'blips', label = 'Blips', kinds = 'public' },
+    { id = 'weapon_analysis', label = 'Analyse armes', kinds = 'public' },
+    { id = 'bracelet', label = 'Bracelet', kinds = 'public' },
+    { id = 'armory', label = 'Armurerie', kinds = 'public' },
+    { id = 'id_card', label = "Carte d'identité", kinds = 'public' },
+    { id = 'eup', label = 'Binco EUP', kinds = 'public' },
+    { id = 'properties', label = 'Propriétés', kinds = 'public' },
+}
+Config.StructureAccountMaxAction = 10000000 -- montant maximum d'une opération staff sur un compte de société
+
 -- Pôle emploi (lot I)
 Config.PolesMaxGrades = 20           -- grades maximum par métier
 Config.PolesMaxSalary = 100000       -- salaire maximum d'un grade (par paie ESX)

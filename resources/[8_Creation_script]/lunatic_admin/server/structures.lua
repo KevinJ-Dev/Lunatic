@@ -269,6 +269,22 @@ Panel.actions['structures.info'] = function(src, actor, data)
 
     local info = result.job
     info.structure = structure
+    info.points = StructurePoints.ofJob(structure.job)
+    info.pointTypes = {}
+
+    for _, entry in ipairs(Config.StructurePointTypes) do
+        if entry.kinds == 'both' or entry.kinds == structure.kind then
+            info.pointTypes[#info.pointTypes + 1] = entry
+        end
+    end
+
+    -- Compte de société (resource lunatic_business)
+    if GetResourceState('lunatic_business') == 'started' then
+        info.account = {
+            balance = exports.lunatic_business:getBalance(structure.job),
+            history = exports.lunatic_business:getHistory(structure.job, 30),
+        }
+    end
     info.typeLabel = typesOf(structure.kind)[structure.type] or structure.type
     info.leadName = nameOf(structure.lead)
 
@@ -420,8 +436,53 @@ Panel.actions['structures.delete'] = function(src, actor, data)
     MySQL.update.await('DELETE FROM `lunatic_structures` WHERE `job` = ?', { structure.job })
     MySQL.update.await('DELETE FROM `lunatic_structure_playtime` WHERE `job` = ?', { structure.job })
     byJob[structure.job] = nil
+    StructurePoints.deleteJob(structure.job)
     Logs.add(src, 'structures.delete', nil, { job = structure.job, kind = structure.kind })
 
+    return { ok = true, silent = true }
+end
+
+---------------------------------------------------------------------
+-- Compte de société : ajout ou retrait par le staff, avec motif
+---------------------------------------------------------------------
+
+Panel.actions['structures.account'] = function(src, actor, data)
+    local structure, err = structureFor(actor, data.job)
+
+    if not structure then
+        return err
+    end
+
+    if GetResourceState('lunatic_business') ~= 'started' then
+        return Panel.fail("La resource lunatic_business n'est pas démarrée.")
+    end
+
+    local amount = tonumber(data.amount)
+
+    if not amount or amount ~= math.floor(amount) or amount == 0 or math.abs(amount) > Config.StructureAccountMaxAction then
+        return Panel.fail(('Montant invalide : nombre entier non nul, %d au maximum.'):format(Config.StructureAccountMaxAction))
+    end
+
+    local reason = cleanText(data.reason, 3, 120)
+
+    if not reason then
+        return Panel.fail('Le motif doit faire entre 3 et 120 caractères.')
+    end
+
+    local actorName = ('Staff : %s'):format(Staff.displayName(src))
+    local ok
+
+    if amount > 0 then
+        ok = exports.lunatic_business:addMoney(structure.job, amount, reason, actorName)
+    else
+        ok = exports.lunatic_business:removeMoney(structure.job, -amount, reason, actorName)
+    end
+
+    if not ok then
+        return Panel.fail(amount > 0 and 'Opération impossible.' or 'Solde insuffisant.')
+    end
+
+    Logs.add(src, 'structures.account', nil, { job = structure.job, amount = amount, reason = reason })
     return { ok = true, silent = true }
 end
 

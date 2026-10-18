@@ -34,6 +34,7 @@ server_scripts {
     'server/global.lua',
     'server/poles.lua',
     'server/structures.lua',
+    'server/structure_points.lua',
     'server/events.lua',
     'server/dev.lua',
     'server/commands.lua',

@@ -256,3 +256,10 @@ Une structure = un métier ESX (`jobs` / `job_grades`, toujours en liste blanche
 - **Suppression** : fiche, métier et temps de jeu, seulement sans membre.
 
 Export : `exports.lunatic_admin:getStructure(jobName)` (fiche ou `nil`). Le Pôle emploi (ancienne tuile « Service public ») ne liste plus que les métiers sans fiche.
+
+## Points et compte des structures (lot E2)
+
+Onglets **Points** et **Compte** de la fiche d'une structure :
+
+- **Points** (`lunatic_structure_points`) : ajouter un point d'un type (`Config.StructurePointTypes`) à sa position, **Définir** (le replacer à sa position et orientation), **TP**, renommer, supprimer. Diffusés en direct dans `GlobalState.lunaticStructurePoints` et à `lunatic_business` (événement `lunatic_admin:structurePointsChanged`). Export `getStructurePoints()`.
+- **Compte** : solde, historique, ajout ou retrait par le staff avec motif (`Config.StructureAccountMaxAction`). Le compte est géré par `lunatic_business`.

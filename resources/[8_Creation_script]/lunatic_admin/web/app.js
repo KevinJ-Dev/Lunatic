@@ -1385,6 +1385,17 @@ async function demoNui(name, data) {
             whitelisted: true,
             structure: { job: data.payload.job, kind: publicKind ? "public" : "company", type: publicKind ? "police" : "restaurant", lead: publicKind ? "aa11223344" : null, color: "#f2a341",
                 logo: "", radialIcon: "fa-solid fa-burger", banner: "", createdBy: "Ramiro Lotus", createdAt: Math.floor(Date.now() / 1000) - 86400 },
+            points: [
+                { id: 1, job: data.payload.job, type: "management", typeLabel: "Gestion", label: "Bureau du patron", x: -1193.42, y: -897.31, z: 13.0 },
+                { id: 2, job: data.payload.job, type: "storage", typeLabel: "Stockage", label: "Coffre cuisine", x: -1201.1, y: -901.9, z: 13.0 },
+                { id: 3, job: data.payload.job, type: "catalog", typeLabel: "Catalogue", label: "Catalogue", x: -1195.8, y: -893.2, z: 13.0 },
+            ],
+            pointTypes: [{ id: "management", label: "Gestion", ready: true }, { id: "storage", label: "Stockage", ready: true }, { id: "locker", label: "Casier", ready: true }, { id: "wardrobe", label: "Vestiaire", ready: true }, { id: "doorbell", label: "Sonnette", ready: true }, { id: "custom", label: "Custom", ready: true }, { id: "catalog", label: "Catalogue" }, { id: "craft", label: "Craft" }],
+            account: { balance: 48250, history: [
+                { amount: 12000, balance: 48250, reason: "Dépôt", actor: "Jean Dupont", created: Math.floor(Date.now() / 1000) - 3600 },
+                { amount: -2500, balance: 36250, reason: "Retrait", actor: "Jean Dupont", created: Math.floor(Date.now() / 1000) - 7200 },
+                { amount: 38750, balance: 38750, reason: "Capital de départ", actor: "Staff : Ramiro Lotus", created: Math.floor(Date.now() / 1000) - 86400 },
+            ] },
             grades: [{ grade: 0, label: "Recrue", salary: 200, members: 3 }, { grade: 1, label: "Employé", salary: 300, members: 2 }, { grade: 2, label: "Gérant", salary: 400, members: 1 }, { grade: 3, label: "Patron", salary: 500, members: 1 }],
             members: [
                 { identifier: "aa11223344", name: "Jean Dupont", grade: 3, online: 2, playtime: 754 },

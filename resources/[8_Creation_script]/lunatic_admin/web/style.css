@@ -480,3 +480,11 @@ button.log-row:hover { background: var(--surface-2); border-color: var(--line-st
 .struct-banner-preview { width: 100%; max-height: 120px; margin-top: 6px; border-radius: var(--r-sm); object-fit: cover; background: var(--surface-2); }
 .color-input { width: 100%; padding: 4px; cursor: pointer; }
 .candidate-row { grid-template-columns: minmax(0, 1fr) auto; min-height: 46px; }
+
+/* Points et compte des structures (lot E2) */
+.point-add { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 10px; }
+.point-row { grid-template-columns: 26px minmax(0, 1fr) auto; min-height: 50px; }
+.account-form { display: grid; grid-template-columns: auto 160px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.account-row { grid-template-columns: 130px minmax(0, 1fr) auto; min-height: 48px; }
+.account-row .plus { color: var(--ok); }
+.account-row .minus { color: var(--danger); }

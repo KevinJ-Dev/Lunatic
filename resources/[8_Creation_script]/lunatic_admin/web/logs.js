@@ -62,6 +62,8 @@ const ACTION_LABELS = {
     "structures.create": "a créé une structure",
     "structures.save": "a modifié la fiche d'une structure",
     "structures.delete": "a supprimé une structure",
+    "structures.point": "a modifié les points d'une structure",
+    "structures.account": "a modifié le compte d'une structure",
     "context.entity": "a agi sur l'entité",
     "vehicle.give": "a donné un véhicule à",
     "inventory.open": "a ouvert l'inventaire de",
@@ -196,6 +198,12 @@ function describeLog(log) {
             break;
         case "poles.member":
             summary = `${d.job} · ${d.gradeLabel}`;
+            break;
+        case "structures.point":
+            summary = `${d.job} · ${({ add: "ajout", move: "déplacement", delete: "suppression" })[d.operation] || d.operation} · ${d.type}`;
+            break;
+        case "structures.account":
+            summary = `${d.job} · ${d.amount > 0 ? "+" : ""}${d.amount} · ${d.reason || ""}`;
             break;
         case "structures.create":
         case "structures.save":

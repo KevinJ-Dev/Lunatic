@@ -143,10 +143,13 @@ function paintStructureFiche(kind) {
 
     const tabs = h("div", { class: "segmented" }, segmentedButtons([
         { value: "identity", label: "Identité" }, { value: "grades", label: `Grades (${info.grades.length})` }, { value: "members", label: `Membres (${total})` },
+        { value: "points", label: `Points (${(info.points || []).length})` }, { value: "account", label: "Compte" },
     ], st.tab, (value) => { st.tab = value; paintStructureFiche(kind); }));
 
     let body;
     if (st.tab === "grades") body = gradesCard(info, doAct);
+    else if (st.tab === "points") body = pointsCard(info, doAct);
+    else if (st.tab === "account") body = accountCard(info, doAct);
     else if (st.tab === "members") body = h("div", null, addMemberCard(kind, info, doAct), membersCard(info, doAct, "Aucun membre : ajoutez-en un ci-dessus."));
     else body = identityCard(kind, info, doAct);
 
@@ -232,6 +235,100 @@ function identityCard(kind, info, doAct) {
             h("div", { class: "btn-row", style: "margin-top:16px" }, submit)
         ),
         h("p", { class: "hint-line" }, `Créé${kind === "public" ? "" : "e"} par ${s.createdBy || "?"}${s.createdAt ? ` le ${new Date(s.createdAt * 1000).toLocaleDateString("fr-FR")}` : ""}.`)
+    );
+}
+
+// ---------- Onglet Points ----------
+
+function pointsCard(info, doAct) {
+    const types = info.pointTypes || [];
+    const typeLabel = (id) => (types.find((t) => t.id === id) || {}).label || id;
+    const select = h("select", { class: "input" }, types.map((t) => h("option", { value: t.id }, t.ready ? t.label : `${t.label} (bientôt)`)));
+    const label = h("input", { class: "input", maxlength: "60", placeholder: "Nom facultatif, ex. Coffre cuisine" });
+    const add = h("button", { class: "btn primary" }, icon("i-plus"), "Ajouter à ma position");
+    add.addEventListener("click", async () => {
+        const res = await doAct("structures.addPoint", { job: info.name, type: select.value, label: label.value.trim() }, "Point ajouté à votre position.");
+        if (res) label.value = "";
+    });
+
+    const rows = (info.points || []).map((p) => {
+        const ready = (types.find((t) => t.id === p.type) || {}).ready;
+        return h("div", { class: "row point-row" },
+            h("span", { class: `status${ready ? " on" : ""}`, title: ready ? "Utilisable en jeu" : "Bientôt disponible en jeu" }),
+            h("div", { class: "who" }, h("b", null, p.label), h("span", null, `${typeLabel(p.type)} · ${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)}`)),
+            h("div", { class: "btn-row" },
+                h("button", { class: "btn small", title: "Placer le point à votre position et orientation actuelles", onclick: () => doAct("structures.movePoint", { id: p.id }, "Point replacé à votre position.") }, icon("i-crosshair"), "Définir"),
+                h("button", { class: "btn small ghost", onclick: () => act("structures.tpPoint", { id: p.id }, null) }, icon("i-goto"), "TP"),
+                h("button", { class: "btn small ghost", title: "Renommer", onclick: () => renamePoint(p, doAct) }, icon("i-edit")),
+                h("button", { class: "btn small ghost", title: "Supprimer", onclick: async () => {
+                    const yes = await confirmBox(`Supprimer « ${p.label} » ?`, p.type === "storage" ? "Le contenu du coffre reste en base, mais il n'est plus accessible." : "Le point disparaît pour tous les membres.", "Supprimer", true);
+                    if (yes) doAct("structures.deletePoint", { id: p.id }, "Point supprimé.");
+                } }, icon("i-trash")))
+        );
+    });
+
+    return h("div", null,
+        h("div", { class: "card" },
+            h("h3", { class: "card-title" }, "Ajouter un point"),
+            h("div", { class: "point-add" }, select, label, add),
+            h("p", { class: "hint-line" }, "Le point est posé au sol, sous vos pieds. « Définir » le déplace à votre position, « TP » vous y emmène. Plusieurs points du même type sont possibles.")),
+        h("div", { class: "card", style: "margin-top:16px" },
+            h("h3", { class: "card-title" }, `Points (${rows.length})`),
+            rows.length ? h("div", { class: "table" }, rows) : h("p", { class: "hint-line", style: "margin:0" }, "Aucun point pour l'instant."),
+            h("p", { class: "hint-line" }, "Pastille verte : utilisable en jeu (Gestion, Stockage, Casier, Vestiaire, Sonnette, Custom). Les autres types sont déjà plaçables et s'activeront avec leur système."))
+    );
+}
+
+function renamePoint(p, doAct) {
+    const input = h("input", { class: "input", maxlength: "60", value: p.label });
+    openModal((close) => {
+        const submit = h("button", { class: "btn primary" }, icon("i-save"), "Renommer");
+        submit.addEventListener("click", async () => {
+            const res = await doAct("structures.renamePoint", { id: p.id, label: input.value.trim() }, "Point renommé.");
+            if (res) close();
+        });
+        return [
+            h("header", null, h("h3", null, "Renommer le point"), h("p", null, "Nom affiché aux membres avec [E]. Vide = nom du type.")),
+            h("div", { class: "body" }, input),
+            h("footer", null, h("button", { class: "btn ghost", onclick: () => close() }, "Annuler"), submit),
+        ];
+    });
+    input.focus();
+}
+
+// ---------- Onglet Compte de société ----------
+
+function accountCard(info, doAct) {
+    const account = info.account;
+    if (!account) {
+        return h("div", { class: "card" }, h("div", { class: "empty small" }, icon("i-lock"), "La resource lunatic_business n'est pas démarrée : compte indisponible."));
+    }
+
+    let operation = "add";
+    const seg = h("div", { class: "segmented" });
+    const amount = h("input", { class: "input mono", type: "number", min: "1", placeholder: "Montant" });
+    const reason = h("input", { class: "input", maxlength: "120", placeholder: "Motif (obligatoire)" });
+    const paint = () => seg.replaceChildren(...segmentedButtons([{ value: "add", label: "Ajouter" }, { value: "remove", label: "Retirer" }], operation, (v) => { operation = v; paint(); }));
+    paint();
+    const submit = h("button", { class: "btn primary" }, icon("i-save"), "Valider");
+    submit.addEventListener("click", () => {
+        const value = Math.floor(Number(amount.value));
+        if (!value || value < 1) return toast("Indiquez un montant.", "error");
+        doAct("structures.account", { job: info.name, amount: operation === "add" ? value : -value, reason: reason.value.trim() }, "Compte mis à jour.");
+    });
+
+    const history = account.history || [];
+    return h("div", null,
+        h("div", { class: "kpis", style: "margin-top:0" }, h("div", { class: "kpi" }, h("span", null, "Solde du compte"), h("b", null, money(account.balance)), h("small", null, "Dépôts et retraits du patron au point Gestion"))),
+        h("div", { class: "card", style: "margin-top:16px" },
+            h("h3", { class: "card-title" }, "Opération staff"),
+            h("div", { class: "account-form" }, seg, amount, reason, submit)),
+        h("div", { class: "card", style: "margin-top:16px" },
+            h("h3", { class: "card-title" }, "Historique (30 dernières opérations)"),
+            history.length ? h("div", { class: "table" }, history.map((e) => h("div", { class: "row account-row" },
+                h("b", { class: `mono ${e.amount > 0 ? "plus" : "minus"}` }, `${e.amount > 0 ? "+" : "−"}${money(Math.abs(e.amount))}`),
+                h("div", { class: "who" }, h("b", null, e.reason || "—"), h("span", null, `${e.actor || "?"} · ${new Date(e.created * 1000).toLocaleString("fr-FR")}`)),
+                h("span", { class: "muted mono" }, `solde ${money(e.balance)}`)))) : h("p", { class: "hint-line", style: "margin:0" }, "Aucune opération."))
     );
 }
 
