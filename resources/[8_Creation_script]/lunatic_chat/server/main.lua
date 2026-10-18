@@ -343,6 +343,27 @@ RegisterCommand('annonce', function(src, _, raw)
     log(src, 'announce', text)
 end, false)
 
+-- Annonce signée « Modération » (l'auteur reste dans la console et l'historique)
+RegisterCommand('annoncemodo', function(src, _, raw)
+    if not can(src, 'chat.announce_mod') then
+        return system(src, "Vous n'avez pas la permission de faire une annonce Modération.", 'error')
+    end
+
+    local text = clean(argsOf(raw), Config.MaxLength)
+
+    if not text then
+        return system(src, 'Utilisation : /annoncemodo <message>', 'error')
+    end
+
+    if not allowed(src) then
+        return
+    end
+
+    send(-1, { kind = 'announce', tag = 'Modération', author = displayName(src), rank = rankOf(src), text = text })
+    print(('[lunatic_chat] [ANNONCE MODÉRATION] %s : %s'):format(displayName(src), text))
+    log(src, 'announce', '[Modération] ' .. text)
+end, false)
+
 RegisterCommand('vidertchat', function(src)
     if not can(src, 'chat.clear') then
         return system(src, "Vous n'avez pas la permission de vider le tchat.", 'error')
@@ -361,6 +382,10 @@ RegisterNetEvent('lunatic_chat:requestAccess', function()
     TriggerClientEvent('lunatic_chat:access', src, {
         staff = can(src, 'chat.staff'),
         announce = can(src, 'chat.announce'),
+        announceMod = can(src, 'chat.announce_mod'),
+        crash = can(src, 'players.crash'),
+        givecar = can(src, 'vehicles.give'),
+        inventory = can(src, 'economy.items'),
         clear = can(src, 'chat.clear'),
         panel = can(src, 'panel.open'),
     })

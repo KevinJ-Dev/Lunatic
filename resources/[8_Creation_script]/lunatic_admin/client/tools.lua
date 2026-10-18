@@ -331,6 +331,18 @@ local function vehicleType(model, hash)
     return 'automobile'
 end
 
+-- Lot L (Give un véhicule) : le serveur demande si le modèle existe et de quel type il est
+lib.callback.register('lunatic_admin:vehicleModel', function(model)
+    model = type(model) == 'string' and model:lower() or ''
+    local hash = joaat(model)
+
+    if model == '' or not IsModelInCdimage(hash) or not IsModelAVehicle(hash) then
+        return { ok = false }
+    end
+
+    return { ok = true, hash = hash, type = vehicleType(model, hash) }
+end)
+
 -- Appelé par la page Outils : vérifie le modèle, le serveur crée le véhicule, on monte dedans
 RegisterNUICallback('vehicleSpawn', function(data, cb)
     local model = type(data) == 'table' and type(data.model) == 'string' and data.model:lower():gsub('%s', '') or ''

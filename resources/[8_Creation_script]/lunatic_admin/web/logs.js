@@ -57,6 +57,9 @@ const ACTION_LABELS = {
     "tool.ghost.on": "a activé le mode fantôme",
     "tool.ghost.off": "a coupé le mode fantôme",
     "player.kick": "a expulsé",
+    "player.crash": "a déconnecté (crash)",
+    "vehicle.give": "a donné un véhicule à",
+    "inventory.open": "a ouvert l'inventaire de",
     "sanction.warn": "a averti",
     "sanction.ban": "a banni",
     "sanction.revoke": "a révoqué une sanction de",
@@ -188,6 +191,9 @@ function describeLog(log) {
             break;
         case "poles.member":
             summary = `${d.job} · ${d.gradeLabel}`;
+            break;
+        case "vehicle.give":
+            summary = `${d.model} · ${d.plate}`;
             break;
         case "dev.resource":
             summary = `${{ start: "démarrage", stop: "arrêt", restart: "redémarrage" }[d.operation] || d.operation} · ${d.name} (${d.before} → ${d.after})`;

@@ -60,7 +60,11 @@ local suggestions = {
     { name = '/do', help = 'Description de la scène (texte au-dessus de la tête)', params = { { name = 'description' } } },
     { name = '/sc', help = 'Tchat staff privé', params = { { name = 'message' } }, access = 'staff' },
     { name = '/annonce', help = 'Annonce à tout le serveur', params = { { name = 'message' } }, access = 'announce' },
+    { name = '/annoncemodo', help = 'Annonce signée Modération', params = { { name = 'message' } }, access = 'announceMod' },
     { name = '/vidertchat', help = 'Vider le tchat de tous les joueurs', access = 'clear' },
+    { name = '/inv', help = "Ouvrir l'inventaire d'un joueur (prendre, déposer)", params = { { name = 'id' } }, access = 'inventory' },
+    { name = '/givecar', help = "Ajouter un véhicule au garage d'un joueur", params = { { name = 'id' }, { name = 'modèle' } }, access = 'givecar' },
+    { name = '/crash', help = 'Déconnecter un joueur sans raison affichée', params = { { name = 'id' } }, access = 'crash' },
     { name = '/staff', help = 'Ouvrir le panel staff', access = 'panel' },
 }
 

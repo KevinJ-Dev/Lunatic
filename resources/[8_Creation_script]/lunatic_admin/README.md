@@ -219,3 +219,16 @@ Page « Dév » du panel, permission `dev.manage` (Gestion Développeur, réserv
 ## Navigation
 
 L'accueil du panel est une grille de tuiles (une par page autorisée, avec les chiffres clés au-dessus). Dans une page, la barre du haut affiche `← GESTION  NOM DE LA PAGE` ; la flèche ou « Gestion » ramène à la grille. Rangs et Membres sont réunis dans la tuile « Permissions » (onglets dans la barre). Pour ajouter une page : une entrée dans `NAV` (`web/app.js`), une `<section class="view">` dans `index.html` et sa fonction de rendu.
+
+## Commandes staff (lot L)
+
+Les commandes qui n'existaient ni dans le tchat ni dans le panel ; elles passent par les mêmes actions que le panel (permissions, protection des rangs supérieurs, logs).
+
+| Commande | Permission | Effet |
+|---|---|---|
+| `/crash <id>` | `players.crash` (Crash Player) | Déconnecte le joueur avec `Config.CrashMessage`, sans raison affichée. Aussi « Déconnecter » dans la fiche. |
+| `/givecar <id> <modèle>` | `vehicles.give` (Give un véhicule) | Ajoute le véhicule au garage du joueur (`owned_vehicles`, plaque libre « ABC 1234 », rangé). Le modèle est vérifié par le jeu du staff. Aussi « Donner un véhicule » dans la fiche. |
+| `/inv <id>` | `economy.items` | Ouvre l'inventaire du joueur à côté du sien (ox_inventory) : prendre, déposer, déplacer. |
+| `/annoncemodo <message>` | `chat.announce_mod` | Annonce signée « Modération » (dans lunatic_chat). |
+
+Perquisition, menottes, propriétés, prise de service, stocks et mode créateur viendront avec leurs systèmes.

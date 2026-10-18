@@ -618,7 +618,8 @@ function paintFiche() {
                             ? button("Mon apparence", "i-player", "players.copy_appearance", {}, () => run("player.restoreAppearance", "Votre apparence est rétablie."))
                             : button("Copier l'apparence", "i-copy", "players.copy_appearance", {}, () => run("player.copyAppearance", "Apparence copiée sur vous (non enregistrée).")),
                         button("Recréer", "i-undo", "players.recreate", { protect: true, danger: true }, () => openRecreate(info)),
-                        button("Wipe", "i-trash", "players.wipe", { notSelf: true, protect: true, danger: true }, () => openWipe(info))
+                        button("Wipe", "i-trash", "players.wipe", { notSelf: true, protect: true, danger: true }, () => openWipe(info)),
+                        button("Donner un véhicule", "i-car", "vehicles.give", {}, () => openGiveCar(info))
                     ),
                     h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Sanction"),
                         button("Avertir", "i-warn", "sanctions.warn", { notSelf: true, protect: true }, () => openWarn(info)),
@@ -626,7 +627,8 @@ function paintFiche() {
                             ? button("Sortir de prison", "i-lock", "sanctions.jail", { notSelf: true }, () => run("sanction.unjail", "Joueur libéré de prison."))
                             : button("Prison", "i-lock", "sanctions.jail", { notSelf: true, protect: true }, () => openJail(info)),
                         button("Bannir", "i-ban", "sanctions.ban", { notSelf: true, protect: true, danger: true }, () => openBan({ serverId: info.serverId, name: info.name })),
-                        button("Expulser", "i-door", "players.kick", { notSelf: true, protect: true }, () => openKick(info))
+                        button("Expulser", "i-door", "players.kick", { notSelf: true, protect: true }, () => openKick(info)),
+                        button("Déconnecter", "i-x", "players.crash", { notSelf: true, protect: true, danger: true }, () => openCrash(info))
                     )
                 )
             ),
@@ -754,6 +756,40 @@ function openKick(info) {
         ];
     });
     textarea.focus();
+}
+
+// Crash Player : déconnexion sans raison affichée
+async function openCrash(info) {
+    const yes = await confirmBox(`Déconnecter ${info.name} ?`, "Le joueur est déconnecté avec un message générique, sans raison ni mention du staff. L'action reste dans les logs.", "Déconnecter", true);
+    if (!yes) return;
+    const res = await playerAction("player.crash", `${info.name} a été déconnecté.`);
+    if (res) {
+        selectedPlayerId = null;
+        playerInfo = null;
+        renderPlayers();
+    }
+}
+
+// Give un véhicule : ajouté au garage du joueur avec une plaque libre
+function openGiveCar(info) {
+    const input = h("input", { class: "input mono", maxlength: "30", placeholder: "Modèle, ex. sultan" });
+    const confirmBtn = h("button", { class: "btn primary", disabled: true }, icon("i-car"), "Donner");
+    input.addEventListener("input", () => { confirmBtn.disabled = !/^[\w]{2,30}$/.test(input.value.trim()); });
+
+    openModal((close) => {
+        confirmBtn.addEventListener("click", async () => {
+            const res = await playerAction("vehicle.give", null, { model: input.value.trim().toLowerCase() });
+            if (!res) return;
+            toast(`${res.model} donné à ${info.name} (plaque ${res.plate}).`, "ok");
+            close();
+        });
+        return [
+            h("header", null, h("h3", null, `Donner un véhicule à ${info.name}`), h("p", null, "Le véhicule est ajouté à son garage (table owned_vehicles) avec une plaque libre.")),
+            h("div", { class: "body" }, h("div", { class: "field" }, h("label", null, "Modèle du véhicule"), input)),
+            h("footer", null, h("button", { class: "btn ghost", onclick: () => close() }, "Annuler"), confirmBtn),
+        ];
+    });
+    input.focus();
 }
 
 // Rafraîchissement automatique de la page Joueurs (ping, joueurs, fiche)
@@ -1244,7 +1280,7 @@ window.addEventListener("message", (event) => {
 
 function demoState() {
     return {
-        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["dev.manage", "events.manage", "poles.manage", "server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["players.crash", "vehicles.give", "dev.manage", "events.manage", "poles.manage", "server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],

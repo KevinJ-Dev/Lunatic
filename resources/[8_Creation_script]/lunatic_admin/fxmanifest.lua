@@ -35,6 +35,7 @@ server_scripts {
     'server/poles.lua',
     'server/events.lua',
     'server/dev.lua',
+    'server/commands.lua',
 }
 
 client_scripts {

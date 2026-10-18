@@ -31,6 +31,7 @@ Permissions.List = {
     { id = 'players.wipe', family = 'players', label = 'Wipe un joueur : réinitialiser complètement son personnage' },
     { id = 'players.offline', family = 'players', label = 'Gérer les joueurs offline (recherche en base et actions)' },
     { id = 'players.kick',     family = 'players', label = 'Expulser un joueur du serveur' },
+    { id = 'players.crash',    family = 'players', label = 'Crash Player : déconnecter un joueur sans raison affichée (/crash)' },
 
     -- Lot H : gestion globale
     { id = 'server.manage', family = 'server', label = 'Gestion Global : redémarrage planifié, maintenance, actions de masse' },
@@ -58,6 +59,7 @@ Permissions.List = {
     { id = 'economy.job',         family = 'economy', label = 'Changer le métier et le grade' },
     { id = 'economy.items',       family = 'economy', label = "Voir l'inventaire, donner et retirer des objets" },
     { id = 'economy.clear',       family = 'economy', label = "Vider l'inventaire d'un joueur" },
+    { id = 'vehicles.give',       family = 'economy', label = 'Give un véhicule : ajouter un véhicule au garage d\'un joueur (/givecar)' },
 
     -- Lot 4 : outils staff
     { id = 'tools.noclip',    family = 'tools', label = 'Noclip (vol libre, invisible et invincible)' },
@@ -89,6 +91,7 @@ Permissions.List = {
     -- lunatic_chat
     { id = 'chat.staff',    family = 'chat', label = 'Lire et écrire dans le tchat staff (/sc)' },
     { id = 'chat.announce', family = 'chat', label = 'Faire une annonce serveur (/annonce)' },
+    { id = 'chat.announce_mod', family = 'chat', label = 'Faire une annonce Modération (/annoncemodo)' },
     { id = 'chat.clear',    family = 'chat', label = 'Vider le tchat de tous les joueurs (/vidertchat)' },
 }
 
