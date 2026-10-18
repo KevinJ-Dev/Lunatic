@@ -98,7 +98,7 @@ local function playerMenu(ECM, ped)
         end))
     end
 
-    if not isSelf and allowed('goto') then
+    if not isSelf and allowed('teleport') then
         ECM:AddItem(0, 'Aller vers', run('player.goto', nil))
     end
 
