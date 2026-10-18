@@ -67,8 +67,23 @@ end
 
 RegisterNetEvent("esx_identity:showRegisterIdentity", function()
         TriggerEvent("esx_skin:resetFirstSpawn")
+
+        -- Joueur déjà en jeu (ex. « Recréer » du panel staff) : l'écran de chargement est passé depuis longtemps
+        if ESX.PlayerLoaded and not GetIsLoadingScreenActive() then
+            loadingScreenFinished = true
+        end
+
+        -- Ajout Lunatic : relance l'interface toutes les 2 s tant qu'elle n'a pas signalé être prête,
+        -- et n'écrit le message d'attente qu'une fois (il remplissait la console en boucle)
+        local waited = 0
         while not (ready and loadingScreenFinished) do
-            print("[esx_identity] En attente du chargement de l'interface...")
+            if waited % 20 == 0 then
+                if waited == 0 then
+                    print("[esx_identity] En attente du chargement de l'interface...")
+                end
+                xLib.nui.send({ type = "requestReady" })
+            end
+            waited = waited + 1
             Wait(100)
         end
         if not ESX.PlayerData.dead then

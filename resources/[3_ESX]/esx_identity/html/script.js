@@ -247,6 +247,7 @@ function resetForm() {
 
 window.addEventListener("message", (event) => {
     const data = event.data;
+    if (data && data.type === "requestReady") return announceReady();
     if (!data || data.type !== "enableui") return;
 
     // ESX 1.16 envoie les limites dans "settings" (ancien nom : "config")
@@ -267,6 +268,31 @@ window.addEventListener("message", (event) => {
     }
 });
 
+// Signale au client Lua que l'interface est chargée. Si la page s'est chargée avant que le Lua
+// n'écoute, le premier envoi est perdu : on réessaie jusqu'à obtenir une réponse (le formulaire
+// d'identité restait sinon bloqué sur « En attente du chargement de l'interface… »).
+let readyAcknowledged = false;
+let readyRetry = null;
+
+function announceReady() {
+    if (readyAcknowledged) return;
+    clearTimeout(readyRetry);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2000);
+    fetch(`https://${RESOURCE}/ready`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=UTF-8" },
+        body: "{}",
+        signal: controller.signal,
+    })
+        .then((response) => {
+            if (!response.ok) throw new Error("ready refusé");
+            readyAcknowledged = true;
+        })
+        .catch(() => { readyRetry = setTimeout(announceReady, 1000); })
+        .finally(() => clearTimeout(timeout));
+}
+
 applyLimits();
 resetForm();
-post("ready");
+announceReady();
