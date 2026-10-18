@@ -167,6 +167,7 @@ Panel.actions['player.info'] = function(src, actor, data)
         info.money = money and money.money or nil
         info.bank = bank and bank.money or nil
         info.blackMoney = black and black.money or nil
+        info.licenses = Panel.licensesOf and Panel.licensesOf(xPlayer.getIdentifier()) or nil
         info.dateofbirth = xPlayer.get('dateofbirth')
         info.sex = xPlayer.get('sex')
         info.height = xPlayer.get('height')

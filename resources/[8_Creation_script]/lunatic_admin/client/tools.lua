@@ -1,6 +1,6 @@
 -- Lot 4 : effets des outils staff. Chaque mode est activé par le serveur (après vérification de la permission).
 
-local modes = { noclip = false, invisible = false, godmode = false, names = false, coords = false }
+local modes = { noclip = false, invisible = false, godmode = false, ghost = false, names = false, coords = false }
 
 local function ask(action, payload)
     return lib.callback.await('lunatic_admin:action', false, action, payload or {})
@@ -64,8 +64,9 @@ end
 -- Réapplique l'état « normal » ou « staff » du personnage selon les modes actifs
 local function applyBody()
     local ped = PlayerPedId()
-    local hidden = modes.invisible or modes.noclip
-    local immortal = modes.godmode or modes.noclip
+    -- Mode fantôme = invisible + invincible en un seul interrupteur
+    local hidden = modes.invisible or modes.noclip or modes.ghost
+    local immortal = modes.godmode or modes.noclip or modes.ghost
 
     SetEntityVisible(ped, not hidden, false)
     SetEntityInvincible(ped, immortal)
@@ -141,11 +142,11 @@ end
 -- Maintient l'invisibilité / l'invincibilité (le personnage peut changer après une réapparition)
 CreateThread(function()
     while true do
-        if modes.invisible or modes.godmode or modes.noclip then
+        if modes.invisible or modes.godmode or modes.noclip or modes.ghost then
             applyBody()
 
             -- Le staff invisible se voit lui-même en transparence
-            if modes.invisible or modes.noclip then
+            if modes.invisible or modes.noclip or modes.ghost then
                 SetEntityLocallyVisible(PlayerPedId())
                 SetEntityAlpha(PlayerPedId(), 110, false)
             end
@@ -212,6 +213,7 @@ CreateThread(function()
         local labels = {}
 
         if modes.noclip then labels[#labels + 1] = 'NOCLIP' end
+        if modes.ghost then labels[#labels + 1] = 'FANTÔME' end
         if modes.invisible then labels[#labels + 1] = 'INVISIBLE' end
         if modes.godmode then labels[#labels + 1] = 'INVINCIBLE' end
 
@@ -266,6 +268,14 @@ RegisterCommand('lunatic_noclip', function()
     end)
 end, false)
 RegisterKeyMapping('lunatic_noclip', 'Staff : noclip', 'keyboard', Config.NoclipKey)
+
+-- Raccourci du mode fantôme (aucune touche par défaut, à choisir dans les raccourcis FiveM)
+RegisterCommand('lunatic_ghost', function()
+    CreateThread(function()
+        notifyError(ask('tool.toggle', { tool = 'ghost', enabled = not modes.ghost }))
+    end)
+end, false)
+RegisterKeyMapping('lunatic_ghost', 'Staff : mode fantôme (godmod invisible)', 'keyboard', Config.GhostKey)
 
 -- Raccourci de la téléportation au marqueur (aucune touche par défaut)
 RegisterCommand('lunatic_tpm', function()

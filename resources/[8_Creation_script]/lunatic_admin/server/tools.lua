@@ -1,8 +1,8 @@
 -- Lot 4 : outils staff (modes, téléportation au marqueur, véhicules).
 -- Le serveur autorise chaque outil, retient les modes actifs et les coupe si la permission disparaît.
 
-local MODES = { noclip = true, invisible = true, godmode = true, names = true, coords = true }
-local LOGGED_MODES = { noclip = true, invisible = true, godmode = true }
+local MODES = { noclip = true, invisible = true, godmode = true, ghost = true, names = true, coords = true }
+local LOGGED_MODES = { noclip = true, invisible = true, godmode = true, ghost = true }
 local VEHICLE_TYPES = { automobile = true, bike = true, boat = true, heli = true, plane = true, submarine = true, trailer = true }
 
 ---@type table<number, table<string, true>> modes actifs par membre du staff

@@ -26,6 +26,12 @@ const ACTION_LABELS = {
     "player.careZone": "a soigné la zone :",
     "player.appearance": "a ouvert le menu d'apparence de",
     "player.recreate": "a renvoyé à la création de personnage",
+    "player.copyAppearance": "a copié l'apparence de",
+    "player.wipe": "a wipe",
+    "license.give": "a donné un permis à",
+    "license.remove": "a retiré un permis à",
+    "tool.ghost.on": "a activé le mode fantôme",
+    "tool.ghost.off": "a coupé le mode fantôme",
     "player.kick": "a expulsé",
     "sanction.warn": "a averti",
     "sanction.ban": "a banni",
@@ -119,6 +125,13 @@ function describeLog(log) {
         case "world.blackout":
         case "world.freeze":
             summary = d.enabled ? "activé" : "désactivé";
+            break;
+        case "license.give":
+        case "license.remove":
+            summary = d.license || "";
+            break;
+        case "player.wipe":
+            summary = d.reason || "";
             break;
         case "sanction.jail":
             summary = `${d.minutes} min · ${d.reason || ""}`;

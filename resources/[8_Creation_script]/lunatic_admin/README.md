@@ -136,3 +136,13 @@ Chaque opération est enregistrée dans `lunatic_admin_logs` avec l'ancienne et 
 ## Monde (lot D)
 
 Page « Monde » : heure (raccourcis aube / midi / soir / nuit, heure précise, figer), météo (14 météos, transition progressive), cycle météo automatique et panne de courant. Nécessite la resource `lunatic_world`. Permissions `world.weather` et `world.time`.
+
+## Lot E : permis, apparence, wipe, mode fantôme
+
+| Fonction | Où | Permission |
+|---|---|---|
+| Give un permis (donner / retirer, libellés FR dans `Config.LicenseLabels`) | Fiche, bloc Permis | `players.licenses` |
+| Récupérer l'apparence d'un joueur (copie non enregistrée) / « Mon apparence » pour revenir | Fiche, Personnage | `players.copy_appearance` |
+| Wipe un joueur (argent de départ, inventaire, métier, véhicules, permis, identité, apparence ; nom à retaper ; état avant wipe dans les logs) | Fiche, Personnage | `players.wipe` |
+| Godmod invisible (mode fantôme, raccourci FiveM « Staff : mode fantôme » sans touche par défaut) | Outils | `tools.ghost` |
+| Liste des staff en ligne (accueil) | Accueil | `staff.online` |

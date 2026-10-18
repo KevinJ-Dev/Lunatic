@@ -23,6 +23,9 @@ Permissions.List = {
     { id = 'players.heal',     family = 'players', label = 'Soigner, réanimer et nourrir un joueur' },
     { id = 'players.appearance', family = 'players', label = "Ouvrir le menu d'apparence d'un joueur" },
     { id = 'players.recreate', family = 'players', label = 'Renvoyer un joueur à la création de personnage' },
+    { id = 'players.licenses', family = 'players', label = 'Give un permis : donner et retirer les permis' },
+    { id = 'players.copy_appearance', family = 'players', label = "Récupérer l'apparence d'un joueur" },
+    { id = 'players.wipe', family = 'players', label = 'Wipe un joueur : réinitialiser complètement son personnage' },
     { id = 'players.kick',     family = 'players', label = 'Expulser un joueur du serveur' },
 
     -- Lot D : météo et heure (lunatic_world)
@@ -43,6 +46,7 @@ Permissions.List = {
     { id = 'tools.names',     family = 'tools', label = 'Voir les noms et ID au-dessus des têtes' },
     { id = 'tools.coords',    family = 'tools', label = 'Afficher et copier ses coordonnées' },
     { id = 'tools.tpm',       family = 'tools', label = 'Se téléporter au marqueur de la carte' },
+    { id = 'tools.ghost',     family = 'tools', label = 'Godmod invisible (mode fantôme en un clic)' },
     { id = 'tools.vehicles',  family = 'tools', label = 'Faire apparaître, réparer et supprimer des véhicules' },
 
     -- Lot 3 : sanctions
@@ -56,6 +60,7 @@ Permissions.List = {
     { id = 'panel.open',   family = 'manage', label = 'Ouvrir le panel staff' },
     { id = 'ranks.view',   family = 'manage', label = 'Voir les rangs et leurs permissions' },
     { id = 'ranks.manage', family = 'manage', label = 'Créer, modifier et supprimer les rangs inférieurs' },
+    { id = 'staff.online', family = 'manage', label = 'Liste des staff en ligne (accueil)' },
     { id = 'staff.view',   family = 'manage', label = 'Voir les membres du staff' },
     { id = 'logs.view',    family = 'manage', label = 'Voir les actions du staff (page Logs, tableau de bord)' },
     { id = 'logs.chat',    family = 'manage', label = "Lire l'historique du tchat" },

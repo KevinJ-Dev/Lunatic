@@ -261,7 +261,7 @@ table.insert(Panel.stateHooks, function(state, _, rank)
         players = #GetPlayers(),
         maxPlayers = GetConvarInt('sv_maxclients', 48),
         history = samples,
-        staff = staffOnline,
+        staff = Ranks.hasPermission(rank, 'staff.online') and staffOnline or nil,
     }
 
     local wantsSanctions = Ranks.hasPermission(rank, 'sanctions.view')

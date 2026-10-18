@@ -28,6 +28,7 @@ server_scripts {
     'server/history.lua',
     'server/jail.lua',
     'server/world.lua',
+    'server/profile.lua',
 }
 
 client_scripts {

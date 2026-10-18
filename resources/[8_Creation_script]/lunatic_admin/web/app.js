@@ -259,13 +259,16 @@ function go(target) {
 
 function renderHome() {
     const d = state.dashboard || {};
-    const staffOnline = Array.isArray(d.staff) ? d.staff : [];
+    const showStaff = Array.isArray(d.staff); // permission staff.online
+    const staffOnline = showStaff ? d.staff : [];
 
     // Chiffres clés
     const kpis = [
         h("div", { class: "kpi" }, h("span", null, "Joueurs en ligne"), h("b", null, `${d.players ?? "—"}`), h("small", null, `sur ${d.maxPlayers ?? "?"} places`)),
-        h("div", { class: "kpi" }, h("span", null, "Staff en ligne"), h("b", null, `${staffOnline.length}`), h("small", null, staffOnline.length ? "membres connectés" : "aucun membre connecté")),
     ];
+    if (showStaff) {
+        kpis.push(h("div", { class: "kpi" }, h("span", null, "Staff en ligne"), h("b", null, `${staffOnline.length}`), h("small", null, staffOnline.length ? "membres connectés" : "aucun membre connecté")));
+    }
     if (d.sanctions) {
         kpis.push(
             h("div", { class: "kpi" }, h("span", null, "Bans actifs"), h("b", null, `${d.sanctions.activeBans ?? 0}`), h("small", null, `${d.sanctions.bans24h ?? 0} sur les dernières 24 h`)),
@@ -280,7 +283,7 @@ function renderHome() {
     );
 
     // Staff en ligne
-    const staffCard = h("div", { class: "card" },
+    const staffCard = !showStaff ? null : h("div", { class: "card" },
         h("h3", { class: "card-title" }, "Staff en ligne"),
         staffOnline.length
             ? h("div", { class: "dash-staff" }, staffOnline.map((m) => h("div", { class: "dash-staff-row" },
@@ -312,7 +315,7 @@ function renderHome() {
 
     $("view-home").replaceChildren(h("div", { class: "home" },
         h("div", { class: "kpis", style: "margin-top:0" }, kpis),
-        h("div", { class: "dash-grid" }, chartCard, staffCard),
+        h("div", { class: `dash-grid${showStaff ? "" : " single"}` }, chartCard, staffCard),
         recentCard
     ));
 }
@@ -527,7 +530,11 @@ function paintFiche() {
                             const res = await playerAction("player.appearance", info.isSelf ? null : "Menu d'apparence ouvert chez le joueur.");
                             if (res && info.isSelf) closePanel(); // le menu s'ouvre sur votre écran
                         }),
-                        button("Recréer", "i-undo", "players.recreate", { protect: true, danger: true }, () => openRecreate(info))
+                        info.isSelf
+                            ? button("Mon apparence", "i-player", "players.copy_appearance", {}, () => run("player.restoreAppearance", "Votre apparence est rétablie."))
+                            : button("Copier l'apparence", "i-copy", "players.copy_appearance", {}, () => run("player.copyAppearance", "Apparence copiée sur vous (non enregistrée).")),
+                        button("Recréer", "i-undo", "players.recreate", { protect: true, danger: true }, () => openRecreate(info)),
+                        button("Wipe", "i-trash", "players.wipe", { notSelf: true, protect: true, danger: true }, () => openWipe(info))
                     ),
                     h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Sanction"),
                         button("Avertir", "i-warn", "sanctions.warn", { notSelf: true, protect: true }, () => openWarn(info)),
@@ -553,6 +560,7 @@ function paintFiche() {
                     infoRow("Figé", info.frozen ? "Oui" : "Non"),
                     info.jail ? infoRow("Prison", `${Math.ceil(info.jail.remaining / 60)} min restantes`) : null)
             ),
+            licensesCard(info),
             economySection(info),
             can("sanctions.view") ? historyCard(info) : null
         )
@@ -566,6 +574,55 @@ async function playerAction(action, okMessage, payload) {
     const res = await act(action, { serverId: selectedPlayerId, ...(payload || {}) }, okMessage);
     if (res) loadPlayerInfo();
     return res;
+}
+
+// Permis du joueur : interrupteurs (lecture seule sans la permission players.licenses)
+function licensesCard(info) {
+    const licenses = Array.isArray(info.licenses) ? info.licenses : null;
+    if (!licenses || info.protected) return null;
+    const editable = can("players.licenses");
+    return h("div", { class: "card", style: "margin-top:16px" },
+        h("h3", { class: "card-title" }, `Permis (${licenses.filter((l) => l.owned).length}/${licenses.length})`),
+        licenses.length
+            ? h("div", { class: "perm-grid" }, licenses.map((license) => {
+                const row = h("div", { class: `perm${license.owned ? " on" : ""}${editable ? "" : " locked"}` },
+                    h("span", { class: "switch" }),
+                    h("span", { class: "txt" }, h("span", null, license.label), h("code", null, license.type)));
+                if (editable) {
+                    row.addEventListener("click", () => playerAction("license.set", license.owned ? `${license.label} retiré.` : `${license.label} donné.`, { type: license.type, owned: !license.owned }));
+                }
+                return row;
+            }))
+            : h("span", { class: "muted" }, "Aucun permis défini dans la table licenses.")
+    );
+}
+
+function openWipe(info) {
+    const confirmInput = h("input", { class: "input", placeholder: info.name });
+    const reason = h("textarea", { class: "input textarea", maxlength: "200", placeholder: "Raison (3 caractères minimum)" });
+    const confirmBtn = h("button", { class: "btn danger", disabled: true }, icon("i-trash"), "Wipe définitif");
+    const update = () => {
+        confirmBtn.disabled = confirmInput.value.trim().toLowerCase() !== info.name.toLowerCase() || reason.value.trim().length < 3;
+    };
+    confirmInput.addEventListener("input", update);
+    reason.addEventListener("input", update);
+
+    openModal((close) => {
+        confirmBtn.addEventListener("click", async () => {
+            const res = await playerAction("player.wipe", `${info.name} a été wipe : il recrée son personnage.`, { confirm: confirmInput.value.trim(), reason: reason.value.trim() });
+            if (res) close();
+        });
+        return [
+            h("header", null, h("h3", null, `Wipe de ${info.name}`),
+                h("p", null, "Tout est réinitialisé : argent (montant de départ), inventaire, métier, véhicules, permis, identité et apparence. Le joueur repasse par la création de personnage. Un état complet avant wipe est gardé dans les logs.")),
+            h("div", { class: "body" },
+                h("div", { class: "field" }, h("label", null, `Tapez « ${info.name} » pour confirmer`), confirmInput),
+                h("div", { class: "field" }, h("label", null, "Raison"), reason)
+            ),
+            h("footer", null, h("button", { class: "btn ghost", onclick: () => close() }, "Annuler"), confirmBtn),
+        ];
+    });
+    confirmInput.focus();
 }
 
 function openRecreate(info) {
@@ -1102,7 +1159,7 @@ window.addEventListener("message", (event) => {
 
 function demoState() {
     return {
-        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],
@@ -1176,6 +1233,7 @@ async function demoNui(name, data) {
             rank: p.rank, frozen: !!p.frozen, canReturn: false, isSelf: p.serverId === 1, protected: p.serverId === 4 ? false : false,
             health: 164, maxHealth: 200, armor: 40, job: { name: "mechanic", label: p.job, grade: "Employé", level: 1 }, money: 2350, bank: 48200, blackMoney: 0,
             dateofbirth: "14/03/1996", sex: "m", height: 182, jail: p.serverId === 7 ? { remaining: 540, reason: "Freekill" } : undefined,
+            licenses: [{ type: "dmv", label: "Code de la route", owned: true }, { type: "drive", label: "Permis voiture", owned: true }, { type: "drive_bike", label: "Permis moto", owned: false }, { type: "drive_truck", label: "Permis poids lourd", owned: false }, { type: "boat", label: "Permis bateau", owned: false }, { type: "weapon", label: "Port d'arme", owned: false }],
         } };
     }
     if (name === "action" && data && (data.action === "sanctions.list" || data.action === "sanctions.history")) {

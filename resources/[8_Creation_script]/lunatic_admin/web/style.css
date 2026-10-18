@@ -376,3 +376,4 @@ button.log-row:hover { background: var(--surface-2); border-color: var(--line-st
 .weather-tile.on { border-color: rgba(var(--accent-rgb), .6); background: rgba(var(--accent-rgb), .14); color: #fff; }
 .weather-icon { font-size: 24px; line-height: 1.1; }
 .card .mode-list { margin-top: 4px; }
+.dash-grid.single { grid-template-columns: minmax(0, 1fr); }

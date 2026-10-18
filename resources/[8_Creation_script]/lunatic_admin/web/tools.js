@@ -9,6 +9,7 @@ const TOOL_MODES = [
     { id: "noclip", label: "Noclip", help: "Vol libre à travers les murs, invisible et invincible. Raccourci : F2." },
     { id: "invisible", label: "Invisibilité", help: "Les autres joueurs ne vous voient plus." },
     { id: "godmode", label: "Invincibilité", help: "Vous ne prenez plus aucun dégât." },
+    { id: "ghost", label: "Mode fantôme (godmod invisible)", help: "Invisible et invincible en un clic. Touche à choisir dans les raccourcis FiveM." },
     { id: "names", label: "Noms au-dessus des têtes", help: "[ID] Prénom Nom des joueurs proches, couleur du rang pour le staff." },
     { id: "coords", label: "Coordonnées à l'écran", help: "Position et orientation affichées en haut de l'écran." },
 ];

@@ -16,6 +16,17 @@ Config.MaxRanks = 30
 -- Soins de zone : rayon maximal
 Config.CareZoneMaxRadius = 50.0
 
+-- Noms français des permis ESX (table licenses) ; un type absent garde le libellé de la base
+Config.LicenseLabels = {
+    dmv = 'Code de la route',
+    drive = 'Permis voiture',
+    drive_bike = 'Permis moto',
+    drive_truck = 'Permis poids lourd',
+    boat = 'Permis bateau',
+    weapon = "Port d'arme",
+    weed_processing = 'Licence de transformation',
+}
+
 -- Raison d'une expulsion : longueur minimale et maximale
 Config.KickReasonMin = 3
 Config.KickReasonMax = 120
@@ -37,6 +48,7 @@ Config.Jail = {
 }
 
 -- Outils staff (lot 4)
+Config.GhostKey = ''                    -- touche du mode fantôme (aucune par défaut, à choisir dans les raccourcis FiveM)
 Config.NoclipKey = 'F2'                 -- touche par défaut du noclip (modifiable dans les raccourcis FiveM)
 Config.NoclipSpeed = 12.0                 -- vitesse de base du noclip (m/s), Maj x4, Ctrl x0.25
 Config.NamesDistance = 50.0               -- portée des noms au-dessus des têtes
@@ -60,7 +72,8 @@ Config.RateLimit = { max = 15, windowMs = 5000 }
 -- owner = true : rang Fondateur (toutes les permissions, ne peut pas être supprimé)
 local world = { 'world.weather', 'world.time' }
 local economy = { 'economy.money', 'economy.black_money', 'economy.job', 'economy.items', 'economy.clear' }
-local tools = { 'tools.noclip', 'tools.invisible', 'tools.godmode', 'tools.names', 'tools.coords', 'tools.tpm', 'tools.vehicles' }
+local tools = { 'tools.noclip', 'tools.invisible', 'tools.godmode', 'tools.ghost', 'tools.names', 'tools.coords', 'tools.tpm', 'tools.vehicles' }
+local profile = { 'players.licenses', 'players.copy_appearance', 'staff.online' }
 local sanctions = { 'sanctions.view', 'sanctions.warn', 'sanctions.ban', 'sanctions.jail' }
 local players = { 'players.view', 'players.goto', 'players.bring', 'players.spectate', 'players.freeze', 'players.heal', 'players.kick' }
 
@@ -78,8 +91,8 @@ end
 
 Config.DefaultRanks = {
     { name = 'Fondateur',         color = '#9650ff', level = 100, owner = true },
-    { name = 'Admin',             color = '#ff6b6b', level = 80, permissions = with(players, sanctions, tools, economy, world, { 'logs.view', 'logs.chat', 'sanctions.ban_permanent', 'sanctions.revoke', 'panel.open', 'ranks.view', 'ranks.manage', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce', 'chat.clear' }) },
-    { name = 'Responsable staff', color = '#f2c26b', level = 60, permissions = with(players, sanctions, tools, world, { 'logs.view', 'economy.money', 'economy.job', 'economy.items', 'sanctions.revoke', 'panel.open', 'ranks.view', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce' }) },
-    { name = 'Modérateur',        color = '#5fd3a0', level = 40, permissions = with(players, sanctions, { 'tools.noclip', 'tools.names', 'tools.tpm', 'tools.vehicles', 'panel.open', 'ranks.view', 'staff.view', 'chat.staff' }) },
+    { name = 'Admin',             color = '#ff6b6b', level = 80, permissions = with(players, sanctions, tools, economy, world, profile, { 'players.wipe', 'logs.view', 'logs.chat', 'sanctions.ban_permanent', 'sanctions.revoke', 'panel.open', 'ranks.view', 'ranks.manage', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce', 'chat.clear' }) },
+    { name = 'Responsable staff', color = '#f2c26b', level = 60, permissions = with(players, sanctions, tools, world, profile, { 'logs.view', 'economy.money', 'economy.job', 'economy.items', 'sanctions.revoke', 'panel.open', 'ranks.view', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce' }) },
+    { name = 'Modérateur',        color = '#5fd3a0', level = 40, permissions = with(players, sanctions, { 'staff.online', 'tools.noclip', 'tools.names', 'tools.tpm', 'tools.vehicles', 'panel.open', 'ranks.view', 'staff.view', 'chat.staff' }) },
     { name = 'Modérateur test',   color = '#6bb8f2', level = 20, permissions = { 'panel.open', 'chat.staff', 'players.view', 'players.goto', 'players.spectate', 'players.heal', 'sanctions.view', 'sanctions.warn', 'tools.noclip', 'tools.names' } },
 }
