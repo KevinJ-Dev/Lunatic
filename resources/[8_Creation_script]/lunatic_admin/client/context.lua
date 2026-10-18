@@ -9,6 +9,7 @@ local flags = {}
 
 RegisterNetEvent('lunatic_admin:contextFlags', function(value)
     flags = type(value) == 'table' and value or {}
+    print(('[lunatic_admin] Menu contextuel : droits reçus (staff %s, dév %s).'):format(flags.use and 'oui' or 'non', flags.dev and 'oui' or 'non'))
 end)
 
 CreateThread(function()
@@ -300,12 +301,21 @@ local function build(_, _, _, entity)
 end
 
 local function register()
-    exports[RESOURCE]:Register(build)
+    local ok, err = pcall(function()
+        exports[RESOURCE]:Register(build)
+    end)
+
+    print(ok and '[lunatic_admin] Menu contextuel enregistré dans ContextMenu (Alt gauche + clic droit).'
+        or ('[lunatic_admin] Menu contextuel : enregistrement impossible : %s'):format(err))
 end
 
 CreateThread(function()
-    if GetResourceState(RESOURCE) == 'started' then
+    local state = GetResourceState(RESOURCE)
+
+    if state == 'started' then
         register()
+    else
+        print(("[lunatic_admin] Menu contextuel : la resource %s n'est pas démarrée (état : %s)."):format(RESOURCE, state))
     end
 end)
 
