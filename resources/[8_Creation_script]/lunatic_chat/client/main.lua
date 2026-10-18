@@ -31,6 +31,24 @@ end
 RegisterCommand('lunatic_chat_open', openChat, false)
 RegisterKeyMapping('lunatic_chat_open', 'Ouvrir le tchat', 'keyboard', Config.OpenKey)
 
+-- Après un « ensure lunatic_chat », FiveM ne relie pas toujours le raccourci ci-dessus à la commande
+-- (le tchat ne s'ouvrait plus jusqu'à la reconnexion). Comme le tchat officiel de FiveM, on écoute aussi
+-- directement la touche « Tchat » de GTA (T par défaut), qui fonctionne après un redémarrage.
+local CHAT_CONTROL = 245 -- INPUT_MP_TEXT_CHAT_ALL
+
+CreateThread(function()
+    -- Un ancien focus resté actif (resource arrêtée tchat ouvert) est libéré au démarrage
+    SetNuiFocus(false, false)
+
+    while true do
+        if not isOpen and (IsControlJustPressed(0, CHAT_CONTROL) or IsDisabledControlJustPressed(0, CHAT_CONTROL)) then
+            openChat()
+        end
+
+        Wait(0)
+    end
+end)
+
 ---------------------------------------------------------------------
 -- Interface
 ---------------------------------------------------------------------
