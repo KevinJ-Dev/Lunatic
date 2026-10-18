@@ -468,3 +468,15 @@ button.log-row:hover { background: var(--surface-2); border-color: var(--line-st
 .tile svg.i { width: 40px; height: 40px; stroke-width: 1.6; color: var(--ink); transition: color .18s var(--ease); }
 .tile:hover { border-color: rgba(var(--accent-rgb), .55); background: rgba(var(--accent-rgb), .14); color: #fff; transform: translateY(-2px); }
 .tile:hover svg.i { color: rgb(var(--accent-rgb)); }
+
+/* Entreprises et services publics (lot E1) */
+.struct-dot { width: 10px; height: 10px; flex: none; border-radius: 3px; }
+.struct-logo { width: 46px; height: 46px; flex: none; border-radius: 12px; object-fit: cover; background: var(--surface-2); }
+.page-head .struct-logo { margin-right: 4px; }
+.struct-tabs { padding: 0 28px 14px; }
+.struct-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.struct-fields .struct-wide { grid-column: 1 / -1; }
+.struct-logo-preview { width: 64px; height: 64px; margin-top: 6px; border-radius: 14px; object-fit: cover; background: var(--surface-2); }
+.struct-banner-preview { width: 100%; max-height: 120px; margin-top: 6px; border-radius: var(--r-sm); object-fit: cover; background: var(--surface-2); }
+.color-input { width: 100%; padding: 4px; cursor: pointer; }
+.candidate-row { grid-template-columns: minmax(0, 1fr) auto; min-height: 46px; }

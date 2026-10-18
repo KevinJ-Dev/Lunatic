@@ -211,7 +211,9 @@ const NAV = [
     { id: "logs", label: "Logs", icon: "i-list", show: () => can("logs.view") || can("logs.chat") },
     { id: "ranks", label: "Rangs", icon: "i-layers", show: () => can("ranks.view"), group: "perms" },
     { id: "members", label: "Membres", icon: "i-users", show: () => can("staff.view"), group: "perms" },
-    { id: "poles", label: "Service public", icon: "i-shield", show: () => can("poles.manage") },
+    { id: "companies", label: "Entreprises", icon: "i-store", show: () => can("companies.manage") },
+    { id: "publics", label: "Services publics", icon: "i-shield", show: () => can("publics.manage") },
+    { id: "poles", label: "Pôle emploi", icon: "i-briefcase", show: () => can("poles.manage") },
     { id: "events", label: "Events", icon: "i-calendar", show: () => can("events.manage") },
     { id: "world", label: "Météo", icon: "i-sun", show: () => hasWorld() },
     { id: "server", label: "Serveur", icon: "i-server", show: () => can("server.manage") },
@@ -270,7 +272,7 @@ function render() {
     );
     $("me").querySelector(".avatar").style.background = me.rank.color;
 
-    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "poles", "events", "dev", "ranks", "members"]) {
+    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "poles", "events", "dev", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
     }
 
@@ -283,6 +285,8 @@ function render() {
     if (view === "world") renderWorld();
     if (view === "server") renderGlobal();
     if (view === "poles") renderPoles();
+    if (view === "companies") renderStructures("company");
+    if (view === "publics") renderStructures("public");
     if (view === "events") renderEvents();
     if (view === "dev") renderDev();
     if (view === "ranks") renderRanks();
@@ -1286,7 +1290,7 @@ window.addEventListener("message", (event) => {
 
 function demoState() {
     return {
-        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["players.crash", "vehicles.give", "dev.manage", "events.manage", "poles.manage", "server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["companies.manage", "publics.manage", "players.crash", "vehicles.give", "dev.manage", "events.manage", "poles.manage", "server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],
@@ -1363,6 +1367,32 @@ async function demoNui(name, data) {
         lastSeen: Math.floor(Date.now() / 1000) - 7200, createdAt: Math.floor(Date.now() / 1000) - 20 * 86400,
         licenses: [{ type: "dmv", label: "Code de la route", owned: true }, { type: "drive", label: "Permis voiture", owned: false }, { type: "weapon", label: "Port d'arme", owned: false }],
     } };
+    if (name === "action" && data && data.action === "structures.list") {
+        const company = data.payload.kind === "company";
+        return { ok: true, orphans: [{ name: "taxi", label: "Taxi" }], types: company
+            ? [{ id: "nightclub", label: "Boîte de nuit" }, { id: "dealer", label: "Concessionnaire" }, { id: "business", label: "Entreprise" }, { id: "mechanic", label: "Mécanique" }, { id: "media", label: "Médias" }, { id: "restaurant", label: "Restaurant" }]
+            : [{ id: "police", label: "Police" }, { id: "medic", label: "Médecins" }, { id: "administration", label: "Administration" }, { id: "government", label: "Gouvernement" }],
+            structures: company
+                ? [{ job: "burgershot", label: "Burger Shot", type: "restaurant", typeLabel: "Restaurant", color: "#f2a341", grades: 4, online: 2, total: 7 },
+                   { job: "bennys", label: "Benny's", type: "mechanic", typeLabel: "Mécanique", color: "#6bb8f2", grades: 3, online: 1, total: 4 }]
+                : [{ job: "lspd", label: "LSPD", type: "police", typeLabel: "Police", grades: 5, online: 3, total: 12 },
+                   { job: "ems", label: "EMS", type: "medic", typeLabel: "Médecins", grades: 4, online: 1, total: 6 }] };
+    }
+    if (name === "action" && data && data.action === "structures.info") {
+        const publicKind = data.payload.job === "lspd" || data.payload.job === "ems";
+        return { ok: true, job: {
+            name: data.payload.job, label: publicKind ? "LSPD" : "Burger Shot", typeLabel: publicKind ? "Police" : "Restaurant", leadName: publicKind ? "Jean Dupont" : null,
+            whitelisted: true,
+            structure: { job: data.payload.job, kind: publicKind ? "public" : "company", type: publicKind ? "police" : "restaurant", lead: publicKind ? "aa11223344" : null, color: "#f2a341",
+                logo: "", radialIcon: "fa-solid fa-burger", banner: "", createdBy: "Ramiro Lotus", createdAt: Math.floor(Date.now() / 1000) - 86400 },
+            grades: [{ grade: 0, label: "Recrue", salary: 200, members: 3 }, { grade: 1, label: "Employé", salary: 300, members: 2 }, { grade: 2, label: "Gérant", salary: 400, members: 1 }, { grade: 3, label: "Patron", salary: 500, members: 1 }],
+            members: [
+                { identifier: "aa11223344", name: "Jean Dupont", grade: 3, online: 2, playtime: 754 },
+                { identifier: "bb22334455", name: "Alex Moreau", grade: 2, online: 4, playtime: 312, protected: true },
+                { identifier: "cc33445566", name: "Lina Petit", grade: 1, playtime: 95 },
+                { identifier: "dd44556677", name: "Hugo Martin", grade: 0, playtime: 12 },
+            ] } };
+    }
     if (name === "action" && data && data.action === "dev.resources") return { ok: true, canRefresh: false, resources: [
         { name: "es_extended", state: "started", version: "1.16.2", author: "ESX-Framework", protected: true },
         { name: "illenium-appearance", state: "started", version: "5.7.0", author: "snakewiz & iLLeniumStudios" },

@@ -11,6 +11,7 @@ Permissions.Families = {
     { id = 'world',     label = 'Monde' },
     { id = 'server',    label = 'Serveur' },
     { id = 'dev',       label = 'Développeur' },
+    { id = 'structures', label = 'Entreprises et services publics' },
     { id = 'shop',      label = 'Premium et boutique' },
     { id = 'chat',      label = 'Tchat' },
     { id = 'manage',    label = 'Gestion' },
@@ -43,7 +44,11 @@ Permissions.List = {
     { id = 'events.manage', family = 'server', label = 'Gestion des events : créer, modifier, annuler et annoncer' },
 
     -- Lot I : pôles (métiers ESX)
-    { id = 'poles.manage', family = 'server', label = 'Gestion Pôle : métiers, grades, salaires et membres' },
+    { id = 'poles.manage', family = 'server', label = 'Pôle emploi : métiers, grades, salaires et membres' },
+
+    -- Lot E1 : entreprises et services publics
+    { id = 'companies.manage', family = 'structures', label = 'Entreprises : créer et gérer les entreprises (fiche, grades, membres)' },
+    { id = 'publics.manage',   family = 'structures', label = 'Services publics : créer et gérer police, médecins, administration, gouvernement' },
 
     -- Lot G : Premium et boutique
     { id = 'premium.manage', family = 'shop', label = 'Premium / Premium+ : attribuer et retirer les abonnements' },

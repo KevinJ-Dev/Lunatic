@@ -69,7 +69,25 @@ Config.EventBlipMinutes = 30         -- point sur la carte encore visible après
 -- Commandes (lot L) : message vu par un joueur déconnecté avec /crash
 Config.CrashMessage = 'Vous avez été déconnecté du serveur.'
 
--- Pôles (lot I)
+-- Entreprises et services publics (lot E1) : types proposés à la création
+Config.StructureTypes = {
+    company = {
+        { id = 'nightclub', label = 'Boîte de nuit' },
+        { id = 'dealer', label = 'Concessionnaire' },
+        { id = 'business', label = 'Entreprise' },
+        { id = 'mechanic', label = 'Mécanique' },
+        { id = 'media', label = 'Médias' },
+        { id = 'restaurant', label = 'Restaurant' },
+    },
+    public = {
+        { id = 'police', label = 'Police' },
+        { id = 'medic', label = 'Médecins' },
+        { id = 'administration', label = 'Administration' },
+        { id = 'government', label = 'Gouvernement' },
+    },
+}
+
+-- Pôle emploi (lot I)
 Config.PolesMaxGrades = 20           -- grades maximum par métier
 Config.PolesMaxSalary = 100000       -- salaire maximum d'un grade (par paie ESX)
 
@@ -118,7 +136,7 @@ end
 
 Config.DefaultRanks = {
     { name = 'Fondateur',         color = '#9650ff', level = 100, owner = true },
-    { name = 'Admin',             color = '#ff6b6b', level = 80, permissions = with(players, sanctions, tools, economy, world, profile, shop, { 'players.wipe', 'contextmenu.use', 'players.crash', 'vehicles.give', 'chat.announce_mod', 'logs.view', 'logs.chat', 'sanctions.ban_permanent', 'sanctions.revoke', 'panel.open', 'ranks.view', 'ranks.manage', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce', 'chat.clear' }) },
+    { name = 'Admin',             color = '#ff6b6b', level = 80, permissions = with(players, sanctions, tools, economy, world, profile, shop, { 'players.wipe', 'companies.manage', 'publics.manage', 'contextmenu.use', 'players.crash', 'vehicles.give', 'chat.announce_mod', 'logs.view', 'logs.chat', 'sanctions.ban_permanent', 'sanctions.revoke', 'panel.open', 'ranks.view', 'ranks.manage', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce', 'chat.clear' }) },
     { name = 'Responsable staff', color = '#f2c26b', level = 60, permissions = with(players, sanctions, tools, world, profile, { 'logs.view', 'economy.money', 'economy.job', 'economy.items', 'sanctions.revoke', 'panel.open', 'ranks.view', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce' }) },
     { name = 'Modérateur',        color = '#5fd3a0', level = 40, permissions = with(players, sanctions, { 'staff.online', 'tools.noclip', 'tools.names', 'tools.tpm', 'tools.vehicles', 'panel.open', 'ranks.view', 'staff.view', 'chat.staff' }) },
     { name = 'Modérateur test',   color = '#6bb8f2', level = 20, permissions = { 'panel.open', 'chat.staff', 'players.view', 'players.goto', 'players.spectate', 'players.heal', 'sanctions.view', 'sanctions.warn', 'tools.noclip', 'tools.names' } },

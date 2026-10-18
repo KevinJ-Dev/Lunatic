@@ -182,7 +182,7 @@ Page « Serveur » du panel, permission `server.manage` (Gestion Global).
 - **Mode maintenance** : seuls les membres du staff peuvent se connecter, les autres voient le message choisi (5 à 200 caractères). L'état est conservé après un redémarrage (KVP de la resource) et signalé dans la console au démarrage.
 - **Actions de masse** : soigner tout le serveur (réanimation, soin, faim/soif), téléporter tout le monde à soi, expulser tout le monde (le staff connecté reste).
 
-## Pôles (lot I)
+## Pôle emploi (lot I)
 
 Page « Pôles » du panel, permission `poles.manage` (Gestion Pôle). Travaille directement sur les métiers ESX (tables `jobs` et `job_grades`) puis recharge le métier avec `ESX.RefreshJob` : aucun redémarrage, les membres connectés sont mis à jour tout de suite (salaire compris).
 
@@ -242,3 +242,17 @@ Utilise la resource **ContextMenu** (Kiminaze, v2.1.0) placée dans `resources/[
 - **Dév** (`contextmenu.dev`) : sous-menu sur joueurs et véhicules, menu direct sur PNJ et objets : copier `vector3` / `vector4` / modèle (presse-papiers), infos complètes (page Dév + console F8), geler / dégeler, supprimer l'entité (pas un joueur ; un décor non synchronisé n'est retiré que pour soi).
 
 Le serveur envoie au client les droits du menu (rafraîchis toutes les 5 s s'ils changent) et revérifie chaque action ; tout est dans les logs. Sans ContextMenu, le module ne fait rien.
+
+## Entreprises et services publics (lot E1)
+
+Deux tuiles, une même page : **Entreprises** (`companies.manage` : boîte de nuit, concessionnaire, entreprise, mécanique, médias, restaurant) et **Services publics** (`publics.manage` : police, médecins, administration, gouvernement). Types dans `Config.StructureTypes`.
+
+Une structure = un métier ESX (`jobs` / `job_grades`, toujours en liste blanche) + une fiche (`lunatic_structures`) :
+
+- **Création** : nouveau métier (label, nom interne, grades proposés selon le type) ou métier existant du Pôle emploi (il en sort). Disponible tout de suite, sans redémarrage.
+- **Identité** : label, type, lead (personnage responsable, services publics), couleur (entreprises), logo, icône radiale (Font Awesome, pour le futur menu radial), bannière.
+- **Grades** et **Membres** : les mêmes actions que le Pôle emploi, autorisées par la permission de la tuile. Ajout d'un membre par ID en jeu ou par nom RP (choix si plusieurs personnages correspondent), embauché au grade le plus bas.
+- **Temps de jeu** : une minute de plus chaque minute pour chaque membre connecté avec ce métier (`lunatic_structure_playtime`).
+- **Suppression** : fiche, métier et temps de jeu, seulement sans membre.
+
+Export : `exports.lunatic_admin:getStructure(jobName)` (fiche ou `nil`). Le Pôle emploi (ancienne tuile « Service public ») ne liste plus que les métiers sans fiche.

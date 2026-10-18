@@ -1,11 +1,13 @@
--- Lot I : pôles = métiers ESX (tables jobs et job_grades). Liste, grades et salaires, membres, création et suppression.
+-- Lot I : Pôle emploi = métiers ESX (tables jobs et job_grades). Liste, grades et salaires, membres, création et suppression.
+-- Les métiers d'une entreprise ou d'un service public (server/structures.lua) n'apparaissent pas dans sa liste,
+-- mais leurs grades et membres passent par les mêmes actions, autorisées par la permission de leur tuile.
 -- Après chaque modification, ESX.RefreshJob recharge le métier et met à jour les joueurs connectés qui l'ont.
 -- Le grade le plus haut d'un métier porte toujours le nom technique « boss » (repère ESX des patrons d'entreprise).
 
 local UNEMPLOYED = 'unemployed'
 
 local function denied()
-    return Panel.fail("Vous n'avez pas la permission de gérer les pôles.")
+    return Panel.fail("Vous n'avez pas la permission de gérer ce métier.")
 end
 
 local function cleanText(value, min, max)
@@ -112,6 +114,18 @@ local function refresh(jobName)
     ESX.RefreshJob(jobName)
 end
 
+-- Pôle emploi, ou tuile Entreprises / Services publics pour le métier d'une structure
+local function canManage(actor, jobName)
+    if Ranks.hasPermission(actor, 'poles.manage') then
+        return true
+    end
+
+    local permission = Structures and type(jobName) == 'string' and Structures.permissionFor(jobName)
+    return permission and Ranks.hasPermission(actor, permission) or false
+end
+
+Poles = { canManage = canManage }
+
 ---------------------------------------------------------------------
 -- Lecture
 ---------------------------------------------------------------------
@@ -140,15 +154,17 @@ Panel.actions['poles.list'] = function(_, actor)
     local jobs = {}
 
     for name, job in pairs(ESX.GetJobs()) do
-        jobs[#jobs + 1] = {
-            name = name,
-            label = job.label,
-            grades = #sortedGrades(job),
-            online = online[name] or 0,
-            total = totals[name] or 0,
-            whitelisted = job.whitelisted == true or job.whitelisted == 1,
-            protected = name == UNEMPLOYED,
-        }
+        if not (Structures and Structures.get(name)) then
+            jobs[#jobs + 1] = {
+                name = name,
+                label = job.label,
+                grades = #sortedGrades(job),
+                online = online[name] or 0,
+                total = totals[name] or 0,
+                whitelisted = job.whitelisted == true or job.whitelisted == 1,
+                protected = name == UNEMPLOYED,
+            }
+        end
     end
 
     table.sort(jobs, function(a, b) return (a.label or a.name) < (b.label or b.name) end)
@@ -156,7 +172,7 @@ Panel.actions['poles.list'] = function(_, actor)
 end
 
 Panel.actions['poles.info'] = function(src, actor, data)
-    if not Ranks.hasPermission(actor, 'poles.manage') then
+    if not canManage(actor, data.job) then
         return denied()
     end
 
@@ -230,11 +246,8 @@ end
 -- Métiers
 ---------------------------------------------------------------------
 
-Panel.actions['poles.create'] = function(src, actor, data)
-    if not Ranks.hasPermission(actor, 'poles.manage') then
-        return denied()
-    end
-
+-- Création d'un métier (aussi utilisée par server/structures.lua, qui vérifie sa propre permission)
+local function createJob(src, data)
     local name = type(data.name) == 'string' and data.name:lower() or ''
 
     if not name:match('^[a-z][a-z0-9_]+$') or #name > 30 then
@@ -291,8 +304,18 @@ Panel.actions['poles.create'] = function(src, actor, data)
     return { ok = true, silent = true, name = name }
 end
 
-Panel.actions['poles.rename'] = function(src, actor, data)
+Poles.createJob = createJob
+
+Panel.actions['poles.create'] = function(src, actor, data)
     if not Ranks.hasPermission(actor, 'poles.manage') then
+        return denied()
+    end
+
+    return createJob(src, data)
+end
+
+Panel.actions['poles.rename'] = function(src, actor, data)
+    if not canManage(actor, data.job) then
         return denied()
     end
 
@@ -317,7 +340,7 @@ end
 
 -- Liste blanche ESX : le métier n'apparaît pas au pôle emploi (recrutement par le patron ou le staff seulement)
 Panel.actions['poles.whitelist'] = function(src, actor, data)
-    if not Ranks.hasPermission(actor, 'poles.manage') then
+    if not canManage(actor, data.job) then
         return denied()
     end
 
@@ -335,7 +358,7 @@ Panel.actions['poles.whitelist'] = function(src, actor, data)
 end
 
 Panel.actions['poles.delete'] = function(src, actor, data)
-    if not Ranks.hasPermission(actor, 'poles.manage') then
+    if not canManage(actor, data.job) then
         return denied()
     end
 
@@ -371,7 +394,7 @@ end
 ---------------------------------------------------------------------
 
 Panel.actions['poles.setGrade'] = function(src, actor, data)
-    if not Ranks.hasPermission(actor, 'poles.manage') then
+    if not canManage(actor, data.job) then
         return denied()
     end
 
@@ -411,7 +434,7 @@ end
 
 -- Ajoute un grade au-dessus des autres : il devient le patron (boss)
 Panel.actions['poles.addGrade'] = function(src, actor, data)
-    if not Ranks.hasPermission(actor, 'poles.manage') then
+    if not canManage(actor, data.job) then
         return denied()
     end
 
@@ -459,7 +482,7 @@ end
 
 -- Supprime le grade le plus haut s'il n'a aucun membre ; le grade en dessous devient le patron
 Panel.actions['poles.removeGrade'] = function(src, actor, data)
-    if not Ranks.hasPermission(actor, 'poles.manage') then
+    if not canManage(actor, data.job) then
         return denied()
     end
 
@@ -550,7 +573,7 @@ local function applyJob(identifier, target, jobName, grade)
 end
 
 Panel.actions['poles.setMember'] = function(src, actor, data)
-    if not Ranks.hasPermission(actor, 'poles.manage') then
+    if not canManage(actor, data.job) then
         return denied()
     end
 
@@ -582,7 +605,7 @@ Panel.actions['poles.setMember'] = function(src, actor, data)
 end
 
 Panel.actions['poles.fire'] = function(src, actor, data)
-    if not Ranks.hasPermission(actor, 'poles.manage') then
+    if not canManage(actor, data.job) then
         return denied()
     end
 

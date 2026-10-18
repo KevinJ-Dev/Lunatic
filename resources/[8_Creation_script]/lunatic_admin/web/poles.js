@@ -155,7 +155,8 @@ function whitelistCard(job) {
     return h("div", { class: "card" }, h("div", { class: "mode-list" }, row));
 }
 
-function gradesCard(job) {
+// doAct : action qui recharge la page appelante (Pôle emploi par défaut, fiche d'une structure sinon)
+function gradesCard(job, doAct = poleAct) {
     const top = job.grades[job.grades.length - 1];
     const rows = job.grades.map((g) => {
         const label = h("input", { class: "input", maxlength: "50", value: g.label });
@@ -164,7 +165,7 @@ function gradesCard(job) {
         const dirty = () => { save.disabled = label.value.trim() === g.label && Number(salary.value) === g.salary; };
         label.addEventListener("input", dirty);
         salary.addEventListener("input", dirty);
-        save.addEventListener("click", () => poleAct("poles.setGrade", { job: job.name, grade: g.grade, label: label.value.trim(), salary: Number(salary.value) }, `Grade « ${label.value.trim()} » enregistré.`));
+        save.addEventListener("click", () => doAct("poles.setGrade", { job: job.name, grade: g.grade, label: label.value.trim(), salary: Number(salary.value) }, `Grade « ${label.value.trim()} » enregistré.`));
         return h("div", { class: "row grade-row" },
             h("span", { class: "pid mono" }, String(g.grade)),
             label,
@@ -183,11 +184,11 @@ function gradesCard(job) {
             label, salary,
             h("button", { class: "btn", onclick: () => {
                 if (!label.value.trim()) return toast("Indiquez le nom du grade.", "error");
-                poleAct("poles.addGrade", { job: job.name, label: label.value.trim(), salary: Number(salary.value || 0) }, `Grade « ${label.value.trim()} » ajouté.`);
+                doAct("poles.addGrade", { job: job.name, label: label.value.trim(), salary: Number(salary.value || 0) }, `Grade « ${label.value.trim()} » ajouté.`);
             } }, icon("i-plus"), "Ajouter"),
             h("button", { class: "btn ghost", disabled: !!removeBlocked, title: removeBlocked, onclick: async () => {
                 const yes = await confirmBox(`Supprimer le grade « ${top.label} » ?`, "Le grade juste en dessous devient le grade de patron.", "Supprimer", true);
-                if (yes) poleAct("poles.removeGrade", { job: job.name }, "Grade supprimé.");
+                if (yes) doAct("poles.removeGrade", { job: job.name }, "Grade supprimé.");
             } }, icon("i-trash"), "Retirer le plus haut")
         );
     }
@@ -200,7 +201,13 @@ function gradesCard(job) {
     );
 }
 
-function membersCard(job) {
+// Temps de jeu (minutes) -> « 12 h 05 »
+function playtimeText(minutes) {
+    if (!minutes) return "0 min";
+    return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, "0")}`;
+}
+
+function membersCard(job, doAct = poleAct, emptyText = "Aucun membre. Pour recruter, changez le métier d'un joueur depuis sa fiche (Joueurs).") {
     if (job.membersHidden) {
         return h("div", { class: "card", style: "margin-top:16px" }, h("h3", { class: "card-title" }, "Membres"),
             h("p", { class: "hint-line", style: "margin:0" }, "Les joueurs sans emploi ne sont pas listés."));
@@ -211,24 +218,27 @@ function membersCard(job) {
             [...job.grades].reverse().map((g) => h("option", { value: String(g.grade), selected: g.grade === m.grade }, g.label)));
         select.addEventListener("change", async () => {
             const grade = Number(select.value);
-            const res = await poleAct("poles.setMember", { job: job.name, identifier: m.identifier, grade }, `${m.name} : ${job.grades.find((g) => g.grade === grade)?.label || "grade modifié"}.`);
+            const res = await doAct("poles.setMember", { job: job.name, identifier: m.identifier, grade }, `${m.name} : ${job.grades.find((g) => g.grade === grade)?.label || "grade modifié"}.`);
             if (!res) select.value = String(m.grade);
         });
         return h("div", { class: "row member-job-row" },
             h("span", { class: `status${m.online ? " on" : ""}`, title: m.online ? "En ligne" : "Hors ligne" }),
-            h("div", { class: "who" }, h("b", null, m.name), h("span", null, m.online ? `ID ${m.online}` : "Hors ligne")),
+            h("div", { class: "who" }, h("b", null, m.name), h("span", null, [
+                m.online ? `ID ${m.online}` : "Hors ligne",
+                `perso ${m.identifier.slice(0, 8)}…`,
+                m.playtime !== undefined ? `${playtimeText(m.playtime)} de service` : null,
+            ].filter(Boolean).join(" · "))),
             select,
             h("button", { class: "btn small ghost", disabled: m.protected, title: m.protected ? "Rang égal ou supérieur au vôtre" : "Renvoyer (sans emploi)", onclick: async () => {
                 const yes = await confirmBox(`Renvoyer ${m.name} ?`, `Il quitte le poste ${job.label} et devient sans emploi.`, "Renvoyer", true);
-                if (yes) poleAct("poles.fire", { job: job.name, identifier: m.identifier }, `${m.name} a été renvoyé.`);
+                if (yes) doAct("poles.fire", { job: job.name, identifier: m.identifier }, `${m.name} a été renvoyé.`);
             } }, icon("i-door"), "Renvoyer")
         );
     });
 
     return h("div", { class: "card", style: "margin-top:16px" },
         h("h3", { class: "card-title" }, `Membres (${job.members.length})`),
-        rows.length ? h("div", { class: "table" }, rows) : h("p", { class: "hint-line", style: "margin:0" },
-            "Aucun membre. Pour recruter, changez le métier d'un joueur depuis sa fiche (Joueurs)."));
+        rows.length ? h("div", { class: "table" }, rows) : h("p", { class: "hint-line", style: "margin:0" }, emptyText));
 }
 
 function openRenamePole(job) {

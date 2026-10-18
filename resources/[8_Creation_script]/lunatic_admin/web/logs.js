@@ -59,6 +59,9 @@ const ACTION_LABELS = {
     "player.kick": "a expulsé",
     "player.crash": "a déconnecté (crash)",
     "context.vehicle": "a agi sur le véhicule",
+    "structures.create": "a créé une structure",
+    "structures.save": "a modifié la fiche d'une structure",
+    "structures.delete": "a supprimé une structure",
     "context.entity": "a agi sur l'entité",
     "vehicle.give": "a donné un véhicule à",
     "inventory.open": "a ouvert l'inventaire de",
@@ -193,6 +196,11 @@ function describeLog(log) {
             break;
         case "poles.member":
             summary = `${d.job} · ${d.gradeLabel}`;
+            break;
+        case "structures.create":
+        case "structures.save":
+        case "structures.delete":
+            summary = [d.label, d.job, d.type].filter(Boolean).join(" · ");
             break;
         case "context.vehicle":
         case "context.entity":
