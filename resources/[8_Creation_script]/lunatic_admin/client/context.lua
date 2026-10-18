@@ -1,12 +1,10 @@
--- Lot M : menu contextuel staff dans ox_target (Alt, puis clic sur un joueur, un véhicule, un PNJ ou un objet).
--- Joueurs et véhicules : sous-menu « Staff » ; PNJ et objets : sous-menu « Dév ».
--- Les options visibles dépendent des droits envoyés par le serveur, qui revérifie chaque action.
+-- Lot M : menu contextuel staff avec la resource ContextMenu (Kiminaze, dans [0_Libs]).
+-- Maintenir Alt gauche, clic droit sur un joueur (soi-même compris), un véhicule, un PNJ ou un objet, clic gauche pour choisir.
+-- Les options visibles dépendent des droits envoyés par le serveur (server/context.lua), qui revérifie chaque action.
 
-local STAFF_MENU = 'lunatic_staff'
-local DEV_MENU = 'lunatic_dev'
-local DISTANCE = 20.0
+local RESOURCE = 'ContextMenu'
 
----@type table<string, true> droits du menu (server/context.lua)
+---@type table<string, true> droits du menu
 local flags = {}
 
 RegisterNetEvent('lunatic_admin:contextFlags', function(value)
@@ -35,18 +33,14 @@ local function done(result, okMessage)
 end
 
 local function allowed(key)
+    return flags.use == true and flags[key] == true
+end
+
+-- Les actions du menu tournent hors de la boucle d'affichage de ContextMenu (les appels serveur attendent une réponse)
+local function async(func)
     return function()
-        return flags.use == true and flags[key] == true
+        CreateThread(func)
     end
-end
-
-local function devAllowed()
-    return flags.dev == true
-end
-
-local function serverIdOf(ped)
-    local player = NetworkGetPlayerIndexFromPed(ped)
-    return player ~= -1 and GetPlayerServerId(player) or nil
 end
 
 local function netIdOf(entity)
@@ -56,7 +50,6 @@ end
 -- Prend le contrôle réseau d'une entité (nécessaire pour la modifier depuis ce client)
 local function control(entity)
     local timeout = GetGameTimer() + 1000
-
     NetworkRequestControlOfEntity(entity)
 
     while not NetworkHasControlOfEntity(entity) and GetGameTimer() < timeout do
@@ -68,75 +61,71 @@ local function control(entity)
 end
 
 ---------------------------------------------------------------------
--- Joueurs
+-- Joueurs (soi-même compris)
 ---------------------------------------------------------------------
 
-local function playerAction(action, okMessage)
-    return function(data)
-        local id = serverIdOf(data.entity)
+local function playerName(serverId)
+    local state = Player(serverId).state
 
-        if id then
-            done(ask(action, { serverId = id }), okMessage)
-        end
+    if state.firstName and state.lastName then
+        return ('[%d] %s %s'):format(serverId, state.firstName, state.lastName)
     end
+
+    return ('[%d] %s'):format(serverId, GetPlayerName(GetPlayerFromServerId(serverId)) or '?')
 end
 
-local function playerOptions()
-    return {
-        { name = 'lunatic:staff', icon = 'fa-solid fa-user-shield', label = 'Staff', openMenu = STAFF_MENU, distance = DISTANCE,
-            canInteract = function() return flags.use == true or flags.dev == true end },
-        { name = 'lunatic:fiche', menuName = STAFF_MENU, icon = 'fa-solid fa-id-card', label = 'Ouvrir la fiche', distance = DISTANCE,
-            canInteract = allowed('view'),
-            onSelect = function(data)
-                local id = serverIdOf(data.entity)
+local function playerMenu(ECM, ped)
+    local player = NetworkGetPlayerIndexFromPed(ped)
+    local serverId = player ~= -1 and GetPlayerServerId(player) or nil
 
-                if id then
-                    OpenPanelOnPlayer(id)
-                end
-            end },
-        { name = 'lunatic:goto', menuName = STAFF_MENU, icon = 'fa-solid fa-person-walking-arrow-right', label = 'Aller vers', distance = DISTANCE,
-            canInteract = allowed('goto'), onSelect = playerAction('player.goto', nil) },
-        { name = 'lunatic:bring', menuName = STAFF_MENU, icon = 'fa-solid fa-person-walking-arrow-loop-left', label = 'Ramener', distance = DISTANCE,
-            canInteract = allowed('bring'), onSelect = playerAction('player.bring', 'Joueur ramené.') },
-        { name = 'lunatic:freeze', menuName = STAFF_MENU, icon = 'fa-solid fa-snowflake', label = 'Figer / libérer', distance = DISTANCE,
-            canInteract = allowed('freeze'), onSelect = playerAction('player.freeze', 'Joueur figé ou libéré.') },
-        { name = 'lunatic:heal', menuName = STAFF_MENU, icon = 'fa-solid fa-heart-pulse', label = 'Soigner', distance = DISTANCE,
-            canInteract = allowed('heal'), onSelect = playerAction('player.heal', 'Joueur soigné.') },
-        { name = 'lunatic:revive', menuName = STAFF_MENU, icon = 'fa-solid fa-kit-medical', label = 'Réanimer', distance = DISTANCE,
-            canInteract = allowed('heal'), onSelect = playerAction('player.revive', 'Joueur réanimé.') },
-        { name = 'lunatic:spectate', menuName = STAFF_MENU, icon = 'fa-solid fa-eye', label = 'Observer', distance = DISTANCE,
-            canInteract = allowed('spectate'), onSelect = playerAction('player.spectate', nil) },
-        { name = 'lunatic:inventory', menuName = STAFF_MENU, icon = 'fa-solid fa-box-open', label = 'Inventaire', distance = DISTANCE,
-            canInteract = allowed('items'), onSelect = playerAction('inventory.open', nil) },
-        { name = 'lunatic:todev', menuName = STAFF_MENU, icon = 'fa-solid fa-code', label = 'Dév', openMenu = DEV_MENU, distance = DISTANCE,
-            canInteract = devAllowed },
-    }
+    if not serverId or not flags.use then
+        return
+    end
+
+    local isSelf = ped == PlayerPedId()
+    local run = function(action, okMessage)
+        return async(function()
+            done(ask(action, { serverId = serverId }), okMessage)
+        end)
+    end
+
+    ECM:AddTextItem(0, isSelf and ('%s (vous)'):format(playerName(serverId)) or playerName(serverId))
+
+    if allowed('view') then
+        ECM:AddItem(0, 'Ouvrir la fiche', async(function()
+            OpenPanelOnPlayer(serverId)
+        end))
+    end
+
+    if not isSelf and allowed('goto') then
+        ECM:AddItem(0, 'Aller vers', run('player.goto', nil))
+    end
+
+    if not isSelf and allowed('bring') then
+        ECM:AddItem(0, 'Ramener', run('player.bring', 'Joueur ramené.'))
+    end
+
+    if not isSelf and allowed('freeze') then
+        ECM:AddItem(0, 'Figer / libérer', run('player.freeze', 'Joueur figé ou libéré.'))
+    end
+
+    if allowed('heal') then
+        ECM:AddItem(0, 'Soigner', run('player.heal', 'Joueur soigné.'))
+        ECM:AddItem(0, 'Réanimer', run('player.revive', 'Joueur réanimé.'))
+    end
+
+    if not isSelf and allowed('spectate') then
+        ECM:AddItem(0, 'Observer', run('player.spectate', nil))
+    end
+
+    if not isSelf and allowed('items') then
+        ECM:AddItem(0, 'Inventaire', run('inventory.open', nil))
+    end
 end
 
 ---------------------------------------------------------------------
 -- Véhicules
 ---------------------------------------------------------------------
-
-local function vehicleAction(operation, apply, okMessage)
-    return function(data)
-        local vehicle = data.entity
-        local netId = netIdOf(vehicle)
-
-        if not netId then
-            return ESX.ShowNotification('Véhicule non synchronisé : action impossible.', 'error')
-        end
-
-        local result = ask('context.vehicle', { netId = netId, operation = operation })
-
-        if not done(result, okMessage) then
-            return
-        end
-
-        if apply then
-            apply(vehicle, result)
-        end
-    end
-end
 
 local function repair(vehicle)
     if control(vehicle) then
@@ -174,23 +163,34 @@ local function showOwner(_, result)
     end
 end
 
-local function vehicleOptions()
-    return {
-        { name = 'lunatic:staff', icon = 'fa-solid fa-user-shield', label = 'Staff', openMenu = STAFF_MENU, distance = DISTANCE,
-            canInteract = function() return (flags.use == true and flags.vehicles == true) or flags.dev == true end },
-        { name = 'lunatic:vrepair', menuName = STAFF_MENU, icon = 'fa-solid fa-wrench', label = 'Réparer', distance = DISTANCE,
-            canInteract = allowed('vehicles'), onSelect = vehicleAction('repair', repair, 'Véhicule réparé.') },
-        { name = 'lunatic:vflip', menuName = STAFF_MENU, icon = 'fa-solid fa-rotate', label = 'Retourner', distance = DISTANCE,
-            canInteract = allowed('vehicles'), onSelect = vehicleAction('flip', flip, 'Véhicule retourné.') },
-        { name = 'lunatic:venter', menuName = STAFF_MENU, icon = 'fa-solid fa-car-side', label = 'Monter dedans', distance = DISTANCE,
-            canInteract = allowed('vehicles'), onSelect = vehicleAction('enter', enter, nil) },
-        { name = 'lunatic:vowner', menuName = STAFF_MENU, icon = 'fa-solid fa-user-tag', label = 'Propriétaire', distance = DISTANCE,
-            canInteract = allowed('vehicles'), onSelect = vehicleAction('owner', showOwner, nil) },
-        { name = 'lunatic:vdelete', menuName = STAFF_MENU, icon = 'fa-solid fa-trash', label = 'Supprimer', distance = DISTANCE,
-            canInteract = allowed('vehicles'), onSelect = vehicleAction('delete', nil, 'Véhicule supprimé.') },
-        { name = 'lunatic:todev', menuName = STAFF_MENU, icon = 'fa-solid fa-code', label = 'Dév', openMenu = DEV_MENU, distance = DISTANCE,
-            canInteract = devAllowed },
-    }
+local function vehicleMenu(ECM, vehicle)
+    if not allowed('vehicles') then
+        return
+    end
+
+    local run = function(operation, apply, okMessage)
+        return async(function()
+            local netId = netIdOf(vehicle)
+
+            if not netId then
+                return ESX.ShowNotification('Véhicule non synchronisé : action impossible.', 'error')
+            end
+
+            local result = ask('context.vehicle', { netId = netId, operation = operation })
+
+            if done(result, okMessage) and apply and DoesEntityExist(vehicle) then
+                apply(vehicle, result)
+            end
+        end)
+    end
+
+    local model = GetDisplayNameFromVehicleModel(GetEntityModel(vehicle)):lower()
+    ECM:AddTextItem(0, ('%s · %s'):format(model, GetVehicleNumberPlateText(vehicle)))
+    ECM:AddItem(0, 'Réparer', run('repair', repair, 'Véhicule réparé.'))
+    ECM:AddItem(0, 'Retourner', run('flip', flip, 'Véhicule retourné.'))
+    ECM:AddItem(0, 'Monter dedans', run('enter', enter, nil))
+    ECM:AddItem(0, 'Propriétaire', run('owner', showOwner, nil))
+    ECM:AddItem(0, 'Supprimer', run('delete', nil, 'Véhicule supprimé.'))
 end
 
 ---------------------------------------------------------------------
@@ -218,7 +218,7 @@ local function entityOperation(entity, operation, okMessage)
     local isLocal = netId == nil
     local result = ask('context.entity', { netId = netId, operation = operation, ['local'] = isLocal, model = GetEntityModel(entity) })
 
-    if not done(result, okMessage) or not isLocal then
+    if not done(result, okMessage) or not isLocal or not DoesEntityExist(entity) then
         return
     end
 
@@ -231,91 +231,87 @@ local function entityOperation(entity, operation, okMessage)
     end
 end
 
-local function devOptions(top)
-    local options = {
-        { name = 'lunatic:vec3', menuName = DEV_MENU, icon = 'fa-solid fa-location-crosshairs', label = 'Copier vector3', distance = DISTANCE,
-            canInteract = devAllowed,
-            onSelect = function(data)
-                local c = GetEntityCoords(data.entity)
-                copy(('vector3(%.2f, %.2f, %.2f)'):format(c.x, c.y, c.z), 'Coordonnées copiées.')
-            end },
-        { name = 'lunatic:vec4', menuName = DEV_MENU, icon = 'fa-solid fa-compass', label = 'Copier vector4', distance = DISTANCE,
-            canInteract = devAllowed,
-            onSelect = function(data)
-                local c = GetEntityCoords(data.entity)
-                copy(('vector4(%.2f, %.2f, %.2f, %.2f)'):format(c.x, c.y, c.z, GetEntityHeading(data.entity)), 'Coordonnées et heading copiés.')
-            end },
-        { name = 'lunatic:model', menuName = DEV_MENU, icon = 'fa-solid fa-cube', label = 'Copier le modèle', distance = DISTANCE,
-            canInteract = devAllowed,
-            onSelect = function(data)
-                copy(modelText(data.entity), 'Modèle copié.')
-            end },
-        { name = 'lunatic:info', menuName = DEV_MENU, icon = 'fa-solid fa-circle-info', label = 'Infos complètes', distance = DISTANCE,
-            canInteract = devAllowed,
-            onSelect = function(data)
-                local info = DevEntityInfo(data.entity)
-                SendNUIMessage({ action = 'devEntity', entity = info })
-                print(('[lunatic_admin] Entité : %s'):format(json.encode(info)))
-                ESX.ShowNotification('Infos envoyées au panel (page Développeur) et à la console F8.', 'success')
-            end },
-        { name = 'lunatic:dfreeze', menuName = DEV_MENU, icon = 'fa-solid fa-lock', label = 'Geler / dégeler', distance = DISTANCE,
-            canInteract = function(entity)
-                return devAllowed() and not (GetEntityType(entity) == 1 and IsPedAPlayer(entity))
-            end,
-            onSelect = function(data)
-                local frozen = IsEntityPositionFrozen(data.entity)
-                entityOperation(data.entity, frozen and 'unfreeze' or 'freeze', frozen and 'Entité dégelée.' or 'Entité gelée.')
-            end },
-        { name = 'lunatic:ddelete', menuName = DEV_MENU, icon = 'fa-solid fa-trash', label = 'Supprimer l\'entité', distance = DISTANCE,
-            canInteract = function(entity)
-                return devAllowed() and not (GetEntityType(entity) == 1 and IsPedAPlayer(entity))
-            end,
-            onSelect = function(data)
-                entityOperation(data.entity, 'delete', 'Entité supprimée.')
-            end },
-    }
+-- menuId : 0 pour le menu principal (PNJ, objets), sinon un sous-menu « Dév »
+local function devItems(ECM, menuId, entity)
+    local isPlayer = GetEntityType(entity) == 1 and IsPedAPlayer(entity)
 
-    -- PNJ et objets : le menu Dév s'ouvre directement
-    if top then
-        table.insert(options, 1, { name = 'lunatic:dev', icon = 'fa-solid fa-code', label = 'Dév', openMenu = DEV_MENU, distance = DISTANCE,
-            canInteract = devAllowed })
+    ECM:AddItem(menuId, 'Copier vector3', function()
+        local c = GetEntityCoords(entity)
+        copy(('vector3(%.2f, %.2f, %.2f)'):format(c.x, c.y, c.z), 'Coordonnées copiées.')
+    end)
+
+    ECM:AddItem(menuId, 'Copier vector4', function()
+        local c = GetEntityCoords(entity)
+        copy(('vector4(%.2f, %.2f, %.2f, %.2f)'):format(c.x, c.y, c.z, GetEntityHeading(entity)), 'Coordonnées et heading copiés.')
+    end)
+
+    ECM:AddItem(menuId, 'Copier le modèle', function()
+        copy(modelText(entity), 'Modèle copié.')
+    end)
+
+    ECM:AddItem(menuId, 'Infos complètes', function()
+        local info = DevEntityInfo(entity)
+        SendNUIMessage({ action = 'devEntity', entity = info })
+        print(('[lunatic_admin] Entité : %s'):format(json.encode(info)))
+        ESX.ShowNotification('Infos envoyées au panel (page Développeur) et à la console F8.', 'success')
+    end)
+
+    if not isPlayer then
+        ECM:AddItem(menuId, 'Geler / dégeler', async(function()
+            local frozen = IsEntityPositionFrozen(entity)
+            entityOperation(entity, frozen and 'unfreeze' or 'freeze', frozen and 'Entité dégelée.' or 'Entité gelée.')
+        end))
+
+        ECM:AddItem(menuId, "Supprimer l'entité", async(function()
+            entityOperation(entity, 'delete', 'Entité supprimée.')
+        end))
     end
-
-    return options
 end
 
 ---------------------------------------------------------------------
--- Enregistrement dans ox_target
+-- Enregistrement dans ContextMenu
 ---------------------------------------------------------------------
 
+local function build(_, _, _, entity)
+    if not (flags.use or flags.dev) or not entity or entity == 0 or not DoesEntityExist(entity) then
+        return
+    end
+
+    local ECM = exports[RESOURCE]
+    local kind = GetEntityType(entity)
+    local isPlayer = kind == 1 and IsPedAPlayer(entity)
+
+    if isPlayer then
+        playerMenu(ECM, entity)
+    elseif kind == 2 then
+        vehicleMenu(ECM, entity)
+    end
+
+    if flags.dev then
+        -- Joueurs et véhicules : sous-menu ; PNJ et objets : directement dans le menu
+        if isPlayer or kind == 2 then
+            local devMenu = ECM:AddSubmenu(0, 'Dév')
+            devItems(ECM, devMenu, entity)
+        else
+            ECM:AddTextItem(0, kind == 1 and 'PNJ' or 'Objet')
+            devItems(ECM, 0, entity)
+        end
+    end
+end
+
 local function register()
-    local target = exports.ox_target
-    local players = playerOptions()
-    local vehicles = vehicleOptions()
-
-    for _, option in ipairs(devOptions(false)) do
-        players[#players + 1] = option
-    end
-
-    for _, option in ipairs(devOptions(false)) do
-        vehicles[#vehicles + 1] = option
-    end
-
-    target:addGlobalPlayer(players)
-    target:addGlobalVehicle(vehicles)
-    target:addGlobalPed(devOptions(true))
-    target:addGlobalObject(devOptions(true))
+    exports[RESOURCE]:Register(build)
 end
 
 CreateThread(function()
-    if GetResourceState('ox_target') == 'started' then
+    if GetResourceState(RESOURCE) == 'started' then
         register()
     end
 end)
 
--- ox_target (re)démarré après nous
+-- ContextMenu (re)démarré après nous
 AddEventHandler('onClientResourceStart', function(resource)
-    if resource == 'ox_target' then
+    if resource == RESOURCE then
         register()
     end
 end)

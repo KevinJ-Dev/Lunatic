@@ -233,12 +233,12 @@ Les commandes qui n'existaient ni dans le tchat ni dans le panel ; elles passent
 
 Perquisition, menottes, propriétés, prise de service, stocks et mode créateur viendront avec leurs systèmes.
 
-## Menu contextuel ox_target (lot M)
+## Menu contextuel (lot M)
 
-Avec ox_target (Alt, puis clic), le staff a des options en plus sur ce qu'il vise, jusqu'à 20 m :
+Utilise la resource **ContextMenu** (Kiminaze, v2.1.0) placée dans `resources/[0_Libs]/ContextMenu` (le nom du dossier doit rester `ContextMenu`). En jeu : maintenir **Alt gauche**, **clic droit** sur ce qu'on vise (son propre personnage compris), clic gauche sur l'option.
 
-- **Joueur → Staff** (`contextmenu.use`) : ouvrir sa fiche dans le panel, aller vers, ramener, figer / libérer, soigner, réanimer, observer, inventaire. Chaque option demande aussi la permission du panel correspondante.
-- **Véhicule → Staff** (`contextmenu.use` + `tools.vehicles`) : réparer, retourner, monter dedans (place libre), propriétaire (d'après `owned_vehicles`), supprimer (refusé si un joueur est dedans).
-- **Dév** (`contextmenu.dev`), sur joueurs, véhicules, PNJ et objets : copier `vector3` / `vector4` / modèle (presse-papiers), infos complètes (page Dév + console F8), geler / dégeler, supprimer l'entité (pas un joueur ; un décor non synchronisé n'est retiré que pour soi).
+- **Joueur** (`contextmenu.use`) : ouvrir sa fiche, aller vers, ramener, figer / libérer, soigner, réanimer, observer, inventaire. Chaque option demande aussi la permission du panel correspondante ; sur soi-même, seulement fiche, soigner et réanimer.
+- **Véhicule** (`contextmenu.use` + `tools.vehicles`) : réparer, retourner, monter dedans (place libre), propriétaire (d'après `owned_vehicles`), supprimer (refusé si un joueur est dedans).
+- **Dév** (`contextmenu.dev`) : sous-menu sur joueurs et véhicules, menu direct sur PNJ et objets : copier `vector3` / `vector4` / modèle (presse-papiers), infos complètes (page Dév + console F8), geler / dégeler, supprimer l'entité (pas un joueur ; un décor non synchronisé n'est retiré que pour soi).
 
-Le serveur envoie au client les droits du menu (rafraîchis toutes les 5 s s'ils changent) et revérifie chaque action ; tout est dans les logs. Sans ox_target, le module ne fait rien.
+Le serveur envoie au client les droits du menu (rafraîchis toutes les 5 s s'ils changent) et revérifie chaque action ; tout est dans les logs. Sans ContextMenu, le module ne fait rien.
