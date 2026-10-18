@@ -203,3 +203,15 @@ Page « Events » du panel, permission `events.manage` (Gestion des events). Tab
 - **Joueurs** : `/events` (events à venir dans le tchat), `/eventgps` (itinéraire vers le prochain event avec un point).
 
 Les annonces passent par lunatic_chat (étiquette « Event ») : les dates y sont envoyées en jeton `{date:...}` et affichées à l'heure du PC de chaque joueur. Sans lunatic_chat, une notification ESX à l'heure du serveur.
+
+## Développeur (lot K)
+
+Page « Dév » du panel, permission `dev.manage` (Gestion Développeur, réservée au Fondateur par défaut).
+
+- **Resources** : liste avec état, version et auteur ; démarrer, arrêter, redémarrer (natives `StartResource` / `StopResource`). Les resources de `Config.DevProtectedResources` (ESX, oxmysql, ox_lib, ox_inventory, lunatic_admin…) ne peuvent être ni arrêtées ni redémarrées depuis le panel.
+- **Chercher les nouvelles (refresh)** : demande une ligne dans `server.cfg`, puis un redémarrage du serveur :
+  ```
+  add_ace resource.lunatic_admin command.refresh allow
+  ```
+- **Infos entité** : un viseur au centre de l'écran ; l'entité visée est surlignée avec son type, modèle, hash, position, heading, santé, id réseau, joueur qui la gère, plaque. **E** envoie ces infos dans la page (boutons de copie) et dans la console F8.
+- **Affichage de debug** : en haut à gauche, ID serveur, FPS, position, rue et zone, intérieur, santé et armure, nombre de peds / véhicules / objets, véhicule actuel (modèle, vitesse, moteur, plaque).

@@ -210,6 +210,7 @@ const NAV = [
     { id: "server", label: "Serveur", icon: "i-server", show: () => can("server.manage") },
     { id: "poles", label: "Pôles", icon: "i-briefcase", show: () => can("poles.manage") },
     { id: "events", label: "Events", icon: "i-calendar", show: () => can("events.manage") },
+    { id: "dev", label: "Dév", icon: "i-code", show: () => can("dev.manage") },
     { id: "ranks", label: "Rangs", icon: "i-layers", show: () => can("ranks.view") },
     { id: "members", label: "Membres", icon: "i-users", show: () => can("staff.view") },
 ];
@@ -228,7 +229,7 @@ function render() {
     );
     $("me").querySelector(".avatar").style.background = me.rank.color;
 
-    for (const id of ["home", "players", "sanctions", "tools", "logs", "world", "server", "poles", "events", "ranks", "members"]) {
+    for (const id of ["home", "players", "sanctions", "tools", "logs", "world", "server", "poles", "events", "dev", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
     }
 
@@ -241,6 +242,7 @@ function render() {
     if (view === "server") renderGlobal();
     if (view === "poles") renderPoles();
     if (view === "events") renderEvents();
+    if (view === "dev") renderDev();
     if (view === "ranks") renderRanks();
     if (view === "members") renderMembers();
 }
@@ -1182,7 +1184,7 @@ window.addEventListener("message", (event) => {
 
 function demoState() {
     return {
-        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["events.manage", "poles.manage", "server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["dev.manage", "events.manage", "poles.manage", "server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],
@@ -1219,6 +1221,7 @@ function demoState() {
             available: true, weather: "CLOUDS", hour: 18, minute: 42, frozen: false, cycle: true, blackout: false, cycleMinutes: 30,
             weathers: [["EXTRASUNNY", "Grand soleil"], ["CLEAR", "Dégagé"], ["CLOUDS", "Nuageux"], ["OVERCAST", "Couvert"], ["CLEARING", "Éclaircies"], ["RAIN", "Pluie"], ["THUNDER", "Orage"], ["FOGGY", "Brouillard"], ["SMOG", "Smog"], ["SNOWLIGHT", "Neige légère"], ["SNOW", "Neige"], ["BLIZZARD", "Blizzard"], ["XMAS", "Noël"], ["HALLOWEEN", "Halloween"]].map(([id, label]) => ({ id, label })),
         },
+        dev: { modes: { debug: true }, canRefresh: false, resourceName: "lunatic_admin" },
         server: { maintenance: false, maintenanceMessage: "Le serveur est en maintenance. Revenez un peu plus tard !", players: 23, restart: null },
         dashboard: {
             players: 23, maxPlayers: 64,
@@ -1258,6 +1261,15 @@ async function demoNui(name, data) {
         lastSeen: Math.floor(Date.now() / 1000) - 7200, createdAt: Math.floor(Date.now() / 1000) - 20 * 86400,
         licenses: [{ type: "dmv", label: "Code de la route", owned: true }, { type: "drive", label: "Permis voiture", owned: false }, { type: "weapon", label: "Port d'arme", owned: false }],
     } };
+    if (name === "action" && data && data.action === "dev.resources") return { ok: true, canRefresh: false, resources: [
+        { name: "es_extended", state: "started", version: "1.16.2", author: "ESX-Framework", protected: true },
+        { name: "illenium-appearance", state: "started", version: "5.7.0", author: "snakewiz & iLLeniumStudios" },
+        { name: "lunatic_admin", state: "started", version: "0.6.0", author: "Lunatic RP", description: "Panel staff", protected: true },
+        { name: "lunatic_chat", state: "started", version: "0.2.0", author: "Lunatic RP", description: "Tchat Lunatic" },
+        { name: "lunatic_world", state: "started", version: "0.1.0", author: "Lunatic RP" },
+        { name: "nc_pommes", state: "stopped", version: "1.0.0", author: "NightCraft" },
+        { name: "ox_inventory", state: "started", version: "2.48.0", author: "Overextended", protected: true },
+    ] };
     if (name === "action" && data && data.action === "events.list") {
         const t = Math.floor(Date.now() / 1000);
         return { ok: true, reminder: 15, events: [
@@ -1328,6 +1340,7 @@ if (!IN_GAME) window.addEventListener("load", () => {
         if (params.get("rank")) selectedRankId = Number(params.get("rank"));
         if (params.get("view")) go(params.get("view"));
         if (params.get("pole")) setTimeout(() => selectPole(params.get("pole")), 300);
+        if (params.get("entity")) window.postMessage({ action: "devEntity", entity: { type: "Véhicule", model: "sultan", hash: 970598228, hashHex: "0x39DA2754", coords: { x: 215.7, y: -810.12, z: 30.73 }, heading: 157.5, health: 1000, maxHealth: 1000, engine: 1000, networked: true, netId: 132, owner: 4, plate: "LUNA 123" } }, "*");
         if (params.get("rank")) selectRank(Number(params.get("rank")));
         if (params.get("player")) selectPlayer(Number(params.get("player")));
         if (params.get("offline")) { switchPlayersTab("offline"); playerFilter.text = "to"; scheduleOfflineSearch("to"); setTimeout(() => selectOffline("9f1e22aa00bb11"), 500); }

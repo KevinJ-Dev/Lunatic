@@ -56,6 +56,12 @@ Config.PremiumMaxDays = 3650         -- durée maximale d'un abonnement (hors «
 Config.CreditsMaxAction = 100000     -- crédits maximum par opération
 Config.CreditsName = 'crédits'       -- nom affiché de la monnaie boutique
 
+-- Développeur (lot K) : resources qu'on ne peut ni arrêter ni redémarrer depuis le panel
+Config.DevProtectedResources = {
+    'lunatic_admin', 'es_extended', 'oxmysql', 'ox_lib', 'ox_inventory',
+    'monitor', 'sessionmanager', 'spawnmanager', 'mapmanager', 'hardcap', 'yarn', 'webpack',
+}
+
 -- Events (lot J)
 Config.EventReminderMinutes = 15     -- rappel automatique avant le début
 Config.EventBlipMinutes = 30         -- point sur la carte encore visible après le début

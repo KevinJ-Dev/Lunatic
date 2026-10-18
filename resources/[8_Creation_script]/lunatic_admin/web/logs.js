@@ -50,6 +50,8 @@ const ACTION_LABELS = {
     "events.update": "a modifié un event",
     "events.cancel": "a annulé un event",
     "events.finish": "a terminé un event",
+    "dev.resource": "a géré une resource",
+    "dev.refresh": "a rechargé la liste des resources",
     "license.give": "a donné un permis à",
     "license.remove": "a retiré un permis à",
     "tool.ghost.on": "a activé le mode fantôme",
@@ -186,6 +188,9 @@ function describeLog(log) {
             break;
         case "poles.member":
             summary = `${d.job} · ${d.gradeLabel}`;
+            break;
+        case "dev.resource":
+            summary = `${{ start: "démarrage", stop: "arrêt", restart: "redémarrage" }[d.operation] || d.operation} · ${d.name} (${d.before} → ${d.after})`;
             break;
         case "events.create":
         case "events.update":

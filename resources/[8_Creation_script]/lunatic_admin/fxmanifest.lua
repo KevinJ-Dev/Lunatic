@@ -34,6 +34,7 @@ server_scripts {
     'server/global.lua',
     'server/poles.lua',
     'server/events.lua',
+    'server/dev.lua',
 }
 
 client_scripts {
@@ -43,6 +44,7 @@ client_scripts {
     'client/tools.lua',
     'client/jail.lua',
     'client/events.lua',
+    'client/dev.lua',
 }
 
 ui_page 'web/index.html'
@@ -61,6 +63,7 @@ files {
     'web/global.js',
     'web/poles.js',
     'web/events.js',
+    'web/dev.js',
     'web/logo.png',
     'web/fonts/*.woff2',
 }

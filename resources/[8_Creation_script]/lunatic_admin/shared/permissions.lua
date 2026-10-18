@@ -10,6 +10,7 @@ Permissions.Families = {
     { id = 'economy',   label = 'Économie' },
     { id = 'world',     label = 'Monde' },
     { id = 'server',    label = 'Serveur' },
+    { id = 'dev',       label = 'Développeur' },
     { id = 'shop',      label = 'Premium et boutique' },
     { id = 'chat',      label = 'Tchat' },
     { id = 'manage',    label = 'Gestion' },
@@ -33,6 +34,9 @@ Permissions.List = {
 
     -- Lot H : gestion globale
     { id = 'server.manage', family = 'server', label = 'Gestion Global : redémarrage planifié, maintenance, actions de masse' },
+
+    -- Lot K : outils développeur
+    { id = 'dev.manage', family = 'dev', label = 'Gestion Développeur : resources, infos entité, affichage de debug' },
 
     -- Lot J : planning d'events
     { id = 'events.manage', family = 'server', label = 'Gestion des events : créer, modifier, annuler et annoncer' },
