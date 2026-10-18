@@ -21,5 +21,6 @@ Config.MaxHeight = 220     -- Taille maximum en cm
 Config.MinAge = 18         -- Âge minimum du personnage
 Config.MaxAge = 100        -- Âge maximum du personnage
 
-Config.FullCharDelete = true -- Supprime toutes les données liées au personnage lors d'un /chardel
+-- Désactivé (Lunatic) : vide aussi addon_account_data et datastore_data, tables absentes de notre base
+Config.FullCharDelete = false
 Config.EnableDebugging = ESX.GetConfig().EnableDebug -- Commandes de debug

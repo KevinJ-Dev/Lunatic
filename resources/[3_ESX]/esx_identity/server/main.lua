@@ -362,6 +362,29 @@ xLib.callback.registerCompat("esx_identity:registerIdentity", function(source, c
     cb(true)
 end)
 
+-- Ajout Lunatic (à reporter lors des mises à jour d'ESX) : remet un joueur connecté à la création
+-- de personnage (identité puis apparence), comme /chardel mais appelable par lunatic_admin.
+-- Seules les resources du serveur peuvent appeler un export : aucun joueur ne peut le déclencher.
+---@param playerId number
+---@return boolean
+exports("resetIdentity", function(playerId)
+    local xPlayer = ESX.GetPlayerFromId(playerId)
+
+    if not xPlayer then
+        return false
+    end
+
+    local identifier = xPlayer.getIdentifier()
+
+    alreadyRegistered[identifier] = true -- deleteIdentity n'agit que sur un joueur inscrit
+    deleteIdentity(xPlayer)
+    playerIdentity[identifier] = nil
+    alreadyRegistered[identifier] = false
+
+    TriggerClientEvent("esx_identity:showRegisterIdentity", playerId)
+    return true
+end)
+
 if Config.EnableCommands then
     ESX.RegisterCommand("char", "user", function(xPlayer)
         if xPlayer and xPlayer.getName() then
