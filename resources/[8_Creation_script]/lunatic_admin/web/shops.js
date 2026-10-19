@@ -11,15 +11,6 @@ const SHOP_ICONS = {
     masquerade: "i-mask", shenails: "i-sparkle", skateshop: "i-skate", tattoo: "i-edit", wholesale: "i-truck",
 };
 
-// Ce que chaque magasin d'apparence permet de modifier (menu illenium-appearance)
-const APPEARANCE_MENUS = {
-    clothing: "Vêtements et accessoires : hauts, vestes, bas, chaussures, sacs, écharpes et chaînes, chapeaux, lunettes, boucles d'oreilles, montres, bracelets.",
-    masks: "Masques seulement.",
-    barber: "Visage : coupe et couleur de cheveux, barbe, sourcils, pilosité (le même menu contient aussi le maquillage).",
-    makeup: "Visage : maquillage, rouge à lèvres, blush (le même menu contient aussi cheveux et barbe, illenium ne les sépare pas).",
-    tattoo: "Tatouages.",
-};
-
 const shopState = { category: null, categories: null, shops: null, selected: null, draft: null, licenses: [], jobs: [] };
 
 function renderShops() {
@@ -55,7 +46,7 @@ function paintShopCategories() {
 }
 
 function openShopCategory(category) {
-    if (!category.ready) return toast(`${category.label} : arrive dans un prochain lot (location de véhicules).`, "info");
+    if (!category.ready) return toast(`${category.label} : arrive dans un prochain lot (magasins d'apparence ou location).`, "info");
     shopState.category = category;
     shopState.shops = null;
     shopState.selected = null;
@@ -160,11 +151,6 @@ function shopForm() {
             h("button", { class: "chip-x", onclick: () => { d.jobs.splice(i, 1); paintShopCategory(); } }, icon("i-x")))) : h("span", { class: "muted" }, "tout le monde peut acheter"),
         jobSelect);
 
-    // Magasin d'apparence : prix du passage
-    const appearance = APPEARANCE_MENUS[shopState.category.kind];
-    const passPrice = h("input", { class: "input mono", type: "number", min: "0", value: String(d.price || 0) });
-    passPrice.addEventListener("input", () => { d.price = Math.max(0, Math.floor(Number(passPrice.value) || 0)); });
-
     // Articles
     const licenseOptions = (value) => [h("option", { value: "" }, "Aucun permis"), ...shopState.licenses.map((l) => h("option", { value: l.type, selected: l.type === value }, l.label))];
     const items = d.items.map((entry, i) => {
@@ -192,7 +178,7 @@ function shopForm() {
     const save = h("button", { class: "btn primary" }, icon("i-save"), "Enregistrer");
     save.addEventListener("click", () => shopAct("shops.save", {
         id: d.id, label: d.label.trim(), slug: d.slug.trim(), blipSprite: d.blip.sprite, blipColor: d.blip.color, blipScale: d.blip.scale,
-        blipLabel: (d.blip.label || "").trim(), header: (d.header || "").trim(), jobs: d.jobs, price: d.price || 0,
+        blipLabel: (d.blip.label || "").trim(), header: (d.header || "").trim(), jobs: d.jobs,
         items: d.items.map((e) => ({ item: e.item, price: e.price, license: e.license || null })),
     }, "Magasin enregistré."));
 
@@ -206,15 +192,10 @@ function shopForm() {
                 field("Blip label (sur la carte)", blipLabel),
                 field("Image (en-tête)", header),
                 field("Jobs autorisés", jobs)),
-            appearance
-                ? h("div", { class: "card", style: "margin-top:16px" },
-                    h("h3", { class: "card-title" }, "Passage en magasin"),
-                    h("div", { class: "shop-field" }, h("label", null, "Prix du passage ($)"), passPrice),
-                    h("p", { class: "hint-line" }, `Le joueur paie en liquide ou par carte, seulement s'il valide ses changements (0 = gratuit). Menu : ${appearance}`))
-                : h("div", { class: "card", style: "margin-top:16px" },
-                    h("div", { class: "card-head dev-head" }, h("h3", { class: "card-title" }, `Articles (${d.items.length})`),
-                        h("button", { class: "btn small primary", onclick: openAddShopItem }, icon("i-plus"), "Ajouter")),
-                    items.length ? h("div", { class: "table" }, items) : h("p", { class: "hint-line", style: "margin:0" }, "Aucun article.")),
+            h("div", { class: "card", style: "margin-top:16px" },
+                h("div", { class: "card-head dev-head" }, h("h3", { class: "card-title" }, `Articles (${d.items.length})`),
+                    h("button", { class: "btn small primary", onclick: openAddShopItem }, icon("i-plus"), "Ajouter")),
+                items.length ? h("div", { class: "table" }, items) : h("p", { class: "hint-line", style: "margin:0" }, "Aucun article.")),
             h("div", { class: "card", style: "margin-top:16px" },
                 h("div", { class: "card-head dev-head" }, h("h3", { class: "card-title" }, `Emplacements (${d.locations.length})`),
                     h("button", { class: "btn small", onclick: () => shopAct("shops.addLocation", { id: d.id }, "Emplacement ajouté à votre position.") }, icon("i-plus"), "Ajouter à ma position")),

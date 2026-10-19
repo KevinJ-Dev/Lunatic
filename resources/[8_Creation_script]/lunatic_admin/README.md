@@ -279,10 +279,6 @@ Tuile **Catalogues** (`catalogs.manage`) : grille des catégories (`Config.ShopC
 
 Chaque magasin (`lunatic_shops`, `lunatic_shop_items`, `lunatic_shop_locations`) : label, clé (slug), blip (sprite, couleur, taille, label), image d'en-tête (pour la future interface maison), jobs autorisés (vide = tout le monde), articles (objet, prix, permis requis), emplacements (ajouter à sa position, Définir, TP, supprimer). Bouton **Enregistrer** pour la fiche et les articles ; les emplacements sont enregistrés tout de suite.
 
-En jeu (`lunatic_business`) : blips, marqueur et `[E]`.
+En jeu (`lunatic_business`) : blips, marqueur et `[E]`, interface de magasin d'ox_inventory (paiement en liquide, permis, distance). Catégories prêtes : celles de type `items` (LTD, Vangelico, Ammunation, Skateshop, Grossistes) ; apparence (lot C2) et location (lot C3) à venir.
 
-- **Magasins d'objets** (`items` : LTD, Vangelico, Ammunation, Skateshop, Grossistes) : interface de magasin d'ox_inventory (paiement en liquide, permis, distance).
-- **Magasins d'apparence** (lot C2 : Binco = vêtements et accessoires, Masquerade = masques, Barber et Shenails = menu visage cheveux, barbe, maquillage, Tattoo = tatouages) : un **prix du passage** par magasin, payé en liquide ou par carte au choix, seulement si le joueur valide ses changements ; menus d'illenium-appearance.
-- Location de véhicules : lot C3 à venir.
-
-Modifications locales à garder lors des mises à jour : magasins par défaut d'ox_inventory (`data/shops.lua`) retirés sauf les distributeurs ; `Config.Stores = {}` ajouté dans `illenium-appearance/shared/config.lua` (ses propres magasins et blips neutralisés).
+Les magasins par défaut d'ox_inventory (`data/shops.lua`) sont retirés, sauf les distributeurs (modification locale d'ox_inventory à garder lors des mises à jour).

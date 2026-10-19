@@ -216,7 +216,7 @@ function describeLog(log) {
         case "shops.save":
         case "shops.delete":
         case "shops.location":
-            summary = [d.label, d.category, d.operation, d.price !== undefined && d.price !== null ? `passage ${d.price} $` : d.items !== undefined ? `${d.items} article(s)` : null].filter(Boolean).join(" · ");
+            summary = [d.label, d.category, d.operation, d.items !== undefined ? `${d.items} article(s)` : null].filter(Boolean).join(" · ");
             break;
         case "catalogs.link":
             summary = `${d.label} · ${d.linked ? "rattaché à" : "détaché de"} ${d.job}`;

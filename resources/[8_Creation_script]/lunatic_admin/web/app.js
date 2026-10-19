@@ -1370,9 +1370,9 @@ async function demoNui(name, data) {
         licenses: [{ type: "dmv", label: "Code de la route", owned: true }, { type: "drive", label: "Permis voiture", owned: false }, { type: "weapon", label: "Port d'arme", owned: false }],
     } };
     if (name === "action" && data && data.action === "shops.categories") return { ok: true, categories: [
-        ["ltd", "LTD", true, 8], ["binco", "Binco", true, 3], ["vangelico", "Vangelico", true, 1], ["barber", "Barber", true, 2], ["ammunation", "Ammunation", true, 3], ["rental", "Location", false, 0],
-        ["masquerade", "Masquerade", true, 1], ["shenails", "Shenails", true, 1], ["skateshop", "Skateshop", true, 1], ["tattoo", "Tattoo", true, 2], ["wholesale", "Grossistes", true, 7],
-    ].map(([id, label, ready, count]) => ({ id, label, ready, count, kind: { binco: "clothing", masquerade: "masks", shenails: "makeup", barber: "barber", tattoo: "tattoo", rental: "rental" }[id] || "items" })) };
+        ["ltd", "LTD", true, 8], ["binco", "Binco", false, 0], ["vangelico", "Vangelico", true, 1], ["barber", "Barber", false, 0], ["ammunation", "Ammunation", true, 3], ["rental", "Location", false, 0],
+        ["masquerade", "Masquerade", false, 0], ["shenails", "Shenails", false, 0], ["skateshop", "Skateshop", true, 1], ["tattoo", "Tattoo", false, 0], ["wholesale", "Grossistes", true, 7],
+    ].map(([id, label, ready, count]) => ({ id, label, ready, count })) };
     if (name === "action" && data && data.action === "shops.list") return { ok: true, shops: [
         { id: 1, label: "PostOP", slug: "postop", items: 10, locations: 1 }, { id: 2, label: "Viande", slug: "viande", items: 4, locations: 1 },
         { id: 3, label: "Volaille", slug: "volaille", items: 4, locations: 1 }, { id: 4, label: "Vigneron", slug: "vigneron", items: 4, locations: 2 },
