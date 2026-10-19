@@ -790,6 +790,91 @@ end
 
 AddEventHandler('lunatic_admin:shopsChanged', registerShops)
 
+-- Magasins d'apparence (Binco, Masquerade, Shenails, Barber, Tattoo) : le joueur paie le prix du passage
+-- en liquide ou par carte, seulement s'il valide ses changements dans le menu illenium-appearance
+local APPEARANCE = { clothing = true, masks = true, barber = true, makeup = true, tattoo = true }
+
+---@return table|nil shop, table|nil xPlayer, string|nil error
+local function appearanceShop(src, slug, index)
+    local shop
+
+    for _, entry in ipairs(GlobalState.lunaticShops or {}) do
+        if entry.slug == slug then
+            shop = entry
+        end
+    end
+
+    local location = shop and shop.locations and shop.locations[tonumber(index) or -1]
+
+    if not location or not APPEARANCE[shop.kind] then
+        return nil, nil, 'Magasin introuvable.'
+    end
+
+    local xPlayer = ESX.GetPlayerFromId(src)
+
+    if not xPlayer then
+        return nil, nil, 'Personnage non chargé.'
+    end
+
+    if shop.jobs and #shop.jobs > 0 then
+        local allowed = false
+
+        for _, job in ipairs(shop.jobs) do
+            if xPlayer.getJob().name == job then
+                allowed = true
+            end
+        end
+
+        if not allowed then
+            return nil, nil, 'Magasin réservé.'
+        end
+    end
+
+    -- Le menu d'apparence peut éloigner la caméra, pas le joueur : marge confortable
+    if distanceTo(src, location) > 10.0 then
+        return nil, nil, 'Vous êtes trop loin.'
+    end
+
+    return shop, xPlayer
+end
+
+lib.callback.register('lunatic_business:appearanceEnter', function(src, slug, index)
+    local shop, xPlayer, err = appearanceShop(src, slug, index)
+
+    if not shop then
+        return fail(err)
+    end
+
+    return {
+        ok = true, kind = shop.kind, label = shop.label, price = shop.price or 0,
+        cash = xPlayer.getAccount('money').money, bank = xPlayer.getAccount('bank').money,
+    }
+end)
+
+lib.callback.register('lunatic_business:appearancePay', function(src, slug, index, account)
+    local shop, xPlayer, err = appearanceShop(src, slug, index)
+
+    if not shop then
+        return fail(err)
+    end
+
+    local price = shop.price or 0
+
+    if price <= 0 then
+        return { ok = true, price = 0 }
+    end
+
+    account = account == 'bank' and 'bank' or 'money'
+    local balance = xPlayer.getAccount(account)
+
+    if not balance or balance.money < price then
+        return fail(account == 'bank' and 'Solde bancaire insuffisant.' or "Vous n'avez pas assez de liquide.")
+    end
+
+    xPlayer.removeAccountMoney(account, price, ('Magasin : %s'):format(shop.label))
+    return { ok = true, price = price, account = account }
+end)
+
 CreateThread(function()
     while GetResourceState('ox_inventory') ~= 'started' do
         Wait(500)

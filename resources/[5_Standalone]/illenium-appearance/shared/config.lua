@@ -557,6 +557,11 @@ Config.Stores = {
 }
 
 
+
+-- Lunatic RP : magasins de vêtements, barbiers, tatoueurs gérés depuis le panel staff (lunatic_admin, tuile Catalogues)
+-- et ouverts par lunatic_business. La liste d'origine ci-dessus est neutralisée (modification locale à garder lors des mises à jour).
+Config.Stores = {}
+
 Config.ClothingRooms = {
     {
         job = "police",

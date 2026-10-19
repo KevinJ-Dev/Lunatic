@@ -42,3 +42,5 @@ exports.lunatic_business:getHistory(job, limit)                -- { amount, bala
 ## Magasins automatiques
 
 Les magasins de la tuile Catalogues du panel (LTD, Ammunation, grossistes…) sont enregistrés dans ox_inventory (`lunatic_<slug>`) à chaque modification : blips, marqueur et `[E]` à chaque emplacement, interface de magasin d'ox_inventory. Un magasin réservé à des jobs n'apparaît qu'à leurs membres.
+
+Magasins d'apparence (Binco, Masquerade, Barber, Shenails, Tattoo) : au `[E]`, choix du paiement (liquide ou carte) puis menu d'illenium-appearance limité à la catégorie ; le prix du passage n'est prélevé que si le joueur valide (sinon rien), et l'apparence n'est enregistrée qu'après paiement.

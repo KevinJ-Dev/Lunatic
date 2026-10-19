@@ -12,6 +12,7 @@ for _, entry in ipairs(Config.ShopCategories) do
 end
 
 local LIMITS = { items = 200, locations = 50, price = 10000000 }
+local APPEARANCE = { clothing = true, masks = true, barber = true, makeup = true, tattoo = true }
 
 ---@type table<number, table> magasins par id
 local shops = {}
@@ -49,6 +50,7 @@ local function load()
             id = tonumber(row.id), category = row.category, kind = category and category.kind or 'items', slug = row.slug, label = row.label,
             blip = { sprite = tonumber(row.blip_sprite), color = tonumber(row.blip_color), scale = tonumber(row.blip_scale), label = row.blip_label },
             header = row.header or '', jobs = ok and jobs or {}, items = {}, locations = {},
+            price = tonumber(row.price) or 0, -- magasins d'apparence : prix du passage
         }
     end
 
@@ -123,6 +125,9 @@ table.insert(Panel.readyHooks, function()
             KEY `idx_lunatic_shop_locations_shop` (`shop_id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ]])
+
+    -- Lot C2 : prix du passage des magasins d'apparence
+    MySQL.query.await('ALTER TABLE `lunatic_shops` ADD COLUMN IF NOT EXISTS `price` INT NOT NULL DEFAULT 0 AFTER `header`')
 
     load()
 end)
@@ -203,7 +208,7 @@ Panel.actions['shops.categories'] = function(_, actor)
     local list = {}
 
     for _, entry in ipairs(Config.ShopCategories) do
-        list[#list + 1] = { id = entry.id, label = entry.label, kind = entry.kind, ready = entry.kind == 'items', count = counts[entry.id] or 0 }
+        list[#list + 1] = { id = entry.id, label = entry.label, kind = entry.kind, ready = entry.kind == 'items' or APPEARANCE[entry.kind] == true, count = counts[entry.id] or 0 }
     end
 
     return { ok = true, silent = true, categories = list }
@@ -256,8 +261,8 @@ Panel.actions['shops.info'] = function(_, actor, data)
     table.sort(jobList, function(a, b) return a.label < b.label end)
 
     return { ok = true, silent = true, shop = {
-        id = shop.id, category = shop.category, slug = shop.slug, label = shop.label, blip = shop.blip, header = shop.header,
-        jobs = shop.jobs, items = items, locations = shop.locations,
+        id = shop.id, category = shop.category, kind = shop.kind, slug = shop.slug, label = shop.label, blip = shop.blip, header = shop.header,
+        jobs = shop.jobs, items = items, locations = shop.locations, price = shop.price,
     }, licenses = licenseList, jobs = jobList }
 end
 
@@ -346,9 +351,20 @@ Panel.actions['shops.save'] = function(src, actor, data)
         return Panel.fail(('Maximum %d articles.'):format(LIMITS.items))
     end
 
+    -- Magasin d'apparence : un prix du passage, pas d'articles
+    local price = APPEARANCE[shop.kind] and number(data.price, 0, LIMITS.price, true) or 0
+
+    if not price then
+        return Panel.fail(('Prix invalide : nombre entier de 0 à %d.'):format(LIMITS.price))
+    end
+
+    if APPEARANCE[shop.kind] then
+        data.items = {}
+    end
+
     local queries = {
-        { query = 'UPDATE `lunatic_shops` SET `slug` = ?, `label` = ?, `blip_sprite` = ?, `blip_color` = ?, `blip_scale` = ?, `blip_label` = ?, `header` = ?, `jobs` = ? WHERE `id` = ?',
-            values = { slug, label, sprite, color, scale, blipLabel, header, json.encode(jobs), shop.id } },
+        { query = 'UPDATE `lunatic_shops` SET `slug` = ?, `label` = ?, `blip_sprite` = ?, `blip_color` = ?, `blip_scale` = ?, `blip_label` = ?, `header` = ?, `jobs` = ?, `price` = ? WHERE `id` = ?',
+            values = { slug, label, sprite, color, scale, blipLabel, header, json.encode(jobs), price, shop.id } },
         { query = 'DELETE FROM `lunatic_shop_items` WHERE `shop_id` = ?', values = { shop.id } },
     }
 
@@ -374,7 +390,7 @@ Panel.actions['shops.save'] = function(src, actor, data)
     end
 
     load()
-    Logs.add(src, 'shops.save', nil, { id = shop.id, label = label, items = #data.items })
+    Logs.add(src, 'shops.save', nil, { id = shop.id, label = label, items = #data.items, price = APPEARANCE[shop.kind] and price or nil })
 
     return { ok = true, silent = true }
 end

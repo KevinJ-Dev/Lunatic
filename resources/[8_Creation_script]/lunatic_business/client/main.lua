@@ -590,12 +590,91 @@ CreateThread(function()
     refreshShops()
 end)
 
-local function openShop(target)
-    if target.shop.kind ~= 'items' then
-        return notify(("« %s » n'est pas encore disponible."):format(target.label), 'info')
+---------------------------------------------------------------------
+-- Magasins d'apparence (illenium-appearance)
+---------------------------------------------------------------------
+
+local NO_COMPONENTS = { masks = false, upperBody = false, lowerBody = false, bags = false, shoes = false, scarfAndChains = false, bodyArmor = false, shirts = false, decals = false, jackets = false }
+local NO_PROPS = { hats = false, glasses = false, ear = false, watches = false, bracelets = false }
+
+-- Ce que chaque type de magasin permet de modifier
+local function appearanceConfig(kind)
+    local config = {
+        ped = false, headBlend = false, faceFeatures = false, headOverlays = false,
+        components = false, componentConfig = NO_COMPONENTS, props = false, propConfig = NO_PROPS,
+        tattoos = false, enableExit = true, automaticFade = true,
+    }
+
+    if kind == 'clothing' then
+        config.components = true
+        config.componentConfig = { masks = false, upperBody = true, lowerBody = true, bags = true, shoes = true, scarfAndChains = true, bodyArmor = false, shirts = true, decals = false, jackets = true }
+        config.props = true
+        config.propConfig = { hats = true, glasses = true, ear = true, watches = true, bracelets = true }
+    elseif kind == 'masks' then
+        config.components = true
+        config.componentConfig = { masks = true, upperBody = false, lowerBody = false, bags = false, shoes = false, scarfAndChains = false, bodyArmor = false, shirts = false, decals = false, jackets = false }
+    elseif kind == 'barber' or kind == 'makeup' then
+        config.headOverlays = true
+    elseif kind == 'tattoo' then
+        config.tattoos = true
     end
 
-    exports.ox_inventory:openInventory('shop', { type = ('lunatic_%s'):format(target.shop.slug), id = target.index })
+    return config
+end
+
+local function customize(target, info, account)
+    exports['illenium-appearance']:startPlayerCustomization(function(appearance)
+        if not appearance then
+            return notify('Aucun changement : rien à payer.', 'info')
+        end
+
+        local result = lib.callback.await('lunatic_business:appearancePay', false, target.shop.slug, target.index, account)
+
+        if result and result.ok then
+            TriggerServerEvent('illenium-appearance:server:saveAppearance', appearance)
+            notify(result.price > 0 and ('Payé %s %s.'):format(money(result.price), result.account == 'bank' and 'par carte' or 'en liquide') or 'Changements enregistrés.', 'success')
+        else
+            -- Paiement refusé : on remet l'apparence enregistrée
+            notify(result and result.error or 'Paiement impossible.', 'error')
+            TriggerEvent('illenium-appearance:client:reloadSkin', true)
+        end
+    end, appearanceConfig(info.kind))
+end
+
+local function openAppearanceShop(target)
+    local info = lib.callback.await('lunatic_business:appearanceEnter', false, target.shop.slug, target.index)
+
+    if failed(info) then
+        return
+    end
+
+    if info.price <= 0 then
+        return customize(target, info, nil)
+    end
+
+    -- Choix du paiement, prélevé seulement si le joueur valide ses changements
+    lib.registerContext({ id = 'lb_appearance', title = info.label, options = {
+        { title = ('Payer en liquide · %s'):format(money(info.price)), description = ('Liquide : %s'):format(money(info.cash)), icon = 'money-bill',
+            disabled = info.cash < info.price, onSelect = function() customize(target, info, 'money') end },
+        { title = ('Payer par carte · %s'):format(money(info.price)), description = ('Banque : %s'):format(money(info.bank)), icon = 'credit-card',
+            disabled = info.bank < info.price, onSelect = function() customize(target, info, 'bank') end },
+        { title = 'Vous ne payez que si vous validez vos changements.', readOnly = true, icon = 'circle-info' },
+    } })
+    lib.showContext('lb_appearance')
+end
+
+local APPEARANCE_KINDS = { clothing = true, masks = true, barber = true, makeup = true, tattoo = true }
+
+local function openShop(target)
+    if target.shop.kind == 'items' then
+        return exports.ox_inventory:openInventory('shop', { type = ('lunatic_%s'):format(target.shop.slug), id = target.index })
+    end
+
+    if APPEARANCE_KINDS[target.shop.kind] then
+        return openAppearanceShop(target)
+    end
+
+    notify(("« %s » n'est pas encore disponible."):format(target.label), 'info')
 end
 
 ---------------------------------------------------------------------
