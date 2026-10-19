@@ -213,6 +213,7 @@ const NAV = [
     { id: "members", label: "Membres", icon: "i-users", show: () => can("staff.view"), group: "perms" },
     { id: "companies", label: "Entreprises", icon: "i-store", show: () => can("companies.manage") },
     { id: "publics", label: "Services publics", icon: "i-shield", show: () => can("publics.manage") },
+    { id: "crews", label: "Crews", icon: "i-flag", show: () => can("crews.manage") },
     { id: "catalogs", label: "Catalogues", icon: "i-book", show: () => can("catalogs.manage") },
     { id: "poles", label: "Pôle emploi", icon: "i-briefcase", show: () => can("poles.manage") },
     { id: "events", label: "Events", icon: "i-calendar", show: () => can("events.manage") },
@@ -273,7 +274,7 @@ function render() {
     );
     $("me").querySelector(".avatar").style.background = me.rank.color;
 
-    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "catalogs", "poles", "events", "dev", "ranks", "members"]) {
+    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "crews", "catalogs", "poles", "events", "dev", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
     }
 
@@ -288,6 +289,7 @@ function render() {
     if (view === "poles") renderPoles();
     if (view === "companies") renderStructures("company");
     if (view === "catalogs") renderShops();
+    if (view === "crews") renderCrews();
     if (view === "publics") renderStructures("public");
     if (view === "events") renderEvents();
     if (view === "dev") renderDev();
@@ -1292,7 +1294,7 @@ window.addEventListener("message", (event) => {
 
 function demoState() {
     return {
-        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["catalogs.manage", "companies.manage", "publics.manage", "players.crash", "vehicles.give", "dev.manage", "events.manage", "poles.manage", "server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["crews.manage", "catalogs.manage", "companies.manage", "publics.manage", "players.crash", "vehicles.give", "dev.manage", "events.manage", "poles.manage", "server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],
@@ -1369,6 +1371,17 @@ async function demoNui(name, data) {
         lastSeen: Math.floor(Date.now() / 1000) - 7200, createdAt: Math.floor(Date.now() / 1000) - 20 * 86400,
         licenses: [{ type: "dmv", label: "Code de la route", owned: true }, { type: "drive", label: "Permis voiture", owned: false }, { type: "weapon", label: "Port d'arme", owned: false }],
     } };
+    if (name === "action" && data && data.action === "crews.list") return { ok: true,
+        types: [{ id: "mafia", label: "Mafia" }, { id: "mc", label: "MC" }, { id: "organisation", label: "Organisation" }, { id: "gang", label: "Gang" }],
+        crews: [{ id: 1, label: "Ballas", type: "gang", typeLabel: "Gang", color: "#9b59b6", level: 3, members: 8 }, { id: 2, label: "Lost MC", type: "mc", typeLabel: "MC", color: "#c0392b", level: 5, members: 12 }] };
+    if (name === "action" && data && data.action === "crews.info") return { ok: true,
+        types: [{ id: "mafia", label: "Mafia" }, { id: "mc", label: "MC" }, { id: "organisation", label: "Organisation" }, { id: "gang", label: "Gang" }],
+        crew: { id: data.payload.id, slug: "ballas", label: "Ballas", type: "gang", typeLabel: "Gang", color: "#9b59b6", logo: "", xp: 3200, level: 3, nextLevelXp: 5000, topRank: 3,
+            ranks: [{ rank: 0, label: "Rang C" }, { rank: 1, label: "Rang B" }, { rank: 2, label: "Rang A" }, { rank: 3, label: "Rang S" }],
+            members: [
+                { identifier: "aa11223344", name: "Jean Dupont", online: 2, rank: 3, rankLabel: "Rang S", joined: Math.floor(Date.now() / 1000) - 86400 * 9 },
+                { identifier: "cc33445566", name: "Lina Petit", rank: 1, rankLabel: "Rang B", joined: Math.floor(Date.now() / 1000) - 86400 * 3 },
+            ], createdBy: "Ramiro Lotus", createdAt: Math.floor(Date.now() / 1000) - 86400 * 10 } };
     if (name === "action" && data && data.action === "shops.categories") return { ok: true, categories: [
         ["ltd", "LTD", true, 8], ["binco", "Binco", false, 0], ["vangelico", "Vangelico", true, 1], ["barber", "Barber", false, 0], ["ammunation", "Ammunation", true, 3], ["rental", "Location", true, 2],
         ["masquerade", "Masquerade", false, 0], ["shenails", "Shenails", false, 0], ["skateshop", "Skateshop", true, 1], ["tattoo", "Tattoo", false, 0], ["wholesale", "Grossistes", true, 7],

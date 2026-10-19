@@ -284,3 +284,11 @@ En jeu (`lunatic_business`) : blips, marqueur et `[E]`, interface de magasin d'o
 **Location (lot C3)** : à la place des articles, une liste de véhicules (`lunatic_shop_vehicles` : modèle vérifié par le jeu du staff, nom, prix, durée en minutes) ; chaque emplacement a une **Sortie** des véhicules (bouton, à sa position et orientation ; sinon 4 m devant le comptoir).
 
 Les magasins par défaut d'ox_inventory (`data/shops.lua`) sont retirés, sauf les distributeurs (modification locale d'ox_inventory à garder lors des mises à jour).
+
+## Crews (illégal, étape 1)
+
+Tuile **Crews** (`crews.manage`, famille Illégal). Tables `lunatic_crews`, `lunatic_crew_ranks`, `lunatic_crew_members` (un crew au plus par personnage).
+
+- **Création** : nom, clé, type (`Config.CrewTypes` : Mafia, MC, Organisation, Gang) ; rangs par défaut `Config.CrewDefaultRanks` (Rang C → Rang S, le plus haut = chef).
+- **Fiche** : identité (nom, type, couleur, logo), rangs (renommer, ajouter au-dessus, retirer le plus haut s'il est vide), membres (ajout par ID ou nom RP, rang, retrait), progression (XP, level selon `Config.CrewLevels`, ajustement d'XP ; l'influence viendra avec les territoires).
+- Statebag `crew` des joueurs connectés et exports pour `lunatic_illegal` (menu `/crew` en jeu).

@@ -12,6 +12,7 @@ Permissions.Families = {
     { id = 'server',    label = 'Serveur' },
     { id = 'dev',       label = 'Développeur' },
     { id = 'structures', label = 'Entreprises et services publics' },
+    { id = 'illegal',    label = 'Illégal' },
     { id = 'shop',      label = 'Premium et boutique' },
     { id = 'chat',      label = 'Tchat' },
     { id = 'manage',    label = 'Gestion' },
@@ -45,6 +46,9 @@ Permissions.List = {
 
     -- Lot I : pôles (métiers ESX)
     { id = 'poles.manage', family = 'server', label = 'Pôle emploi : métiers, grades, salaires et membres' },
+
+    -- Illégal
+    { id = 'crews.manage', family = 'illegal', label = 'Crews : créer et gérer les crews (type, rangs, membres, XP)' },
 
     -- Lot E1 : entreprises et services publics
     { id = 'companies.manage', family = 'structures', label = 'Entreprises : créer et gérer les entreprises (fiche, grades, membres)' },

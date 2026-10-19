@@ -68,6 +68,11 @@ const ACTION_LABELS = {
     "catalogs.delete": "a supprimé un catalogue",
     "catalogs.line": "a modifié un catalogue",
     "catalogs.link": "a rattaché ou détaché un catalogue",
+    "crews.create": "a créé un crew",
+    "crews.save": "a modifié un crew",
+    "crews.delete": "a supprimé un crew",
+    "crews.member": "a modifié les membres d'un crew :",
+    "crews.xp": "a ajusté l'XP d'un crew",
     "shops.create": "a créé un magasin",
     "shops.save": "a modifié un magasin",
     "shops.delete": "a supprimé un magasin",
@@ -211,6 +216,15 @@ function describeLog(log) {
         case "catalogs.delete":
         case "catalogs.line":
             summary = [d.label, d.item, d.operation].filter(Boolean).join(" · ");
+            break;
+        case "crews.create":
+        case "crews.save":
+        case "crews.delete":
+        case "crews.member":
+            summary = [d.label, d.type, d.operation].filter(Boolean).join(" · ");
+            break;
+        case "crews.xp":
+            summary = `${d.label} · ${d.amount > 0 ? "+" : ""}${d.amount} XP`;
             break;
         case "shops.create":
         case "shops.save":
