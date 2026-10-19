@@ -22,7 +22,6 @@ La **Sonnette** est visible par tous ; les autres points seulement par les membr
 | Vestiaire | Tenues par grade (homme / femme) : le patron enregistre la tenue qu'il porte pour un grade ; les membres enfilent celles de leur grade et des grades inférieurs, ou reprennent leur tenue civile |
 | Sonnette | Prévient les membres connectés (notification + point GPS), une sonnerie toutes les `Config.DoorbellCooldown` secondes |
 | Custom | Événement serveur `lunatic_business:custom` (src, point) et client `lunatic_business:customClient` (point) |
-
 | Catalogue | Boutiques (tout le monde : liquide ou carte, argent versé à la société) et équipements (membres selon leur grade, payés par la société) rattachés à la structure |
 | Armurerie | Équipements seulement (services publics) |
 | Craft | Recettes : barre de progression annulable, ingrédients retirés et objet donné à la fin seulement (durée vérifiée par le serveur) |
