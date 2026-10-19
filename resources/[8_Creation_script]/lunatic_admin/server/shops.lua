@@ -48,7 +48,7 @@ local function load()
         shops[tonumber(row.id)] = {
             id = tonumber(row.id), category = row.category, kind = category and category.kind or 'items', slug = row.slug, label = row.label,
             blip = { sprite = tonumber(row.blip_sprite), color = tonumber(row.blip_color), scale = tonumber(row.blip_scale), label = row.blip_label },
-            header = row.header or '', jobs = ok and jobs or {}, items = {}, locations = {},
+            header = row.header or '', jobs = ok and jobs or {}, items = {}, locations = {}, vehicles = {},
         }
     end
 
@@ -64,7 +64,21 @@ local function load()
         local shop = shops[tonumber(row.shop_id)]
 
         if shop then
-            shop.locations[#shop.locations + 1] = { id = tonumber(row.id), x = tonumber(row.x), y = tonumber(row.y), z = tonumber(row.z), h = tonumber(row.h) }
+            shop.locations[#shop.locations + 1] = {
+                id = tonumber(row.id), x = tonumber(row.x), y = tonumber(row.y), z = tonumber(row.z), h = tonumber(row.h),
+                -- Location : sortie des véhicules (sinon devant l'emplacement)
+                spawn = row.sx and { x = tonumber(row.sx), y = tonumber(row.sy), z = tonumber(row.sz), h = tonumber(row.sh) } or nil,
+            }
+        end
+    end
+
+    for _, row in ipairs(MySQL.query.await('SELECT * FROM `lunatic_shop_vehicles` ORDER BY `position`, `id`') or {}) do
+        local shop = shops[tonumber(row.shop_id)]
+
+        if shop then
+            shop.vehicles[#shop.vehicles + 1] = {
+                id = tonumber(row.id), model = row.model, label = row.label, type = row.type, price = tonumber(row.price), duration = tonumber(row.duration),
+            }
         end
     end
 
@@ -122,6 +136,30 @@ table.insert(Panel.readyHooks, function()
             PRIMARY KEY (`id`),
             KEY `idx_lunatic_shop_locations_shop` (`shop_id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ]])
+
+    -- Lot C3 : véhicules des agences de location et sortie des véhicules par emplacement
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `lunatic_shop_vehicles` (
+            `id` INT NOT NULL AUTO_INCREMENT,
+            `shop_id` INT NOT NULL,
+            `model` VARCHAR(32) NOT NULL,
+            `label` VARCHAR(60) NOT NULL,
+            `type` VARCHAR(16) NOT NULL DEFAULT 'automobile',
+            `price` INT NOT NULL DEFAULT 0,
+            `duration` INT NOT NULL DEFAULT 30,
+            `position` INT NOT NULL DEFAULT 0,
+            PRIMARY KEY (`id`),
+            KEY `idx_lunatic_shop_vehicles_shop` (`shop_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ]])
+
+    MySQL.query.await([[
+        ALTER TABLE `lunatic_shop_locations`
+            ADD COLUMN IF NOT EXISTS `sx` DOUBLE NULL DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS `sy` DOUBLE NULL DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS `sz` DOUBLE NULL DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS `sh` DOUBLE NULL DEFAULT NULL
     ]])
 
     load()
@@ -203,7 +241,7 @@ Panel.actions['shops.categories'] = function(_, actor)
     local list = {}
 
     for _, entry in ipairs(Config.ShopCategories) do
-        list[#list + 1] = { id = entry.id, label = entry.label, kind = entry.kind, ready = entry.kind == 'items', count = counts[entry.id] or 0 }
+        list[#list + 1] = { id = entry.id, label = entry.label, kind = entry.kind, ready = entry.kind == 'items' or entry.kind == 'rental', count = counts[entry.id] or 0 }
     end
 
     return { ok = true, silent = true, categories = list }
@@ -257,7 +295,7 @@ Panel.actions['shops.info'] = function(_, actor, data)
 
     return { ok = true, silent = true, shop = {
         id = shop.id, category = shop.category, slug = shop.slug, label = shop.label, blip = shop.blip, header = shop.header,
-        jobs = shop.jobs, items = items, locations = shop.locations,
+        jobs = shop.jobs, items = items, locations = shop.locations, vehicles = shop.vehicles, kind = shop.kind,
     }, licenses = licenseList, jobs = jobList }
 end
 
@@ -388,6 +426,7 @@ Panel.actions['shops.delete'] = function(src, actor, data)
 
     MySQL.transaction.await({
         { query = 'DELETE FROM `lunatic_shop_items` WHERE `shop_id` = ?', values = { shop.id } },
+        { query = 'DELETE FROM `lunatic_shop_vehicles` WHERE `shop_id` = ?', values = { shop.id } },
         { query = 'DELETE FROM `lunatic_shop_locations` WHERE `shop_id` = ?', values = { shop.id } },
         { query = 'DELETE FROM `lunatic_shops` WHERE `id` = ?', values = { shop.id } },
     })
@@ -486,6 +525,96 @@ Panel.actions['shops.tpLocation'] = function(src, actor, data)
     end
 
     TriggerClientEvent('lunatic_admin:teleport', src, vector3(location.x, location.y, location.z + 1.0))
+    return { ok = true, silent = true }
+end
+
+---------------------------------------------------------------------
+-- Agences de location (lot C3) : véhicules et sortie des véhicules
+---------------------------------------------------------------------
+
+local VEHICLE_TYPES = { automobile = true, bike = true, boat = true, heli = true, plane = true, submarine = true, trailer = true }
+
+Panel.actions['shops.addVehicle'] = function(src, actor, data)
+    local shop, err = shopFor(actor, data.id)
+
+    if not shop then
+        return err
+    end
+
+    if shop.kind ~= 'rental' then
+        return Panel.fail("Ce magasin n'est pas une agence de location.")
+    end
+
+    local model = type(data.model) == 'string' and data.model:lower():gsub('%s', '') or ''
+    local label = cleanText(data.label, 2, 60)
+    local price = number(data.price, 0, LIMITS.price, true)
+    local duration = number(data.duration, 1, 1440, true)
+
+    if not model:match('^[%w_]+$') or #model > 32 then
+        return Panel.fail('Nom de modèle invalide.')
+    end
+
+    if not label or not price or not duration then
+        return Panel.fail('Nom (2-60), prix (entier) ou durée (1 à 1440 minutes) invalide.')
+    end
+
+    -- Le serveur ne connaît pas les modèles : le jeu du staff vérifie qu'il existe et donne son type
+    local ok, info = pcall(lib.callback.await, 'lunatic_admin:vehicleModel', src, model)
+
+    if not ok or type(info) ~= 'table' then
+        return Panel.fail('Vérification du modèle impossible (êtes-vous en jeu ?).')
+    end
+
+    if not info.ok or not VEHICLE_TYPES[info.type] then
+        return Panel.fail(('Le modèle « %s » n\'existe pas.'):format(model))
+    end
+
+    MySQL.insert.await('INSERT INTO `lunatic_shop_vehicles` (`shop_id`, `model`, `label`, `type`, `price`, `duration`, `position`) VALUES (?, ?, ?, ?, ?, ?, ?)', {
+        shop.id, model, label, info.type, price, duration, #shop.vehicles,
+    })
+
+    load()
+    Logs.add(src, 'shops.save', nil, { id = shop.id, label = shop.label, operation = ('véhicule %s ajouté'):format(model) })
+
+    return { ok = true, silent = true }
+end
+
+Panel.actions['shops.deleteVehicle'] = function(src, actor, data)
+    local shop, err = shopFor(actor, data.id)
+
+    if not shop then
+        return err
+    end
+
+    local changed = MySQL.update.await('DELETE FROM `lunatic_shop_vehicles` WHERE `id` = ? AND `shop_id` = ?', { tonumber(data.vehicleId) or -1, shop.id })
+
+    if (tonumber(changed) or 0) == 0 then
+        return Panel.fail('Véhicule introuvable.')
+    end
+
+    load()
+    return { ok = true, silent = true }
+end
+
+-- Sortie des véhicules d'un emplacement : position et orientation actuelles du staff
+Panel.actions['shops.setSpawn'] = function(src, actor, data)
+    local shop, location, err = locationFor(actor, data.locationId)
+
+    if not shop then
+        return err
+    end
+
+    local ped = GetPlayerPed(src)
+
+    if not ped or ped == 0 then
+        return Panel.fail("Votre personnage n'est pas encore apparu.")
+    end
+
+    local coords = GetEntityCoords(ped)
+    MySQL.update.await('UPDATE `lunatic_shop_locations` SET `sx` = ?, `sy` = ?, `sz` = ?, `sh` = ? WHERE `id` = ?', { coords.x, coords.y, coords.z, GetEntityHeading(ped), location.id })
+    load()
+    Logs.add(src, 'shops.location', nil, { id = shop.id, label = shop.label, operation = 'sortie véhicules' })
+
     return { ok = true, silent = true }
 end
 

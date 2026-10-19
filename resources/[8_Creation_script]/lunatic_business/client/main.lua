@@ -590,12 +590,83 @@ CreateThread(function()
     refreshShops()
 end)
 
-local function openShop(target)
-    if target.shop.kind ~= 'items' then
-        return notify(("« %s » n'est pas encore disponible."):format(target.label), 'info')
+---------------------------------------------------------------------
+-- Agences de location
+---------------------------------------------------------------------
+
+local openRental
+
+local function rent(target, info, offer, account)
+    local result = lib.callback.await('lunatic_business:rent', false, target.shop.slug, target.index, offer.id, account)
+
+    if not failed(result) then
+        notify(('%s loué pour %d minutes%s (plaque %s).'):format(result.label, result.duration,
+            result.price > 0 and (', ' .. money(result.price) .. (result.account == 'bank' and ' par carte' or ' en liquide')) or '', result.plate), 'success')
+    end
+end
+
+local function choosePayment(target, info, offer)
+    if offer.price <= 0 then
+        return rent(target, info, offer, nil)
     end
 
-    exports.ox_inventory:openInventory('shop', { type = ('lunatic_%s'):format(target.shop.slug), id = target.index })
+    lib.registerContext({ id = 'lb_rental_pay', title = ('%s · %s'):format(offer.label, money(offer.price)), menu = 'lb_rental', options = {
+        { title = 'Payer en liquide', description = ('Liquide : %s'):format(money(info.cash)), icon = 'money-bill',
+            disabled = info.cash < offer.price, onSelect = function() rent(target, info, offer, 'money') end },
+        { title = 'Payer par carte', description = ('Banque : %s'):format(money(info.bank)), icon = 'credit-card',
+            disabled = info.bank < offer.price, onSelect = function() rent(target, info, offer, 'bank') end },
+    } })
+    lib.showContext('lb_rental_pay')
+end
+
+openRental = function(target)
+    local info = lib.callback.await('lunatic_business:rentalOpen', false, target.shop.slug, target.index)
+
+    if failed(info) then
+        return
+    end
+
+    local options = {}
+
+    if info.active then
+        options[#options + 1] = { title = ('Location en cours : %s'):format(info.active.label), description = ('Plaque %s · reste %d min'):format(info.active.plate, math.ceil(info.active.remaining / 60)), icon = 'clock', readOnly = true }
+        options[#options + 1] = { title = 'Rendre le véhicule', description = 'Le véhicule doit être garé près du comptoir', icon = 'key', onSelect = function()
+            local result = lib.callback.await('lunatic_business:rentReturn', false, target.shop.slug, target.index)
+
+            if not failed(result) then
+                notify(('%s rendu, merci !'):format(result.label), 'success')
+            end
+        end }
+    end
+
+    for _, offer in ipairs(info.vehicles) do
+        options[#options + 1] = {
+            title = offer.label,
+            description = ('%s pour %d minutes'):format(offer.price > 0 and money(offer.price) or 'Gratuit', offer.duration),
+            icon = 'car',
+            disabled = info.active ~= nil,
+            onSelect = function() choosePayment(target, info, offer) end,
+        }
+    end
+
+    if #info.vehicles == 0 then
+        options[#options + 1] = { title = 'Aucun véhicule disponible', readOnly = true }
+    end
+
+    lib.registerContext({ id = 'lb_rental', title = info.label, options = options })
+    lib.showContext('lb_rental')
+end
+
+local function openShop(target)
+    if target.shop.kind == 'items' then
+        return exports.ox_inventory:openInventory('shop', { type = ('lunatic_%s'):format(target.shop.slug), id = target.index })
+    end
+
+    if target.shop.kind == 'rental' then
+        return openRental(target)
+    end
+
+    notify(("« %s » n'est pas encore disponible."):format(target.label), 'info')
 end
 
 ---------------------------------------------------------------------

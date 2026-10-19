@@ -790,6 +790,229 @@ end
 
 AddEventHandler('lunatic_admin:shopsChanged', registerShops)
 
+---------------------------------------------------------------------
+-- Location de véhicules (agences de la tuile Catalogues) : un véhicule à la fois par joueur
+---------------------------------------------------------------------
+
+---@type table<number, table> location en cours par joueur
+local rentals = {}
+
+---@return table|nil shop, table|nil location, table|nil xPlayer, string|nil error
+local function shopAt(src, slug, index, kind)
+    local shop
+
+    for _, entry in ipairs(GlobalState.lunaticShops or {}) do
+        if entry.slug == slug then
+            shop = entry
+        end
+    end
+
+    local location = shop and shop.locations and shop.locations[tonumber(index) or -1]
+
+    if not location or shop.kind ~= kind then
+        return nil, nil, nil, 'Magasin introuvable.'
+    end
+
+    local xPlayer = ESX.GetPlayerFromId(src)
+
+    if not xPlayer then
+        return nil, nil, nil, 'Personnage non chargé.'
+    end
+
+    if shop.jobs and #shop.jobs > 0 then
+        local allowed = false
+
+        for _, job in ipairs(shop.jobs) do
+            if xPlayer.getJob().name == job then
+                allowed = true
+            end
+        end
+
+        if not allowed then
+            return nil, nil, nil, 'Agence réservée.'
+        end
+    end
+
+    if distanceTo(src, location) > Config.ActionDistance + 2.0 then
+        return nil, nil, nil, 'Vous êtes trop loin.'
+    end
+
+    return shop, location, xPlayer
+end
+
+local function rentalInfo(rental)
+    return rental and { label = rental.label, plate = rental.plate, remaining = math.max(0, rental.expiresAt - os.time()) } or nil
+end
+
+lib.callback.register('lunatic_business:rentalOpen', function(src, slug, index)
+    local shop, _, xPlayer, err = shopAt(src, slug, index, 'rental')
+
+    if not shop then
+        return fail(err)
+    end
+
+    return {
+        ok = true, label = shop.label, vehicles = shop.vehicles or {}, active = rentalInfo(rentals[src]),
+        cash = xPlayer.getAccount('money').money, bank = xPlayer.getAccount('bank').money,
+    }
+end)
+
+-- Sortie des véhicules : celle définie dans le panel, sinon 4 m devant le comptoir
+local function spawnOf(location)
+    if location.spawn then
+        return location.spawn
+    end
+
+    local heading = math.rad(location.h or 0.0)
+    return { x = location.x - math.sin(heading) * 4.0, y = location.y + math.cos(heading) * 4.0, z = location.z + 0.5, h = location.h or 0.0 }
+end
+
+lib.callback.register('lunatic_business:rent', function(src, slug, index, vehicleId, account)
+    local shop, location, xPlayer, err = shopAt(src, slug, index, 'rental')
+
+    if not shop then
+        return fail(err)
+    end
+
+    if rentals[src] then
+        return fail('Vous avez déjà une location en cours : rendez-la d\'abord.')
+    end
+
+    local offer
+
+    for _, vehicle in ipairs(shop.vehicles or {}) do
+        if vehicle.id == tonumber(vehicleId) then
+            offer = vehicle
+        end
+    end
+
+    if not offer then
+        return fail('Véhicule introuvable.')
+    end
+
+    local spawn = spawnOf(location)
+    local spawnCoords = vector3(spawn.x, spawn.y, spawn.z)
+
+    for _, vehicle in ipairs(GetAllVehicles()) do
+        if #(GetEntityCoords(vehicle) - spawnCoords) < 3.0 then
+            return fail('La sortie est encombrée : dégagez-la puis réessayez.')
+        end
+    end
+
+    account = account == 'bank' and 'bank' or 'money'
+
+    if offer.price > 0 then
+        local balance = xPlayer.getAccount(account)
+
+        if not balance or balance.money < offer.price then
+            return fail(account == 'bank' and 'Solde bancaire insuffisant.' or "Vous n'avez pas assez de liquide.")
+        end
+
+        xPlayer.removeAccountMoney(account, offer.price, ('Location : %s (%s)'):format(offer.label, shop.label))
+    end
+
+    local vehicle = CreateVehicleServerSetter(joaat(offer.model), offer.type or 'automobile', spawn.x, spawn.y, spawn.z, spawn.h or 0.0)
+    local timeout = GetGameTimer() + 3000
+
+    while (not vehicle or vehicle == 0 or not DoesEntityExist(vehicle)) and GetGameTimer() < timeout do
+        Wait(0)
+    end
+
+    if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then
+        if offer.price > 0 then
+            xPlayer.addAccountMoney(account, offer.price, 'Remboursement location')
+        end
+
+        return fail("Le véhicule n'a pas pu sortir. Vous avez été remboursé.")
+    end
+
+    local plate = ('LOC%05d'):format(math.random(0, 99999))
+    SetEntityRoutingBucket(vehicle, GetPlayerRoutingBucket(src))
+    SetVehicleNumberPlateText(vehicle, plate)
+    TaskWarpPedIntoVehicle(GetPlayerPed(src), vehicle, -1)
+
+    rentals[src] = { vehicle = vehicle, plate = plate, label = offer.label, location = location, expiresAt = os.time() + offer.duration * 60, warned = {} }
+    return { ok = true, label = offer.label, plate = plate, duration = offer.duration, price = offer.price, account = account }
+end)
+
+lib.callback.register('lunatic_business:rentReturn', function(src, slug, index)
+    local shop, location, _, err = shopAt(src, slug, index, 'rental')
+
+    if not shop then
+        return fail(err)
+    end
+
+    local rental = rentals[src]
+
+    if not rental then
+        return fail("Vous n'avez pas de location en cours.")
+    end
+
+    if DoesEntityExist(rental.vehicle) then
+        if #(GetEntityCoords(rental.vehicle) - vector3(location.x, location.y, location.z)) > Config.RentalReturnDistance then
+            return fail('Ramenez le véhicule près du comptoir pour le rendre.')
+        end
+
+        DeleteEntity(rental.vehicle)
+    end
+
+    rentals[src] = nil
+    return { ok = true, label = rental.label }
+end)
+
+local function hasOccupant(vehicle)
+    for seat = -1, 6 do
+        local ped = GetPedInVehicleSeat(vehicle, seat)
+
+        if ped and ped ~= 0 then
+            return true
+        end
+    end
+
+    return false
+end
+
+-- Fin des locations : avertissements, puis véhicule repris dès qu'il est vide (ou de force après Config.RentalGrace)
+CreateThread(function()
+    while true do
+        Wait(10000)
+        local now = os.time()
+
+        for src, rental in pairs(rentals) do
+            local remaining = rental.expiresAt - now
+
+            if not DoesEntityExist(rental.vehicle) then
+                rentals[src] = nil
+                notify(src, ('Votre location (%s) est terminée : le véhicule a disparu.'):format(rental.label), 'info')
+            elseif remaining > 0 then
+                for _, mark in ipairs(Config.RentalWarnings) do
+                    if remaining <= mark and not rental.warned[mark] then
+                        rental.warned[mark] = true
+                        notify(src, ('Location %s : il reste %d minute%s.'):format(rental.label, math.ceil(remaining / 60), remaining > 60 and 's' or ''), 'info')
+                    end
+                end
+            elseif not hasOccupant(rental.vehicle) or remaining <= -Config.RentalGrace then
+                DeleteEntity(rental.vehicle)
+                rentals[src] = nil
+                notify(src, ('Location terminée : %s a été repris par l\'agence.'):format(rental.label), 'info')
+            elseif not rental.warned.ended then
+                rental.warned.ended = true
+                notify(src, ('Location terminée : rendez %s, il sera repris dans %d minutes.'):format(rental.label, math.ceil(Config.RentalGrace / 60)), 'error')
+            end
+        end
+    end
+end)
+
+AddEventHandler('playerDropped', function()
+    local rental = rentals[source]
+
+    if rental and DoesEntityExist(rental.vehicle) then
+        DeleteEntity(rental.vehicle)
+    end
+
+    rentals[source] = nil
+end)
+
 CreateThread(function()
     while GetResourceState('ox_inventory') ~= 'started' do
         Wait(500)

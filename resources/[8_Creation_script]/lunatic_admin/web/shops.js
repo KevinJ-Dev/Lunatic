@@ -151,6 +151,13 @@ function shopForm() {
             h("button", { class: "chip-x", onclick: () => { d.jobs.splice(i, 1); paintShopCategory(); } }, icon("i-x")))) : h("span", { class: "muted" }, "tout le monde peut acheter"),
         jobSelect);
 
+    // Agence de location : véhicules proposés
+    const rental = shopState.category.kind === "rental";
+    const vehicles = (d.vehicles || []).map((v) => h("div", { class: "row point-row" },
+        h("span", { class: "status on" }),
+        h("div", { class: "who" }, h("b", null, v.label), h("span", null, `${v.model} · ${v.price ? money(v.price) : "gratuit"} pour ${v.duration} min`)),
+        h("button", { class: "btn small ghost", title: "Retirer", onclick: () => shopAct("shops.deleteVehicle", { id: d.id, vehicleId: v.id }, "Véhicule retiré.") }, icon("i-trash"))));
+
     // Articles
     const licenseOptions = (value) => [h("option", { value: "" }, "Aucun permis"), ...shopState.licenses.map((l) => h("option", { value: l.type, selected: l.type === value }, l.label))];
     const items = d.items.map((entry, i) => {
@@ -169,8 +176,9 @@ function shopForm() {
     // Emplacements (enregistrés tout de suite, à la position du staff)
     const locations = d.locations.map((l, i) => h("div", { class: "row point-row" },
         h("span", { class: "pid mono" }, String(i + 1)),
-        h("div", { class: "who" }, h("b", null, `Emplacement ${i + 1}`), h("span", null, `${l.x.toFixed(1)}, ${l.y.toFixed(1)}, ${l.z.toFixed(1)}`)),
+        h("div", { class: "who" }, h("b", null, `Emplacement ${i + 1}`), h("span", null, `${l.x.toFixed(1)}, ${l.y.toFixed(1)}, ${l.z.toFixed(1)}${rental ? (l.spawn ? " · sortie définie" : " · sortie : devant le comptoir") : ""}`)),
         h("div", { class: "btn-row" },
+            rental ? h("button", { class: "btn small", title: "Placez-vous là où le véhicule doit apparaître, dans le sens de sortie", onclick: () => shopAct("shops.setSpawn", { locationId: l.id }, "Sortie des véhicules définie à votre position.") }, icon("i-car"), "Sortie") : null,
             h("button", { class: "btn small", onclick: () => shopAct("shops.moveLocation", { locationId: l.id }, "Emplacement replacé à votre position.") }, icon("i-crosshair"), "Définir"),
             h("button", { class: "btn small ghost", onclick: () => act("shops.tpLocation", { locationId: l.id }, null) }, icon("i-goto"), "TP"),
             h("button", { class: "btn small ghost", title: "Supprimer", onclick: () => shopAct("shops.deleteLocation", { locationId: l.id }, "Emplacement supprimé.") }, icon("i-trash")))));
@@ -192,7 +200,12 @@ function shopForm() {
                 field("Blip label (sur la carte)", blipLabel),
                 field("Image (en-tête)", header),
                 field("Jobs autorisés", jobs)),
-            h("div", { class: "card", style: "margin-top:16px" },
+            rental ? h("div", { class: "card", style: "margin-top:16px" },
+                h("div", { class: "card-head dev-head" }, h("h3", { class: "card-title" }, `Véhicules (${vehicles.length})`),
+                    h("button", { class: "btn small primary", onclick: () => openAddRentalVehicle(d) }, icon("i-plus"), "Ajouter")),
+                vehicles.length ? h("div", { class: "table" }, vehicles) : h("p", { class: "hint-line", style: "margin:0" }, "Aucun véhicule à louer."),
+                h("p", { class: "hint-line" }, "Le client paie en liquide ou par carte, garde le véhicule le temps indiqué, puis le véhicule est repris. Il peut le rendre plus tôt au comptoir."))
+            : h("div", { class: "card", style: "margin-top:16px" },
                 h("div", { class: "card-head dev-head" }, h("h3", { class: "card-title" }, `Articles (${d.items.length})`),
                     h("button", { class: "btn small primary", onclick: openAddShopItem }, icon("i-plus"), "Ajouter")),
                 items.length ? h("div", { class: "table" }, items) : h("p", { class: "hint-line", style: "margin:0" }, "Aucun article.")),
@@ -203,6 +216,32 @@ function shopForm() {
                 h("p", { class: "hint-line" }, "Les emplacements sont enregistrés tout de suite. Articles et réglages : bouton « Enregistrer ».")),
             h("div", { class: "btn-row", style: "margin-top:16px;justify-content:flex-end" }, save))
     );
+}
+
+function openAddRentalVehicle(d) {
+    const model = h("input", { class: "input mono", maxlength: "32", placeholder: "Modèle, ex. faggio" });
+    const label = h("input", { class: "input", maxlength: "60", placeholder: "Nom affiché, ex. Scooter Faggio" });
+    const price = h("input", { class: "input mono", type: "number", min: "0", value: "100" });
+    const duration = h("input", { class: "input mono", type: "number", min: "1", value: "30" });
+    openModal((close) => {
+        const submit = h("button", { class: "btn primary" }, icon("i-plus"), "Ajouter");
+        submit.addEventListener("click", async () => {
+            const res = await shopAct("shops.addVehicle", { id: d.id, model: model.value.trim().toLowerCase(), label: label.value.trim(), price: Number(price.value), duration: Number(duration.value) }, "Véhicule ajouté.");
+            if (res) close();
+        });
+        return [
+            h("header", null, h("h3", null, "Ajouter un véhicule à louer"), h("p", null, "Le modèle est vérifié par votre jeu : soyez connecté.")),
+            h("div", { class: "body event-form" },
+                h("div", { class: "event-form-row" },
+                    h("div", { class: "field" }, h("label", null, "Modèle"), model),
+                    h("div", { class: "field" }, h("label", null, "Nom affiché"), label)),
+                h("div", { class: "event-form-row" },
+                    h("div", { class: "field" }, h("label", null, "Prix ($)"), price),
+                    h("div", { class: "field" }, h("label", null, "Durée (minutes)"), duration))),
+            h("footer", null, h("button", { class: "btn ghost", onclick: () => close() }, "Annuler"), submit),
+        ];
+    });
+    model.focus();
 }
 
 async function openAddShopItem() {

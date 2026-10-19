@@ -1370,9 +1370,9 @@ async function demoNui(name, data) {
         licenses: [{ type: "dmv", label: "Code de la route", owned: true }, { type: "drive", label: "Permis voiture", owned: false }, { type: "weapon", label: "Port d'arme", owned: false }],
     } };
     if (name === "action" && data && data.action === "shops.categories") return { ok: true, categories: [
-        ["ltd", "LTD", true, 8], ["binco", "Binco", false, 0], ["vangelico", "Vangelico", true, 1], ["barber", "Barber", false, 0], ["ammunation", "Ammunation", true, 3], ["rental", "Location", false, 0],
+        ["ltd", "LTD", true, 8], ["binco", "Binco", false, 0], ["vangelico", "Vangelico", true, 1], ["barber", "Barber", false, 0], ["ammunation", "Ammunation", true, 3], ["rental", "Location", true, 2],
         ["masquerade", "Masquerade", false, 0], ["shenails", "Shenails", false, 0], ["skateshop", "Skateshop", true, 1], ["tattoo", "Tattoo", false, 0], ["wholesale", "Grossistes", true, 7],
-    ].map(([id, label, ready, count]) => ({ id, label, ready, count })) };
+    ].map(([id, label, ready, count]) => ({ id, label, ready, count, kind: id === "rental" ? "rental" : "items" })) };
     if (name === "action" && data && data.action === "shops.list") return { ok: true, shops: [
         { id: 1, label: "PostOP", slug: "postop", items: 10, locations: 1 }, { id: 2, label: "Viande", slug: "viande", items: 4, locations: 1 },
         { id: 3, label: "Volaille", slug: "volaille", items: 4, locations: 1 }, { id: 4, label: "Vigneron", slug: "vigneron", items: 4, locations: 2 },
@@ -1383,7 +1383,8 @@ async function demoNui(name, data) {
         shop: { id: data.payload.id, category: "wholesale", slug: "postop", label: "Grossiste - PostOP", header: "assets/catalogues/headers/header_postop.webp",
             blip: { sprite: 476, color: 66, scale: 0.8, label: "Grossiste - PostOP" }, jobs: ["burgershot"],
             items: [{ item: "aromefraise", label: "Arôme Fraise", price: 1 }, { item: "barbeapapa", label: "Barbe à papa", price: 50 }, { item: "biscuit", label: "Biscuit", price: 20 }, { item: "bonbon", label: "Bonbon", price: 50, license: null }],
-            locations: [{ id: 1, x: -1223.4, y: -1495.1, z: 3.4, h: 0 }] } };
+            vehicles: [{ id: 1, model: "faggio", label: "Scooter Faggio", type: "bike", price: 80, duration: 30 }, { id: 2, model: "blista", label: "Blista", type: "automobile", price: 250, duration: 60 }],
+            locations: [{ id: 1, x: -1223.4, y: -1495.1, z: 3.4, h: 0, spawn: { x: -1220, y: -1490, z: 3.4, h: 90 } }, { id: 2, x: -800.2, y: -100.5, z: 37.6, h: 0 }] } };
     if (name === "action" && data && data.action === "catalogs.items") return { ok: true, items: [{ name: "bread", label: "Pain" }, { name: "burger", label: "Burger" }, { name: "cola", label: "eCola" }, { name: "water", label: "Eau" }] };
     if (name === "action" && data && data.action === "structures.list") {
         const company = data.payload.kind === "company";

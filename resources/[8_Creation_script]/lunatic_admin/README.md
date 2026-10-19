@@ -279,6 +279,8 @@ Tuile **Catalogues** (`catalogs.manage`) : grille des catégories (`Config.ShopC
 
 Chaque magasin (`lunatic_shops`, `lunatic_shop_items`, `lunatic_shop_locations`) : label, clé (slug), blip (sprite, couleur, taille, label), image d'en-tête (pour la future interface maison), jobs autorisés (vide = tout le monde), articles (objet, prix, permis requis), emplacements (ajouter à sa position, Définir, TP, supprimer). Bouton **Enregistrer** pour la fiche et les articles ; les emplacements sont enregistrés tout de suite.
 
-En jeu (`lunatic_business`) : blips, marqueur et `[E]`, interface de magasin d'ox_inventory (paiement en liquide, permis, distance). Catégories prêtes : celles de type `items` (LTD, Vangelico, Ammunation, Skateshop, Grossistes) ; apparence (lot C2) et location (lot C3) à venir.
+En jeu (`lunatic_business`) : blips, marqueur et `[E]`, interface de magasin d'ox_inventory (paiement en liquide, permis, distance). Catégories prêtes : celles de type `items` (LTD, Vangelico, Ammunation, Skateshop, Grossistes) et **Location** (lot C3). Magasins d'apparence (Binco, Barber, Tattoo…) : plus tard, avec un magasin de vêtements maison.
+
+**Location (lot C3)** : à la place des articles, une liste de véhicules (`lunatic_shop_vehicles` : modèle vérifié par le jeu du staff, nom, prix, durée en minutes) ; chaque emplacement a une **Sortie** des véhicules (bouton, à sa position et orientation ; sinon 4 m devant le comptoir).
 
 Les magasins par défaut d'ox_inventory (`data/shops.lua`) sont retirés, sauf les distributeurs (modification locale d'ox_inventory à garder lors des mises à jour).

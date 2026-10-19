@@ -42,3 +42,7 @@ exports.lunatic_business:getHistory(job, limit)                -- { amount, bala
 ## Magasins automatiques
 
 Les magasins de la tuile Catalogues du panel (LTD, Ammunation, grossistes…) sont enregistrés dans ox_inventory (`lunatic_<slug>`) à chaque modification : blips, marqueur et `[E]` à chaque emplacement, interface de magasin d'ox_inventory. Un magasin réservé à des jobs n'apparaît qu'à leurs membres.
+
+## Location de véhicules
+
+Au comptoir d'une agence : choix du véhicule, paiement en liquide ou par carte, le véhicule sort à la sortie définie (refusé si elle est encombrée) avec une plaque `LOC00000` et le joueur est mis au volant. Une location à la fois. Avertissements avant la fin (`Config.RentalWarnings`), puis le véhicule est repris dès qu'il est vide, ou de force après `Config.RentalGrace` secondes. Il peut être rendu plus tôt au comptoir (à moins de `Config.RentalReturnDistance`), sans remboursement. Déconnexion = véhicule repris.

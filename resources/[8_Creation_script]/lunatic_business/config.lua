@@ -20,5 +20,10 @@ Config.HistorySize = 30            -- lignes d'historique affichées
 -- Catalogues
 Config.MaxPurchase = 50            -- quantité maximale par achat
 
+-- Location de véhicules
+Config.RentalWarnings = { 300, 60 }   -- avertissements avant la fin (secondes restantes)
+Config.RentalGrace = 120              -- après la fin : véhicule repris dès qu'il est vide, ou de force après ce délai (secondes)
+Config.RentalReturnDistance = 30.0    -- distance maximale entre le véhicule et le comptoir pour le rendre
+
 -- Sonnette
 Config.DoorbellCooldown = 30       -- secondes entre deux sonneries d'un même joueur
