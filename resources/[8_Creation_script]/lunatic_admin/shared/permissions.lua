@@ -48,6 +48,7 @@ Permissions.List = {
 
     -- Lot E1 : entreprises et services publics
     { id = 'companies.manage', family = 'structures', label = 'Entreprises : créer et gérer les entreprises (fiche, grades, membres)' },
+    { id = 'catalogs.manage',  family = 'structures', label = 'Catalogues : boutiques, équipements et recettes de craft, rattachés aux structures' },
     { id = 'publics.manage',   family = 'structures', label = 'Services publics : créer et gérer police, médecins, administration, gouvernement' },
 
     -- Lot G : Premium et boutique

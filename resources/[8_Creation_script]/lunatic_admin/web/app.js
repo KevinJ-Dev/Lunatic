@@ -213,6 +213,7 @@ const NAV = [
     { id: "members", label: "Membres", icon: "i-users", show: () => can("staff.view"), group: "perms" },
     { id: "companies", label: "Entreprises", icon: "i-store", show: () => can("companies.manage") },
     { id: "publics", label: "Services publics", icon: "i-shield", show: () => can("publics.manage") },
+    { id: "catalogs", label: "Catalogues", icon: "i-book", show: () => can("catalogs.manage") },
     { id: "poles", label: "Pôle emploi", icon: "i-briefcase", show: () => can("poles.manage") },
     { id: "events", label: "Events", icon: "i-calendar", show: () => can("events.manage") },
     { id: "world", label: "Météo", icon: "i-sun", show: () => hasWorld() },
@@ -272,7 +273,7 @@ function render() {
     );
     $("me").querySelector(".avatar").style.background = me.rank.color;
 
-    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "poles", "events", "dev", "ranks", "members"]) {
+    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "catalogs", "poles", "events", "dev", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
     }
 
@@ -286,6 +287,7 @@ function render() {
     if (view === "server") renderGlobal();
     if (view === "poles") renderPoles();
     if (view === "companies") renderStructures("company");
+    if (view === "catalogs") renderCatalogs();
     if (view === "publics") renderStructures("public");
     if (view === "events") renderEvents();
     if (view === "dev") renderDev();
@@ -1290,7 +1292,7 @@ window.addEventListener("message", (event) => {
 
 function demoState() {
     return {
-        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["companies.manage", "publics.manage", "players.crash", "vehicles.give", "dev.manage", "events.manage", "poles.manage", "server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["catalogs.manage", "companies.manage", "publics.manage", "players.crash", "vehicles.give", "dev.manage", "events.manage", "poles.manage", "server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],
@@ -1367,6 +1369,23 @@ async function demoNui(name, data) {
         lastSeen: Math.floor(Date.now() / 1000) - 7200, createdAt: Math.floor(Date.now() / 1000) - 20 * 86400,
         licenses: [{ type: "dmv", label: "Code de la route", owned: true }, { type: "drive", label: "Permis voiture", owned: false }, { type: "weapon", label: "Port d'arme", owned: false }],
     } };
+    if (name === "action" && data && data.action === "catalogs.list") return { ok: true, catalogs: [
+        { id: 2, label: "Armurerie LSPD", kind: "equipment", kindLabel: "Équipement", lines: 4, structures: 1 },
+        { id: 1, label: "Carte du Burger Shot", kind: "shop", kindLabel: "Boutique", lines: 3, structures: 1 },
+        { id: 3, label: "Cuisine", kind: "craft", kindLabel: "Craft", lines: 1, structures: 1 },
+    ] };
+    if (name === "action" && data && data.action === "catalogs.info") {
+        const id = data.payload.id;
+        const kind = id === 2 ? "equipment" : id === 3 ? "craft" : "shop";
+        return { ok: true, structures: [{ job: "burgershot", label: "Burger Shot", kind: "company" }, { job: "lspd", label: "LSPD", kind: "public" }, { job: "bennys", label: "Benny's", kind: "company" }],
+            catalog: { id, label: id === 2 ? "Armurerie LSPD" : id === 3 ? "Cuisine" : "Carte du Burger Shot", kind, kindLabel: kind === "craft" ? "Craft" : kind === "equipment" ? "Équipement" : "Boutique",
+                linked: [id === 2 ? "lspd" : "burgershot"], lines: kind === "craft"
+                    ? [{ id: 9, item: "burger", label: "Burger", count: 2, price: 0, minGrade: 0, duration: 15, ingredients: [{ item: "bread", label: "Pain", count: 1 }, { item: "meat", label: "Viande", count: 1 }] }]
+                    : kind === "equipment"
+                        ? [{ id: 5, item: "WEAPON_PISTOL", label: "Pistolet", count: 1, price: 0, minGrade: 1 }, { id: 6, item: "ammo-9", label: "Munitions 9 mm", count: 24, price: 150, minGrade: 0 }, { id: 7, item: "armour", label: "Gilet pare-balles", count: 1, price: 500, minGrade: 0 }, { id: 8, item: "radio", label: "Radio", count: 1, price: 0, minGrade: 0 }]
+                        : [{ id: 1, item: "burger", label: "Burger", count: 1, price: 25, minGrade: 0 }, { id: 2, item: "cola", label: "eCola", count: 1, price: 8, minGrade: 0 }, { id: 3, item: "fries", label: "Frites", count: 1, price: 12, minGrade: 0, missing: true }] } };
+    }
+    if (name === "action" && data && data.action === "catalogs.items") return { ok: true, items: [{ name: "bread", label: "Pain" }, { name: "burger", label: "Burger" }, { name: "cola", label: "eCola" }, { name: "water", label: "Eau" }] };
     if (name === "action" && data && data.action === "structures.list") {
         const company = data.payload.kind === "company";
         return { ok: true, orphans: [{ name: "taxi", label: "Taxi" }], types: company
@@ -1391,6 +1410,8 @@ async function demoNui(name, data) {
                 { id: 3, job: data.payload.job, type: "catalog", typeLabel: "Catalogue", label: "Catalogue", x: -1195.8, y: -893.2, z: 13.0 },
             ],
             pointTypes: [{ id: "management", label: "Gestion", ready: true }, { id: "storage", label: "Stockage", ready: true }, { id: "locker", label: "Casier", ready: true }, { id: "wardrobe", label: "Vestiaire", ready: true }, { id: "doorbell", label: "Sonnette", ready: true }, { id: "custom", label: "Custom", ready: true }, { id: "catalog", label: "Catalogue" }, { id: "craft", label: "Craft" }],
+            catalogs: [{ id: 1, label: "Carte du Burger Shot", kind: "shop", kindLabel: "Boutique", lines: 3 }, { id: 3, label: "Cuisine", kind: "craft", kindLabel: "Craft", lines: 1 }],
+            allCatalogs: [{ id: 1, label: "Carte du Burger Shot", kind: "shop", kindLabel: "Boutique" }, { id: 2, label: "Armurerie LSPD", kind: "equipment", kindLabel: "Équipement" }, { id: 3, label: "Cuisine", kind: "craft", kindLabel: "Craft" }],
             account: { balance: 48250, history: [
                 { amount: 12000, balance: 48250, reason: "Dépôt", actor: "Jean Dupont", created: Math.floor(Date.now() / 1000) - 3600 },
                 { amount: -2500, balance: 36250, reason: "Retrait", actor: "Jean Dupont", created: Math.floor(Date.now() / 1000) - 7200 },

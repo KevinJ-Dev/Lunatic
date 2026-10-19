@@ -143,13 +143,15 @@ function paintStructureFiche(kind) {
 
     const tabs = h("div", { class: "segmented" }, segmentedButtons([
         { value: "identity", label: "Identité" }, { value: "grades", label: `Grades (${info.grades.length})` }, { value: "members", label: `Membres (${total})` },
-        { value: "points", label: `Points (${(info.points || []).length})` }, { value: "account", label: "Compte" },
+        { value: "points", label: `Points (${(info.points || []).length})` }, { value: "catalogs", label: `Catalogues (${(info.catalogs || []).length})` },
+        { value: "account", label: "Compte" },
     ], st.tab, (value) => { st.tab = value; paintStructureFiche(kind); }));
 
     let body;
     if (st.tab === "grades") body = gradesCard(info, doAct);
     else if (st.tab === "points") body = pointsCard(info, doAct);
     else if (st.tab === "account") body = accountCard(info, doAct);
+    else if (st.tab === "catalogs") body = structureCatalogsCard(info, doAct);
     else if (st.tab === "members") body = h("div", null, addMemberCard(kind, info, doAct), membersCard(info, doAct, "Aucun membre : ajoutez-en un ci-dessus."));
     else body = identityCard(kind, info, doAct);
 

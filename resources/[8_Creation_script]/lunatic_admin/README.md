@@ -263,3 +263,13 @@ Onglets **Points** et **Compte** de la fiche d'une structure :
 
 - **Points** (`lunatic_structure_points`) : ajouter un point d'un type (`Config.StructurePointTypes`) à sa position, **Définir** (le replacer à sa position et orientation), **TP**, renommer, supprimer. Diffusés en direct dans `GlobalState.lunaticStructurePoints` et à `lunatic_business` (événement `lunatic_admin:structurePointsChanged`). Export `getStructurePoints()`.
 - **Compte** : solde, historique, ajout ou retrait par le staff avec motif (`Config.StructureAccountMaxAction`). Le compte est géré par `lunatic_business`.
+
+## Catalogues (lot E3)
+
+Tuile **Catalogues** (`catalogs.manage`). Un catalogue (`lunatic_catalogs`, lignes `lunatic_catalog_lines`) est d'un des trois types :
+
+- **Boutique** : ouvert à tous au point Catalogue ; le client paie (liquide ou banque), l'argent va au compte de la société. Le point Catalogue d'une structure qui a une boutique devient visible par tous.
+- **Équipement** : membres seulement, aux points Catalogue et Armurerie, filtré par grade minimum ; payé par le compte de la société (prix 0 = gratuit).
+- **Craft** : recettes des membres au point Craft (objet et quantité fabriqués, ingrédients consommés, durée, grade minimum).
+
+Rattachement à une ou plusieurs structures (`lunatic_structure_catalogs`) depuis la tuile ou l'onglet **Catalogues** de la fiche. Tout est diffusé dans `GlobalState.lunaticCatalogs`. Les stocks viendront avec « Gestion Stock ».

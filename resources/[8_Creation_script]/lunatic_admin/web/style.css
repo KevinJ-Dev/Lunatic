@@ -488,3 +488,13 @@ button.log-row:hover { background: var(--surface-2); border-color: var(--line-st
 .account-row { grid-template-columns: 130px minmax(0, 1fr) auto; min-height: 48px; }
 .account-row .plus { color: var(--ok); }
 .account-row .minus { color: var(--danger); }
+
+/* Catalogues (lot E3) */
+.catalog-row { grid-template-columns: 40px minmax(0, 1fr) auto; min-height: 54px; }
+.item-img { width: 34px; height: 34px; object-fit: contain; }
+.chip { display: inline-flex; align-items: center; gap: 6px; }
+.chip-x { display: grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--muted); }
+.chip-x:hover { background: var(--surface-3); color: var(--ink); }
+.chip-x svg.i { width: 12px; height: 12px; }
+.ingredient-list { display: grid; gap: 8px; }
+.ingredient-row { display: grid; grid-template-columns: minmax(0, 1fr) 100px auto; gap: 8px; }

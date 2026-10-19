@@ -270,6 +270,8 @@ Panel.actions['structures.info'] = function(src, actor, data)
     local info = result.job
     info.structure = structure
     info.points = StructurePoints.ofJob(structure.job)
+    info.catalogs = Catalogs.ofJob(structure.job)
+    info.allCatalogs = Catalogs.all()
     info.pointTypes = {}
 
     for _, entry in ipairs(Config.StructurePointTypes) do
@@ -437,6 +439,7 @@ Panel.actions['structures.delete'] = function(src, actor, data)
     MySQL.update.await('DELETE FROM `lunatic_structure_playtime` WHERE `job` = ?', { structure.job })
     byJob[structure.job] = nil
     StructurePoints.deleteJob(structure.job)
+    Catalogs.deleteJob(structure.job)
     Logs.add(src, 'structures.delete', nil, { job = structure.job, kind = structure.kind })
 
     return { ok = true, silent = true }

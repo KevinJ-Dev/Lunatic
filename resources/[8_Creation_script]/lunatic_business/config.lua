@@ -17,5 +17,8 @@ Config.RecruitDistance = 5.0       -- un joueur recruté doit être à moins de 
 Config.AccountMaxAction = 10000000 -- montant maximum d'un dépôt ou retrait
 Config.HistorySize = 30            -- lignes d'historique affichées
 
+-- Catalogues
+Config.MaxPurchase = 50            -- quantité maximale par achat
+
 -- Sonnette
 Config.DoorbellCooldown = 30       -- secondes entre deux sonneries d'un même joueur

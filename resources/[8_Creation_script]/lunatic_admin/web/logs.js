@@ -64,6 +64,10 @@ const ACTION_LABELS = {
     "structures.delete": "a supprimé une structure",
     "structures.point": "a modifié les points d'une structure",
     "structures.account": "a modifié le compte d'une structure",
+    "catalogs.create": "a créé un catalogue",
+    "catalogs.delete": "a supprimé un catalogue",
+    "catalogs.line": "a modifié un catalogue",
+    "catalogs.link": "a rattaché ou détaché un catalogue",
     "context.entity": "a agi sur l'entité",
     "vehicle.give": "a donné un véhicule à",
     "inventory.open": "a ouvert l'inventaire de",
@@ -198,6 +202,14 @@ function describeLog(log) {
             break;
         case "poles.member":
             summary = `${d.job} · ${d.gradeLabel}`;
+            break;
+        case "catalogs.create":
+        case "catalogs.delete":
+        case "catalogs.line":
+            summary = [d.label, d.item, d.operation].filter(Boolean).join(" · ");
+            break;
+        case "catalogs.link":
+            summary = `${d.label} · ${d.linked ? "rattaché à" : "détaché de"} ${d.job}`;
             break;
         case "structures.point":
             summary = `${d.job} · ${({ add: "ajout", move: "déplacement", delete: "suppression" })[d.operation] || d.operation} · ${d.type}`;

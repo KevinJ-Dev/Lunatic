@@ -23,7 +23,11 @@ La **Sonnette** est visible par tous ; les autres points seulement par les membr
 | Sonnette | Prévient les membres connectés (notification + point GPS), une sonnerie toutes les `Config.DoorbellCooldown` secondes |
 | Custom | Événement serveur `lunatic_business:custom` (src, point) et client `lunatic_business:customClient` (point) |
 
-Les autres types (Catalogue, Craft, Garages, DJ…) sont plaçables mais affichent « pas encore disponible ».
+| Catalogue | Boutiques (tout le monde : liquide ou carte, argent versé à la société) et équipements (membres selon leur grade, payés par la société) rattachés à la structure |
+| Armurerie | Équipements seulement (services publics) |
+| Craft | Recettes : barre de progression annulable, ingrédients retirés et objet donné à la fin seulement (durée vérifiée par le serveur) |
+
+Les autres types (Garages, DJ…) sont plaçables mais affichent « pas encore disponible ». Le point Catalogue d'une structure qui a une boutique est visible par tous.
 
 Le serveur revérifie tout : métier, grade (patron pour la gestion, jamais d'autre patron nommé ou renvoyé), distance au point.
 

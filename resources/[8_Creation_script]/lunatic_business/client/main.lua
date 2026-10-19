@@ -312,6 +312,193 @@ end
 -- Interaction avec un point
 ---------------------------------------------------------------------
 
+---------------------------------------------------------------------
+-- Catalogues et craft
+---------------------------------------------------------------------
+
+local catalogs = {}
+local shopJobs = {} -- métiers qui ont au moins une boutique (point Catalogue visible par tous)
+
+local function loadCatalogs(value)
+    catalogs = type(value) == 'table' and value or {}
+    shopJobs = {}
+
+    for _, catalog in pairs(catalogs) do
+        if catalog.kind == 'shop' then
+            for job in pairs(catalog.jobs or {}) do
+                shopJobs[job] = true
+            end
+        end
+    end
+end
+
+AddStateBagChangeHandler('lunaticCatalogs', 'global', function(_, _, value)
+    loadCatalogs(value)
+end)
+
+CreateThread(function()
+    loadCatalogs(GlobalState.lunaticCatalogs)
+end)
+
+local function itemLabel(name)
+    local item = exports.ox_inventory:Items(name)
+    return item and item.label or name
+end
+
+local function itemImage(name)
+    return ('nui://ox_inventory/web/images/%s.png'):format(name)
+end
+
+local function myGrade(job)
+    return playerJob and playerJob.name == job and tonumber(playerJob.grade) or -1
+end
+
+local function catalogsFor(job, kinds)
+    local list = {}
+
+    for _, catalog in pairs(catalogs) do
+        if catalog.jobs and catalog.jobs[job] and kinds[catalog.kind] then
+            list[#list + 1] = catalog
+        end
+    end
+
+    table.sort(list, function(a, b) return a.label < b.label end)
+    return list
+end
+
+local openCatalogList
+
+local function openCatalog(point, catalog, back)
+    local grade = myGrade(point.job)
+    local options = {}
+
+    for _, line in ipairs(catalog.lines or {}) do
+        local locked = catalog.kind == 'equipment' and grade < (line.minGrade or 0)
+        local price = line.price > 0 and money(line.price) or 'Gratuit'
+
+        options[#options + 1] = {
+            title = ('%s%s'):format(line.count > 1 and (line.count .. ' × ') or '', itemLabel(line.item)),
+            description = locked and ('Grade minimum : %d'):format(line.minGrade) or (catalog.kind == 'equipment' and ('%s (compte de la société)'):format(price) or price),
+            image = itemImage(line.item),
+            icon = 'box',
+            disabled = locked,
+            onSelect = function()
+                local rows = { { type = 'number', label = 'Quantité', default = 1, min = 1, max = Config.MaxPurchase, required = true } }
+
+                if catalog.kind == 'shop' and line.price > 0 then
+                    rows[2] = { type = 'select', label = 'Paiement', default = 'money', required = true, options = {
+                        { value = 'money', label = 'Liquide' }, { value = 'bank', label = 'Carte bancaire' },
+                    } }
+                end
+
+                local input = lib.inputDialog(itemLabel(line.item), rows)
+
+                if input and input[1] then
+                    local result = lib.callback.await('lunatic_business:buy', false, point.id, catalog.id, line.id, math.floor(input[1]), input[2])
+
+                    if not failed(result) then
+                        notify(result.total > 0 and ('%d × %s pour %s.'):format(result.amount, result.label, money(result.total))
+                            or ('%d × %s récupéré.'):format(result.amount, result.label), 'success')
+                    end
+                end
+
+                openCatalog(point, catalog, back)
+            end,
+        }
+    end
+
+    if #options == 0 then
+        options[1] = { title = 'Catalogue vide', readOnly = true }
+    end
+
+    lib.registerContext({ id = 'lb_catalog', title = catalog.label, menu = back and 'lb_catalogs' or nil, options = options })
+    lib.showContext('lb_catalog')
+end
+
+openCatalogList = function(point, kinds)
+    local list = catalogsFor(point.job, kinds)
+
+    if #list == 0 then
+        return notify('Aucun catalogue disponible ici.', 'info')
+    end
+
+    if #list == 1 then
+        return openCatalog(point, list[1], false)
+    end
+
+    local options = {}
+
+    for _, catalog in ipairs(list) do
+        options[#options + 1] = { title = catalog.label, description = ('%d article%s'):format(#catalog.lines, #catalog.lines > 1 and 's' or ''), icon = catalog.kind == 'shop' and 'store' or 'shield-halved', onSelect = function()
+            openCatalog(point, catalog, true)
+        end }
+    end
+
+    lib.registerContext({ id = 'lb_catalogs', title = 'Catalogues', options = options })
+    lib.showContext('lb_catalogs')
+end
+
+local function craft(point, catalog, line)
+    local start = lib.callback.await('lunatic_business:craftStart', false, point.id, catalog.id, line.id)
+
+    if failed(start) then
+        return
+    end
+
+    local done = lib.progressBar({
+        duration = start.duration * 1000,
+        label = ('Fabrication : %s'):format(start.label),
+        canCancel = true,
+        disable = { move = true, car = true, combat = true },
+        anim = { dict = 'mini@repair', clip = 'fixing_a_ped' },
+    })
+
+    if not done then
+        TriggerServerEvent('lunatic_business:craftCancel')
+        return notify('Fabrication annulée.', 'error')
+    end
+
+    local result = lib.callback.await('lunatic_business:craftFinish', false, point.id, catalog.id, line.id)
+
+    if not failed(result) then
+        notify(('%d × %s fabriqué.'):format(result.amount, result.label), 'success')
+    end
+end
+
+local function openCraft(point)
+    local grade = myGrade(point.job)
+    local options = {}
+
+    for _, catalog in ipairs(catalogsFor(point.job, { craft = true })) do
+        for _, line in ipairs(catalog.lines or {}) do
+            local parts = {}
+
+            for _, ingredient in ipairs(line.ingredients or {}) do
+                parts[#parts + 1] = ('%d × %s'):format(ingredient.count, itemLabel(ingredient.item))
+            end
+
+            local locked = grade < (line.minGrade or 0)
+            options[#options + 1] = {
+                title = ('%s%s'):format(line.count > 1 and (line.count .. ' × ') or '', itemLabel(line.item)),
+                description = locked and ('Grade minimum : %d'):format(line.minGrade) or ('%s · %d s'):format(table.concat(parts, ' + '), line.duration),
+                image = itemImage(line.item),
+                icon = 'hammer',
+                disabled = locked,
+                onSelect = function()
+                    craft(point, catalog, line)
+                end,
+            }
+        end
+    end
+
+    if #options == 0 then
+        return notify('Aucune recette disponible ici.', 'info')
+    end
+
+    lib.registerContext({ id = 'lb_craft', title = 'Fabrication', options = options })
+    lib.showContext('lb_craft')
+end
+
 local handlers = {
     management = function(point)
         if not playerJob or playerJob.grade_name ~= 'boss' then
@@ -327,6 +514,14 @@ local handlers = {
         exports.ox_inventory:openInventory('stash', ('lb_locker_%s'):format(point.job))
     end,
     wardrobe = openWardrobe,
+    catalog = function(point)
+        local member = playerJob ~= nil and playerJob.name == point.job
+        openCatalogList(point, { shop = true, equipment = member })
+    end,
+    armory = function(point)
+        openCatalogList(point, { equipment = true })
+    end,
+    craft = openCraft,
     doorbell = function(point)
         TriggerServerEvent('lunatic_business:ring', point.id)
     end,
@@ -341,8 +536,9 @@ RegisterNetEvent('lunatic_business:ringed', function(data)
     SetNewWaypoint(data.x + 0.0, data.y + 0.0)
 end)
 
+-- Sonnette et Catalogue d'une boutique : visibles par tous ; le reste par les membres
 local function visible(point)
-    return point.type == 'doorbell' or (playerJob ~= nil and playerJob.name == point.job)
+    return point.type == 'doorbell' or (point.type == 'catalog' and shopJobs[point.job]) or (playerJob ~= nil and playerJob.name == point.job)
 end
 
 ---------------------------------------------------------------------

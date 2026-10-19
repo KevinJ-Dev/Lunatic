@@ -579,4 +579,194 @@ RegisterNetEvent('lunatic_business:useCustom', function(pointId)
     end
 end)
 
+---------------------------------------------------------------------
+-- Catalogues : boutique (clients), équipement (membres, payé par la société), craft (membres)
+-- Les catalogues viennent de lunatic_admin (GlobalState.lunaticCatalogs) : les prix ne viennent jamais du client.
+---------------------------------------------------------------------
+
+local function findLine(job, catalogId, lineId)
+    local catalog = (GlobalState.lunaticCatalogs or {})[tostring(catalogId)]
+
+    if not catalog or not catalog.jobs or not catalog.jobs[job] then
+        return nil
+    end
+
+    for _, line in ipairs(catalog.lines or {}) do
+        if line.id == tonumber(lineId) then
+            return catalog, line
+        end
+    end
+end
+
+local function itemLabel(name)
+    local item = ox:Items(name)
+    return item and item.label or name
+end
+
+lib.callback.register('lunatic_business:buy', function(src, pointId, catalogId, lineId, quantity, payment)
+    local point = points[tonumber(pointId) or -1]
+
+    if not point or (point.type ~= 'catalog' and point.type ~= 'armory') then
+        return fail('Point introuvable.')
+    end
+
+    if distanceTo(src, point) > Config.ActionDistance then
+        return fail('Vous êtes trop loin.')
+    end
+
+    local xPlayer = ESX.GetPlayerFromId(src)
+    local catalog, line = findLine(point.job, catalogId, lineId)
+
+    if not xPlayer or not line then
+        return fail('Article introuvable.')
+    end
+
+    quantity = tonumber(quantity)
+
+    if not quantity or quantity ~= math.floor(quantity) or quantity < 1 or quantity > Config.MaxPurchase then
+        return fail(('Quantité invalide (1 à %d).'):format(Config.MaxPurchase))
+    end
+
+    local job = xPlayer.getJob()
+
+    if catalog.kind == 'shop' then
+        if point.type ~= 'catalog' then
+            return fail('Article introuvable.')
+        end
+    elseif catalog.kind == 'equipment' then
+        if job.name ~= point.job or tonumber(job.grade) < (line.minGrade or 0) then
+            return fail("Votre grade ne permet pas de prendre cet équipement.")
+        end
+    else
+        return fail('Article introuvable.')
+    end
+
+    local amount = line.count * quantity
+    local total = line.price * quantity
+    local label = itemLabel(line.item)
+
+    if not ox:CanCarryItem(src, line.item, amount) then
+        return fail("Vous n'avez pas assez de place.")
+    end
+
+    if catalog.kind == 'shop' then
+        local account = payment == 'bank' and 'bank' or 'money'
+
+        if total > 0 then
+            local balance = xPlayer.getAccount(account)
+
+            if not balance or balance.money < total then
+                return fail(account == 'bank' and 'Solde bancaire insuffisant.' or "Vous n'avez pas assez de liquide.")
+            end
+
+            xPlayer.removeAccountMoney(account, total, ('Achat %s : %d × %s'):format(point.job, amount, label))
+        end
+
+        if not ox:AddItem(src, line.item, amount) then
+            if total > 0 then
+                xPlayer.addAccountMoney(account, total, 'Remboursement achat')
+            end
+
+            return fail("L'objet n'a pas pu être ajouté à votre inventaire.")
+        end
+
+        if total > 0 then
+            Account.add(point.job, total, ('Vente : %d × %s'):format(amount, label), xPlayer.getName())
+        end
+    else
+        if total > 0 and not Account.remove(point.job, total, ('Équipement : %d × %s'):format(amount, label), xPlayer.getName()) then
+            return fail('Le compte de la société est insuffisant.')
+        end
+
+        if not ox:AddItem(src, line.item, amount) then
+            if total > 0 then
+                Account.add(point.job, total, 'Remboursement équipement', xPlayer.getName())
+            end
+
+            return fail("L'objet n'a pas pu être ajouté à votre inventaire.")
+        end
+    end
+
+    return { ok = true, amount = amount, label = label, total = total }
+end)
+
+-- Craft en deux temps : début (vérifications, heure de départ), puis fin après la durée de la recette
+local crafting = {}
+
+AddEventHandler('playerDropped', function()
+    crafting[source] = nil
+end)
+
+local function craftCheck(src, pointId, catalogId, lineId)
+    local xPlayer, point, err = check(src, pointId, 'craft')
+
+    if not xPlayer then
+        return nil, err
+    end
+
+    local catalog, line = findLine(point.job, catalogId, lineId)
+
+    if not line or catalog.kind ~= 'craft' then
+        return nil, 'Recette introuvable.'
+    end
+
+    if tonumber(xPlayer.getJob().grade) < (line.minGrade or 0) then
+        return nil, 'Votre grade ne permet pas cette recette.'
+    end
+
+    for _, ingredient in ipairs(line.ingredients or {}) do
+        if (ox:GetItemCount(src, ingredient.item) or 0) < ingredient.count then
+            return nil, ('Il vous manque : %d × %s.'):format(ingredient.count, itemLabel(ingredient.item))
+        end
+    end
+
+    if not ox:CanCarryItem(src, line.item, line.count) then
+        return nil, "Vous n'avez pas assez de place."
+    end
+
+    return line
+end
+
+lib.callback.register('lunatic_business:craftStart', function(src, pointId, catalogId, lineId)
+    local line, err = craftCheck(src, pointId, catalogId, lineId)
+
+    if not line then
+        return fail(err)
+    end
+
+    crafting[src] = { pointId = pointId, catalogId = catalogId, lineId = lineId, at = GetGameTimer(), duration = line.duration }
+    return { ok = true, duration = line.duration, label = itemLabel(line.item) }
+end)
+
+lib.callback.register('lunatic_business:craftFinish', function(src, pointId, catalogId, lineId)
+    local pending = crafting[src]
+    crafting[src] = nil
+
+    if not pending or pending.pointId ~= pointId or pending.catalogId ~= catalogId or pending.lineId ~= lineId then
+        return fail('Fabrication interrompue.')
+    end
+
+    -- Marge d'une seconde et demie pour la latence réseau
+    if GetGameTimer() - pending.at < pending.duration * 1000 - 1500 then
+        return fail('Fabrication trop rapide.')
+    end
+
+    local line, err = craftCheck(src, pointId, catalogId, lineId)
+
+    if not line then
+        return fail(err)
+    end
+
+    for _, ingredient in ipairs(line.ingredients or {}) do
+        ox:RemoveItem(src, ingredient.item, ingredient.count)
+    end
+
+    ox:AddItem(src, line.item, line.count)
+    return { ok = true, amount = line.count, label = itemLabel(line.item) }
+end)
+
+RegisterNetEvent('lunatic_business:craftCancel', function()
+    crafting[source] = nil
+end)
+
 print('[lunatic_business] Démarré.')
