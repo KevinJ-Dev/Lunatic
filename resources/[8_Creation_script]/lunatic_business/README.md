@@ -22,11 +22,11 @@ La **Sonnette** est visible par tous ; les autres points seulement par les membr
 | Vestiaire | Tenues par grade (homme / femme) : le patron enregistre la tenue qu'il porte pour un grade ; les membres enfilent celles de leur grade et des grades inférieurs, ou reprennent leur tenue civile |
 | Sonnette | Prévient les membres connectés (notification + point GPS), une sonnerie toutes les `Config.DoorbellCooldown` secondes |
 | Custom | Événement serveur `lunatic_business:custom` (src, point) et client `lunatic_business:customClient` (point) |
-| Catalogue | Boutiques (tout le monde : liquide ou carte, argent versé à la société) et équipements (membres selon leur grade, payés par la société) rattachés à la structure |
+| Catalogue | Équipements des membres selon leur grade, payés par le compte de la société |
 | Armurerie | Équipements seulement (services publics) |
 | Craft | Recettes : barre de progression annulable, ingrédients retirés et objet donné à la fin seulement (durée vérifiée par le serveur) |
 
-Les autres types (Garages, DJ…) sont plaçables mais affichent « pas encore disponible ». Le point Catalogue d'une structure qui a une boutique est visible par tous.
+Les autres types (Garages, DJ…) sont plaçables mais affichent « pas encore disponible ». 
 
 Le serveur revérifie tout : métier, grade (patron pour la gestion, jamais d'autre patron nommé ou renvoyé), distance au point.
 
@@ -38,3 +38,7 @@ exports.lunatic_business:addMoney(job, amount, reason, actor)  -- true / false
 exports.lunatic_business:removeMoney(job, amount, reason, actor) -- false si solde insuffisant
 exports.lunatic_business:getHistory(job, limit)                -- { amount, balance, reason, actor, created }
 ```
+
+## Magasins automatiques
+
+Les magasins de la tuile Catalogues du panel (LTD, Ammunation, grossistes…) sont enregistrés dans ox_inventory (`lunatic_<slug>`) à chaque modification : blips, marqueur et `[E]` à chaque emplacement, interface de magasin d'ox_inventory. Un magasin réservé à des jobs n'apparaît qu'à leurs membres.

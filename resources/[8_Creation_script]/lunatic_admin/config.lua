@@ -108,7 +108,22 @@ Config.StructurePointTypes = {
     { id = 'eup', label = 'Binco EUP', kinds = 'public' },
     { id = 'properties', label = 'Propriétés', kinds = 'public' },
 }
-Config.StructureAccountMaxAction = 10000000 -- montant maximum d'une opération staff sur un compte de société
+Config.StructureAccountMaxAction = 10000000
+
+-- Magasins automatiques (tuile Catalogues, lot C1) : kind = items (magasin ox_inventory), clothing / barber / tattoo (apparence, lot C2), rental (location, lot C3)
+Config.ShopCategories = {
+    { id = 'ltd', label = 'LTD', kind = 'items', blip = { sprite = 52, color = 2 } },
+    { id = 'binco', label = 'Binco', kind = 'clothing', blip = { sprite = 73, color = 47 } },
+    { id = 'vangelico', label = 'Vangelico', kind = 'items', blip = { sprite = 617, color = 3 } },
+    { id = 'barber', label = 'Barber', kind = 'barber', blip = { sprite = 71, color = 51 } },
+    { id = 'ammunation', label = 'Ammunation', kind = 'items', blip = { sprite = 110, color = 1 } },
+    { id = 'rental', label = 'Location', kind = 'rental', blip = { sprite = 225, color = 3 } },
+    { id = 'masquerade', label = 'Masquerade', kind = 'clothing', blip = { sprite = 362, color = 27 } },
+    { id = 'shenails', label = 'Shenails', kind = 'clothing', blip = { sprite = 621, color = 8 } },
+    { id = 'skateshop', label = 'Skateshop', kind = 'items', blip = { sprite = 59, color = 5 } },
+    { id = 'tattoo', label = 'Tattoo', kind = 'tattoo', blip = { sprite = 75, color = 1 } },
+    { id = 'wholesale', label = 'Grossistes', kind = 'items', blip = { sprite = 478, color = 66 } },
+} -- montant maximum d'une opération staff sur un compte de société
 
 -- Pôle emploi (lot I)
 Config.PolesMaxGrades = 20           -- grades maximum par métier

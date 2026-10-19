@@ -580,7 +580,7 @@ RegisterNetEvent('lunatic_business:useCustom', function(pointId)
 end)
 
 ---------------------------------------------------------------------
--- Catalogues : boutique (clients), équipement (membres, payé par la société), craft (membres)
+-- Catalogues des structures : équipement (membres, payé par la société), craft (membres)
 -- Les catalogues viennent de lunatic_admin (GlobalState.lunaticCatalogs) : les prix ne viennent jamais du client.
 ---------------------------------------------------------------------
 
@@ -603,7 +603,7 @@ local function itemLabel(name)
     return item and item.label or name
 end
 
-lib.callback.register('lunatic_business:buy', function(src, pointId, catalogId, lineId, quantity, payment)
+lib.callback.register('lunatic_business:buy', function(src, pointId, catalogId, lineId, quantity)
     local point = points[tonumber(pointId) or -1]
 
     if not point or (point.type ~= 'catalog' and point.type ~= 'armory') then
@@ -629,16 +629,12 @@ lib.callback.register('lunatic_business:buy', function(src, pointId, catalogId, 
 
     local job = xPlayer.getJob()
 
-    if catalog.kind == 'shop' then
-        if point.type ~= 'catalog' then
-            return fail('Article introuvable.')
-        end
-    elseif catalog.kind == 'equipment' then
-        if job.name ~= point.job or tonumber(job.grade) < (line.minGrade or 0) then
-            return fail("Votre grade ne permet pas de prendre cet équipement.")
-        end
-    else
+    if catalog.kind ~= 'equipment' then
         return fail('Article introuvable.')
+    end
+
+    if job.name ~= point.job or tonumber(job.grade) < (line.minGrade or 0) then
+        return fail("Votre grade ne permet pas de prendre cet équipement.")
     end
 
     local amount = line.count * quantity
@@ -649,42 +645,16 @@ lib.callback.register('lunatic_business:buy', function(src, pointId, catalogId, 
         return fail("Vous n'avez pas assez de place.")
     end
 
-    if catalog.kind == 'shop' then
-        local account = payment == 'bank' and 'bank' or 'money'
+    if total > 0 and not Account.remove(point.job, total, ('Équipement : %d × %s'):format(amount, label), xPlayer.getName()) then
+        return fail('Le compte de la société est insuffisant.')
+    end
 
+    if not ox:AddItem(src, line.item, amount) then
         if total > 0 then
-            local balance = xPlayer.getAccount(account)
-
-            if not balance or balance.money < total then
-                return fail(account == 'bank' and 'Solde bancaire insuffisant.' or "Vous n'avez pas assez de liquide.")
-            end
-
-            xPlayer.removeAccountMoney(account, total, ('Achat %s : %d × %s'):format(point.job, amount, label))
+            Account.add(point.job, total, 'Remboursement équipement', xPlayer.getName())
         end
 
-        if not ox:AddItem(src, line.item, amount) then
-            if total > 0 then
-                xPlayer.addAccountMoney(account, total, 'Remboursement achat')
-            end
-
-            return fail("L'objet n'a pas pu être ajouté à votre inventaire.")
-        end
-
-        if total > 0 then
-            Account.add(point.job, total, ('Vente : %d × %s'):format(amount, label), xPlayer.getName())
-        end
-    else
-        if total > 0 and not Account.remove(point.job, total, ('Équipement : %d × %s'):format(amount, label), xPlayer.getName()) then
-            return fail('Le compte de la société est insuffisant.')
-        end
-
-        if not ox:AddItem(src, line.item, amount) then
-            if total > 0 then
-                Account.add(point.job, total, 'Remboursement équipement', xPlayer.getName())
-            end
-
-            return fail("L'objet n'a pas pu être ajouté à votre inventaire.")
-        end
+        return fail("L'objet n'a pas pu être ajouté à votre inventaire.")
     end
 
     return { ok = true, amount = amount, label = label, total = total }
@@ -767,6 +737,65 @@ end)
 
 RegisterNetEvent('lunatic_business:craftCancel', function()
     crafting[source] = nil
+end)
+
+---------------------------------------------------------------------
+-- Magasins automatiques (tuile Catalogues de lunatic_admin) : enregistrés dans ox_inventory,
+-- qui gère l'interface, le paiement en liquide, les permis et la distance (10 m autour de l'emplacement)
+---------------------------------------------------------------------
+
+local registeredShops = {}
+
+local function shopType(slug)
+    return ('lunatic_%s'):format(slug)
+end
+
+local function registerShops(list)
+    local seen = {}
+
+    for _, shop in ipairs(type(list) == 'table' and list or {}) do
+        if shop.kind == 'items' then
+            local inventory, locations, groups = {}, {}, nil
+
+            for _, entry in ipairs(shop.items or {}) do
+                inventory[#inventory + 1] = { name = entry.item, price = entry.price, license = entry.license }
+            end
+
+            for _, location in ipairs(shop.locations or {}) do
+                locations[#locations + 1] = vector3(location.x, location.y, location.z)
+            end
+
+            if shop.jobs and #shop.jobs > 0 then
+                groups = {}
+
+                for _, job in ipairs(shop.jobs) do
+                    groups[job] = 0
+                end
+            end
+
+            ox:RegisterShop(shopType(shop.slug), { name = shop.label, inventory = inventory, locations = locations, groups = groups })
+            seen[shop.slug] = true
+        end
+    end
+
+    -- Magasin supprimé ou renommé : enregistré vide, il ne s'ouvre plus
+    for slug in pairs(registeredShops) do
+        if not seen[slug] then
+            ox:RegisterShop(shopType(slug), { name = slug, inventory = {}, locations = {} })
+        end
+    end
+
+    registeredShops = seen
+end
+
+AddEventHandler('lunatic_admin:shopsChanged', registerShops)
+
+CreateThread(function()
+    while GetResourceState('ox_inventory') ~= 'started' do
+        Wait(500)
+    end
+
+    registerShops(GlobalState.lunaticShops)
 end)
 
 print('[lunatic_business] Démarré.')

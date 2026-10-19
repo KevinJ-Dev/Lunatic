@@ -3,6 +3,7 @@
 
 local points = {}
 local playerJob
+local onJobChanged -- défini plus bas : les magasins réservés à un métier apparaissent ou disparaissent
 
 local function loadPoints(list)
     points = type(list) == 'table' and list or {}
@@ -18,6 +19,10 @@ end)
 
 RegisterNetEvent('esx:setJob', function(job)
     playerJob = job
+
+    if onJobChanged then
+        onJobChanged()
+    end
 end)
 
 CreateThread(function()
@@ -317,19 +322,9 @@ end
 ---------------------------------------------------------------------
 
 local catalogs = {}
-local shopJobs = {} -- métiers qui ont au moins une boutique (point Catalogue visible par tous)
 
 local function loadCatalogs(value)
     catalogs = type(value) == 'table' and value or {}
-    shopJobs = {}
-
-    for _, catalog in pairs(catalogs) do
-        if catalog.kind == 'shop' then
-            for job in pairs(catalog.jobs or {}) do
-                shopJobs[job] = true
-            end
-        end
-    end
 end
 
 AddStateBagChangeHandler('lunaticCatalogs', 'global', function(_, _, value)
@@ -378,23 +373,15 @@ local function openCatalog(point, catalog, back)
 
         options[#options + 1] = {
             title = ('%s%s'):format(line.count > 1 and (line.count .. ' × ') or '', itemLabel(line.item)),
-            description = locked and ('Grade minimum : %d'):format(line.minGrade) or (catalog.kind == 'equipment' and ('%s (compte de la société)'):format(price) or price),
+            description = locked and ('Grade minimum : %d'):format(line.minGrade) or ('%s (compte de la société)'):format(price),
             image = itemImage(line.item),
             icon = 'box',
             disabled = locked,
             onSelect = function()
-                local rows = { { type = 'number', label = 'Quantité', default = 1, min = 1, max = Config.MaxPurchase, required = true } }
-
-                if catalog.kind == 'shop' and line.price > 0 then
-                    rows[2] = { type = 'select', label = 'Paiement', default = 'money', required = true, options = {
-                        { value = 'money', label = 'Liquide' }, { value = 'bank', label = 'Carte bancaire' },
-                    } }
-                end
-
-                local input = lib.inputDialog(itemLabel(line.item), rows)
+                local input = lib.inputDialog(itemLabel(line.item), { { type = 'number', label = 'Quantité', default = 1, min = 1, max = Config.MaxPurchase, required = true } })
 
                 if input and input[1] then
-                    local result = lib.callback.await('lunatic_business:buy', false, point.id, catalog.id, line.id, math.floor(input[1]), input[2])
+                    local result = lib.callback.await('lunatic_business:buy', false, point.id, catalog.id, line.id, math.floor(input[1]))
 
                     if not failed(result) then
                         notify(result.total > 0 and ('%d × %s pour %s.'):format(result.amount, result.label, money(result.total))
@@ -429,7 +416,7 @@ openCatalogList = function(point, kinds)
     local options = {}
 
     for _, catalog in ipairs(list) do
-        options[#options + 1] = { title = catalog.label, description = ('%d article%s'):format(#catalog.lines, #catalog.lines > 1 and 's' or ''), icon = catalog.kind == 'shop' and 'store' or 'shield-halved', onSelect = function()
+        options[#options + 1] = { title = catalog.label, description = ('%d article%s'):format(#catalog.lines, #catalog.lines > 1 and 's' or ''), icon = 'shield-halved', onSelect = function()
             openCatalog(point, catalog, true)
         end }
     end
@@ -515,8 +502,7 @@ local handlers = {
     end,
     wardrobe = openWardrobe,
     catalog = function(point)
-        local member = playerJob ~= nil and playerJob.name == point.job
-        openCatalogList(point, { shop = true, equipment = member })
+        openCatalogList(point, { equipment = true })
     end,
     armory = function(point)
         openCatalogList(point, { equipment = true })
@@ -536,9 +522,80 @@ RegisterNetEvent('lunatic_business:ringed', function(data)
     SetNewWaypoint(data.x + 0.0, data.y + 0.0)
 end)
 
--- Sonnette et Catalogue d'une boutique : visibles par tous ; le reste par les membres
+-- Sonnette : visible par tous ; le reste par les membres
 local function visible(point)
-    return point.type == 'doorbell' or (point.type == 'catalog' and shopJobs[point.job]) or (playerJob ~= nil and playerJob.name == point.job)
+    return point.type == 'doorbell' or (playerJob ~= nil and playerJob.name == point.job)
+end
+
+---------------------------------------------------------------------
+-- Magasins automatiques : blips, emplacements (même boucle que les points), ouverture ox_inventory
+---------------------------------------------------------------------
+
+local shops = {}
+local shopTargets = {} -- emplacements à afficher : { x, y, z, label, shop, index }
+local shopBlips = {}
+
+local function shopAllowed(shop)
+    if not shop.jobs or #shop.jobs == 0 then
+        return true
+    end
+
+    for _, job in ipairs(shop.jobs) do
+        if playerJob and playerJob.name == job then
+            return true
+        end
+    end
+
+    return false
+end
+
+local function refreshShops()
+    for _, blip in ipairs(shopBlips) do
+        if DoesBlipExist(blip) then
+            RemoveBlip(blip)
+        end
+    end
+
+    shopBlips, shopTargets = {}, {}
+
+    for _, shop in ipairs(shops) do
+        if shopAllowed(shop) then
+            for index, location in ipairs(shop.locations or {}) do
+                shopTargets[#shopTargets + 1] = { x = location.x, y = location.y, z = location.z, label = shop.label, shop = shop, index = index }
+
+                local blip = AddBlipForCoord(location.x, location.y, location.z)
+                SetBlipSprite(blip, shop.blip.sprite or 52)
+                SetBlipColour(blip, shop.blip.color or 2)
+                SetBlipScale(blip, (shop.blip.scale or 0.8) + 0.0)
+                SetBlipAsShortRange(blip, true)
+                BeginTextCommandSetBlipName('STRING')
+                AddTextComponentSubstringPlayerName(shop.blip.label ~= '' and shop.blip.label or shop.label)
+                EndTextCommandSetBlipName(blip)
+                shopBlips[#shopBlips + 1] = blip
+            end
+        end
+    end
+end
+
+AddStateBagChangeHandler('lunaticShops', 'global', function(_, _, value)
+    shops = type(value) == 'table' and value or {}
+    refreshShops()
+end)
+
+onJobChanged = refreshShops
+
+CreateThread(function()
+    shops = GlobalState.lunaticShops or {}
+    Wait(1000)
+    refreshShops()
+end)
+
+local function openShop(target)
+    if target.shop.kind ~= 'items' then
+        return notify(("« %s » n'est pas encore disponible."):format(target.label), 'info')
+    end
+
+    exports.ox_inventory:openInventory('shop', { type = ('lunatic_%s'):format(target.shop.slug), id = target.index })
 end
 
 ---------------------------------------------------------------------
@@ -553,6 +610,19 @@ CreateThread(function()
         local sleep = 750
         local coords = GetEntityCoords(PlayerPedId())
         local closest, closestDistance
+
+        for _, target in ipairs(shopTargets) do
+            local distance = #(coords - vector3(target.x, target.y, target.z))
+
+            if distance < Config.MarkerDistance then
+                sleep = 0
+                DrawMarker(25, target.x, target.y, target.z + 0.02, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.1, 1.1, 1.0, color[1], color[2], color[3], color[4], false, false, 2, false, nil, nil, false)
+
+                if distance < Config.InteractDistance and (not closestDistance or distance < closestDistance) then
+                    closest, closestDistance = { id = ('shop_%s_%d'):format(target.shop.slug, target.index), type = 'shop', label = target.label, target = target }, distance
+                end
+            end
+        end
 
         for _, point in ipairs(points) do
             if visible(point) then
@@ -578,7 +648,9 @@ CreateThread(function()
             if IsControlJustReleased(0, 38) and not IsPedInAnyVehicle(PlayerPedId(), false) then
                 local handler = handlers[closest.type]
 
-                if handler then
+                if closest.type == 'shop' then
+                    openShop(closest.target)
+                elseif handler then
                     handler(closest)
                 else
                     notify(("« %s » n'est pas encore disponible."):format(closest.typeLabel or closest.type), 'info')
@@ -596,5 +668,9 @@ end)
 AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
         lib.hideTextUI()
+
+        for _, blip in ipairs(shopBlips) do
+            RemoveBlip(blip)
+        end
     end
 end)

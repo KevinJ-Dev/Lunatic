@@ -287,7 +287,7 @@ function render() {
     if (view === "server") renderGlobal();
     if (view === "poles") renderPoles();
     if (view === "companies") renderStructures("company");
-    if (view === "catalogs") renderCatalogs();
+    if (view === "catalogs") renderShops();
     if (view === "publics") renderStructures("public");
     if (view === "events") renderEvents();
     if (view === "dev") renderDev();
@@ -1369,22 +1369,21 @@ async function demoNui(name, data) {
         lastSeen: Math.floor(Date.now() / 1000) - 7200, createdAt: Math.floor(Date.now() / 1000) - 20 * 86400,
         licenses: [{ type: "dmv", label: "Code de la route", owned: true }, { type: "drive", label: "Permis voiture", owned: false }, { type: "weapon", label: "Port d'arme", owned: false }],
     } };
-    if (name === "action" && data && data.action === "catalogs.list") return { ok: true, catalogs: [
-        { id: 2, label: "Armurerie LSPD", kind: "equipment", kindLabel: "Équipement", lines: 4, structures: 1 },
-        { id: 1, label: "Carte du Burger Shot", kind: "shop", kindLabel: "Boutique", lines: 3, structures: 1 },
-        { id: 3, label: "Cuisine", kind: "craft", kindLabel: "Craft", lines: 1, structures: 1 },
+    if (name === "action" && data && data.action === "shops.categories") return { ok: true, categories: [
+        ["ltd", "LTD", true, 8], ["binco", "Binco", false, 0], ["vangelico", "Vangelico", true, 1], ["barber", "Barber", false, 0], ["ammunation", "Ammunation", true, 3], ["rental", "Location", false, 0],
+        ["masquerade", "Masquerade", false, 0], ["shenails", "Shenails", false, 0], ["skateshop", "Skateshop", true, 1], ["tattoo", "Tattoo", false, 0], ["wholesale", "Grossistes", true, 7],
+    ].map(([id, label, ready, count]) => ({ id, label, ready, count })) };
+    if (name === "action" && data && data.action === "shops.list") return { ok: true, shops: [
+        { id: 1, label: "PostOP", slug: "postop", items: 10, locations: 1 }, { id: 2, label: "Viande", slug: "viande", items: 4, locations: 1 },
+        { id: 3, label: "Volaille", slug: "volaille", items: 4, locations: 1 }, { id: 4, label: "Vigneron", slug: "vigneron", items: 4, locations: 2 },
     ] };
-    if (name === "action" && data && data.action === "catalogs.info") {
-        const id = data.payload.id;
-        const kind = id === 2 ? "equipment" : id === 3 ? "craft" : "shop";
-        return { ok: true, structures: [{ job: "burgershot", label: "Burger Shot", kind: "company" }, { job: "lspd", label: "LSPD", kind: "public" }, { job: "bennys", label: "Benny's", kind: "company" }],
-            catalog: { id, label: id === 2 ? "Armurerie LSPD" : id === 3 ? "Cuisine" : "Carte du Burger Shot", kind, kindLabel: kind === "craft" ? "Craft" : kind === "equipment" ? "Équipement" : "Boutique",
-                linked: [id === 2 ? "lspd" : "burgershot"], lines: kind === "craft"
-                    ? [{ id: 9, item: "burger", label: "Burger", count: 2, price: 0, minGrade: 0, duration: 15, ingredients: [{ item: "bread", label: "Pain", count: 1 }, { item: "meat", label: "Viande", count: 1 }] }]
-                    : kind === "equipment"
-                        ? [{ id: 5, item: "WEAPON_PISTOL", label: "Pistolet", count: 1, price: 0, minGrade: 1 }, { id: 6, item: "ammo-9", label: "Munitions 9 mm", count: 24, price: 150, minGrade: 0 }, { id: 7, item: "armour", label: "Gilet pare-balles", count: 1, price: 500, minGrade: 0 }, { id: 8, item: "radio", label: "Radio", count: 1, price: 0, minGrade: 0 }]
-                        : [{ id: 1, item: "burger", label: "Burger", count: 1, price: 25, minGrade: 0 }, { id: 2, item: "cola", label: "eCola", count: 1, price: 8, minGrade: 0 }, { id: 3, item: "fries", label: "Frites", count: 1, price: 12, minGrade: 0, missing: true }] } };
-    }
+    if (name === "action" && data && data.action === "shops.info") return { ok: true,
+        licenses: [{ type: "weapon", label: "Port d'arme" }, { type: "drive", label: "Permis voiture" }],
+        jobs: [{ name: "burgershot", label: "Burger Shot" }, { name: "lspd", label: "LSPD" }, { name: "mechanic", label: "Mécanicien" }],
+        shop: { id: data.payload.id, category: "wholesale", slug: "postop", label: "Grossiste - PostOP", header: "assets/catalogues/headers/header_postop.webp",
+            blip: { sprite: 476, color: 66, scale: 0.8, label: "Grossiste - PostOP" }, jobs: ["burgershot"],
+            items: [{ item: "aromefraise", label: "Arôme Fraise", price: 1 }, { item: "barbeapapa", label: "Barbe à papa", price: 50 }, { item: "biscuit", label: "Biscuit", price: 20 }, { item: "bonbon", label: "Bonbon", price: 50, license: null }],
+            locations: [{ id: 1, x: -1223.4, y: -1495.1, z: 3.4, h: 0 }] } };
     if (name === "action" && data && data.action === "catalogs.items") return { ok: true, items: [{ name: "bread", label: "Pain" }, { name: "burger", label: "Burger" }, { name: "cola", label: "eCola" }, { name: "water", label: "Eau" }] };
     if (name === "action" && data && data.action === "structures.list") {
         const company = data.payload.kind === "company";
@@ -1410,8 +1409,14 @@ async function demoNui(name, data) {
                 { id: 3, job: data.payload.job, type: "catalog", typeLabel: "Catalogue", label: "Catalogue", x: -1195.8, y: -893.2, z: 13.0 },
             ],
             pointTypes: [{ id: "management", label: "Gestion", ready: true }, { id: "storage", label: "Stockage", ready: true }, { id: "locker", label: "Casier", ready: true }, { id: "wardrobe", label: "Vestiaire", ready: true }, { id: "doorbell", label: "Sonnette", ready: true }, { id: "custom", label: "Custom", ready: true }, { id: "catalog", label: "Catalogue" }, { id: "craft", label: "Craft" }],
-            catalogs: [{ id: 1, label: "Carte du Burger Shot", kind: "shop", kindLabel: "Boutique", lines: 3 }, { id: 3, label: "Cuisine", kind: "craft", kindLabel: "Craft", lines: 1 }],
-            allCatalogs: [{ id: 1, label: "Carte du Burger Shot", kind: "shop", kindLabel: "Boutique" }, { id: 2, label: "Armurerie LSPD", kind: "equipment", kindLabel: "Équipement" }, { id: 3, label: "Cuisine", kind: "craft", kindLabel: "Craft" }],
+            catalogs: [
+                { id: 2, label: "Équipement de service", kind: "equipment", kindLabel: "Équipement", shared: 0, lines: [
+                    { id: 5, item: "radio", label: "Radio", count: 1, price: 0, minGrade: 0, ingredients: [] },
+                    { id: 6, item: "armour", label: "Gilet pare-balles", count: 1, price: 500, minGrade: 2, ingredients: [] }] },
+                { id: 3, label: "Cuisine", kind: "craft", kindLabel: "Craft", shared: 1, lines: [
+                    { id: 9, item: "burger", label: "Burger", count: 2, price: 0, minGrade: 0, duration: 15, ingredients: [{ item: "bread", label: "Pain", count: 1 }, { item: "meat", label: "Viande", count: 1 }] }] },
+            ],
+            allCatalogs: [{ id: 2, label: "Équipement de service", kind: "equipment", kindLabel: "Équipement" }, { id: 3, label: "Cuisine", kind: "craft", kindLabel: "Craft" }, { id: 7, label: "Armurerie commune", kind: "equipment", kindLabel: "Équipement" }],
             account: { balance: 48250, history: [
                 { amount: 12000, balance: 48250, reason: "Dépôt", actor: "Jean Dupont", created: Math.floor(Date.now() / 1000) - 3600 },
                 { amount: -2500, balance: 36250, reason: "Retrait", actor: "Jean Dupont", created: Math.floor(Date.now() / 1000) - 7200 },

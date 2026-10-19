@@ -68,6 +68,10 @@ const ACTION_LABELS = {
     "catalogs.delete": "a supprimé un catalogue",
     "catalogs.line": "a modifié un catalogue",
     "catalogs.link": "a rattaché ou détaché un catalogue",
+    "shops.create": "a créé un magasin",
+    "shops.save": "a modifié un magasin",
+    "shops.delete": "a supprimé un magasin",
+    "shops.location": "a modifié les emplacements d'un magasin",
     "context.entity": "a agi sur l'entité",
     "vehicle.give": "a donné un véhicule à",
     "inventory.open": "a ouvert l'inventaire de",
@@ -207,6 +211,12 @@ function describeLog(log) {
         case "catalogs.delete":
         case "catalogs.line":
             summary = [d.label, d.item, d.operation].filter(Boolean).join(" · ");
+            break;
+        case "shops.create":
+        case "shops.save":
+        case "shops.delete":
+        case "shops.location":
+            summary = [d.label, d.category, d.operation, d.items !== undefined ? `${d.items} article(s)` : null].filter(Boolean).join(" · ");
             break;
         case "catalogs.link":
             summary = `${d.label} · ${d.linked ? "rattaché à" : "détaché de"} ${d.job}`;

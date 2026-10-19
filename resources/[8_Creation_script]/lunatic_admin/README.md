@@ -264,12 +264,21 @@ Onglets **Points** et **Compte** de la fiche d'une structure :
 - **Points** (`lunatic_structure_points`) : ajouter un point d'un type (`Config.StructurePointTypes`) à sa position, **Définir** (le replacer à sa position et orientation), **TP**, renommer, supprimer. Diffusés en direct dans `GlobalState.lunaticStructurePoints` et à `lunatic_business` (événement `lunatic_admin:structurePointsChanged`). Export `getStructurePoints()`.
 - **Compte** : solde, historique, ajout ou retrait par le staff avec motif (`Config.StructureAccountMaxAction`). Le compte est géré par `lunatic_business`.
 
-## Catalogues (lot E3)
+## Catalogues des structures (lot E3)
 
-Tuile **Catalogues** (`catalogs.manage`). Un catalogue (`lunatic_catalogs`, lignes `lunatic_catalog_lines`) est d'un des trois types :
+Onglet **Catalogues** de la fiche d'une entreprise ou d'un service public (permission de sa tuile). Deux types (`lunatic_catalogs`, lignes `lunatic_catalog_lines`) :
 
-- **Boutique** : ouvert à tous au point Catalogue ; le client paie (liquide ou banque), l'argent va au compte de la société. Le point Catalogue d'une structure qui a une boutique devient visible par tous.
 - **Équipement** : membres seulement, aux points Catalogue et Armurerie, filtré par grade minimum ; payé par le compte de la société (prix 0 = gratuit).
 - **Craft** : recettes des membres au point Craft (objet et quantité fabriqués, ingrédients consommés, durée, grade minimum).
 
-Rattachement à une ou plusieurs structures (`lunatic_structure_catalogs`) depuis la tuile ou l'onglet **Catalogues** de la fiche. Tout est diffusé dans `GlobalState.lunaticCatalogs`. Les stocks viendront avec « Gestion Stock ».
+Un catalogue peut être partagé entre plusieurs structures (`lunatic_structure_catalogs`, ex. armurerie commune à la police). Diffusés dans `GlobalState.lunaticCatalogs`.
+
+## Magasins automatiques (tuile Catalogues, lot C1)
+
+Tuile **Catalogues** (`catalogs.manage`) : grille des catégories (`Config.ShopCategories` : LTD, Binco, Vangelico, Barber, Ammunation, Location, Masquerade, Shenails, Skateshop, Tattoo, Grossistes), puis les magasins d'une catégorie.
+
+Chaque magasin (`lunatic_shops`, `lunatic_shop_items`, `lunatic_shop_locations`) : label, clé (slug), blip (sprite, couleur, taille, label), image d'en-tête (pour la future interface maison), jobs autorisés (vide = tout le monde), articles (objet, prix, permis requis), emplacements (ajouter à sa position, Définir, TP, supprimer). Bouton **Enregistrer** pour la fiche et les articles ; les emplacements sont enregistrés tout de suite.
+
+En jeu (`lunatic_business`) : blips, marqueur et `[E]`, interface de magasin d'ox_inventory (paiement en liquide, permis, distance). Catégories prêtes : celles de type `items` (LTD, Vangelico, Ammunation, Skateshop, Grossistes) ; apparence (lot C2) et location (lot C3) à venir.
+
+Les magasins par défaut d'ox_inventory (`data/shops.lua`) sont retirés, sauf les distributeurs (modification locale d'ox_inventory à garder lors des mises à jour).

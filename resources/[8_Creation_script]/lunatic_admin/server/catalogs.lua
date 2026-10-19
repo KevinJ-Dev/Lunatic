@@ -1,23 +1,20 @@
--- Lot E3 : catalogues (tuile Catalogues). Trois types :
---   shop      : boutique ouverte à tous, payée par le client, argent versé au compte de la société
+-- Lot E3 : catalogues des structures (onglet Catalogues de la fiche d'une entreprise ou d'un service public).
 --   equipment : équipement des membres selon leur grade, payé par le compte de la société (prix 0 = gratuit)
 --   craft     : recettes de fabrication des membres (ingrédients consommés)
--- Un catalogue peut être rattaché à plusieurs structures. Tout est diffusé dans GlobalState.lunaticCatalogs
--- (lu par lunatic_business, côté serveur pour vérifier et côté client pour afficher).
+-- Un catalogue peut être partagé entre plusieurs structures (ex. armurerie commune à la police).
+-- Droits : la permission de la tuile (Entreprises / Services publics) d'une des structures rattachées.
+-- Tout est diffusé dans GlobalState.lunaticCatalogs (lu par lunatic_business).
+-- Les magasins automatiques (LTD, Ammunation…) sont dans server/shops.lua (tuile Catalogues).
 
 Catalogs = {}
 
-local KINDS = { shop = 'Boutique', equipment = 'Équipement', craft = 'Craft' }
+local KINDS = { equipment = 'Équipement', craft = 'Craft' }
 local LIMITS = { count = 1000, price = 10000000, grade = 50, duration = 600, ingredients = 10, lines = 200 }
 
 ---@type table<number, table> catalogues par id
 local catalogs = {}
 
 local ox = exports.ox_inventory
-
-local function now()
-    return os.time()
-end
 
 local function publish()
     local list = {}
@@ -29,13 +26,47 @@ local function publish()
     GlobalState.lunaticCatalogs = list
 end
 
--- Catalogues rattachés à une structure
+local function itemLabels()
+    local labels = {}
+
+    for name, item in pairs(ox:Items() or {}) do
+        labels[name] = item.label or name
+    end
+
+    return labels
+end
+
+-- Catalogues d'une structure, lignes comprises (fiche)
 function Catalogs.ofJob(jobName)
+    local labels = itemLabels()
     local list = {}
 
     for _, catalog in pairs(catalogs) do
         if catalog.jobs[jobName] then
-            list[#list + 1] = { id = catalog.id, label = catalog.label, kind = catalog.kind, kindLabel = KINDS[catalog.kind], lines = #catalog.lines }
+            local shared = 0
+
+            for job in pairs(catalog.jobs) do
+                if job ~= jobName then
+                    shared = shared + 1
+                end
+            end
+
+            local lines = {}
+
+            for _, line in ipairs(catalog.lines) do
+                local ingredients = {}
+
+                for _, entry in ipairs(line.ingredients or {}) do
+                    ingredients[#ingredients + 1] = { item = entry.item, count = entry.count, label = labels[entry.item] or entry.item }
+                end
+
+                lines[#lines + 1] = {
+                    id = line.id, item = line.item, label = labels[line.item] or line.item, missing = labels[line.item] == nil,
+                    count = line.count, price = line.price, minGrade = line.minGrade, duration = line.duration, ingredients = ingredients,
+                }
+            end
+
+            list[#list + 1] = { id = catalog.id, label = catalog.label, kind = catalog.kind, kindLabel = KINDS[catalog.kind], shared = shared, lines = lines }
         end
     end
 
@@ -43,6 +74,7 @@ function Catalogs.ofJob(jobName)
     return list
 end
 
+-- Catalogues qu'une structure peut rattacher (partagés par d'autres structures)
 function Catalogs.all()
     local list = {}
 
@@ -67,7 +99,8 @@ end
 local function load()
     catalogs = {}
 
-    for _, row in ipairs(MySQL.query.await('SELECT * FROM `lunatic_catalogs`') or {}) do
+    -- Les anciennes boutiques (type shop) sont remplacées par les magasins automatiques
+    for _, row in ipairs(MySQL.query.await("SELECT * FROM `lunatic_catalogs` WHERE `kind` IN ('equipment', 'craft')") or {}) do
         catalogs[tonumber(row.id)] = { id = tonumber(row.id), label = row.label, kind = row.kind, createdBy = row.created_by, lines = {}, jobs = {} }
     end
 
@@ -106,7 +139,7 @@ table.insert(Panel.readyHooks, function()
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ]])
 
-    -- count : quantité donnée (achat) ou fabriquée (craft) ; ingredients : JSON [{ item, count }]
+    -- count : quantité donnée (équipement) ou fabriquée (craft) ; ingredients : JSON [{ item, count }]
     MySQL.query.await([[
         CREATE TABLE IF NOT EXISTS `lunatic_catalog_lines` (
             `id` INT NOT NULL AUTO_INCREMENT,
@@ -139,7 +172,7 @@ end)
 ---------------------------------------------------------------------
 
 local function denied()
-    return Panel.fail("Vous n'avez pas la permission de gérer les catalogues.")
+    return Panel.fail("Vous n'avez pas la permission de gérer ce catalogue.")
 end
 
 local function cleanText(value, min, max)
@@ -162,100 +195,40 @@ local function itemExists(name)
     return type(name) == 'string' and ox:Items(name) ~= nil
 end
 
-local function catalogFor(actor, id)
-    if not Ranks.hasPermission(actor, 'catalogs.manage') then
-        return nil, denied()
-    end
+local function canManageJob(actor, jobName)
+    local permission = type(jobName) == 'string' and Structures.permissionFor(jobName)
+    return permission and Ranks.hasPermission(actor, permission) or false
+end
 
+-- Droit sur un catalogue : la permission d'une des structures rattachées
+local function catalogFor(actor, id)
     local catalog = catalogs[tonumber(id) or -1]
 
     if not catalog then
         return nil, Panel.fail('Catalogue introuvable.')
     end
 
-    return catalog
-end
-
-local function structuresList()
-    local jobs = ESX.GetJobs()
-    local list = {}
-
-    for _, entry in ipairs(MySQL.query.await('SELECT `job`, `kind` FROM `lunatic_structures`') or {}) do
-        list[#list + 1] = { job = entry.job, label = jobs[entry.job] and jobs[entry.job].label or entry.job, kind = entry.kind }
+    for job in pairs(catalog.jobs) do
+        if canManageJob(actor, job) then
+            return catalog
+        end
     end
 
-    table.sort(list, function(a, b) return a.label < b.label end)
-    return list
+    -- Catalogue rattaché à aucune structure : toute personne qui gère des structures
+    if next(catalog.jobs) == nil and (Ranks.hasPermission(actor, 'companies.manage') or Ranks.hasPermission(actor, 'publics.manage')) then
+        return catalog
+    end
+
+    return nil, denied()
 end
 
 ---------------------------------------------------------------------
 -- Actions : catalogues
 ---------------------------------------------------------------------
 
-Panel.actions['catalogs.list'] = function(_, actor)
-    if not Ranks.hasPermission(actor, 'catalogs.manage') then
-        return denied()
-    end
-
-    local list = {}
-
-    for _, catalog in pairs(catalogs) do
-        local jobs = 0
-
-        for _ in pairs(catalog.jobs) do
-            jobs = jobs + 1
-        end
-
-        list[#list + 1] = { id = catalog.id, label = catalog.label, kind = catalog.kind, kindLabel = KINDS[catalog.kind], lines = #catalog.lines, structures = jobs }
-    end
-
-    table.sort(list, function(a, b) return a.label < b.label end)
-    return { ok = true, silent = true, catalogs = list, kinds = KINDS }
-end
-
-Panel.actions['catalogs.info'] = function(_, actor, data)
-    local catalog, err = catalogFor(actor, data.id)
-
-    if not catalog then
-        return err
-    end
-
-    local labels = {}
-
-    for name, item in pairs(ox:Items() or {}) do
-        labels[name] = item.label or name
-    end
-
-    local lines = {}
-
-    for _, line in ipairs(catalog.lines) do
-        local ingredients = {}
-
-        for _, entry in ipairs(line.ingredients or {}) do
-            ingredients[#ingredients + 1] = { item = entry.item, count = entry.count, label = labels[entry.item] or entry.item }
-        end
-
-        lines[#lines + 1] = {
-            id = line.id, item = line.item, label = labels[line.item] or line.item, missing = labels[line.item] == nil,
-            count = line.count, price = line.price, minGrade = line.minGrade, duration = line.duration, ingredients = ingredients,
-        }
-    end
-
-    local linked = {}
-
-    for job in pairs(catalog.jobs) do
-        linked[#linked + 1] = job
-    end
-
-    return { ok = true, silent = true, catalog = {
-        id = catalog.id, label = catalog.label, kind = catalog.kind, kindLabel = KINDS[catalog.kind], createdBy = catalog.createdBy,
-        lines = lines, linked = linked,
-    }, structures = structuresList() }
-end
-
--- Liste des objets d'ox_inventory (recherche dans le formulaire de ligne)
+-- Liste des objets d'ox_inventory (recherche dans les formulaires)
 Panel.actions['catalogs.items'] = function(_, actor)
-    if not Ranks.hasPermission(actor, 'catalogs.manage') then
+    if not (Ranks.hasPermission(actor, 'companies.manage') or Ranks.hasPermission(actor, 'publics.manage') or Ranks.hasPermission(actor, 'catalogs.manage')) then
         return denied()
     end
 
@@ -269,8 +242,9 @@ Panel.actions['catalogs.items'] = function(_, actor)
     return { ok = true, silent = true, items = list }
 end
 
+-- Création depuis la fiche d'une structure : le catalogue lui est rattaché
 Panel.actions['catalogs.create'] = function(src, actor, data)
-    if not Ranks.hasPermission(actor, 'catalogs.manage') then
+    if not canManageJob(actor, data.job) then
         return denied()
     end
 
@@ -285,12 +259,13 @@ Panel.actions['catalogs.create'] = function(src, actor, data)
     end
 
     local id = MySQL.insert.await('INSERT INTO `lunatic_catalogs` (`label`, `kind`, `created_by`, `created_at`) VALUES (?, ?, ?, ?)', {
-        label, data.kind, Staff.displayName(src), now(),
+        label, data.kind, Staff.displayName(src), os.time(),
     })
 
-    catalogs[id] = { id = id, label = label, kind = data.kind, createdBy = Staff.displayName(src), lines = {}, jobs = {} }
+    MySQL.insert.await('INSERT INTO `lunatic_structure_catalogs` (`job`, `catalog_id`) VALUES (?, ?)', { data.job, id })
+    catalogs[id] = { id = id, label = label, kind = data.kind, createdBy = Staff.displayName(src), lines = {}, jobs = { [data.job] = true } }
     publish()
-    Logs.add(src, 'catalogs.create', nil, { id = id, label = label, kind = data.kind })
+    Logs.add(src, 'catalogs.create', nil, { id = id, label = label, kind = data.kind, job = data.job })
 
     return { ok = true, silent = true, id = id }
 end
@@ -335,6 +310,32 @@ Panel.actions['catalogs.delete'] = function(src, actor, data)
     return { ok = true, silent = true }
 end
 
+-- Rattacher un catalogue partagé, ou le détacher (il reste pour les autres structures)
+Panel.actions['catalogs.link'] = function(src, actor, data)
+    local catalog = catalogs[tonumber(data.id) or -1]
+
+    if not catalog then
+        return Panel.fail('Catalogue introuvable.')
+    end
+
+    if not canManageJob(actor, data.job) then
+        return denied()
+    end
+
+    if data.linked == true then
+        MySQL.query.await('INSERT IGNORE INTO `lunatic_structure_catalogs` (`job`, `catalog_id`) VALUES (?, ?)', { data.job, catalog.id })
+        catalog.jobs[data.job] = true
+    else
+        MySQL.update.await('DELETE FROM `lunatic_structure_catalogs` WHERE `job` = ? AND `catalog_id` = ?', { data.job, catalog.id })
+        catalog.jobs[data.job] = nil
+    end
+
+    publish()
+    Logs.add(src, 'catalogs.link', nil, { id = catalog.id, label = catalog.label, job = data.job, linked = data.linked == true })
+
+    return { ok = true, silent = true }
+end
+
 ---------------------------------------------------------------------
 -- Actions : lignes
 ---------------------------------------------------------------------
@@ -350,10 +351,11 @@ Panel.actions['catalogs.saveLine'] = function(src, actor, data)
         return Panel.fail("Cet objet n'existe pas dans ox_inventory.")
     end
 
+    local craft = catalog.kind == 'craft'
     local count = wholeNumber(data.count, 1, LIMITS.count)
-    local price = catalog.kind == 'craft' and 0 or wholeNumber(data.price, 0, LIMITS.price)
-    local minGrade = catalog.kind == 'shop' and 0 or wholeNumber(data.minGrade, 0, LIMITS.grade)
-    local duration = catalog.kind == 'craft' and wholeNumber(data.duration, 1, LIMITS.duration) or 5
+    local price = craft and 0 or wholeNumber(data.price, 0, LIMITS.price)
+    local minGrade = wholeNumber(data.minGrade, 0, LIMITS.grade)
+    local duration = craft and wholeNumber(data.duration, 1, LIMITS.duration) or 5
 
     if not count or not price or not minGrade or not duration then
         return Panel.fail(('Valeurs invalides : quantité 1-%d, prix 0-%d, grade 0-%d, durée 1-%d s.'):format(LIMITS.count, LIMITS.price, LIMITS.grade, LIMITS.duration))
@@ -361,7 +363,7 @@ Panel.actions['catalogs.saveLine'] = function(src, actor, data)
 
     local ingredients = {}
 
-    if catalog.kind == 'craft' then
+    if craft then
         if type(data.ingredients) ~= 'table' or #data.ingredients < 1 or #data.ingredients > LIMITS.ingredients then
             return Panel.fail(('Une recette a entre 1 et %d ingrédients.'):format(LIMITS.ingredients))
         end
@@ -432,39 +434,4 @@ Panel.actions['catalogs.deleteLine'] = function(src, actor, data)
     return { ok = true, silent = true }
 end
 
----------------------------------------------------------------------
--- Rattachement à une structure (tuile Catalogues ou fiche de la structure)
----------------------------------------------------------------------
-
-Panel.actions['catalogs.link'] = function(src, actor, data)
-    local catalog = catalogs[tonumber(data.id) or -1]
-
-    if not catalog then
-        return Panel.fail('Catalogue introuvable.')
-    end
-
-    local permission = type(data.job) == 'string' and Structures.permissionFor(data.job)
-
-    if not permission then
-        return Panel.fail('Structure introuvable.')
-    end
-
-    if not Ranks.hasPermission(actor, 'catalogs.manage') and not Ranks.hasPermission(actor, permission) then
-        return denied()
-    end
-
-    if data.linked == true then
-        MySQL.query.await('INSERT IGNORE INTO `lunatic_structure_catalogs` (`job`, `catalog_id`) VALUES (?, ?)', { data.job, catalog.id })
-        catalog.jobs[data.job] = true
-    else
-        MySQL.update.await('DELETE FROM `lunatic_structure_catalogs` WHERE `job` = ? AND `catalog_id` = ?', { data.job, catalog.id })
-        catalog.jobs[data.job] = nil
-    end
-
-    publish()
-    Logs.add(src, 'catalogs.link', nil, { id = catalog.id, label = catalog.label, job = data.job, linked = data.linked == true })
-
-    return { ok = true, silent = true }
-end
-
-print('[lunatic_admin] Module Catalogues chargé.')
+print('[lunatic_admin] Module Catalogues des structures chargé.')
