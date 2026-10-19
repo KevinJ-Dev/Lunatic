@@ -11,40 +11,96 @@ local function money(amount)
     return ('%s $'):format(tostring(math.floor(amount or 0)):reverse():gsub('(%d%d%d)', '%1 '):reverse():gsub('^ ', ''))
 end
 
-local function clearPeds()
-    for _, ped in ipairs(peds) do
-        if DoesEntityExist(ped) then
-            DeletePed(ped)
-        end
+local function deletePed(id)
+    local ped = peds[id]
+
+    if ped and DoesEntityExist(ped) then
+        DeleteEntity(ped)
     end
 
-    peds = {}
+    peds[id] = nil
 end
 
--- PNJ locaux (non synchronisés), immobiles et invulnérables
-local function spawnPeds()
-    clearPeds()
-
-    for _, location in ipairs(fence.locations or {}) do
-        local model = joaat(location.ped)
-
-        if IsModelInCdimage(model) and pcall(lib.requestModel, model, 5000) then
-            local ped = CreatePed(4, model, location.x, location.y, location.z, location.h or 0.0, false, true)
-            SetEntityInvincible(ped, true)
-            FreezeEntityPosition(ped, true)
-            SetBlockingOfNonTemporaryEvents(ped, true)
-            SetPedCanRagdoll(ped, false)
-            TaskStartScenarioInPlace(ped, 'WORLD_HUMAN_SMOKING', 0, true)
-            SetModelAsNoLongerNeeded(model)
-            peds[#peds + 1] = ped
-        end
+local function clearPeds()
+    for id in pairs(peds) do
+        deletePed(id)
     end
+end
+
+-- PNJ local (non synchronisé), immobile et invulnérable. Marqué « entité de mission » :
+-- sans ça, le jeu supprime de lui-même les PNJ ordinaires.
+local function createPed(location)
+    local model = joaat(location.ped)
+
+    if not IsModelInCdimage(model) or not IsModelAPed(model) then
+        print(('[lunatic_illegal] Recelleur %d : le modèle « %s » n\'existe pas.'):format(location.id, location.ped))
+        return
+    end
+
+    RequestModel(model)
+    local timeout = GetGameTimer() + 10000
+
+    while not HasModelLoaded(model) and GetGameTimer() < timeout do
+        Wait(50)
+    end
+
+    if not HasModelLoaded(model) then
+        print(('[lunatic_illegal] Recelleur %d : le modèle « %s » ne se charge pas.'):format(location.id, location.ped))
+        return
+    end
+
+    -- L'emplacement est enregistré au sol : c'est la position des pieds du PNJ
+    local ped = CreatePed(4, model, location.x, location.y, location.z, location.h or 0.0, false, false)
+    SetModelAsNoLongerNeeded(model)
+
+    if not ped or ped == 0 then
+        print(('[lunatic_illegal] Recelleur %d : création du PNJ impossible.'):format(location.id))
+        return
+    end
+
+    SetEntityAsMissionEntity(ped, true, true)
+    SetEntityHeading(ped, location.h or 0.0)
+    SetEntityInvincible(ped, true)
+    SetBlockingOfNonTemporaryEvents(ped, true)
+    SetPedCanRagdoll(ped, false)
+    SetPedFleeAttributes(ped, 0, false)
+    FreezeEntityPosition(ped, true)
+    TaskStartScenarioInPlace(ped, 'WORLD_HUMAN_SMOKING', 0, true)
+    peds[location.id] = ped
 end
 
 local function load(value)
     fence = type(value) == 'table' and value or { items = {}, locations = {} }
-    CreateThread(spawnPeds)
+    -- Les PNJ sont recréés (position ou modèle peut-être changés) par la boucle ci-dessous
+    clearPeds()
+    print(('[lunatic_illegal] Recelleur : %d emplacement(s), %d objet(s) au catalogue.'):format(#(fence.locations or {}), #(fence.items or {})))
 end
+
+-- PNJ créés seulement à moins de 80 m du joueur, supprimés au-delà
+CreateThread(function()
+    while true do
+        local coords = GetEntityCoords(PlayerPedId())
+        local wanted = {}
+
+        for _, location in ipairs(fence.locations or {}) do
+            if #(coords - vector3(location.x, location.y, location.z)) < 80.0 then
+                wanted[location.id] = true
+
+                if not peds[location.id] or not DoesEntityExist(peds[location.id]) then
+                    createPed(location)
+                end
+            end
+        end
+
+        for id in pairs(peds) do
+            if not wanted[id] then
+                deletePed(id)
+            end
+        end
+
+        Wait(2000)
+    end
+end)
 
 AddStateBagChangeHandler('lunaticFence', 'global', function(_, _, value)
     load(value)
