@@ -21,6 +21,11 @@ En jeu, **`/crew`** (configurable : `Config.CrewCommand`) :
 Pour les autres scripts : `Player(source).state.crew` = `{ id, slug, label, type, color, rank, rankLabel, leader, level }` ou `nil`.
 Exports serveur de `lunatic_admin` : `getCrewOf(identifier)`, `getCrewView(crewId)`, `setCrewMember(identifier, crewId|nil, rank)`, `addCrewXp(crewId, amount)`.
 
+## Étape 2 : recelleur
+
+Catalogue (objet, prix de rachat, catégorie) et emplacements des PNJ dans le panel (tuile Illégal, onglet Recelleur).
+En jeu : PNJ immobile et invulnérable, sans blip ; `[E]` à `Config.FenceDistance` liste les objets du catalogue que le joueur possède ; revente vérifiée par le serveur (distance, quantité), payée sur `Config.FenceAccount` (argent sale par défaut). `Config.FenceCrewOnly` réserve le recelleur aux membres d'un crew.
+
 ## À venir
 
-Recelleur, drogues (laboratoires et vente), territoires (zones, multiplicateur, influence), craft d'armes et tablette, missions et braquages.
+Drogues (laboratoires et vente), territoires (zones, multiplicateur, influence), craft d'armes et tablette, missions et braquages.

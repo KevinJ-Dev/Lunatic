@@ -213,6 +213,7 @@ const NAV = [
     { id: "members", label: "Membres", icon: "i-users", show: () => can("staff.view"), group: "perms" },
     { id: "companies", label: "Entreprises", icon: "i-store", show: () => can("companies.manage") },
     { id: "publics", label: "Services publics", icon: "i-shield", show: () => can("publics.manage") },
+    { id: "illegal", label: "Illégal", icon: "i-mask", show: () => can("illegal.manage") },
     { id: "crews", label: "Crews", icon: "i-flag", show: () => can("crews.manage") },
     { id: "catalogs", label: "Catalogues", icon: "i-book", show: () => can("catalogs.manage") },
     { id: "poles", label: "Pôle emploi", icon: "i-briefcase", show: () => can("poles.manage") },
@@ -274,7 +275,7 @@ function render() {
     );
     $("me").querySelector(".avatar").style.background = me.rank.color;
 
-    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "crews", "catalogs", "poles", "events", "dev", "ranks", "members"]) {
+    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "illegal", "crews", "catalogs", "poles", "events", "dev", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
     }
 
@@ -290,6 +291,7 @@ function render() {
     if (view === "companies") renderStructures("company");
     if (view === "catalogs") renderShops();
     if (view === "crews") renderCrews();
+    if (view === "illegal") renderIllegal();
     if (view === "publics") renderStructures("public");
     if (view === "events") renderEvents();
     if (view === "dev") renderDev();
@@ -1294,7 +1296,7 @@ window.addEventListener("message", (event) => {
 
 function demoState() {
     return {
-        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["crews.manage", "catalogs.manage", "companies.manage", "publics.manage", "players.crash", "vehicles.give", "dev.manage", "events.manage", "poles.manage", "server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["illegal.manage", "crews.manage", "catalogs.manage", "companies.manage", "publics.manage", "players.crash", "vehicles.give", "dev.manage", "events.manage", "poles.manage", "server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],
@@ -1371,6 +1373,9 @@ async function demoNui(name, data) {
         lastSeen: Math.floor(Date.now() / 1000) - 7200, createdAt: Math.floor(Date.now() / 1000) - 20 * 86400,
         licenses: [{ type: "dmv", label: "Code de la route", owned: true }, { type: "drive", label: "Permis voiture", owned: false }, { type: "weapon", label: "Port d'arme", owned: false }],
     } };
+    if (name === "action" && data && data.action === "fence.info") return { ok: true, defaultPed: "s_m_y_dealer_01", categories: ["Objets volés", "Bijoux"],
+        items: [{ id: 1, item: "bouteille2", label: "Bouteille", price: 15, category: "Objets volés" }, { id: 2, item: "phone", label: "Téléphone", price: 120, category: "Objets volés" }, { id: 3, item: "goldchain", label: "Chaîne en or", price: 450, category: "Bijoux", missing: true }],
+        locations: [{ id: 1, x: 1240.3, y: -3110.2, z: 5.5, h: 90, ped: "s_m_y_dealer_01" }] };
     if (name === "action" && data && data.action === "crews.list") return { ok: true,
         types: [{ id: "mafia", label: "Mafia" }, { id: "mc", label: "MC" }, { id: "organisation", label: "Organisation" }, { id: "gang", label: "Gang" }],
         crews: [{ id: 1, label: "Ballas", type: "gang", typeLabel: "Gang", color: "#9b59b6", level: 3, members: 8 }, { id: 2, label: "Lost MC", type: "mc", typeLabel: "MC", color: "#c0392b", level: 5, members: 12 }] };

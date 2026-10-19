@@ -13,11 +13,19 @@ shared_scripts {
     'config.lua',
 }
 
-server_script 'server/crews.lua'
-client_script 'client/crews.lua'
+server_scripts {
+    'server/crews.lua',
+    'server/fence.lua',
+}
+
+client_scripts {
+    'client/crews.lua',
+    'client/fence.lua',
+}
 
 dependencies {
     'es_extended',
     'ox_lib',
+    'ox_inventory',
     'lunatic_admin',
 }

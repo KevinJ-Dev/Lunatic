@@ -331,6 +331,12 @@ local function vehicleType(model, hash)
     return 'automobile'
 end
 
+-- Recelleur : le serveur demande si un modèle de PNJ existe
+lib.callback.register('lunatic_admin:pedModel', function(model)
+    local hash = joaat(type(model) == 'string' and model:lower() or '')
+    return IsModelInCdimage(hash) and IsModelAPed(hash)
+end)
+
 -- Lot L (Give un véhicule) : le serveur demande si le modèle existe et de quel type il est
 lib.callback.register('lunatic_admin:vehicleModel', function(model)
     model = type(model) == 'string' and model:lower() or ''

@@ -515,3 +515,6 @@ button.log-row:hover { background: var(--surface-2); border-color: var(--line-st
 .shop-job-add { width: 200px; height: 32px; font-size: 12.5px; }
 .shop-item-row { grid-template-columns: 40px minmax(0, 1fr) 180px 140px auto; min-height: 52px; }
 .shop-item-row select.input { height: 34px; font-size: 12.5px; }
+
+/* Tuile Illégal */
+.segmented button.soon { opacity: .45; }

@@ -68,6 +68,8 @@ const ACTION_LABELS = {
     "catalogs.delete": "a supprimé un catalogue",
     "catalogs.line": "a modifié un catalogue",
     "catalogs.link": "a rattaché ou détaché un catalogue",
+    "fence.item": "a modifié le catalogue du recelleur",
+    "fence.location": "a modifié les emplacements du recelleur",
     "crews.create": "a créé un crew",
     "crews.save": "a modifié un crew",
     "crews.delete": "a supprimé un crew",
@@ -222,6 +224,12 @@ function describeLog(log) {
         case "crews.delete":
         case "crews.member":
             summary = [d.label, d.type, d.operation].filter(Boolean).join(" · ");
+            break;
+        case "fence.item":
+            summary = [d.item, d.price !== undefined ? `${d.price} $` : null, d.category, d.operation].filter(Boolean).join(" · ");
+            break;
+        case "fence.location":
+            summary = [d.operation, d.ped].filter(Boolean).join(" · ");
             break;
         case "crews.xp":
             summary = `${d.label} · ${d.amount > 0 ? "+" : ""}${d.amount} XP`;

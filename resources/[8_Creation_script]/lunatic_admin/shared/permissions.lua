@@ -48,6 +48,7 @@ Permissions.List = {
     { id = 'poles.manage', family = 'server', label = 'Pôle emploi : métiers, grades, salaires et membres' },
 
     -- Illégal
+    { id = 'illegal.manage', family = 'illegal', label = 'Illégal : recelleur, puis drogues, territoires, craft d\'armes, tablette, missions' },
     { id = 'crews.manage', family = 'illegal', label = 'Crews : créer et gérer les crews (type, rangs, membres, XP)' },
 
     -- Lot E1 : entreprises et services publics

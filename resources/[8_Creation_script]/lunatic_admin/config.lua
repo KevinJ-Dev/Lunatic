@@ -79,6 +79,9 @@ Config.CrewTypes = {
 Config.CrewDefaultRanks = { 'Rang C', 'Rang B', 'Rang A', 'Rang S' } -- du plus bas au plus haut (le plus haut = chef)
 Config.CrewLevels = { 0, 1000, 2500, 5000, 10000, 20000, 35000, 55000, 80000, 120000 } -- XP nécessaire pour chaque level (level 1 à 10)
 
+-- Illégal : recelleur
+Config.FenceDefaultPed = 's_m_y_dealer_01' -- modèle du PNJ d'un nouvel emplacement (modifiable ensuite)
+
 -- Entreprises et services publics (lot E1) : types proposés à la création
 Config.StructureTypes = {
     company = {
@@ -184,7 +187,7 @@ end
 
 Config.DefaultRanks = {
     { name = 'Fondateur',         color = '#9650ff', level = 100, owner = true },
-    { name = 'Admin',             color = '#ff6b6b', level = 80, permissions = with(players, sanctions, tools, economy, world, profile, shop, { 'players.wipe', 'crews.manage', 'companies.manage', 'publics.manage', 'catalogs.manage', 'contextmenu.use', 'players.crash', 'vehicles.give', 'chat.announce_mod', 'logs.view', 'logs.chat', 'sanctions.ban_permanent', 'sanctions.revoke', 'panel.open', 'ranks.view', 'ranks.manage', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce', 'chat.clear' }) },
+    { name = 'Admin',             color = '#ff6b6b', level = 80, permissions = with(players, sanctions, tools, economy, world, profile, shop, { 'players.wipe', 'illegal.manage', 'crews.manage', 'companies.manage', 'publics.manage', 'catalogs.manage', 'contextmenu.use', 'players.crash', 'vehicles.give', 'chat.announce_mod', 'logs.view', 'logs.chat', 'sanctions.ban_permanent', 'sanctions.revoke', 'panel.open', 'ranks.view', 'ranks.manage', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce', 'chat.clear' }) },
     { name = 'Responsable staff', color = '#f2c26b', level = 60, permissions = with(players, sanctions, tools, world, profile, { 'logs.view', 'economy.money', 'economy.job', 'economy.items', 'sanctions.revoke', 'panel.open', 'ranks.view', 'staff.view', 'staff.manage', 'chat.staff', 'chat.announce' }) },
     { name = 'Modérateur',        color = '#5fd3a0', level = 40, permissions = with(players, sanctions, { 'staff.online', 'tools.noclip', 'tools.names', 'tools.tpm', 'tools.vehicles', 'panel.open', 'ranks.view', 'staff.view', 'chat.staff' }) },
     { name = 'Modérateur test',   color = '#6bb8f2', level = 20, permissions = { 'panel.open', 'chat.staff', 'players.view', 'players.goto', 'players.spectate', 'players.heal', 'sanctions.view', 'sanctions.warn', 'tools.noclip', 'tools.names' } },

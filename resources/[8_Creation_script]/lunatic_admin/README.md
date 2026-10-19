@@ -292,3 +292,9 @@ Tuile **Crews** (`crews.manage`, famille Illégal). Tables `lunatic_crews`, `lun
 - **Création** : nom, clé, type (`Config.CrewTypes` : Mafia, MC, Organisation, Gang) ; rangs par défaut `Config.CrewDefaultRanks` (Rang C → Rang S, le plus haut = chef).
 - **Fiche** : identité (nom, type, couleur, logo), rangs (renommer, ajouter au-dessus, retirer le plus haut s'il est vide), membres (ajout par ID ou nom RP, rang, retrait), progression (XP, level selon `Config.CrewLevels`, ajustement d'XP ; l'influence viendra avec les territoires).
 - Statebag `crew` des joueurs connectés et exports pour `lunatic_illegal` (menu `/crew` en jeu).
+
+## Illégal (tuile Illégal)
+
+Tuile **Illégal** (`illegal.manage`), avec un onglet par étape (les suivantes sont marquées « bientôt »).
+
+- **Recelleur** (étape 2) : catalogue des objets rachetés (objet ox_inventory, prix unitaire, catégorie ; ajouter, modifier, dupliquer, supprimer) et emplacements des PNJ (`Config.FenceDefaultPed`, modèle vérifié par le jeu du staff ; Ajouter à ma position, Définir, TP, changer le modèle). Tables `lunatic_fence_items`, `lunatic_fence_locations`, diffusion `GlobalState.lunaticFence` ; revente en jeu dans `lunatic_illegal`.
