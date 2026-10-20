@@ -485,17 +485,44 @@ function renderTabs() {
 
         const el = h("div", { class: `tab${index === activeTab ? " active" : ""}`, title: `${info.label} · glisser pour déplacer`, onclick: () => { if (!ignoreTabClick) selectTab(index); } },
             icon(info.icon), h("span", { class: "tab-label" }, info.label),
-            h("button", { class: "tab-x", title: "Fermer l'onglet (Ctrl+W)", onclick: (e) => { e.stopPropagation(); closeTab(index); } }, icon("i-x")));
+            h("button", { class: "tab-x", title: "Fermer l'onglet (Ctrl+W)", onclick: (e) => { e.stopPropagation(); if (!ignoreTabClick) closeTab(index); } }, icon("i-x")));
         // Clic molette : fermer l'onglet, comme un navigateur
         el.addEventListener("auxclick", (e) => { if (e.button === 1) closeTab(index); });
         el.addEventListener("mousedown", (e) => {
-            if (e.button !== 0 || e.target.closest(".tab-x")) return;
+            if (e.button !== 0) return; // aussi depuis la croix : sur un onglet étroit, elle occupe le centre
             tabDrag = { from: index, startX: e.clientX, active: false, to: index };
         });
         return el;
     });
-    $("tabs").replaceChildren(...list);
+    // L'Accueil reste fixe à gauche ; seuls les autres onglets défilent
+    $("tabs").replaceChildren(list[0], h("div", { class: "tab-scroll", id: "tabScroll" }, list.slice(1)));
+    fitTabs();
 }
+
+// Beaucoup d'onglets : ils rétrécissent (icône seule, ✕ sur l'onglet actif ou survolé), puis la barre défile
+// (molette ou glisser). L'onglet actif reste toujours visible.
+function fitTabs() {
+    const bar = $("tabScroll");
+    if (!bar) return;
+    let activeEl = null;
+    bar.querySelectorAll(".tab:not(.tab-home)").forEach((el) => {
+        el.classList.toggle("narrow", el.getBoundingClientRect().width < 100);
+        if (el.classList.contains("active")) activeEl = el;
+    });
+    if (!activeEl) return;
+    const barRect = bar.getBoundingClientRect();
+    const rect = activeEl.getBoundingClientRect();
+    if (rect.left < barRect.left) bar.scrollLeft -= barRect.left - rect.left + 8;
+    else if (rect.right > barRect.right) bar.scrollLeft += rect.right - barRect.right + 8;
+}
+
+$("tabs").addEventListener("wheel", (e) => {
+    const bar = $("tabScroll");
+    if (!bar || bar.scrollWidth <= bar.clientWidth) return;
+    e.preventDefault();
+    bar.scrollLeft += e.deltaY || e.deltaX;
+}, { passive: false });
+window.addEventListener("resize", () => fitTabs());
 
 function renderTopbar() {
     const page = NAV.find((n) => n.id === view) || NAV[0];
@@ -510,6 +537,7 @@ function renderTopbar() {
 
 // Pastille du staff : portrait du personnage pris en jeu à chaque ouverture (message « headshot »), sinon l'initiale
 let meHeadshot = null;
+let headshotRetried = null;
 
 function renderMe() {
     const me = state.me;
@@ -519,7 +547,13 @@ function renderMe() {
     if (meHeadshot) {
         const img = h("img", { class: "avatar avatar-img", src: meHeadshot, alt: "" });
         img.style.borderColor = me.rank.color;
-        img.addEventListener("error", () => img.replaceWith(avatar));
+        img.addEventListener("error", () => {
+            img.replaceWith(avatar);
+            if (headshotRetried !== meHeadshot) {
+                headshotRetried = meHeadshot;
+                nui("headshotRetry", {}).catch(() => {});
+            }
+        });
         $("me").replaceChildren(img, h("span", { class: "who" }, h("b", null, me.name), h("span", { class: "muted" }, me.rank.name)));
         return;
     }

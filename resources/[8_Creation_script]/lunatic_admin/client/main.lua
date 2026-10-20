@@ -33,18 +33,40 @@ local function toggleKey()
 end
 
 -- Portrait du personnage (tête en jeu) pour la pastille du panel, refait à chaque ouverture
+-- Le jeu n'en garde qu'un petit nombre : chaque portrait est libéré dès qu'il est remplacé, et à l'arrêt de la ressource
+-- (sans ça, chaque « ensure lunatic_admin » en laissait un en mémoire jusqu'à ce que le jeu refuse d'en créer).
 local headshot
+local takingHeadshot = false
 
-function SendHeadshot()
-    local handle = RegisterPedheadshotTransparent(PlayerPedId())
+local function takeHeadshot(transparent)
+    local ped = PlayerPedId()
+    local handle = transparent and RegisterPedheadshotTransparent(ped) or RegisterPedheadshot(ped)
     local timeout = GetGameTimer() + 3000
 
     while (not IsPedheadshotReady(handle) or not IsPedheadshotValid(handle)) and GetGameTimer() < timeout do
         Wait(50)
     end
 
-    if not IsPedheadshotReady(handle) or not IsPedheadshotValid(handle) then
-        UnregisterPedheadshot(handle)
+    if IsPedheadshotReady(handle) and IsPedheadshotValid(handle) then
+        return handle
+    end
+
+    UnregisterPedheadshot(handle)
+    return nil
+end
+
+function SendHeadshot()
+    if takingHeadshot then
+        return
+    end
+
+    takingHeadshot = true
+    -- Fond transparent si possible, sinon portrait classique
+    local handle = takeHeadshot(true) or takeHeadshot(false)
+    takingHeadshot = false
+
+    if not handle then
+        print("^3[lunatic_admin] Portrait du personnage indisponible : le jeu refuse d'en créer (reconnectez-vous pour libérer la mémoire).^0")
         return
     end
 
@@ -58,6 +80,19 @@ function SendHeadshot()
 
     headshot = handle
 end
+
+AddEventHandler('onResourceStop', function(resource)
+    if resource == GetCurrentResourceName() and headshot then
+        UnregisterPedheadshot(headshot)
+        headshot = nil
+    end
+end)
+
+-- L'image du portrait n'a pas chargé dans le panel : on en refait un
+RegisterNUICallback('headshotRetry', function(_, cb)
+    cb({ ok = true })
+    CreateThread(SendHeadshot)
+end)
 
 local function open()
     if isOpen then
