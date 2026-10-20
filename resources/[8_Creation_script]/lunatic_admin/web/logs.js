@@ -69,6 +69,9 @@ const ACTION_LABELS = {
     "catalogs.line": "a modifié un catalogue",
     "catalogs.link": "a rattaché ou détaché un catalogue",
     "fence.item": "a modifié le catalogue du recelleur",
+    "drugs.save": "a modifié une drogue",
+    "drugs.delete": "a supprimé une drogue",
+    "drugs.lab": "a modifié un laboratoire de drogue",
     "fence.location": "a modifié les emplacements du recelleur",
     "crews.create": "a créé un crew",
     "crews.save": "a modifié un crew",
@@ -227,6 +230,11 @@ function describeLog(log) {
             break;
         case "fence.item":
             summary = [d.item, d.price !== undefined ? `${d.price} $` : null, d.category, d.operation].filter(Boolean).join(" · ");
+            break;
+        case "drugs.save":
+        case "drugs.delete":
+        case "drugs.lab":
+            summary = [d.item, d.crewType, d.price !== undefined ? `${d.price} $` : null, d.operation].filter(Boolean).join(" · ");
             break;
         case "fence.location":
             summary = [d.operation, d.ped].filter(Boolean).join(" · ");

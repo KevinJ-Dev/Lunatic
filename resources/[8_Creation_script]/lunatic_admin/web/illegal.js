@@ -7,7 +7,7 @@
 
 const ILLEGAL_TABS = [
     { value: "fence", label: "Recelleur" },
-    { value: "drugs", label: "Drogues", soon: true },
+    { value: "drugs", label: "Drogues" },
     { value: "territories", label: "Territoires", soon: true },
     { value: "craft", label: "Craft d'armes", soon: true },
     { value: "tablet", label: "Tablette", soon: true },
@@ -50,7 +50,7 @@ function paintIllegal() {
             h("h1", { class: "page-title" }, "Illégal"),
             h("div", { class: "page-sub" }, "Gestion des activités illégales, appliquée en jeu sans redémarrage"))),
         h("div", { class: "struct-tabs", style: "padding-left:0" }, tabs),
-        h("div", { class: "scroll" }, fencePanel())
+        h("div", { class: "scroll" }, illegalState.tab === "drugs" ? drugsPanel() : fencePanel())
     ));
 
     const scroller = root.querySelector(".scroll");

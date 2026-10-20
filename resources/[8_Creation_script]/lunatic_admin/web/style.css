@@ -519,6 +519,13 @@ button.log-row:hover { background: var(--surface-2); border-color: var(--line-st
 /* Tuile Illégal */
 .segmented button.soon { opacity: .45; }
 
+/* Drogues (illégal, étape 3) */
+.drug-title { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.drug-title .who { display: grid; gap: 2px; min-width: 0; }
+.drug-title .muted { font-size: 12px; }
+.lab-block { display: grid; gap: 6px; }
+.lab-locations { margin-left: 40px; }
+.lab-location { min-height: 40px; }
 
 /* Panel façon tablette : onglets et boutons de fenêtre */
 .topbar { grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 12px; }

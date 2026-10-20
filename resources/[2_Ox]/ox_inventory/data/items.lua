@@ -251,4 +251,69 @@ return {
 			notification = 'Tu as bu un jus de pomme.',
 		},
 	},
+
+	-- Lunatic RP : drogues (vendues aux passants) et ingrédients des laboratoires (lunatic_illegal)
+	['weed'] = {
+		label = 'Pochon de weed',
+		weight = 10,
+		stack = true,
+		description = "Quelques grammes d'herbe, prêts à être vendus.",
+	},
+
+	['cocaine'] = {
+		label = 'Pochon de cocaïne',
+		weight = 10,
+		stack = true,
+		description = 'Poudre blanche conditionnée pour la revente.',
+	},
+
+	['meth'] = {
+		label = 'Pochon de meth',
+		weight = 10,
+		stack = true,
+		description = 'Cristaux bleutés, très recherchés.',
+	},
+
+	['fentanyl'] = {
+		label = 'Fiole de fentanyl',
+		weight = 15,
+		stack = true,
+		description = 'Opioïde de synthèse extrêmement puissant.',
+	},
+
+	['weed_leaf'] = {
+		label = 'Feuille de cannabis',
+		weight = 20,
+		stack = true,
+	},
+
+	['coca_leaf'] = {
+		label = 'Feuille de coca',
+		weight = 20,
+		stack = true,
+	},
+
+	['pseudoephedrine'] = {
+		label = 'Pseudoéphédrine',
+		weight = 50,
+		stack = true,
+	},
+
+	['chemicals'] = {
+		label = 'Produits chimiques',
+		weight = 500,
+		stack = true,
+	},
+
+	['plastic_bag'] = {
+		label = 'Sachet plastique',
+		weight = 2,
+		stack = true,
+	},
+
+	['empty_vial'] = {
+		label = 'Fiole vide',
+		weight = 10,
+		stack = true,
+	},
 }

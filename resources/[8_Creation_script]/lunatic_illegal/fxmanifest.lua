@@ -16,11 +16,13 @@ shared_scripts {
 server_scripts {
     'server/crews.lua',
     'server/fence.lua',
+    'server/drugs.lua',
 }
 
 client_scripts {
     'client/crews.lua',
     'client/fence.lua',
+    'client/drugs.lua',
 }
 
 dependencies {

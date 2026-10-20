@@ -1835,6 +1835,15 @@ async function demoNui(name, data) {
         lastSeen: Math.floor(Date.now() / 1000) - 7200, createdAt: Math.floor(Date.now() / 1000) - 20 * 86400,
         licenses: [{ type: "dmv", label: "Code de la route", owned: true }, { type: "drive", label: "Permis voiture", owned: false }, { type: "weapon", label: "Port d'arme", owned: false }],
     } };
+    if (name === "action" && data && data.action === "drugs.info") return { ok: true,
+        crewTypes: [{ id: "mafia", label: "Mafia" }, { id: "mc", label: "MC" }, { id: "organisation", label: "Organisation" }, { id: "gang", label: "Gang" }],
+        crewCounts: { gang: 1, mc: 1 },
+        drugs: [
+            { id: 1, item: "weed_bag", label: "Pochon de weed", active: true, price: 120, xp: 5, influence: 2, cops: 0, volumeMin: 1, volumeMax: 5,
+                labs: [{ id: 1, crewType: "gang", crewTypeLabel: "Gang", output: 10, duration: 45, ingredients: [{ item: "weed_leaf", label: "Feuille de weed", count: 5 }, { item: "plastic_bag", label: "Sachet", count: 10 }],
+                    locations: [{ id: 1, x: 1057.4, y: -3196.5, z: -39.1, h: 90 }] }] },
+            { id: 2, item: "coke_bag", label: "Pochon de coke", active: false, price: 450, xp: 12, influence: 4, cops: 2, volumeMin: 1, volumeMax: 3, labs: [] },
+        ] };
     if (name === "action" && data && data.action === "fence.info") return { ok: true, defaultPed: "s_m_y_dealer_01", categories: ["Objets volés", "Bijoux"],
         items: [{ id: 1, item: "bouteille2", label: "Bouteille", price: 15, category: "Objets volés" }, { id: 2, item: "phone", label: "Téléphone", price: 120, category: "Objets volés" }, { id: 3, item: "goldchain", label: "Chaîne en or", price: 450, category: "Bijoux", missing: true }],
         locations: [{ id: 1, x: 1240.3, y: -3110.2, z: 5.5, h: 90, ped: "s_m_y_dealer_01" }] };

@@ -26,6 +26,15 @@ Exports serveur de `lunatic_admin` : `getCrewOf(identifier)`, `getCrewView(crewI
 Catalogue (objet, prix de rachat, catégorie) et emplacements des PNJ dans le panel (tuile Illégal, onglet Recelleur).
 En jeu : PNJ immobile et invulnérable, sans blip ; `[E]` à `Config.FenceDistance` liste les objets du catalogue que le joueur possède ; revente vérifiée par le serveur (distance, quantité), payée sur `Config.FenceAccount` (argent sale par défaut). `Config.FenceCrewOnly` réserve le recelleur aux membres d'un crew.
 
+## Étape 3 : drogues
+
+Drogues et laboratoires dans le panel (tuile Illégal, onglet Drogues).
+
+- **Laboratoires** : marqueur et `[E]` visibles par les membres d'un crew du type autorisé ; production en deux temps (barre de progression annulable, ingrédients retirés et drogue donnée à la fin, durée vérifiée par le serveur).
+- **Vente aux passants** : avec au moins le volume minimum sur soi, `[E]` près d'un PNJ qui marche (`Config.SellDistance`), une tentative par passant. Le serveur vérifie la distance, le délai (`Config.SellCooldown`), le nombre de policiers en service (joueurs connectés au métier d'une structure de type Police) et la quantité. Acceptation `Config.SellChance`, quantité entre les volumes min et max, prix ±`Config.PriceVariation`, payé sur `Config.SellAccount`.
+- **Crew** : XP ajoutée au crew du vendeur, influence journalisée avec la position (`lunatic_crew_influence`, pour les territoires).
+- **Police** : alerte anonyme avec probabilité `Config.AlertChance` (zone approximative sur la carte pendant `Config.AlertDuration` secondes).
+
 ## À venir
 
-Drogues (laboratoires et vente), territoires (zones, multiplicateur, influence), craft d'armes et tablette, missions et braquages.
+Territoires (zones, multiplicateur, influence), craft d'armes et tablette, missions et braquages.
