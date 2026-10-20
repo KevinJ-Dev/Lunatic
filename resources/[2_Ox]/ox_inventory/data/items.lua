@@ -316,4 +316,516 @@ return {
 		weight = 10,
 		stack = true,
 	},
+
+	-- Cannabis : culture et transformation (images déjà présentes dans web/images)
+	['weed_seed'] = {
+		label = "Graine de cannabis",
+		weight = 5,
+		stack = true,
+		client = { image = 'lemonskunk_seed.png' },
+	},
+
+	['weed_bud_untrimmed'] = {
+		label = "Tête de cannabis non taillée",
+		weight = 30,
+		stack = true,
+		client = { image = 'marijuana_bud1_untrimmed.png' },
+	},
+
+	['weed_bud'] = {
+		label = "Tête de cannabis",
+		weight = 20,
+		stack = true,
+		client = { image = 'marijuana_bud1.png' },
+	},
+
+	['ground_weed'] = {
+		label = "Herbe moulue",
+		weight = 10,
+		stack = true,
+		client = { image = 'ground-weed.png' },
+	},
+
+	['weed_jar'] = {
+		label = "Bocal de cannabis",
+		weight = 300,
+		stack = true,
+		client = { image = 'marijuana_jar1.png' },
+	},
+
+	['weed_brick'] = {
+		label = "Brique de cannabis",
+		weight = 1000,
+		stack = true,
+		client = { image = 'brick_weed.png' },
+	},
+
+	['hash'] = {
+		label = "Haschich",
+		weight = 10,
+		stack = true,
+		client = { image = 'drug_hash.png' },
+	},
+
+	['joint'] = {
+		label = "Joint",
+		weight = 2,
+		stack = true,
+	},
+
+	['blunt'] = {
+		label = "Blunt",
+		weight = 3,
+		stack = true,
+	},
+
+	['bluntwrap'] = {
+		label = "Feuille à blunt",
+		weight = 1,
+		stack = true,
+	},
+
+	['bong'] = {
+		label = "Bang",
+		weight = 400,
+		stack = true,
+	},
+
+	['hq_soil'] = {
+		label = "Terreau de qualité",
+		weight = 2000,
+		stack = true,
+		client = { image = 'hiqualitysoil.png' },
+	},
+
+	['lq_soil'] = {
+		label = "Terreau",
+		weight = 2000,
+		stack = true,
+		client = { image = 'lowqualitysoil.png' },
+	},
+
+	['hq_nutrients'] = {
+		label = "Engrais de qualité",
+		weight = 500,
+		stack = true,
+		client = { image = 'hiqualnutrients.png' },
+	},
+
+	['lq_nutrients'] = {
+		label = "Engrais",
+		weight = 500,
+		stack = true,
+		client = { image = 'lowqualnutrients.png' },
+	},
+
+	['manure'] = {
+		label = "Bidon de fumier",
+		weight = 3000,
+		stack = true,
+		client = { image = 'manure_can.png' },
+	},
+
+	['grow_light'] = {
+		label = "Lampe de culture",
+		weight = 2500,
+		stack = true,
+		client = { image = 'light_1.png' },
+	},
+
+	['grow_fan'] = {
+		label = "Ventilateur de culture",
+		weight = 2000,
+		stack = true,
+		client = { image = 'fan_1.png' },
+	},
+
+	-- Cocaïne et crack (images déjà présentes dans web/images)
+	['coca_dried'] = {
+		label = "Feuilles de coca séchées",
+		weight = 20,
+		stack = true,
+		client = { image = 'coke_driedleaf.png' },
+	},
+
+	['cocaine_cut'] = {
+		label = "Cocaïne coupée",
+		weight = 10,
+		stack = true,
+	},
+
+	['cocaine_brick'] = {
+		label = "Brique de cocaïne",
+		weight = 1000,
+		stack = true,
+		client = { image = 'brick_cocaine.png' },
+	},
+
+	['crack'] = {
+		label = "Crack",
+		weight = 5,
+		stack = true,
+		client = { image = 'crack_baggy.png' },
+	},
+
+	['crack_agent'] = {
+		label = "Agent de coupe pour crack",
+		weight = 100,
+		stack = true,
+		client = { image = 'crackmixingagent.png' },
+	},
+
+	['ecgonine'] = {
+		label = "Ecgonine",
+		weight = 50,
+		stack = true,
+	},
+
+	['bakingsoda'] = {
+		label = "Bicarbonate de soude",
+		weight = 200,
+		stack = true,
+	},
+
+	['babypowder'] = {
+		label = "Talc",
+		weight = 200,
+		stack = true,
+	},
+
+	['benzene'] = {
+		label = "Benzène",
+		weight = 1000,
+		stack = true,
+		client = { image = 'coke_benzene.png' },
+	},
+
+	['cement'] = {
+		label = "Ciment",
+		weight = 2000,
+		stack = true,
+		client = { image = 'coke_cement.png' },
+	},
+
+	-- Opium, héroïne et dérivés (images déjà présentes dans web/images)
+	['opium'] = {
+		label = "Opium",
+		weight = 10,
+		stack = true,
+		client = { image = 'drug_opium.png' },
+	},
+
+	['opium_brick'] = {
+		label = "Brique d'opium",
+		weight = 1000,
+		stack = true,
+		client = { image = 'brick_opium.png' },
+	},
+
+	['heroin_base'] = {
+		label = "Base de morphine",
+		weight = 50,
+		stack = true,
+	},
+
+	['heroin'] = {
+		label = "Héroïne",
+		weight = 10,
+		stack = true,
+		client = { image = 'drug_heroin.png' },
+	},
+
+	['acetic_anhydride'] = {
+		label = "Anhydride acétique",
+		weight = 1000,
+		stack = true,
+		client = { image = 'heroin_anhydride.png' },
+	},
+
+	['activated_carbon'] = {
+		label = "Charbon actif",
+		weight = 300,
+		stack = true,
+		client = { image = 'heroin_carbon.png' },
+	},
+
+	['litmus_paper'] = {
+		label = "Papier pH",
+		weight = 5,
+		stack = true,
+		client = { image = 'heroin_litmuspaper.png' },
+	},
+
+	['dirty_syringe'] = {
+		label = "Seringue usagée",
+		weight = 10,
+		stack = true,
+		client = { image = 'dirtyneedle.png' },
+	},
+
+	['codeine'] = {
+		label = "Codéine",
+		weight = 50,
+		stack = true,
+	},
+
+	['lean'] = {
+		label = "Lean",
+		weight = 300,
+		stack = true,
+	},
+
+	-- Meth et produits chimiques (images déjà présentes dans web/images)
+	['meth_brick'] = {
+		label = "Brique de meth",
+		weight = 1000,
+		stack = true,
+		client = { image = 'brick_meth.png' },
+	},
+
+	['acetone'] = {
+		label = "Acétone",
+		weight = 1000,
+		stack = true,
+	},
+
+	['ammonia'] = {
+		label = "Ammoniaque",
+		weight = 1000,
+		stack = true,
+	},
+
+	['ammonium_nitrate'] = {
+		label = "Nitrate d'ammonium",
+		weight = 1000,
+		stack = true,
+	},
+
+	['lithium'] = {
+		label = "Lithium",
+		weight = 200,
+		stack = true,
+	},
+
+	['ephedrine'] = {
+		label = "Éphédrine",
+		weight = 50,
+		stack = true,
+	},
+
+	['hydrochloric_acid'] = {
+		label = "Acide chlorhydrique",
+		weight = 1000,
+		stack = true,
+		client = { image = 'hydrochloricacid.png' },
+	},
+
+	['liquid_sulfur'] = {
+		label = "Soufre liquide",
+		weight = 1000,
+		stack = true,
+	},
+
+	['formaldehyde'] = {
+		label = "Formaldéhyde",
+		weight = 1000,
+		stack = true,
+	},
+
+	['distilled_water'] = {
+		label = "Eau distillée",
+		weight = 1000,
+		stack = true,
+		client = { image = 'distilledwater.png' },
+	},
+
+	['iron_oxide'] = {
+		label = "Oxyde de fer",
+		weight = 500,
+		stack = true,
+		client = { image = 'ironoxide.png' },
+	},
+
+	['aluminum_oxide'] = {
+		label = "Oxyde d'aluminium",
+		weight = 500,
+		stack = true,
+		client = { image = 'aluminumoxide.png' },
+	},
+
+	['chem_barrel'] = {
+		label = "Baril de produits chimiques",
+		weight = 20000,
+		stack = true,
+		client = { image = 'acetonebarrel.png' },
+	},
+
+	-- Matériel de laboratoire (images déjà présentes dans web/images)
+	['beaker'] = {
+		label = "Bécher",
+		weight = 200,
+		stack = true,
+	},
+
+	['empty_chem_bottle'] = {
+		label = "Flacon de chimie vide",
+		weight = 100,
+		stack = true,
+		client = { image = 'emptychembottles.png' },
+	},
+
+	['chemistry_kit'] = {
+		label = "Kit de chimie",
+		weight = 5000,
+		stack = true,
+		client = { image = 'chemistry_station.png' },
+	},
+
+	['precision_scale'] = {
+		label = "Balance de précision",
+		weight = 300,
+		stack = true,
+		client = { image = 'highqualityscales.png' },
+	},
+
+	['gas_mask'] = {
+		label = "Masque à gaz",
+		weight = 800,
+		stack = true,
+	},
+
+	-- Autres drogues (images déjà présentes dans web/images)
+	['lsd'] = {
+		label = "Buvard de LSD",
+		weight = 1,
+		stack = true,
+	},
+
+	['magic_mushroom'] = {
+		label = "Champignon hallucinogène",
+		weight = 10,
+		stack = true,
+	},
+
+	['dried_mushroom'] = {
+		label = "Champignons séchés",
+		weight = 10,
+		stack = true,
+		client = { image = 'magic_mushrooms_dry.png' },
+	},
+
+	['ecstasy'] = {
+		label = "Ecstasy",
+		weight = 2,
+		stack = true,
+		client = { image = 'baggy_extasy.png' },
+	},
+
+	['pills'] = {
+		label = "Gélules",
+		weight = 2,
+		stack = true,
+		client = { image = 'gelpills_red.png' },
+	},
+
+	-- Nourriture (images déjà présentes dans web/images)
+	['donut'] = {
+		label = "Donut",
+		weight = 120,
+		stack = true,
+	},
+
+	['fries'] = {
+		label = "Frites",
+		weight = 150,
+		stack = true,
+	},
+
+	['pizza_ham'] = {
+		label = "Pizza jambon",
+		weight = 800,
+		stack = true,
+	},
+
+	['pizza_ham_slice'] = {
+		label = "Part de pizza",
+		weight = 150,
+		stack = true,
+	},
+
+	-- Divers (images déjà présentes dans web/images)
+	['key'] = {
+		label = "Clé",
+		weight = 10,
+		stack = true,
+	},
+
+	['carkey'] = {
+		label = "Clé de voiture",
+		weight = 10,
+		stack = true,
+	},
+
+	['elock'] = {
+		label = "Serrure électronique",
+		weight = 300,
+		stack = true,
+	},
+
+	['usb'] = {
+		label = "Clé USB",
+		weight = 10,
+		stack = true,
+		client = { image = 'usb_black.png' },
+	},
+
+	['burner_phone'] = {
+		label = "Téléphone jetable",
+		weight = 150,
+		stack = true,
+		client = { image = 'drug_phone.png' },
+	},
+
+	['ziptie'] = {
+		label = "Collier de serrage",
+		weight = 5,
+		stack = true,
+	},
+
+	['medikit'] = {
+		label = "Trousse de soins",
+		weight = 500,
+		stack = true,
+	},
+
+	['advancedkit'] = {
+		label = "Kit de réparation avancé",
+		weight = 2000,
+		stack = true,
+	},
+
+	['cigarette'] = {
+		label = "Cigarette",
+		weight = 1,
+		stack = true,
+	},
+
+	['cigarette_pack'] = {
+		label = "Paquet de cigarettes",
+		weight = 30,
+		stack = true,
+		client = { image = 'cigarettes_redwood.png' },
+	},
+
+	['empty_bottle'] = {
+		label = "Bouteille vide",
+		weight = 200,
+		stack = true,
+	},
+
+	['empty_package'] = {
+		label = "Colis vide",
+		weight = 200,
+		stack = true,
+	},
 }
