@@ -90,6 +90,13 @@
                 </div>
             </header>
 
+            <div class="unsaved-bar" id="unsavedBar">
+                <svg class="i"><use href="#i-warn"/></svg>
+                <span><b>Modifications non enregistrées</b> · <span id="unsavedLabel"></span></span>
+                <button class="btn small ghost" id="unsavedReset"><svg class="i"><use href="#i-undo"/></svg>Annuler</button>
+                <button class="btn small primary" id="unsavedSave"><svg class="i"><use href="#i-save"/></svg>Enregistrer</button>
+            </div>
+
             <main class="workspace">
                 <section class="view" id="view-home"></section>
                 <section class="view" id="view-dashboard"></section>

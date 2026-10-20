@@ -56,6 +56,13 @@ function openShopCategory(category) {
 }
 
 function closeShopCategory() {
+    guardUnsaved("catalogs", doCloseShopCategory);
+}
+
+function doCloseShopCategory() {
+    untrackUnsaved("catalogs");
+    shopState.selected = null;
+    shopState.draft = null;
     shopState.category = null;
     shopState.categories = null;
     paintShopCategories();
@@ -69,7 +76,18 @@ async function loadShopList() {
     paintShopCategory();
 }
 
-async function selectShop(id) {
+// Partie de la fiche enregistrée par « Enregistrer » (les emplacements sont enregistrés tout de suite)
+function shopSnapshot(d) {
+    return JSON.stringify([d.label, d.slug, d.blip, d.header || "", d.jobs, (d.items || []).map((e) => [e.item, e.price, e.license || null]), d.price || 0]);
+}
+
+function selectShop(id) {
+    if (shopState.selected === id && shopState.draft) return;
+    guardUnsaved("catalogs", () => doSelectShop(id));
+}
+
+async function doSelectShop(id) {
+    untrackUnsaved("catalogs");
     shopState.selected = id;
     shopState.draft = null;
     paintShopCategory();
@@ -77,6 +95,13 @@ async function selectShop(id) {
     if (id !== shopState.selected) return;
     if (!res || !res.ok) return toast((res && res.error) || "Magasin introuvable.", "error");
     shopState.draft = JSON.parse(JSON.stringify(res.shop));
+    shopState.saved = shopSnapshot(shopState.draft);
+    trackUnsaved("catalogs", {
+        label: `Magasin ${res.shop.label}`,
+        isDirty: () => !!shopState.draft && shopSnapshot(shopState.draft) !== shopState.saved,
+        save: () => document.querySelector("#view-catalogs .shop-save")?.click(),
+        reset: () => doSelectShop(id),
+    });
     shopState.licenses = res.licenses || [];
     shopState.jobs = res.jobs || [];
     paintShopCategory();
@@ -99,6 +124,16 @@ async function shopAct(action, payload, okMessage) {
     return res;
 }
 
+// Ce qui empêche un magasin de fonctionner en jeu (counts = nombres, ou la fiche en cours d'édition)
+function shopProblems(counts, rental) {
+    const problems = [];
+    if (!counts.locations) problems.push("aucun emplacement");
+    if (rental && !counts.vehicles) problems.push("aucun véhicule à louer");
+    if (!rental && !counts.items) problems.push("aucun article");
+    if (counts.missing) problems.push(`${counts.missing} objet${counts.missing > 1 ? "s" : ""} inconnu${counts.missing > 1 ? "s" : ""}`);
+    return problems;
+}
+
 function paintShopCategory() {
     const body = $("view-catalogs");
     const category = shopState.category;
@@ -108,6 +143,7 @@ function paintShopCategory() {
         h("button", { class: "shops-back", onclick: closeShopCategory }, icon("i-back"), category.label),
         h("div", { class: "side-scroll" }, !list ? h("div", { class: "muted side-empty" }, "Chargement…")
             : list.length ? list.map((s) => h("div", { class: `list-row shop-row${s.id === shopState.selected ? " active" : ""}`, onclick: () => selectShop(s.id) },
+                readyDot(shopProblems(s, category.kind === "rental")),
                 h("span", { class: "name" }, s.label),
                 h("span", { class: "cnt", title: "Articles" }, String(s.items)),
                 h("button", { class: "shop-x", title: "Supprimer", onclick: (e) => { e.stopPropagation(); deleteShop(s); } }, icon("i-x"))))
@@ -183,16 +219,23 @@ function shopForm() {
             h("button", { class: "btn small ghost", onclick: () => act("shops.tpLocation", { locationId: l.id }, null) }, icon("i-goto"), "TP"),
             h("button", { class: "btn small ghost", title: "Supprimer", onclick: () => shopAct("shops.deleteLocation", { locationId: l.id }, "Emplacement supprimé.") }, icon("i-trash")))));
 
-    const save = h("button", { class: "btn primary" }, icon("i-save"), "Enregistrer");
-    save.addEventListener("click", () => shopAct("shops.save", {
+    const save = h("button", { class: "btn primary shop-save" }, icon("i-save"), "Enregistrer");
+    save.addEventListener("click", async () => {
+        const snapshot = shopSnapshot(d);
+        const res = await shopAct("shops.save", {
         id: d.id, label: d.label.trim(), slug: d.slug.trim(), blipSprite: d.blip.sprite, blipColor: d.blip.color, blipScale: d.blip.scale,
         blipLabel: (d.blip.label || "").trim(), header: (d.header || "").trim(), jobs: d.jobs,
         items: d.items.map((e) => ({ item: e.item, price: e.price, license: e.license || null })),
-    }, "Magasin enregistré."));
+    }, "Magasin enregistré.");
+        if (res) shopState.saved = snapshot;
+        paintUnsaved();
+    });
 
+    const problems = shopProblems({ locations: d.locations.length, vehicles: (d.vehicles || []).length, items: d.items.length, missing: d.items.filter((e) => e.missing).length }, rental);
     return h("div", { class: "content shop-form" },
-        h("div", { class: "page-head" }, h("div", { class: "grow" }, h("h1", { class: "page-title" }, d.label), h("div", { class: "page-sub mono" }, d.slug))),
+        h("div", { class: "page-head" }, h("div", { class: "grow" }, h("h1", { class: "page-title" }, d.label, readyBadge(problems)), h("div", { class: "page-sub mono" }, d.slug))),
         h("div", { class: "scroll" },
+            readyHint(problems),
             h("div", { class: "card shop-fields" },
                 field("Label (affiché en jeu)", label),
                 field("Clé interne (slug)", slug),

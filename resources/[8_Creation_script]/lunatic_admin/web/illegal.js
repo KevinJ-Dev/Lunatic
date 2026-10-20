@@ -59,9 +59,19 @@ function paintIllegal() {
 
 // ---------- Recelleur ----------
 
+function fenceProblems(f) {
+    const problems = [];
+    if (!f.items.length) problems.push("aucun objet racheté");
+    if (!f.locations.length) problems.push("aucun recelleur placé");
+    const unknown = f.items.filter((i) => i.missing).length;
+    if (unknown) problems.push(`${unknown} objet${unknown > 1 ? "s" : ""} inconnu${unknown > 1 ? "s" : ""}`);
+    return problems;
+}
+
 function fencePanel() {
     const f = illegalState.fence;
     if (!f) return h("div", { class: "empty" }, icon("i-mask"), "Chargement du recelleur…");
+    const problems = fenceProblems(f);
 
     // Catalogue regroupé par catégorie
     const groups = [];
@@ -91,8 +101,9 @@ function fencePanel() {
 
     return h("div", null,
         h("div", { class: "card" },
-            h("div", { class: "card-head dev-head" }, h("h3", { class: "card-title" }, `Catalogue du recelleur (${f.items.length})`),
+            h("div", { class: "card-head dev-head" }, h("h3", { class: "card-title" }, `Catalogue du recelleur (${f.items.length})`, readyBadge(problems)),
                 h("button", { class: "btn small primary", onclick: () => openFenceItem(null, false) }, icon("i-plus"), "Ajouter un objet")),
+            readyHint(problems),
             f.items.length ? groups : h("p", { class: "hint-line", style: "margin:0" }, "Aucun objet racheté pour l'instant.")),
         h("div", { class: "card", style: "margin-top:16px" },
             h("div", { class: "card-head dev-head" }, h("h3", { class: "card-title" }, `Emplacements (${f.locations.length})`),

@@ -39,6 +39,13 @@ async function loadCrews() {
     if (crewState.dom) paintCrewList();
 }
 
+function crewProblems(entry) {
+    const problems = [];
+    if (!entry.members) problems.push("aucun membre");
+    else if (!entry.leader) problems.push("aucun chef (membre au rang le plus haut)");
+    return problems;
+}
+
 function paintCrewList() {
     if (!crewState.dom) return;
     if (!crewState.list) return crewState.dom.list.replaceChildren(h("div", { class: "muted side-empty" }, "Chargement…"));
@@ -49,12 +56,18 @@ function paintCrewList() {
         const dotEl = h("span", { class: "struct-dot" });
         dotEl.style.background = c.color;
         return h("button", { class: `list-row player-row${c.id === crewState.selected ? " active" : ""}`, onclick: () => selectCrew(c.id) },
-            dotEl,
+            dotEl, readyDot(crewProblems(c)),
             h("span", { class: "who" }, h("b", null, c.label), h("span", null, `${c.typeLabel} · level ${c.level} · ${c.members} membre${c.members > 1 ? "s" : ""}`)));
     }) : [h("div", { class: "muted side-empty" }, crewState.list.length ? "Aucun résultat." : "Aucun crew pour l'instant.")]));
 }
 
 function selectCrew(id) {
+    if (crewState.selected === id) return;
+    guardUnsaved("crews", () => doSelectCrew(id));
+}
+
+function doSelectCrew(id) {
+    untrackUnsaved("crews");
     crewState.selected = id;
     crewState.info = null;
     crewState.candidates = null;
@@ -99,18 +112,20 @@ function paintCrewFiche() {
     const tabs = h("div", { class: "segmented" }, segmentedButtons([
         { value: "identity", label: "Identité" }, { value: "ranks", label: `Rangs (${c.ranks.length})` },
         { value: "members", label: `Membres (${c.members.length})` }, { value: "progress", label: "Progression" },
-    ], crewState.tab, (v) => { crewState.tab = v; paintCrewFiche(); }));
+    ], crewState.tab, (v) => guardUnsaved("crews", () => { crewState.tab = v; paintCrewFiche(); })));
 
     let body;
     if (crewState.tab === "ranks") body = crewRanksCard(c);
     else if (crewState.tab === "members") body = crewMembersCard(c);
     else if (crewState.tab === "progress") body = crewProgressCard(c);
     else body = crewIdentityCard(c);
+    if (crewState.tab !== "identity") untrackUnsaved("crews");
 
     fiche.replaceChildren(
         h("div", { class: "page-head" }, logo,
             h("div", { class: "grow" },
-                h("h1", { class: "page-title" }, c.label, h("span", { class: "badge muted" }, c.typeLabel), h("span", { class: "badge jail" }, `Level ${c.level}`)),
+                h("h1", { class: "page-title" }, c.label, h("span", { class: "badge muted" }, c.typeLabel), h("span", { class: "badge jail" }, `Level ${c.level}`),
+                    (() => { const entry = (crewState.list || []).find((x) => x.id === c.id); return entry ? readyBadge(crewProblems(entry)) : null; })()),
                 h("div", { class: "page-sub" }, h("span", { class: "mono" }, c.slug), h("span", { class: "sep" }), `${c.members.length} membre${c.members.length > 1 ? "s" : ""}`,
                     h("span", { class: "sep" }), `${c.members.filter((m) => m.online).length} en ligne`)),
             h("button", { class: "btn danger", onclick: () => deleteCrew(c) }, icon("i-trash"), "Supprimer")),
@@ -129,6 +144,9 @@ function crewIdentityCard(c) {
     const logo = h("input", { class: "input mono", maxlength: "255", placeholder: "https://…/logo.png", value: c.logo || "" });
     const save = h("button", { class: "btn primary" }, icon("i-save"), "Enregistrer");
     save.addEventListener("click", () => crewAct("crews.save", { id: c.id, label: label.value.trim(), type: type.value, color: color.value, logo: logo.value.trim() }, "Crew enregistré."));
+    const values = () => JSON.stringify([label.value, type.value, color.value, logo.value]);
+    const saved = values();
+    trackUnsaved("crews", { label: `Crew ${c.label}`, isDirty: () => document.body.contains(save) && values() !== saved, save: () => save.click(), reset: () => paintCrewFiche() });
 
     return h("div", null,
         h("div", { class: "card" },

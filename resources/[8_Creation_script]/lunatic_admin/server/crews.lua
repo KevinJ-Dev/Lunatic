@@ -224,6 +224,17 @@ local function nameOf(identifier)
 end
 
 -- Vue complète d'un crew (panel et menu /crew)
+-- Nombre de crews par type (les laboratoires sont réservés à un type de crew)
+function Crews.countByType()
+    local counts = {}
+
+    for _, crew in pairs(crews) do
+        counts[crew.type] = (counts[crew.type] or 0) + 1
+    end
+
+    return counts
+end
+
 function Crews.view(crewId)
     local crew = crews[crewId]
 
@@ -304,16 +315,20 @@ Panel.actions['crews.list'] = function(_, actor)
         return denied()
     end
 
-    local counts = {}
+    local counts, leaders = {}, {}
 
     for _, member in pairs(members) do
         counts[member.crew] = (counts[member.crew] or 0) + 1
+
+        if crews[member.crew] and member.rank == topRank(crews[member.crew]) then
+            leaders[member.crew] = true
+        end
     end
 
     local list = {}
 
     for _, crew in pairs(crews) do
-        list[#list + 1] = { id = crew.id, label = crew.label, type = crew.type, typeLabel = TYPES[crew.type] or crew.type, color = crew.color, level = levelOf(crew.xp), members = counts[crew.id] or 0 }
+        list[#list + 1] = { id = crew.id, label = crew.label, type = crew.type, typeLabel = TYPES[crew.type] or crew.type, color = crew.color, level = levelOf(crew.xp), members = counts[crew.id] or 0, leader = leaders[crew.id] == true }
     end
 
     table.sort(list, function(a, b) return a.label < b.label end)

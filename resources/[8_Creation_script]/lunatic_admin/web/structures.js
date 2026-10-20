@@ -87,6 +87,13 @@ function paintStructureList(kind) {
 
 function selectStructure(kind, job) {
     const st = structOf(kind);
+    if (st.selected === job) return;
+    guardUnsaved(STRUCTURE_KINDS[kind].view, () => doSelectStructure(kind, job));
+}
+
+function doSelectStructure(kind, job) {
+    const st = structOf(kind);
+    untrackUnsaved(STRUCTURE_KINDS[kind].view);
     st.selected = job;
     st.info = null;
     st.candidates = null;
@@ -145,7 +152,7 @@ function paintStructureFiche(kind) {
         { value: "identity", label: "Identité" }, { value: "grades", label: `Grades (${info.grades.length})` }, { value: "members", label: `Membres (${total})` },
         { value: "points", label: `Points (${(info.points || []).length})` }, { value: "catalogs", label: `Catalogues (${(info.catalogs || []).length})` },
         { value: "account", label: "Compte" },
-    ], st.tab, (value) => { st.tab = value; paintStructureFiche(kind); }));
+    ], st.tab, (value) => guardUnsaved(meta.view, () => { st.tab = value; paintStructureFiche(kind); })));
 
     let body;
     if (st.tab === "grades") body = gradesCard(info, doAct);
@@ -154,6 +161,7 @@ function paintStructureFiche(kind) {
     else if (st.tab === "catalogs") body = structureCatalogsCard(info, doAct);
     else if (st.tab === "members") body = h("div", null, addMemberCard(kind, info, doAct), membersCard(info, doAct, "Aucun membre : ajoutez-en un ci-dessus."));
     else body = identityCard(kind, info, doAct);
+    if (st.tab !== "identity") untrackUnsaved(meta.view);
 
     fiche.replaceChildren(
         h("div", { class: "page-head" },
@@ -224,6 +232,11 @@ function identityCard(kind, info, doAct) {
         job: info.name, label: label.value.trim(), type: type.value, lead: lead ? lead.value : null, color: color ? color.value : null,
         logo: logo.value.trim(), banner: banner.value.trim(), radialIcon: radial.value.trim(),
     }, "Fiche enregistrée."));
+
+    // Suivi des modifications (barre en bas)
+    const values = () => JSON.stringify([label.value, type.value, lead && lead.value, color && color.value, logo.value, banner.value, radial.value]);
+    const saved = values();
+    trackUnsaved(STRUCTURE_KINDS[kind].view, { label: `Fiche de ${info.label}`, isDirty: () => document.body.contains(submit) && values() !== saved, save: () => submit.click(), reset: () => paintStructureFiche(kind) });
 
     return h("div", null,
         h("div", { class: "card" },

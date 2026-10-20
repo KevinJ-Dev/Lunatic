@@ -52,8 +52,21 @@ function structureCatalogsCard(info, doAct) {
     return h("div", null, header, linked.map((c) => catalogCard(info, c, doAct)));
 }
 
+// Équipement : il faut un point Catalogue ou Armurerie ; Craft : un point Craft
+function catalogProblems(info, c) {
+    const problems = [];
+    const types = new Set((info.points || []).map((p) => p.type));
+    if (!c.lines.length) problems.push("catalogue vide");
+    if (c.kind === "craft" && !types.has("craft")) problems.push("aucun point Craft placé");
+    if (c.kind !== "craft" && !types.has("catalog") && !types.has("armory")) problems.push("aucun point Catalogue ou Armurerie placé");
+    const unknown = c.lines.filter((l) => l.missing).length;
+    if (unknown) problems.push(`${unknown} objet${unknown > 1 ? "s" : ""} inconnu${unknown > 1 ? "s" : ""}`);
+    return problems;
+}
+
 function catalogCard(info, c, doAct) {
     const craft = c.kind === "craft";
+    const problems = catalogProblems(info, c);
     const rows = c.lines.map((line) => {
         const details = craft
             ? `${line.ingredients.map((i) => `${i.count} × ${i.label}`).join(" + ")} · ${line.duration} s${line.minGrade ? ` · grade ${line.minGrade}+` : ""}`
@@ -73,7 +86,7 @@ function catalogCard(info, c, doAct) {
 
     return h("div", { class: "card", style: "margin-top:16px" },
         h("div", { class: "card-head dev-head" },
-            h("h3", { class: "card-title" }, c.label, h("span", { class: "badge muted", style: "margin-left:8px" }, c.kindLabel),
+            h("h3", { class: "card-title" }, c.label, h("span", { class: "badge muted", style: "margin-left:8px" }, c.kindLabel), readyBadge(problems),
                 c.shared ? h("span", { class: "badge jail", style: "margin-left:6px" }, `partagé avec ${c.shared} autre${c.shared > 1 ? "s" : ""}`) : null),
             h("div", { class: "btn-row" },
                 h("button", { class: "btn small primary", onclick: () => openCatalogLine(c, null, doAct) }, icon("i-plus"), craft ? "Recette" : "Article"),
@@ -83,7 +96,8 @@ function catalogCard(info, c, doAct) {
                     const yes = await confirmBox(`Supprimer « ${c.label} » ?`, c.shared ? "Il est partagé : il disparaît aussi pour les autres structures. Action définitive." : "Le catalogue et ses lignes sont effacés. Action définitive.", "Supprimer", true);
                     if (yes) doAct("catalogs.delete", { id: c.id }, "Catalogue supprimé.");
                 } }, icon("i-trash")))),
-        rows.length ? h("div", { class: "table" }, rows) : h("p", { class: "hint-line", style: "margin:0" }, "Catalogue vide.")
+        readyHint(problems),
+        rows.length ? h("div", { class: "table" }, rows) : null
     );
 }
 

@@ -256,7 +256,7 @@ Panel.actions['shops.list'] = function(_, actor, data)
 
     for _, shop in pairs(shops) do
         if shop.category == data.category then
-            list[#list + 1] = { id = shop.id, label = shop.label, slug = shop.slug, items = #shop.items, locations = #shop.locations }
+            list[#list + 1] = { id = shop.id, label = shop.label, slug = shop.slug, items = #shop.items, locations = #shop.locations, vehicles = #shop.vehicles }
         end
     end
 

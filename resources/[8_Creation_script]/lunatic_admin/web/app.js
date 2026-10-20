@@ -340,13 +340,82 @@ function newTab() {
 
 function closeTab(index) {
     if (index === 0) return; // Accueil épinglé
+    const closedView = tabs[index].view;
     const doClose = () => {
         tabs.splice(index, 1);
         if (activeTab > index || activeTab >= tabs.length) activeTab = Math.max(0, activeTab - 1);
         showTab(activeTab);
     };
-    if (index === activeTab) leavePage(doClose);
-    else doClose();
+    guardUnsaved(closedView, () => (index === activeTab ? leavePage(doClose) : doClose()));
+}
+
+// ---------- Prêt / Incomplet ----------
+// Une config « incomplète » ne marchera pas en jeu : la liste des manques s'affiche en clair (pas d'info-bulle, peu fiable en NUI).
+
+function readyBadge(problems) {
+    const ok = !problems.length;
+    return h("span", { class: `badge ${ok ? "ok" : "warn"} ready-badge` }, icon(ok ? "i-save" : "i-warn"), ok ? "Prêt" : "Incomplet");
+}
+
+function readyHint(problems) {
+    if (!problems.length) return null;
+    return h("p", { class: "ready-hint" }, icon("i-warn"), h("span", null, h("b", null, "À compléter : "), problems.join(" · ")));
+}
+
+function readyDot(problems) {
+    return h("span", { class: `ready-dot${problems.length ? " warn" : ""}` });
+}
+
+// ---------- Modifications non enregistrées ----------
+// Une page avec un formulaire « Enregistrer » se déclare ici (trackUnsaved). Tant que le formulaire diffère
+// de ce qui est enregistré, une barre s'affiche en bas avec Annuler / Enregistrer, et changer de fiche
+// ou fermer l'onglet demande confirmation. Changer d'onglet ne perd rien : chaque onglet garde sa page.
+
+const unsavedTrackers = {}; // vue -> { label, isDirty, save, reset }
+
+function trackUnsaved(viewId, tracker) {
+    unsavedTrackers[viewId] = tracker;
+    paintUnsaved();
+}
+
+function untrackUnsaved(viewId) {
+    delete unsavedTrackers[viewId];
+    paintUnsaved();
+}
+
+function isUnsaved(viewId) {
+    const tracker = unsavedTrackers[viewId];
+    try {
+        return !!(tracker && tracker.isDirty());
+    } catch (e) {
+        return false;
+    }
+}
+
+function paintUnsaved() {
+    const bar = $("unsavedBar");
+    if (!bar) return;
+    const dirty = isUnsaved(view);
+    bar.classList.toggle("on", dirty);
+    if (dirty) $("unsavedLabel").textContent = unsavedTrackers[view].label;
+}
+
+function guardUnsaved(viewId, next) {
+    if (!isUnsaved(viewId)) return next();
+    confirmBox("Modifications non enregistrées", `${unsavedTrackers[viewId].label} : quitter sans enregistrer ?`, "Quitter sans enregistrer", true)
+        .then((yes) => {
+            if (!yes) return;
+            // La page garde son contenu : on la remet à l'état enregistré avant de continuer
+            const tracker = unsavedTrackers[viewId];
+            untrackUnsaved(viewId);
+            if (tracker) tracker.reset();
+            next();
+        });
+}
+
+// Toute saisie peut changer l'état « modifié »
+for (const type of ["input", "change", "click"]) {
+    document.addEventListener(type, () => setTimeout(paintUnsaved, 0), true);
 }
 
 // Glisser-déposer : déplace l'onglet « from » à la place de « to » (l'Accueil reste premier)
@@ -360,7 +429,49 @@ function moveTab(from, to) {
     renderTabs();
 }
 
-let draggedTab = null;
+// Déplacement à la souris : appuyer sur un onglet, glisser, relâcher. Au-delà de 6 px, ce n'est plus un clic.
+let tabDrag = null;
+let ignoreTabClick = false;
+
+function tabDropIndex(x) {
+    const elements = [...$("tabs").querySelectorAll(".tab:not(.tab-home)")];
+    let best = tabDrag.from;
+    let bestDistance = Infinity;
+    elements.forEach((el, i) => {
+        const rect = el.getBoundingClientRect();
+        const distance = Math.abs(x - (rect.left + rect.width / 2));
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = i + 1;
+        }
+    });
+    return best;
+}
+
+document.addEventListener("mousemove", (e) => {
+    if (!tabDrag) return;
+    if (!tabDrag.active && Math.abs(e.clientX - tabDrag.startX) < 6) return;
+    tabDrag.active = true;
+    const to = tabDropIndex(e.clientX);
+    tabDrag.to = to;
+    $("tabs").querySelectorAll(".tab:not(.tab-home)").forEach((el, i) => {
+        const index = i + 1;
+        el.classList.toggle("dragging", index === tabDrag.from);
+        el.classList.toggle("drop-before", index === to && to < tabDrag.from);
+        el.classList.toggle("drop-after", index === to && to > tabDrag.from);
+    });
+});
+
+document.addEventListener("mouseup", () => {
+    if (!tabDrag) return;
+    const { active, from, to } = tabDrag;
+    tabDrag = null;
+    if (!active) return;
+    ignoreTabClick = true;
+    setTimeout(() => { ignoreTabClick = false; }, 0);
+    if (to && to !== from) moveTab(from, to);
+    else renderTabs();
+});
 
 function renderTabs() {
     const list = tabs.map((tab, index) => {
@@ -372,31 +483,14 @@ function renderTabs() {
                 icon("i-home"), h("span", { class: "tab-label" }, "Accueil"));
         }
 
-        const el = h("div", { class: `tab${index === activeTab ? " active" : ""}`, title: `${info.label} · glisser pour déplacer`, draggable: "true", onclick: () => selectTab(index) },
+        const el = h("div", { class: `tab${index === activeTab ? " active" : ""}`, title: `${info.label} · glisser pour déplacer`, onclick: () => { if (!ignoreTabClick) selectTab(index); } },
             icon(info.icon), h("span", { class: "tab-label" }, info.label),
             h("button", { class: "tab-x", title: "Fermer l'onglet (Ctrl+W)", onclick: (e) => { e.stopPropagation(); closeTab(index); } }, icon("i-x")));
         // Clic molette : fermer l'onglet, comme un navigateur
         el.addEventListener("auxclick", (e) => { if (e.button === 1) closeTab(index); });
-        el.addEventListener("dragstart", (e) => {
-            draggedTab = index;
-            e.dataTransfer.effectAllowed = "move";
-            e.dataTransfer.setData("text/plain", String(index));
-            el.classList.add("dragging");
-        });
-        el.addEventListener("dragend", () => {
-            draggedTab = null;
-            document.querySelectorAll(".tab.drop-before, .tab.drop-after, .tab.dragging").forEach((t) => t.classList.remove("drop-before", "drop-after", "dragging"));
-        });
-        el.addEventListener("dragover", (e) => {
-            if (draggedTab === null || draggedTab === index) return;
-            e.preventDefault();
-            el.classList.toggle("drop-before", draggedTab > index);
-            el.classList.toggle("drop-after", draggedTab < index);
-        });
-        el.addEventListener("dragleave", () => el.classList.remove("drop-before", "drop-after"));
-        el.addEventListener("drop", (e) => {
-            e.preventDefault();
-            if (draggedTab !== null) moveTab(draggedTab, index);
+        el.addEventListener("mousedown", (e) => {
+            if (e.button !== 0 || e.target.closest(".tab-x")) return;
+            tabDrag = { from: index, startX: e.clientX, active: false, to: index };
         });
         return el;
     });
@@ -435,6 +529,7 @@ function renderMe() {
 
 function render() {
     if (!state) return;
+    setTimeout(paintUnsaved, 0);
 
     renderTopbar();
 
@@ -1400,6 +1495,18 @@ function toast(message, kind) {
 
 // ---------- Événements ----------
 
+$("unsavedReset").addEventListener("click", () => {
+    const tracker = unsavedTrackers[view];
+    if (tracker) tracker.reset();
+});
+$("unsavedSave").addEventListener("click", () => {
+    const tracker = unsavedTrackers[view];
+    if (tracker) tracker.save();
+});
+
+// L'éditeur de rangs a déjà son propre suivi des modifications : il utilise aussi la barre
+unsavedTrackers.ranks = { label: "Rang en cours d'édition", isDirty: () => isDirty(), save: () => saveDraft(), reset: () => resetDraft() };
+
 $("close").addEventListener("click", () => {
     document.body.classList.remove("minimized");
     closePanel();
@@ -1579,7 +1686,7 @@ async function demoNui(name, data) {
         locations: [{ id: 1, x: 1240.3, y: -3110.2, z: 5.5, h: 90, ped: "s_m_y_dealer_01" }] };
     if (name === "action" && data && data.action === "crews.list") return { ok: true,
         types: [{ id: "mafia", label: "Mafia" }, { id: "mc", label: "MC" }, { id: "organisation", label: "Organisation" }, { id: "gang", label: "Gang" }],
-        crews: [{ id: 1, label: "Ballas", type: "gang", typeLabel: "Gang", color: "#9b59b6", level: 3, members: 8 }, { id: 2, label: "Lost MC", type: "mc", typeLabel: "MC", color: "#c0392b", level: 5, members: 12 }] };
+        crews: [{ id: 1, label: "Ballas", type: "gang", typeLabel: "Gang", color: "#9b59b6", level: 3, members: 8, leader: true }, { id: 2, label: "Lost MC", type: "mc", typeLabel: "MC", color: "#c0392b", level: 5, members: 12 }] };
     if (name === "action" && data && data.action === "crews.info") return { ok: true,
         types: [{ id: "mafia", label: "Mafia" }, { id: "mc", label: "MC" }, { id: "organisation", label: "Organisation" }, { id: "gang", label: "Gang" }],
         crew: { id: data.payload.id, slug: "ballas", label: "Ballas", type: "gang", typeLabel: "Gang", color: "#9b59b6", logo: "", xp: 3200, level: 3, nextLevelXp: 5000, topRank: 3,
@@ -1594,7 +1701,7 @@ async function demoNui(name, data) {
     ].map(([id, label, ready, count]) => ({ id, label, ready, count, kind: id === "rental" ? "rental" : "items" })) };
     if (name === "action" && data && data.action === "shops.list") return { ok: true, shops: [
         { id: 1, label: "PostOP", slug: "postop", items: 10, locations: 1 }, { id: 2, label: "Viande", slug: "viande", items: 4, locations: 1 },
-        { id: 3, label: "Volaille", slug: "volaille", items: 4, locations: 1 }, { id: 4, label: "Vigneron", slug: "vigneron", items: 4, locations: 2 },
+        { id: 3, label: "Volaille", slug: "volaille", items: 4, locations: 0 }, { id: 4, label: "Vigneron", slug: "vigneron", items: 4, locations: 2 },
     ] };
     if (name === "action" && data && data.action === "shops.info") return { ok: true,
         licenses: [{ type: "weapon", label: "Port d'arme" }, { type: "drive", label: "Permis voiture" }],
