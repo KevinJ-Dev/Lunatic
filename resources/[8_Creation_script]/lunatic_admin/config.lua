@@ -79,6 +79,10 @@ Config.CrewTypes = {
 Config.CrewDefaultRanks = { 'Rang C', 'Rang B', 'Rang A', 'Rang S' } -- du plus bas au plus haut (le plus haut = chef)
 Config.CrewLevels = { 0, 1000, 2500, 5000, 10000, 20000, 35000, 55000, 80000, 120000 } -- XP nécessaire pour chaque level (level 1 à 10)
 
+-- Illégal : territoires (zones placées dans le panel, onglet Territoires)
+Config.TerritoryDays = 7       -- l'influence des N derniers jours compte (la plus ancienne de moins en moins)
+Config.TerritoryRefresh = 300  -- secondes entre deux recalculs complets (et recalcul juste après chaque vente dans une zone)
+
 -- Illégal : recelleur
 Config.FenceDefaultPed = 's_m_y_dealer_01' -- modèle du PNJ d'un nouvel emplacement (modifiable ensuite)
 

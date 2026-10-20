@@ -72,6 +72,9 @@ const ACTION_LABELS = {
     "drugs.save": "a modifié une drogue",
     "drugs.delete": "a supprimé une drogue",
     "drugs.lab": "a modifié un laboratoire de drogue",
+    "territories.save": "a modifié un territoire",
+    "territories.reset": "a remis à zéro un territoire",
+    "territories.delete": "a supprimé un territoire",
     "fence.location": "a modifié les emplacements du recelleur",
     "crews.create": "a créé un crew",
     "crews.save": "a modifié un crew",
@@ -235,6 +238,11 @@ function describeLog(log) {
         case "drugs.delete":
         case "drugs.lab":
             summary = [d.item, d.crewType, d.price !== undefined ? `${d.price} $` : null, d.operation].filter(Boolean).join(" · ");
+            break;
+        case "territories.save":
+        case "territories.reset":
+        case "territories.delete":
+            summary = [d.label, d.operation].filter(Boolean).join(" · ");
             break;
         case "fence.location":
             summary = [d.operation, d.ped].filter(Boolean).join(" · ");

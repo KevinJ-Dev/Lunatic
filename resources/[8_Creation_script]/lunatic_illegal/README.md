@@ -37,6 +37,15 @@ Drogues et laboratoires dans le panel (tuile Illégal, onglet Drogues).
 - **Vue staff** : le bouton « Voir les labos en jeu » (onglet Drogues, permission `illegal.manage`) affiche tous les points de labo en orange, sans permettre de produire.
 - **Police** : alerte anonyme avec probabilité `Config.AlertChance` (zone approximative sur la carte pendant `Config.AlertDuration` secondes).
 
+## Étape 4 : territoires
+
+Zones circulaires placées dans le panel (tuile Illégal, onglet Territoires) : nom, centre (position du staff), rayon, seuil d'influence, bonus de prix et d'XP.
+
+- **Contrôle** : l'influence gagnée en vendant de la drogue dans la zone (sur `Config.TerritoryDays` jours de `lunatic_admin`, l'ancienne comptant de moins en moins) ; le crew en tête tient la zone dès qu'il atteint le seuil (à égalité, le crew en place la garde). Calcul côté serveur toutes les `Config.TerritoryRefresh` secondes et juste après chaque vente dans une zone ; « remettre à zéro » efface l'influence passée de la zone.
+- **Bonus** : les ventes de drogue du crew qui tient la zone, faites dans la zone, rapportent le bonus de prix et d'XP.
+- **Carte** : les membres d'un crew voient les zones (à leur crew en vert, à un autre en rouge, libres en blanc : `Config.TerritoryColors`) ; le staff peut les afficher avec « Voir sur ma carte ».
+- **/crew** : section Territoires (zones tenues, influence du crew, crew en tête et seuil) ; les membres connectés sont prévenus quand leur crew gagne ou perd une zone.
+
 ## À venir
 
-Territoires (zones, multiplicateur, influence), craft d'armes et tablette, missions et braquages.
+Craft d'armes et tablette, missions et braquages.

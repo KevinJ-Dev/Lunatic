@@ -64,6 +64,18 @@ lib.callback.register('lunatic_illegal:crew', function(src)
     return { ok = true, crew = view, me = { identifier = xPlayer.identifier, rank = me.rank, leader = me.leader } }
 end)
 
+-- Territoires vus par le crew du joueur (zones tenues, influence)
+lib.callback.register('lunatic_illegal:territories', function(src)
+    local _, view = myCrew(src)
+
+    if not view then
+        return fail("Vous ne faites partie d'aucun crew.")
+    end
+
+    local found, list = pcall(function() return admin:getCrewTerritories(view.id) end)
+    return { ok = true, territories = found and list or {} }
+end)
+
 lib.callback.register('lunatic_illegal:invite', function(src, targetId)
     local xPlayer, view, me = myCrew(src)
 

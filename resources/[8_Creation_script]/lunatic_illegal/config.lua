@@ -19,3 +19,8 @@ Config.PriceVariation = 0.15        -- variation aléatoire du prix (0.15 = ±15
 Config.SellAccount = 'black_money'  -- compte crédité : 'black_money', 'money' ou 'bank'
 Config.AlertChance = 0.2            -- probabilité d'alerter la police à chaque vente
 Config.AlertDuration = 90           -- secondes d'affichage de la zone d'alerte chez la police
+
+-- Territoires (zones, seuils et bonus dans le panel, onglet Territoires) : carte des membres de crews
+Config.TerritoryColors = { mine = 2, enemy = 1, free = 0 } -- couleurs de blip : vert (à votre crew), rouge (à un autre), blanc (libre)
+Config.TerritoryAlpha = 90          -- transparence des zones sur la carte (0 à 255)
+Config.TerritoryBlipSprite = 1      -- icône au centre de la zone

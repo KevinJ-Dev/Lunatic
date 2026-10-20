@@ -1844,6 +1844,12 @@ async function demoNui(name, data) {
                     locations: [{ id: 1, x: 1057.4, y: -3196.5, z: -39.1, h: 90 }] }] },
             { id: 2, item: "coke_bag", label: "Pochon de coke", active: false, price: 450, xp: 12, influence: 4, cops: 2, volumeMin: 1, volumeMax: 3, labs: [] },
         ] };
+    if (name === "action" && data && data.action === "territories.list") return { ok: true, days: 7, refresh: 300, territories: [
+        { id: 1, label: "Grove Street", x: 105.2, y: -1940.6, z: 20.8, radius: 150, priceBonus: 20, xpBonus: 20, minInfluence: 10, active: true,
+            owner: { id: 1, label: "Ballas", color: "#9b59b6" }, ranking: [{ crew: 1, label: "Ballas", color: "#9b59b6", score: 42.5 }, { crew: 2, label: "Lost MC", color: "#c0392b", score: 18 }] },
+        { id: 2, label: "Port de Los Santos", x: 1000.1, y: -3000.4, z: 5.9, radius: 300, priceBonus: 30, xpBonus: 10, minInfluence: 25, active: true, owner: null,
+            ranking: [{ crew: 2, label: "Lost MC", color: "#c0392b", score: 12.4 }] },
+    ] };
     if (name === "action" && data && data.action === "fence.info") return { ok: true, defaultPed: "s_m_y_dealer_01", categories: ["Objets volés", "Bijoux"],
         items: [{ id: 1, item: "bouteille2", label: "Bouteille", price: 15, category: "Objets volés" }, { id: 2, item: "phone", label: "Téléphone", price: 120, category: "Objets volés" }, { id: 3, item: "goldchain", label: "Chaîne en or", price: 450, category: "Bijoux", missing: true }],
         locations: [{ id: 1, x: 1240.3, y: -3110.2, z: 5.5, h: 90, ped: "s_m_y_dealer_01" }] };

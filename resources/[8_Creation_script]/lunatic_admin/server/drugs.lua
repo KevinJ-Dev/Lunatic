@@ -192,6 +192,11 @@ exports('addCrewInfluence', function(crewId, amount, x, y, origin)
         tonumber(crewId), amount, tonumber(x) or 0, tonumber(y) or 0, tostring(origin or ''):sub(1, 30), os.time(),
     })
 
+    -- Territoires touchés : recalculés dans les secondes qui suivent (server/territories.lua)
+    if Territories then
+        Territories.touch(x, y)
+    end
+
     return true
 end)
 

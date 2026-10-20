@@ -187,8 +187,18 @@ lib.callback.register('lunatic_illegal:sell', function(src, drugId, pedCoords)
         return { ok = true, refused = true }
     end
 
+    -- Territoire : bonus si le crew du vendeur tient la zone où a lieu la vente
+    local crew = Player(src).state.crew
+    local found, territory = pcall(function() return admin:territoryAt(pedCoords.x, pedCoords.y) end)
+    local held = found and territory and crew and territory.owner == crew.id
+
     local quantity = math.random(drug.volumeMin, math.min(drug.volumeMax, count))
     local unit = math.floor(drug.price * (1 + (math.random() * 2 - 1) * Config.PriceVariation) + 0.5)
+
+    if held then
+        unit = math.floor(unit * (1 + (territory.priceBonus or 0) / 100) + 0.5)
+    end
+
     local total = math.max(0, unit * quantity)
     local xPlayer = ESX.GetPlayerFromId(src)
 
@@ -200,12 +210,16 @@ lib.callback.register('lunatic_illegal:sell', function(src, drugId, pedCoords)
         xPlayer.addAccountMoney(Config.SellAccount, total, 'Vente de drogue')
     end
 
-    -- Progression du crew : XP et influence (journalisée avec la position, pour les territoires)
-    local crew = Player(src).state.crew
-
+    -- Progression du crew : XP (avec le bonus du territoire tenu) et influence (journalisée avec la position, pour les territoires)
     if crew then
-        if (drug.xp or 0) > 0 then
-            admin:addCrewXp(crew.id, drug.xp)
+        local xp = drug.xp or 0
+
+        if held then
+            xp = math.floor(xp * (1 + (territory.xpBonus or 0) / 100) + 0.5)
+        end
+
+        if xp > 0 then
+            admin:addCrewXp(crew.id, xp)
         end
 
         if (drug.influence or 0) > 0 then
@@ -223,5 +237,5 @@ lib.callback.register('lunatic_illegal:sell', function(src, drugId, pedCoords)
         end
     end
 
-    return { ok = true, quantity = quantity, total = total, label = itemLabel(drug.item) }
+    return { ok = true, quantity = quantity, total = total, label = itemLabel(drug.item), territory = held and territory.label or nil }
 end)

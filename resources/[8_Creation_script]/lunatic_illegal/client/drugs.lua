@@ -190,7 +190,8 @@ local function sellTo(ped, drug)
         return notify("Le passant n'est pas intéressé.", 'info')
     end
 
-    notify(('Vendu %d × %s pour %s.'):format(result.quantity, result.label, money(result.total)), 'success')
+    notify(('Vendu %d × %s pour %s.%s'):format(result.quantity, result.label, money(result.total),
+        result.territory and (' Bonus du territoire « %s ».'):format(result.territory) or ''), 'success')
 end
 
 ---------------------------------------------------------------------

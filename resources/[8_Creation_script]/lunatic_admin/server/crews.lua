@@ -235,6 +235,29 @@ function Crews.countByType()
     return counts
 end
 
+-- Infos courtes d'un crew (territoires), nil s'il n'existe plus
+function Crews.basic(crewId)
+    local crew = crews[tonumber(crewId) or -1]
+    return crew and { id = crew.id, label = crew.label, color = crew.color, type = crew.type } or nil
+end
+
+-- Joueurs connectés membres du crew (notifications)
+function Crews.onlineSources(crewId)
+    local list = {}
+
+    for identifier, member in pairs(members) do
+        if member.crew == crewId then
+            local xPlayer = ESX.GetPlayerFromIdentifier(identifier)
+
+            if xPlayer then
+                list[#list + 1] = xPlayer.source
+            end
+        end
+    end
+
+    return list
+end
+
 function Crews.view(crewId)
     local crew = crews[crewId]
 

@@ -73,11 +73,12 @@ const HELP = {
         tips: ["Un catalogue peut être partagé entre plusieurs structures (ex. armurerie commune)."],
     },
     illegal: {
-        what: "Activités illégales : recelleur et drogues (puis territoires, craft d'armes, tablette, missions).",
+        what: "Activités illégales : recelleur, drogues et territoires (puis craft d'armes, tablette, missions).",
         game: "Tout s'applique en jeu sans redémarrage.",
         tips: [
             "Le PNJ du recelleur apparaît là où vous vous tenez, tourné dans votre direction ; pas de blip.",
             "Le badge « Incomplet » liste ce qui manque (objet inconnu, emplacement, laboratoire…).",
+            "Territoires : le crew qui a le plus d'influence (ventes de drogue) dans un cercle le tient et touche ses bonus ; « Voir sur ma carte » affiche les zones même sans crew.",
         ],
     },
     crews: {

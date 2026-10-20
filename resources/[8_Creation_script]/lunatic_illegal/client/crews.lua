@@ -100,6 +100,35 @@ local function inviteMenu()
     lib.showContext('li_invite')
 end
 
+local function territoriesMenu()
+    local data = lib.callback.await('lunatic_illegal:territories', false)
+
+    if failed(data) then
+        return
+    end
+
+    local options = {}
+
+    for _, t in ipairs(data.territories) do
+        options[#options + 1] = {
+            title = t.owned and ('%s · tenu par votre crew'):format(t.label) or t.label,
+            description = t.owned
+                and ("Votre influence : %d · bonus +%d %% au prix, +%d %% d'XP"):format(math.floor(t.influence), t.priceBonus, t.xpBonus)
+                or ('Tenu par : %s · votre influence : %d (en tête : %d, seuil %d)'):format(t.owner or 'personne', math.floor(t.influence), math.floor(t.leader), t.minInfluence),
+            icon = t.owned and 'flag' or 'map-location-dot',
+            iconColor = t.owned and '#5fd3a0' or nil,
+            readOnly = true,
+        }
+    end
+
+    if #options == 0 then
+        options[1] = { title = 'Aucun territoire pour le moment.', icon = 'map', readOnly = true }
+    end
+
+    lib.registerContext({ id = 'li_territories', title = 'Territoires', menu = 'li_crew', options = options })
+    lib.showContext('li_territories')
+end
+
 openCrew = function()
     local data = lib.callback.await('lunatic_illegal:crew', false)
 
@@ -115,6 +144,7 @@ openCrew = function()
     local options = {
         { title = ('%s · level %d'):format(crew.typeLabel, crew.level), description = crew.nextLevelXp and ('%d / %d XP'):format(crew.xp, crew.nextLevelXp) or ('%d XP (level maximum)'):format(crew.xp), icon = 'chart-line', readOnly = true },
         { title = ('Membres (%d)'):format(#crew.members), description = data.me.leader and 'Promouvoir, rétrograder, renvoyer' or 'Liste des membres', icon = 'users', onSelect = function() membersMenu(data) end },
+        { title = 'Territoires', description = "Zones tenues et influence du crew (vendre de la drogue dans une zone y donne de l'influence)", icon = 'map', onSelect = territoriesMenu },
     }
 
     if data.me.leader then
