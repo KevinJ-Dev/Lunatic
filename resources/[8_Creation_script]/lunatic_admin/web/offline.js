@@ -99,9 +99,11 @@ function paintOfflineFiche() {
     }
 
     const info = offlineInfo;
+    const subTabs = ficheTabs(paintOfflineFiche);
     const previous = fiche.querySelector(".scroll");
-    const keepScroll = previous && fiche.dataset.offline === info.identifier ? previous.scrollTop : 0;
+    const keepScroll = previous && fiche.dataset.offline === info.identifier && fiche.dataset.sub === ficheTab ? previous.scrollTop : 0;
     fiche.dataset.offline = info.identifier;
+    fiche.dataset.sub = ficheTab;
 
     const locked = info.online || info.protected;
     const reason = (perm) => {
@@ -116,6 +118,36 @@ function paintOfflineFiche() {
     };
     const sex = info.sex === "m" ? "Homme" : info.sex === "f" ? "Femme" : null;
 
+    let body;
+    if (ficheTab === "character") {
+        body = [
+            h("div", { class: "info-grid cols-3" },
+                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Identité"),
+                    infoRow("Naissance", info.dateofbirth), infoRow("Sexe", sex), infoRow("Taille", info.height ? `${info.height} cm` : null)),
+                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Métier"),
+                    infoRow("Emploi", info.job && info.job.label), infoRow("Grade", info.job && info.job.grade)),
+                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Compte"),
+                    infoRow("Licence", shortLicense(info.license)), infoRow("Staff", info.rank ? info.rank.name : "Non"))),
+            offlineLicensesCard(info, locked),
+            info.online ? null : premiumCard(info, { identifier: info.identifier }, () => loadOfflineInfo()),
+        ];
+    } else if (ficheTab === "money") {
+        body = [moneyCards(info), locked ? null : offlineFormsNode(info)];
+    } else if (ficheTab === "history") {
+        body = [historyCard(info)];
+    } else {
+        body = [
+            !info.hasIdentity ? h("div", { class: "banner" }, icon("i-undo"), "Ce joueur n'a pas d'identité : il passera par la création de personnage à sa prochaine connexion.") : null,
+            h("div", { class: "card" }, h("div", { class: "action-groups" },
+                h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Sanction"),
+                    button("Bannir", "i-ban", "sanctions.ban", true, () => openBan({ identifier: info.identifier, name: info.name }))),
+                h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Personnage"),
+                    button("Recréer à la connexion", "i-undo", "players.recreate", true, () => openOfflineRecreate(info)),
+                    button("Wipe", "i-trash", "players.wipe", true, () => openOfflineWipe(info)))
+            )),
+        ];
+    }
+
     fiche.replaceChildren(
         h("div", { class: "page-head" }, h("div", { class: "grow" },
             h("h1", { class: "page-title" }, info.name, info.rank ? rankPill(info.rank) : null,
@@ -125,31 +157,10 @@ function paintOfflineFiche() {
                 h("span", { class: "mono" }, shortLicense(info.license)), h("span", { class: "sep" }),
                 info.createdAt ? `Arrivé le ${fmtDate(info.createdAt)}` : "")
         )),
+        subTabs,
         h("div", { class: "scroll" },
             info.online ? h("div", { class: "banner info" }, icon("i-player"), "Ce joueur est connecté : ses données se modifient depuis l'onglet « En ligne ».") : null,
-            !info.hasIdentity ? h("div", { class: "banner" }, icon("i-undo"), "Ce joueur n'a pas d'identité : il passera par la création de personnage à sa prochaine connexion.") : null,
-            h("div", { class: "card" }, h("div", { class: "action-groups" },
-                h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Sanction"),
-                    button("Bannir", "i-ban", "sanctions.ban", true, () => openBan({ identifier: info.identifier, name: info.name }))),
-                h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Personnage"),
-                    button("Recréer à la connexion", "i-undo", "players.recreate", true, () => openOfflineRecreate(info)),
-                    button("Wipe", "i-trash", "players.wipe", true, () => openOfflineWipe(info)))
-            )),
-            h("div", { class: "info-grid" },
-                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Identité"),
-                    infoRow("Naissance", info.dateofbirth), infoRow("Sexe", sex), infoRow("Taille", info.height ? `${info.height} cm` : null)),
-                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Métier"),
-                    infoRow("Emploi", info.job && info.job.label), infoRow("Grade", info.job && info.job.grade)),
-                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Argent"),
-                    infoRow("Liquide", money(info.money)), infoRow("Banque", money(info.bank)), infoRow("Argent sale", money(info.blackMoney))),
-                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Compte"),
-                    infoRow("Licence", shortLicense(info.license)), infoRow("Staff", info.rank ? info.rank.name : "Non"))
-            ),
-            offlineLicensesCard(info, locked),
-            locked ? null : offlineFormsNode(info),
-            info.online ? null : premiumCard(info, { identifier: info.identifier }, () => loadOfflineInfo()),
-            can("sanctions.view") ? historyCard(info) : null
-        )
+            body)
     );
 
     const scroller = fiche.querySelector(".scroll");

@@ -255,8 +255,9 @@ Panel.actions['shops.list'] = function(_, actor, data)
     local list = {}
 
     for _, shop in pairs(shops) do
-        if shop.category == data.category then
-            list[#list + 1] = { id = shop.id, label = shop.label, slug = shop.slug, items = #shop.items, locations = #shop.locations, vehicles = #shop.vehicles }
+        -- data.all : tous les magasins (recherche globale du panel)
+        if data.all == true or shop.category == data.category then
+            list[#list + 1] = { id = shop.id, category = shop.category, label = shop.label, slug = shop.slug, items = #shop.items, locations = #shop.locations, vehicles = #shop.vehicles }
         end
     end
 

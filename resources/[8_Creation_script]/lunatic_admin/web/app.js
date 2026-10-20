@@ -809,6 +809,42 @@ function bar(label, value, pct, color) {
     return h("div", { class: "bar-row" }, h("div", { class: "info-row" }, h("span", null, label), h("b", null, value)), h("div", { class: "bar" }, fill));
 }
 
+// Sous-onglets de la fiche (joueur en ligne ou hors ligne), mémorisés d'une ouverture à l'autre
+const FICHE_TAB_KEY = "lunatic_admin_fiche";
+let ficheTab = (() => {
+    try {
+        return localStorage.getItem(FICHE_TAB_KEY) || "actions";
+    } catch (e) {
+        return "actions";
+    }
+})();
+
+function ficheTabs(repaint) {
+    const list = [
+        { value: "actions", label: "Actions" },
+        { value: "character", label: "Personnage" },
+        { value: "money", label: "Argent et objets" },
+    ];
+    if (can("sanctions.view")) list.push({ value: "history", label: "Historique" });
+    if (!list.some((t) => t.value === ficheTab)) ficheTab = "actions";
+
+    return h("div", { class: "fiche-tabs" }, h("div", { class: "segmented" }, segmentedButtons(list, ficheTab, (value) => {
+        ficheTab = value;
+        try {
+            localStorage.setItem(FICHE_TAB_KEY, value);
+        } catch (e) {
+            // stockage indisponible : le sous-onglet reste seulement en mémoire
+        }
+        repaint();
+    })));
+}
+
+// Soldes en grand (onglet Argent et objets)
+function moneyCards(info) {
+    const card = (label, value) => h("div", { class: "card" }, h("h3", { class: "card-title" }, label), h("div", { class: "stat-value mono" }, money(value)));
+    return h("div", { class: "info-grid cols-3" }, card("Liquide", info.money), card("Banque", info.bank), card("Argent sale", info.blackMoney));
+}
+
 function paintFiche() {
     if (playersTab === "offline") return paintOfflineFiche();
     const fiche = playersDom.fiche;
@@ -824,11 +860,13 @@ function paintFiche() {
     }
 
     const info = playerInfo;
+    const subTabs = ficheTabs(paintFiche);
 
-    // Garde la position de défilement entre deux rafraîchissements de la même fiche
+    // Garde la position de défilement entre deux rafraîchissements de la même fiche (et du même sous-onglet)
     const previous = fiche.querySelector(".scroll");
-    const keepScroll = previous && fiche.dataset.player === String(info.serverId) ? previous.scrollTop : 0;
+    const keepScroll = previous && fiche.dataset.player === String(info.serverId) && fiche.dataset.sub === ficheTab ? previous.scrollTop : 0;
     fiche.dataset.player = String(info.serverId);
+    fiche.dataset.sub = ficheTab;
 
     const reason = (perm, opts = {}) => {
         if (!can(perm)) return "Permission manquante";
@@ -850,18 +888,25 @@ function paintFiche() {
 
     const sex = info.sex === "m" ? "Homme" : info.sex === "f" ? "Femme" : null;
 
-    fiche.replaceChildren(
-        h("div", { class: "page-head" },
-            h("div", { class: "grow" },
-                h("h1", { class: "page-title" }, info.name, info.rank ? rankPill(info.rank) : null),
-                h("div", { class: "page-sub" },
-                    `ID ${info.serverId}`, h("span", { class: "sep" }), info.pseudo || "—", h("span", { class: "sep" }),
-                    h("span", { class: "mono" }, shortLicense(info.license)),
-                    info.isSelf ? [h("span", { class: "sep" }), h("span", { class: "you" }, "Vous")] : null
-                )
-            )
-        ),
-        h("div", { class: "scroll" },
+    let body;
+    if (ficheTab === "character") {
+        body = [
+            h("div", { class: "info-grid cols-3" },
+                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Identité"),
+                    infoRow("Naissance", info.dateofbirth), infoRow("Sexe", sex), infoRow("Taille", info.height ? `${info.height} cm` : null)),
+                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Métier"),
+                    infoRow("Emploi", info.job && info.job.label), infoRow("Grade", info.job && info.job.grade)),
+                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Compte"),
+                    infoRow("Pseudo", info.pseudo), infoRow("Licence", shortLicense(info.license)), infoRow("Staff", info.rank ? info.rank.name : "Non"))),
+            licensesCard(info),
+            premiumCard(info, { serverId: info.serverId }, () => loadPlayerInfo()),
+        ];
+    } else if (ficheTab === "money") {
+        body = [moneyCards(info), economySection(info) || (info.protected ? h("p", { class: "hint-line" }, "Rang égal ou supérieur au vôtre : argent et inventaire en lecture seule.") : null)];
+    } else if (ficheTab === "history") {
+        body = [historyCard(info)];
+    } else {
+        body = [
             h("div", { class: "card" },
                 h("div", { class: "action-groups" },
                     h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Déplacement"),
@@ -901,25 +946,29 @@ function paintFiche() {
                     )
                 )
             ),
-            h("div", { class: "info-grid" },
-                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Identité"),
-                    infoRow("Naissance", info.dateofbirth), infoRow("Sexe", sex), infoRow("Taille", info.height ? `${info.height} cm` : null)),
-                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Métier"),
-                    infoRow("Emploi", info.job && info.job.label), infoRow("Grade", info.job && info.job.grade)),
-                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Argent"),
-                    infoRow("Liquide", money(info.money)), infoRow("Banque", money(info.bank))),
-                h("div", { class: "card" }, h("h3", { class: "card-title" }, "État"),
-                    bar("Santé", health === null ? "—" : down ? "Au sol" : `${Math.round(healthPct)} %`, healthPct, down ? "var(--danger)" : "var(--ok)"),
-                    bar("Armure", typeof info.armor === "number" ? `${info.armor} %` : "—", info.armor || 0, "var(--info)"),
+            h("div", { class: "card", style: "margin-top:16px" }, h("h3", { class: "card-title" }, "État"),
+                bar("Santé", health === null ? "—" : down ? "Au sol" : `${Math.round(healthPct)} %`, healthPct, down ? "var(--danger)" : "var(--ok)"),
+                bar("Armure", typeof info.armor === "number" ? `${info.armor} %` : "—", info.armor || 0, "var(--info)"),
+                h("div", { class: "info-cols" },
                     infoRow("Ping", `${info.ping} ms`),
                     infoRow("Figé", info.frozen ? "Oui" : "Non"),
-                    info.jail ? infoRow("Prison", `${Math.ceil(info.jail.remaining / 60)} min restantes`) : null)
-            ),
-            licensesCard(info),
-            economySection(info),
-            premiumCard(info, { serverId: info.serverId }, () => loadPlayerInfo()),
-            can("sanctions.view") ? historyCard(info) : null
-        )
+                    info.jail ? infoRow("Prison", `${Math.ceil(info.jail.remaining / 60)} min restantes`) : null)),
+        ];
+    }
+
+    fiche.replaceChildren(
+        h("div", { class: "page-head" },
+            h("div", { class: "grow" },
+                h("h1", { class: "page-title" }, info.name, info.rank ? rankPill(info.rank) : null),
+                h("div", { class: "page-sub" },
+                    `ID ${info.serverId}`, h("span", { class: "sep" }), info.pseudo || "—", h("span", { class: "sep" }),
+                    h("span", { class: "mono" }, shortLicense(info.license)),
+                    info.isSelf ? [h("span", { class: "sep" }), h("span", { class: "you" }, "Vous")] : null
+                )
+            )
+        ),
+        subTabs,
+        h("div", { class: "scroll" }, body)
     );
 
     const scroller = fiche.querySelector(".scroll");
@@ -1453,6 +1502,7 @@ let modalResolve = null;
 
 function openModal(build) {
     const close = (value) => closeModal(value);
+    $("modal").className = "modal"; // une fenêtre précédente a pu ajouter sa classe (ex. recherche)
     $("modal").replaceChildren(...build(close));
     $("backdrop").classList.add("on");
 }
@@ -1494,6 +1544,8 @@ function toast(message, kind) {
 }
 
 // ---------- Événements ----------
+
+$("searchBtn").addEventListener("click", () => openSearch());
 
 $("unsavedReset").addEventListener("click", () => {
     const tracker = unsavedTrackers[view];
@@ -1548,6 +1600,11 @@ function isToggleKey(e) {
 window.addEventListener("keydown", (e) => {
     if (document.body.classList.contains("hidden")) return;
     const modalOpen = $("backdrop").classList.contains("on");
+    if (e.ctrlKey && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        if (!modalOpen) openSearch();
+        return;
+    }
     if (e.ctrlKey && !modalOpen && ["t", "w", "Tab"].includes(e.key.length === 1 ? e.key.toLowerCase() : e.key)) {
         e.preventDefault();
         if (e.key.toLowerCase() === "t") newTab();
@@ -1702,7 +1759,7 @@ async function demoNui(name, data) {
     if (name === "action" && data && data.action === "shops.list") return { ok: true, shops: [
         { id: 1, label: "PostOP", slug: "postop", items: 10, locations: 1 }, { id: 2, label: "Viande", slug: "viande", items: 4, locations: 1 },
         { id: 3, label: "Volaille", slug: "volaille", items: 4, locations: 0 }, { id: 4, label: "Vigneron", slug: "vigneron", items: 4, locations: 2 },
-    ] };
+    ].map((s) => ({ ...s, category: (data.payload && data.payload.category) || "ltd" })) };
     if (name === "action" && data && data.action === "shops.info") return { ok: true,
         licenses: [{ type: "weapon", label: "Port d'arme" }, { type: "drive", label: "Permis voiture" }],
         jobs: [{ name: "burgershot", label: "Burger Shot" }, { name: "lspd", label: "LSPD" }, { name: "mechanic", label: "Mécanicien" }],
