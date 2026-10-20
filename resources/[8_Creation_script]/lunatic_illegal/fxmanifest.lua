@@ -27,5 +27,7 @@ dependencies {
     'es_extended',
     'ox_lib',
     'ox_inventory',
-    'lunatic_admin',
 }
+
+-- lunatic_admin n'est pas une dépendance déclarée : sinon chaque « ensure lunatic_admin » arrêterait cette resource
+-- sans la relancer. Ses exports et GlobalState sont lus au moment de servir, et ses événements resynchronisent au redémarrage.
