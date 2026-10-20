@@ -621,6 +621,7 @@ function homeKpis() {
 function renderHome() {
     $("view-home").replaceChildren(h("div", { class: "home menu" },
         h("div", { class: "kpis menu-kpis" }, homeKpis()),
+        recentsSection(),
         h("div", { class: "tiles" }, tiles().map((t) =>
             h("button", { class: "tile", onclick: () => go(t.target) }, icon(t.icon), h("span", null, t.label))))
     ));
@@ -825,6 +826,7 @@ async function loadPlayerInfo() {
         const res = await nui("action", { action: "player.info", payload: { serverId: id } });
         if (id !== selectedPlayerId) return;
         playerInfo = res && res.ok ? res.info : false;
+        if (playerInfo) rememberRecent({ type: "player", id: playerInfo.serverId, identifier: String(playerInfo.license || "").replace(/^license:/, ""), label: playerInfo.name, sub: `En ligne · ID ${playerInfo.serverId}` });
     } catch (e) {
         return;
     }
@@ -1229,6 +1231,12 @@ function newRank() {
     create();
 }
 
+// Recherche dans les permissions : gardée d'un rang à l'autre
+let permSearch = "";
+
+// Texte comparable : minuscules, sans accents
+const fold = (text) => String(text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
 function renderEditor() {
     if (!draft) {
         return h("div", { class: "content" }, h("div", { class: "empty" }, icon("i-layers"), "Sélectionnez un rang pour voir ses permissions."));
@@ -1305,38 +1313,79 @@ function renderEditor() {
         )
     );
 
-    // Permissions par famille
+    // Permissions par famille : recherche, et « Tout cocher / Tout décocher » sur ce qui est affiché
+    // (seulement les permissions que vous avez vous-même)
+    const sections = [];
     const permSections = state.catalogue.families.map((family) => {
         const perms = state.catalogue.permissions.filter((p) => p.family === family.id);
         if (!perms.length) return null;
         const count = h("span", { class: "count" });
         const updateCount = () => { count.textContent = `${perms.filter((p) => draft.owner || draft.permissions.has(p.id)).length}/${perms.length}`; };
         updateCount();
-        return h("div", { class: "section" },
-            h("div", { class: "section-head" }, family.label, count),
-            h("div", { class: "perm-grid" }, perms.map((perm) => {
-                const on = draft.owner || draft.permissions.has(perm.id);
-                const locked = !structural || !can(perm.id);
-                const row = h("div", {
-                    class: `perm${on ? " on" : ""}${locked ? " locked" : ""}`,
-                    title: locked && structural ? "Vous ne pouvez pas donner une permission que vous n'avez pas." : null,
-                },
-                h("span", { class: "switch" }),
-                h("span", { class: "txt" }, h("span", null, perm.label), h("code", null, perm.id))
-                );
-                if (!locked) {
-                    row.addEventListener("click", () => {
-                        if (draft.permissions.has(perm.id)) draft.permissions.delete(perm.id);
-                        else draft.permissions.add(perm.id);
-                        row.classList.toggle("on", draft.permissions.has(perm.id));
-                        updateCount();
-                        refreshChrome();
-                    });
-                }
-                return row;
-            }))
-        );
+
+        const rows = perms.map((perm) => {
+            const on = draft.owner || draft.permissions.has(perm.id);
+            const locked = !structural || !can(perm.id);
+            const row = h("div", {
+                class: `perm${on ? " on" : ""}${locked ? " locked" : ""}`,
+                title: locked && structural ? "Vous ne pouvez pas donner une permission que vous n'avez pas." : null,
+            },
+            h("span", { class: "switch" }),
+            h("span", { class: "txt" }, h("span", null, perm.label), h("code", null, perm.id))
+            );
+            if (!locked) {
+                row.addEventListener("click", () => {
+                    if (draft.permissions.has(perm.id)) draft.permissions.delete(perm.id);
+                    else draft.permissions.add(perm.id);
+                    row.classList.toggle("on", draft.permissions.has(perm.id));
+                    updateCount();
+                    refreshChrome();
+                });
+            }
+            return { perm, row, locked };
+        });
+
+        const setAll = (value) => {
+            for (const r of rows) {
+                if (r.locked || r.row.style.display === "none") continue;
+                if (value) draft.permissions.add(r.perm.id);
+                else draft.permissions.delete(r.perm.id);
+                r.row.classList.toggle("on", value);
+            }
+            updateCount();
+            refreshChrome();
+        };
+        const bulk = rows.some((r) => !r.locked) ? h("span", { class: "perm-bulk" },
+            h("button", { class: "btn small ghost", onclick: () => setAll(true) }, icon("i-save"), "Tout cocher"),
+            h("button", { class: "btn small ghost", onclick: () => setAll(false) }, icon("i-x"), "Tout décocher")) : null;
+
+        const section = h("div", { class: "section" },
+            h("div", { class: "section-head" }, family.label, count, bulk),
+            h("div", { class: "perm-grid" }, rows.map((r) => r.row)));
+        sections.push({ section, rows, family });
+        return section;
     });
+
+    const permEmpty = h("div", { class: "muted perm-empty" }, "Aucune permission ne correspond à la recherche.");
+    const applyPermFilter = () => {
+        const q = fold(permSearch.trim());
+        let any = false;
+        for (const s of sections) {
+            const familyMatch = q && fold(s.family.label).includes(q);
+            let visible = 0;
+            for (const r of s.rows) {
+                const show = !q || familyMatch || fold(r.perm.label).includes(q) || fold(r.perm.id).includes(q);
+                r.row.style.display = show ? "" : "none";
+                if (show) visible++;
+            }
+            s.section.style.display = visible ? "" : "none";
+            if (visible) any = true;
+        }
+        permEmpty.style.display = any ? "none" : "";
+    };
+    const permSearchInput = h("input", { placeholder: "Rechercher une permission", value: permSearch });
+    permSearchInput.addEventListener("input", () => { permSearch = permSearchInput.value; applyPermFilter(); });
+    applyPermFilter();
 
     const banner = !editable
         ? h("div", { class: "banner" }, icon("i-lock"), draft.owner
@@ -1357,7 +1406,12 @@ function renderEditor() {
             h("div", { class: "grow" }, h("h1", { class: "page-title" }, titleDot, titleText), sub),
             actions
         ),
-        h("div", { class: "scroll" }, banner, form, h("div", { class: "card" }, h("h3", { class: "card-title" }, "Permissions"), permSections), membersCard)
+        h("div", { class: "scroll" }, banner, form,
+            h("div", { class: "card" },
+                h("div", { class: "card-head dev-head" }, h("h3", { class: "card-title" }, "Permissions"),
+                    h("label", { class: "search" }, icon("i-search"), permSearchInput)),
+                permEmpty, permSections),
+            membersCard)
     );
 
     queueMicrotask(refreshChrome);
@@ -1585,6 +1639,10 @@ function startSearch() {
     else toast("Recherche indisponible : web/search.js manque sur le serveur.", "error");
 }
 $("searchBtn").addEventListener("click", () => startSearch());
+$("helpBtn").addEventListener("click", () => {
+    if (typeof openHelp === "function") openHelp();
+    else toast("Aide indisponible : web/help.js manque sur le serveur.", "error");
+});
 
 $("unsavedReset").addEventListener("click", () => {
     const tracker = unsavedTrackers[view];

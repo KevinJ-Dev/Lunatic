@@ -14,9 +14,6 @@ const pageVisible = (id) => {
     return !!page && page.show();
 };
 
-// Texte comparable : minuscules, sans accents
-const fold = (text) => String(text || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-
 // Listes chargées au plus toutes les 30 s (elles changent peu)
 async function loadSearchSources() {
     if (Date.now() - searchCache.at < 30000) return;
@@ -104,7 +101,11 @@ function openSearchStructure(kind, job) {
     selectStructure(kind, job);
 }
 
-function openSearchShop(shop) {
+async function openSearchShop(shop) {
+    if (!searchCache.categories.length) {
+        const res = await nui("action", { action: "shops.categories", payload: {} }).catch(() => null);
+        searchCache.categories = res && res.ok ? res.categories || [] : [];
+    }
     const category = searchCache.categories.find((c) => c.id === shop.category);
     if (!category) return toast("Catégorie du magasin introuvable.", "error");
     go("catalogs");
@@ -118,6 +119,64 @@ function openSearchShop(shop) {
 function openSearchCrew(id) {
     go("crews");
     selectCrew(id);
+}
+
+// ---------- Récents (Accueil) ----------
+// Les dernières fiches ouvertes, propres à chaque staff (mémoire du navigateur du jeu).
+
+const RECENTS_KEY = "lunatic_admin_recents";
+const RECENT_TYPES = {
+    player: { icon: "i-player", page: "players", group: "Joueur" },
+    offline: { icon: "i-player", page: "players", group: "Joueur" },
+    company: { icon: "i-store", page: "companies", group: "Entreprise" },
+    public: { icon: "i-shield", page: "publics", group: "Service public" },
+    shop: { icon: "i-book", page: "catalogs", group: "Magasin" },
+    crew: { icon: "i-flag", page: "crews", group: "Crew" },
+};
+
+function loadRecents() {
+    try {
+        const list = JSON.parse(localStorage.getItem(RECENTS_KEY) || "[]");
+        return Array.isArray(list) ? list.filter((r) => r && RECENT_TYPES[r.type]) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function rememberRecent(entry) {
+    if (!entry || !entry.label || entry.id === undefined || entry.id === null) return;
+    const list = loadRecents().filter((r) => !(r.type === entry.type && String(r.id) === String(entry.id)));
+    list.unshift({ ...entry, at: Date.now() });
+    try {
+        localStorage.setItem(RECENTS_KEY, JSON.stringify(list.slice(0, 8)));
+    } catch (e) {
+        // stockage indisponible : pas de récents
+    }
+}
+
+function openRecent(r) {
+    if (r.type === "player") {
+        const online = (state.players || []).find((p) => p.serverId === r.id && p.name === r.label);
+        if (online) return openOnlinePlayer(r.id);
+        // Déconnecté (ou ID réattribué) : sa fiche en base
+        if (r.identifier && can("players.offline")) return openOfflinePlayer(r.label, [{ identifier: r.identifier, name: r.label }], r.identifier);
+        return toast(`${r.label} n'est plus connecté.`, "info");
+    }
+    if (r.type === "offline") return openOfflinePlayer(r.label, [{ identifier: r.id, name: r.label }], r.id);
+    if (r.type === "company" || r.type === "public") return openSearchStructure(r.type, r.id);
+    if (r.type === "shop") return openSearchShop({ id: r.id, category: r.category });
+    if (r.type === "crew") return openSearchCrew(r.id);
+}
+
+function recentsSection() {
+    // Une ligne sur l'accueil : les 4 dernières fiches
+    const list = loadRecents().filter((r) => pageVisible(RECENT_TYPES[r.type].page)).slice(0, 4);
+    if (!list.length) return null;
+    return h("div", { class: "recents" },
+        h("div", { class: "section-head" }, "Récents"),
+        h("div", { class: "recent-list" }, list.map((r) => h("button", { class: "recent", onclick: () => openRecent(r) },
+            icon(RECENT_TYPES[r.type].icon),
+            h("span", { class: "who" }, h("b", null, r.label), h("span", null, [RECENT_TYPES[r.type].group, r.sub].filter(Boolean).join(" · ")))))));
 }
 
 // ---------- Fenêtre de recherche ----------

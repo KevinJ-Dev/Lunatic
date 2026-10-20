@@ -79,6 +79,7 @@ files {
     'web/events.js',
     'web/dev.js',
     'web/search.js',
+    'web/help.js',
     'web/logo.png',
     'web/fonts/*.woff2',
 }
