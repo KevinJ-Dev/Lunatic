@@ -1579,7 +1579,12 @@ function toast(message, kind) {
 
 // ---------- Événements ----------
 
-$("searchBtn").addEventListener("click", () => openSearch());
+// La recherche est dans web/search.js (déclaré dans fxmanifest.lua) : message clair si le fichier manque
+function startSearch() {
+    if (typeof openSearch === "function") openSearch();
+    else toast("Recherche indisponible : web/search.js manque sur le serveur.", "error");
+}
+$("searchBtn").addEventListener("click", () => startSearch());
 
 $("unsavedReset").addEventListener("click", () => {
     const tracker = unsavedTrackers[view];
@@ -1636,7 +1641,7 @@ window.addEventListener("keydown", (e) => {
     const modalOpen = $("backdrop").classList.contains("on");
     if (e.ctrlKey && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        if (!modalOpen) openSearch();
+        if (!modalOpen) startSearch();
         return;
     }
     if (e.ctrlKey && !modalOpen && ["t", "w", "Tab"].includes(e.key.length === 1 ? e.key.toLowerCase() : e.key)) {
