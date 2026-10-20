@@ -242,7 +242,8 @@ function tiles() {
 }
 
 // ---------- Onglets (façon navigateur) ----------
-// Un onglet par page (les pages d'un même groupe partagent l'onglet). L'onglet « Gestion » est la grille de tuiles.
+// Un onglet par page (les pages d'un même groupe partagent l'onglet). Le premier onglet, « Accueil » (grille de tuiles),
+// est épinglé : toujours présent, ni fermable ni déplaçable. Les autres se réordonnent par glisser-déposer.
 // Les onglets restent ouverts à la fermeture du panel et sont mémorisés (localStorage) pour la reconnexion.
 
 const TABS_KEY = "lunatic_admin_tabs";
@@ -277,8 +278,17 @@ function restoreTabs() {
         }
         if (saved && saved.maximized) document.body.classList.add("maximized");
     } catch (e) {
-        // mémoire illisible : on garde l'onglet Gestion
+        // mémoire illisible : on garde l'onglet Accueil
     }
+    ensureHome();
+}
+
+// L'onglet Accueil est toujours le premier, et le seul de son genre
+function ensureHome() {
+    const current = tabs[activeTab];
+    tabs = [{ key: "home", view: "home" }, ...tabs.filter((t) => t.key !== "home")];
+    const index = current ? tabs.findIndex((t) => t.key === current.key) : 0;
+    activeTab = index >= 0 ? index : 0;
 }
 
 // Retire les onglets de pages devenues interdites (rang modifié) et les doublons
@@ -291,9 +301,9 @@ function sanitizeTabs() {
         seen.add(t.key);
         return true;
     });
-    if (!tabs.length) tabs = [{ key: "home", view: "home" }];
     const index = tabs.indexOf(current);
     activeTab = index >= 0 ? index : Math.min(activeTab, tabs.length - 1);
+    ensureHome();
     view = tabs[activeTab].view;
 }
 
@@ -329,9 +339,9 @@ function newTab() {
 }
 
 function closeTab(index) {
+    if (index === 0) return; // Accueil épinglé
     const doClose = () => {
         tabs.splice(index, 1);
-        if (!tabs.length) tabs = [{ key: "home", view: "home" }];
         if (activeTab > index || activeTab >= tabs.length) activeTab = Math.max(0, activeTab - 1);
         showTab(activeTab);
     };
@@ -339,18 +349,58 @@ function closeTab(index) {
     else doClose();
 }
 
+// Glisser-déposer : déplace l'onglet « from » à la place de « to » (l'Accueil reste premier)
+function moveTab(from, to) {
+    if (from === to || from < 1 || to < 1 || from >= tabs.length || to >= tabs.length) return;
+    const activeKey = tabs[activeTab].key;
+    const [moved] = tabs.splice(from, 1);
+    tabs.splice(to, 0, moved);
+    activeTab = tabs.findIndex((t) => t.key === activeKey);
+    saveTabs();
+    renderTabs();
+}
+
+let draggedTab = null;
+
 function renderTabs() {
     const list = tabs.map((tab, index) => {
         const info = tabInfo(tab);
-        const closable = tabs.length > 1 || tab.key !== "home";
-        const el = h("div", { class: `tab${index === activeTab ? " active" : ""}`, title: info.label, onclick: () => selectTab(index) },
+        const home = index === 0;
+
+        if (home) {
+            return h("div", { class: `tab tab-home${index === activeTab ? " active" : ""}`, title: "Accueil (Ctrl+T)", onclick: () => selectTab(0) },
+                icon("i-home"), h("span", { class: "tab-label" }, "Accueil"));
+        }
+
+        const el = h("div", { class: `tab${index === activeTab ? " active" : ""}`, title: `${info.label} · glisser pour déplacer`, draggable: "true", onclick: () => selectTab(index) },
             icon(info.icon), h("span", { class: "tab-label" }, info.label),
-            closable ? h("button", { class: "tab-x", title: "Fermer l'onglet (Ctrl+W)", onclick: (e) => { e.stopPropagation(); closeTab(index); } }, icon("i-x")) : null);
+            h("button", { class: "tab-x", title: "Fermer l'onglet (Ctrl+W)", onclick: (e) => { e.stopPropagation(); closeTab(index); } }, icon("i-x")));
         // Clic molette : fermer l'onglet, comme un navigateur
-        el.addEventListener("auxclick", (e) => { if (e.button === 1 && closable) closeTab(index); });
+        el.addEventListener("auxclick", (e) => { if (e.button === 1) closeTab(index); });
+        el.addEventListener("dragstart", (e) => {
+            draggedTab = index;
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", String(index));
+            el.classList.add("dragging");
+        });
+        el.addEventListener("dragend", () => {
+            draggedTab = null;
+            document.querySelectorAll(".tab.drop-before, .tab.drop-after, .tab.dragging").forEach((t) => t.classList.remove("drop-before", "drop-after", "dragging"));
+        });
+        el.addEventListener("dragover", (e) => {
+            if (draggedTab === null || draggedTab === index) return;
+            e.preventDefault();
+            el.classList.toggle("drop-before", draggedTab > index);
+            el.classList.toggle("drop-after", draggedTab < index);
+        });
+        el.addEventListener("dragleave", () => el.classList.remove("drop-before", "drop-after"));
+        el.addEventListener("drop", (e) => {
+            e.preventDefault();
+            if (draggedTab !== null) moveTab(draggedTab, index);
+        });
         return el;
     });
-    $("tabs").replaceChildren(...list, h("button", { class: "tab-new", title: "Nouvel onglet (Ctrl+T)", onclick: newTab }, icon("i-plus")));
+    $("tabs").replaceChildren(...list);
 }
 
 function renderTopbar() {
@@ -364,17 +414,31 @@ function renderTopbar() {
         h("button", { class: `nav-link${view === n.id ? " active" : ""}`, onclick: () => go(n.id) }, icon(n.icon), n.label))));
 }
 
+// Pastille du staff : portrait du personnage pris en jeu à chaque ouverture (message « headshot »), sinon l'initiale
+let meHeadshot = null;
+
+function renderMe() {
+    const me = state.me;
+    const avatar = h("span", { class: "avatar" }, initials(me.name));
+    avatar.style.background = me.rank.color;
+
+    if (meHeadshot) {
+        const img = h("img", { class: "avatar avatar-img", src: meHeadshot, alt: "" });
+        img.style.borderColor = me.rank.color;
+        img.addEventListener("error", () => img.replaceWith(avatar));
+        $("me").replaceChildren(img, h("span", { class: "who" }, h("b", null, me.name), h("span", { class: "muted" }, me.rank.name)));
+        return;
+    }
+
+    $("me").replaceChildren(avatar, h("span", { class: "who" }, h("b", null, me.name), h("span", { class: "muted" }, me.rank.name)));
+}
+
 function render() {
     if (!state) return;
 
     renderTopbar();
 
-    const me = state.me;
-    $("me").replaceChildren(
-        h("span", { class: "avatar" }, initials(me.name)),
-        h("span", { class: "who" }, h("b", null, me.name), h("span", { class: "muted" }, me.rank.name))
-    );
-    $("me").querySelector(".avatar").style.background = me.rank.color;
+    renderMe();
 
     for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "illegal", "crews", "catalogs", "poles", "events", "dev", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
@@ -409,10 +473,6 @@ function go(target) {
         if (existing >= 0) {
             tabs[existing].view = target;
             return showTab(existing);
-        }
-        if (tabs[activeTab] && tabs[activeTab].key === "home") {
-            tabs[activeTab] = { key, view: target };
-            return showTab(activeTab);
         }
         tabs.push({ key, view: target });
         showTab(tabs.length - 1);
@@ -1416,6 +1476,9 @@ window.addEventListener("message", (event) => {
         const keptDraft = applyState(msg.state, false);
         if (keptDraft && view === "ranks") renderRanks(true);
         else render();
+    } else if (msg.action === "headshot") {
+        meHeadshot = typeof msg.url === "string" ? msg.url : null;
+        if (state) renderMe();
     } else if (msg.action === "focusPlayer") {
         // Menu contextuel : fiche du joueur visé
         if (!can("players.view")) return;

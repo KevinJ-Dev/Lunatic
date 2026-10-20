@@ -32,6 +32,33 @@ local function toggleKey()
     return Config.DefaultKey
 end
 
+-- Portrait du personnage (tête en jeu) pour la pastille du panel, refait à chaque ouverture
+local headshot
+
+function SendHeadshot()
+    local handle = RegisterPedheadshotTransparent(PlayerPedId())
+    local timeout = GetGameTimer() + 3000
+
+    while (not IsPedheadshotReady(handle) or not IsPedheadshotValid(handle)) and GetGameTimer() < timeout do
+        Wait(50)
+    end
+
+    if not IsPedheadshotReady(handle) or not IsPedheadshotValid(handle) then
+        UnregisterPedheadshot(handle)
+        return
+    end
+
+    local txd = GetPedheadshotTxdString(handle)
+    SendNUIMessage({ action = 'headshot', url = ('https://nui-img/%s/%s'):format(txd, txd) })
+
+    -- L'ancien portrait n'est libéré qu'une fois le nouveau affiché
+    if headshot then
+        UnregisterPedheadshot(headshot)
+    end
+
+    headshot = handle
+end
+
 local function open()
     if isOpen then
         return
@@ -47,6 +74,7 @@ local function open()
     isOpen = true
     SetNuiFocus(true, true)
     SendNUIMessage({ action = 'open', state = state, toggleKey = toggleKey() })
+    CreateThread(SendHeadshot)
 end
 
 -- Menu contextuel : ouvre le panel sur la fiche d'un joueur

@@ -546,3 +546,11 @@ body.maximized .window { width: 100vw; height: 100vh; border-radius: 0; border: 
 .mini-pill img { width: 24px; height: 24px; object-fit: contain; }
 .mini-pill kbd { padding: 2px 7px; border-radius: 6px; background: var(--surface-2); color: #fff; font: 600 11px var(--mono); }
 body.hidden.minimized .mini-pill { display: flex; }
+
+/* Onglet Accueil épinglé, glisser-déposer, portrait */
+.tab-home { flex: none; padding: 0 14px; }
+.tab.dragging { opacity: .45; }
+.tab.drop-before { box-shadow: inset 3px 0 rgb(var(--accent-rgb)); }
+.tab.drop-after { box-shadow: inset -3px 0 rgb(var(--accent-rgb)); }
+.tab[draggable="true"] { cursor: grab; }
+.avatar-img { padding: 0; object-fit: cover; object-position: center 20%; background: var(--surface-2); border: 2px solid transparent; }

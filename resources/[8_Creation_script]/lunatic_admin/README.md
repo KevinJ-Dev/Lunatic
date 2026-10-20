@@ -218,7 +218,7 @@ Page « Dév » du panel, permission `dev.manage` (Gestion Développeur, réserv
 
 ## Navigation
 
-Panel façon tablette : **onglets** comme un navigateur (un onglet par page, les pages d'un groupe comme Rangs et Membres partagent l'onglet « Permissions »). « + » ou Ctrl+T ouvre l'onglet **Gestion** (grille de tuiles), × ou Ctrl+W (ou clic molette) ferme, Ctrl+Tab passe à l'onglet suivant. Chaque onglet garde son état (fiche ouverte, défilement, recherche) ; les onglets restent ouverts à la fermeture du panel et sont mémorisés pour la reconnexion (stockage local du panel).
+Panel façon tablette : **onglets** comme un navigateur (un onglet par page, les pages d'un groupe comme Rangs et Membres partagent l'onglet « Permissions »). Le premier onglet, **Accueil** (grille de tuiles), est épinglé : Ctrl+T y ramène. Les autres se **déplacent par glisser-déposer** ; × ou Ctrl+W (ou clic molette) ferme, Ctrl+Tab passe à l'onglet suivant. La pastille en haut à droite montre la **tête du personnage** (portrait pris en jeu à chaque ouverture). Chaque onglet garde son état (fiche ouverte, défilement, recherche) ; les onglets restent ouverts à la fermeture du panel et sont mémorisés pour la reconnexion (stockage local du panel).
 
 Boutons de fenêtre : **Réduire** (le panel se cache, un rappel « F10 » reste en bas d'écran), **Agrandir** (plein écran, mémorisé), **Fermer**. Pour ajouter une page : une entrée dans `NAV` (`web/app.js`), une `<section class="view">` dans `index.html` et sa fonction de rendu.
 
