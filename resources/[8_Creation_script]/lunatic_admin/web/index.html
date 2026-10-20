@@ -54,8 +54,14 @@
     <symbol id="i-skate" viewBox="0 0 24 24"><path d="M3 12h18M5 12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2"/><circle cx="8" cy="17" r="1.5"/><circle cx="16" cy="17" r="1.5"/></symbol>
     <symbol id="i-truck" viewBox="0 0 24 24"><path d="M3 6h11v10H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
     <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-maximize" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></symbol>
+    <symbol id="i-restore" viewBox="0 0 24 24"><rect x="5" y="8" width="11" height="11" rx="2"/><path d="M9 8V6a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-2"/></symbol>
     <symbol id="i-door" viewBox="0 0 24 24"><path d="M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 16l-4-4 4-4M6 12h10"/></symbol>
 </svg>
+
+<!-- Panel réduit : rappel discret en bas d'écran -->
+<div class="mini-pill" id="miniPill"><img src="logo.png" alt=""><span>Panel staff réduit</span><kbd id="miniKey">F10</kbd></div>
 
 <div class="app">
     <div class="window">
@@ -71,18 +77,16 @@
 
         <div class="shell">
             <header class="topbar">
-                <div class="crumb" id="crumb" style="display:none"></div>
-                <div class="brand" id="brand">
-                    <div class="brand-logo"><img src="logo.png" alt=""></div>
-                    <div>
-                        <div class="brand-name">Lunatic</div>
-                        <div class="brand-sub">Panel staff</div>
-                    </div>
-                </div>
+                <div class="brand-mini" title="Lunatic RP · Panel staff"><img src="logo.png" alt=""></div>
+                <div class="tabbar" id="tabs"></div>
                 <nav class="navbar" id="nav"></nav>
                 <div class="top-right">
                     <div class="me-chip" id="me"></div>
-                    <button class="icon-btn" id="close" title="Fermer (Échap)"><svg class="i"><use href="#i-x"/></svg></button>
+                    <div class="win-controls">
+                        <button class="win-btn" id="minimize" title="Réduire (F10 pour revenir)"><svg class="i"><use href="#i-minus"/></svg></button>
+                        <button class="win-btn" id="maximize" title="Agrandir / réduire la fenêtre"><svg class="i"><use href="#i-maximize"/></svg></button>
+                        <button class="win-btn close" id="close" title="Fermer (Échap)"><svg class="i"><use href="#i-x"/></svg></button>
+                    </div>
                 </div>
             </header>
 

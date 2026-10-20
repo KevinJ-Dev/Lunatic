@@ -157,7 +157,7 @@ function applyState(next, fromAction) {
     const keepDraft = !fromAction && draft && isDirty();
     state = normalize(next);
 
-    if (!NAV.find((n) => n.id === view && n.show())) view = "home";
+    sanitizeTabs();
 
     if (draft && draft.id !== null && !rankById(draft.id)) {
         draft = null;
@@ -241,20 +241,121 @@ function tiles() {
     return list;
 }
 
+// ---------- Onglets (façon navigateur) ----------
+// Un onglet par page (les pages d'un même groupe partagent l'onglet). L'onglet « Gestion » est la grille de tuiles.
+// Les onglets restent ouverts à la fermeture du panel et sont mémorisés (localStorage) pour la reconnexion.
+
+const TABS_KEY = "lunatic_admin_tabs";
+let tabs = [{ key: "home", view: "home" }];
+let activeTab = 0;
+
+function tabKeyOf(viewId) {
+    const page = NAV.find((n) => n.id === viewId);
+    return page && page.group ? page.group : viewId;
+}
+
+function tabInfo(tab) {
+    const page = NAV.find((n) => n.id === tab.view) || NAV[0];
+    if (page.group) return { label: GROUPS[page.group].label, icon: GROUPS[page.group].icon };
+    return { label: page.label, icon: page.icon };
+}
+
+function saveTabs() {
+    try {
+        localStorage.setItem(TABS_KEY, JSON.stringify({ tabs: tabs.map((t) => t.view), active: activeTab, maximized: document.body.classList.contains("maximized") }));
+    } catch (e) {
+        // stockage indisponible : les onglets restent seulement en mémoire
+    }
+}
+
+function restoreTabs() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(TABS_KEY) || "null");
+        if (saved && Array.isArray(saved.tabs) && saved.tabs.length) {
+            tabs = saved.tabs.filter((v) => typeof v === "string").map((v) => ({ key: tabKeyOf(v), view: v }));
+            activeTab = Math.max(0, Math.min(Number(saved.active) || 0, tabs.length - 1));
+        }
+        if (saved && saved.maximized) document.body.classList.add("maximized");
+    } catch (e) {
+        // mémoire illisible : on garde l'onglet Gestion
+    }
+}
+
+// Retire les onglets de pages devenues interdites (rang modifié) et les doublons
+function sanitizeTabs() {
+    const seen = new Set();
+    const current = tabs[activeTab];
+    tabs = tabs.filter((t) => {
+        const page = NAV.find((n) => n.id === t.view);
+        if (!page || !page.show() || seen.has(t.key)) return false;
+        seen.add(t.key);
+        return true;
+    });
+    if (!tabs.length) tabs = [{ key: "home", view: "home" }];
+    const index = tabs.indexOf(current);
+    activeTab = index >= 0 ? index : Math.min(activeTab, tabs.length - 1);
+    view = tabs[activeTab].view;
+}
+
+// Quitter la page Rangs avec des modifications : confirmation d'abord
+function leavePage(next) {
+    if (view === "ranks" && isDirty()) {
+        confirmBox("Modifications non enregistrées", "Quitter cette page annule les changements du rang en cours.", "Quitter sans enregistrer", true)
+            .then((yes) => {
+                if (!yes) return;
+                draft = null;
+                loadDraft();
+                next();
+            });
+        return;
+    }
+    next();
+}
+
+function showTab(index) {
+    activeTab = index;
+    view = tabs[index].view;
+    saveTabs();
+    render();
+}
+
+function selectTab(index) {
+    if (index === activeTab) return;
+    leavePage(() => showTab(index));
+}
+
+function newTab() {
+    go("home");
+}
+
+function closeTab(index) {
+    const doClose = () => {
+        tabs.splice(index, 1);
+        if (!tabs.length) tabs = [{ key: "home", view: "home" }];
+        if (activeTab > index || activeTab >= tabs.length) activeTab = Math.max(0, activeTab - 1);
+        showTab(activeTab);
+    };
+    if (index === activeTab) leavePage(doClose);
+    else doClose();
+}
+
+function renderTabs() {
+    const list = tabs.map((tab, index) => {
+        const info = tabInfo(tab);
+        const closable = tabs.length > 1 || tab.key !== "home";
+        const el = h("div", { class: `tab${index === activeTab ? " active" : ""}`, title: info.label, onclick: () => selectTab(index) },
+            icon(info.icon), h("span", { class: "tab-label" }, info.label),
+            closable ? h("button", { class: "tab-x", title: "Fermer l'onglet (Ctrl+W)", onclick: (e) => { e.stopPropagation(); closeTab(index); } }, icon("i-x")) : null);
+        // Clic molette : fermer l'onglet, comme un navigateur
+        el.addEventListener("auxclick", (e) => { if (e.button === 1 && closable) closeTab(index); });
+        return el;
+    });
+    $("tabs").replaceChildren(...list, h("button", { class: "tab-new", title: "Nouvel onglet (Ctrl+T)", onclick: newTab }, icon("i-plus")));
+}
+
 function renderTopbar() {
     const page = NAV.find((n) => n.id === view) || NAV[0];
-    const home = view === "home";
-    $("brand").style.display = home ? "" : "none";
-    $("crumb").style.display = home ? "none" : "";
-
-    if (!home) {
-        const title = page.group ? GROUPS[page.group].label : page.label;
-        $("crumb").replaceChildren(
-            h("button", { class: "crumb-back", title: "Retour à la gestion", onclick: () => go("home") }, icon("i-back")),
-            h("button", { class: "crumb-root", onclick: () => go("home") }, "Gestion"),
-            h("span", { class: "crumb-page" }, title)
-        );
-    }
+    renderTabs();
 
     // Onglets du groupe de la page (ex. Permissions : Rangs / Membres)
     const siblings = page.group ? NAV.filter((n) => n.group === page.group && n.show()) : [];
@@ -299,20 +400,23 @@ function render() {
     if (view === "members") renderMembers();
 }
 
+// Ouvre une page : son onglet s'il existe, sinon l'onglet Gestion courant devient la page, sinon un nouvel onglet
 function go(target) {
-    if (view === "ranks" && target !== "ranks" && isDirty()) {
-        confirmBox("Modifications non enregistrées", "Quitter cette page annule les changements du rang en cours.", "Quitter sans enregistrer", true)
-            .then((yes) => {
-                if (!yes) return;
-                draft = null;
-                loadDraft();
-                view = target;
-                render();
-            });
-        return;
-    }
-    view = target;
-    render();
+    if (target === view) return render();
+    leavePage(() => {
+        const key = tabKeyOf(target);
+        const existing = tabs.findIndex((t) => t.key === key);
+        if (existing >= 0) {
+            tabs[existing].view = target;
+            return showTab(existing);
+        }
+        if (tabs[activeTab] && tabs[activeTab].key === "home") {
+            tabs[activeTab] = { key, view: target };
+            return showTab(activeTab);
+        }
+        tabs.push({ key, view: target });
+        showTab(tabs.length - 1);
+    });
 }
 
 // ---------- Accueil : grille de tuiles ----------
@@ -1236,7 +1340,33 @@ function toast(message, kind) {
 
 // ---------- Événements ----------
 
-$("close").addEventListener("click", closePanel);
+$("close").addEventListener("click", () => {
+    document.body.classList.remove("minimized");
+    closePanel();
+});
+
+// Réduire : le panel se cache, un rappel discret reste en bas d'écran ; F10 le rouvre tel quel
+$("minimize").addEventListener("click", () => {
+    $("miniKey").textContent = toggleKey;
+    document.body.classList.add("minimized");
+    closePanel();
+});
+
+// Agrandir : plein écran ou fenêtre, mémorisé
+function paintMaximize() {
+    const max = document.body.classList.contains("maximized");
+    $("maximize").replaceChildren(icon(max ? "i-restore" : "i-maximize"));
+    $("maximize").title = max ? "Revenir en fenêtre" : "Agrandir en plein écran";
+}
+$("maximize").addEventListener("click", () => {
+    document.body.classList.toggle("maximized");
+    paintMaximize();
+    saveTabs();
+});
+
+restoreTabs();
+view = tabs[activeTab].view;
+paintMaximize();
 
 // Touche d'ouverture (F10 par défaut) : la même touche referme le panel
 let toggleKey = "F10";
@@ -1250,6 +1380,14 @@ function isToggleKey(e) {
 
 window.addEventListener("keydown", (e) => {
     if (document.body.classList.contains("hidden")) return;
+    const modalOpen = $("backdrop").classList.contains("on");
+    if (e.ctrlKey && !modalOpen && ["t", "w", "Tab"].includes(e.key.length === 1 ? e.key.toLowerCase() : e.key)) {
+        e.preventDefault();
+        if (e.key.toLowerCase() === "t") newTab();
+        else if (e.key.toLowerCase() === "w") closeTab(activeTab);
+        else if (tabs.length > 1) selectTab((activeTab + (e.shiftKey ? tabs.length - 1 : 1)) % tabs.length);
+        return;
+    }
     if (e.key === "Escape") {
         if ($("backdrop").classList.contains("on")) closeModal(false);
         else closePanel();
@@ -1272,7 +1410,7 @@ window.addEventListener("message", (event) => {
         draft = null;
         if (typeof msg.toggleKey === "string" && msg.toggleKey) toggleKey = msg.toggleKey;
         applyState(msg.state, true);
-        document.body.classList.remove("hidden", "see-through");
+        document.body.classList.remove("hidden", "see-through", "minimized");
         render();
     } else if (msg.action === "state") {
         const keptDraft = applyState(msg.state, false);

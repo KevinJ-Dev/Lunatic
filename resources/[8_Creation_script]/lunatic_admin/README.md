@@ -218,7 +218,9 @@ Page « Dév » du panel, permission `dev.manage` (Gestion Développeur, réserv
 
 ## Navigation
 
-L'accueil du panel est une grille de tuiles (une par page autorisée, avec les chiffres clés au-dessus). Dans une page, la barre du haut affiche `← GESTION  NOM DE LA PAGE` ; la flèche ou « Gestion » ramène à la grille. Rangs et Membres sont réunis dans la tuile « Permissions » (onglets dans la barre). Pour ajouter une page : une entrée dans `NAV` (`web/app.js`), une `<section class="view">` dans `index.html` et sa fonction de rendu.
+Panel façon tablette : **onglets** comme un navigateur (un onglet par page, les pages d'un groupe comme Rangs et Membres partagent l'onglet « Permissions »). « + » ou Ctrl+T ouvre l'onglet **Gestion** (grille de tuiles), × ou Ctrl+W (ou clic molette) ferme, Ctrl+Tab passe à l'onglet suivant. Chaque onglet garde son état (fiche ouverte, défilement, recherche) ; les onglets restent ouverts à la fermeture du panel et sont mémorisés pour la reconnexion (stockage local du panel).
+
+Boutons de fenêtre : **Réduire** (le panel se cache, un rappel « F10 » reste en bas d'écran), **Agrandir** (plein écran, mémorisé), **Fermer**. Pour ajouter une page : une entrée dans `NAV` (`web/app.js`), une `<section class="view">` dans `index.html` et sa fonction de rendu.
 
 ## Commandes staff (lot L)
 
