@@ -4,8 +4,9 @@ Côté jeu de l'illégal. Les données se gèrent dans le panel staff (`lunatic_
 
 ## Installation
 
-Dans `resources/[8_Creation_script]`, démarrée par `ensure [8_Creation_script]` après `lunatic_admin` (dépendance).
-Dépendances : `es_extended`, `ox_lib`, `lunatic_admin`.
+Dans `resources/[8_Creation_script]`, démarrée par `ensure [8_Creation_script]`.
+Dépendances : `es_extended`, `ox_lib`, `ox_inventory`. Utilise `lunatic_admin` (crews, drogues, recelleur) pendant son fonctionnement.
+`lunatic_admin` n'est pas une dépendance déclarée dans le manifeste : sinon chaque `ensure lunatic_admin` arrêterait cette resource sans la relancer.
 
 ## Étape 1 : crews
 
@@ -33,6 +34,7 @@ Drogues et laboratoires dans le panel (tuile Illégal, onglet Drogues).
 - **Laboratoires** : marqueur et `[E]` visibles par les membres d'un crew du type autorisé ; production en deux temps (barre de progression annulable, ingrédients retirés et drogue donnée à la fin, durée vérifiée par le serveur).
 - **Vente aux passants** : avec au moins le volume minimum sur soi, `[E]` près d'un PNJ qui marche (`Config.SellDistance`), une tentative par passant. Le serveur vérifie la distance, le délai (`Config.SellCooldown`), le nombre de policiers en service (joueurs connectés au métier d'une structure de type Police) et la quantité. Acceptation `Config.SellChance`, quantité entre les volumes min et max, prix ±`Config.PriceVariation`, payé sur `Config.SellAccount`.
 - **Crew** : XP ajoutée au crew du vendeur, influence journalisée avec la position (`lunatic_crew_influence`, pour les territoires).
+- **Vue staff** : le bouton « Voir les labos en jeu » (onglet Drogues, permission `illegal.manage`) affiche tous les points de labo en orange, sans permettre de produire.
 - **Police** : alerte anonyme avec probabilité `Config.AlertChance` (zone approximative sur la carte pendant `Config.AlertDuration` secondes).
 
 ## À venir

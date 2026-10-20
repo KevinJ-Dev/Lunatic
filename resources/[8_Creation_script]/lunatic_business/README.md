@@ -5,8 +5,9 @@ Le staff place les points (onglet **Points** de la fiche) ; cette resource les r
 
 ## Installation
 
-Dans `resources/[8_Creation_script]`, démarrée automatiquement par `ensure [8_Creation_script]` (après `lunatic_admin`, dont elle dépend).
-Dépendances : `es_extended`, `ox_lib`, `oxmysql`, `ox_inventory`, `lunatic_admin` ; `illenium-appearance` pour le vestiaire.
+Dans `resources/[8_Creation_script]`, démarrée automatiquement par `ensure [8_Creation_script]`.
+Dépendances : `es_extended`, `ox_lib`, `oxmysql`, `ox_inventory` ; `illenium-appearance` pour le vestiaire. Utilise `lunatic_admin` (points, catalogues, magasins) pendant son fonctionnement.
+`lunatic_admin` n'est pas une dépendance déclarée dans le manifeste : sinon chaque `ensure lunatic_admin` arrêterait cette resource sans la relancer.
 Les tables sont créées au démarrage : `lunatic_business_accounts`, `lunatic_business_account_log`, `lunatic_business_outfits`.
 
 ## En jeu

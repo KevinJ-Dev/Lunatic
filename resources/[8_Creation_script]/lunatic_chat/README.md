@@ -26,7 +26,7 @@ Tchat de Lunatic RP. Remplace la resource `chat` de FiveM (`provide 'chat'`) : E
 - L'interface n'interprète jamais de HTML : tout est inséré comme texte.
 - Historique dans la table `lunatic_chat_logs` (créée au démarrage), purgé après `Config.LogRetentionDays` jours.
 
-Dépend de `lunatic_admin` pour les permissions staff.
+Utilise `lunatic_admin` pour les permissions staff (outils staff bloqués tant qu'il n'est pas démarré). `lunatic_admin` n'est pas une dépendance déclarée dans le manifeste : sinon chaque `ensure lunatic_admin` arrêterait cette resource sans la relancer.
 
 ## Messages des autres resources
 
