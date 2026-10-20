@@ -3,6 +3,12 @@
 local drugs = {}
 local soldTo = {} -- passants déjà démarchés (une seule tentative par passant)
 local busy = false
+local staffView = false -- activée depuis le panel (onglet Drogues) : tous les laboratoires visibles, sans production
+
+RegisterNetEvent('lunatic_illegal:staffView', function(enabled)
+    staffView = enabled == true
+    notify(staffView and 'Vue staff : tous les laboratoires sont affichés en orange.' or 'Vue staff des laboratoires désactivée.', 'info')
+end)
 
 local function notify(message, kind)
     ESX.ShowNotification(message, kind or 'info')
@@ -104,22 +110,23 @@ local function produce(location)
     end
 end
 
--- Emplacements des laboratoires du type de crew du joueur
+-- Emplacements des laboratoires du type de crew du joueur ; en vue staff, tous les autres aussi (sans production)
 local function myLabs()
     local crew = LocalPlayer.state.crew
     local list = {}
 
-    if not crew then
-        return list
-    end
-
     for _, drug in ipairs(drugs) do
-        if drug.active then
-            for _, lab in ipairs(drug.labs or {}) do
-                if lab.crewType == crew.type then
-                    for _, location in ipairs(lab.locations or {}) do
-                        list[#list + 1] = { location = location, label = itemLabel(drug.item) }
-                    end
+        for _, lab in ipairs(drug.labs or {}) do
+            local usable = drug.active and crew and lab.crewType == crew.type
+
+            if usable or staffView then
+                for _, location in ipairs(lab.locations or {}) do
+                    list[#list + 1] = {
+                        location = location,
+                        label = itemLabel(drug.item),
+                        staffOnly = not usable,
+                        info = ('%s · crew %s%s'):format(itemLabel(drug.item), lab.crewTypeLabel or lab.crewType, drug.active and '' or ' · drogue désactivée'),
+                    }
                 end
             end
         end
@@ -212,7 +219,17 @@ CreateThread(function()
                 local location = entry.location
                 local distance = #(coords - vector3(location.x, location.y, location.z))
 
-                if distance < 15.0 then
+                if entry.staffOnly then
+                    -- Vue staff : visible de plus loin, en orange, sans [E]
+                    if distance < 60.0 then
+                        sleep = 0
+                        DrawMarker(25, location.x, location.y, location.z + 0.02, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.1, 1.1, 1.0, 242, 160, 60, 140, false, false, 2, false, nil, nil, false)
+
+                        if distance < Config.LabDistance then
+                            text = ('[Vue staff] Laboratoire : %s'):format(entry.info)
+                        end
+                    end
+                elseif distance < 15.0 then
                     sleep = 0
                     DrawMarker(25, location.x, location.y, location.z + 0.02, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.1, 1.1, 1.0, 120, 200, 90, 110, false, false, 2, false, nil, nil, false)
 
@@ -239,7 +256,7 @@ CreateThread(function()
                 lib.showTextUI(text)
             end
 
-            if IsControlJustReleased(0, 38) then
+            if action and IsControlJustReleased(0, 38) then
                 lib.hideTextUI()
                 shown = nil
                 CreateThread(action)

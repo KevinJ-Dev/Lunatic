@@ -551,4 +551,15 @@ Panel.actions['drugs.tpLocation'] = function(src, actor, data)
     return { ok = true, silent = true }
 end
 
+-- Vue staff : affiche en jeu tous les points de laboratoire (lunatic_illegal), pour vérifier leur placement.
+-- Les emplacements sont déjà dans GlobalState : rien de secret n'est envoyé.
+Panel.actions['drugs.staffView'] = function(src, actor, data)
+    if not Ranks.hasPermission(actor, 'illegal.manage') then
+        return denied()
+    end
+
+    TriggerClientEvent('lunatic_illegal:staffView', src, data.enabled == true)
+    return { ok = true, silent = true }
+end
+
 print('[lunatic_admin] Module Drogues chargé.')

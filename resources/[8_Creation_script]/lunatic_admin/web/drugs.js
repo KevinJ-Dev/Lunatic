@@ -5,7 +5,7 @@
 //  Drogues (prix, XP, influence, policiers, volumes), laboratoires (type de crew, recette) et leurs emplacements.
 // ====================================================================
 
-const drugState = { data: null };
+const drugState = { data: null, staffView: false };
 
 async function loadDrugs() {
     const res = await nui("action", { action: "drugs.info", payload: {} }).catch(() => null);
@@ -97,6 +97,13 @@ function drugsPanel() {
             h("div", { class: "card-head dev-head" }, h("h3", { class: "card-title" }, `Drogues (${d.drugs.length})`,
                 d.drugs.length ? h("span", { class: `badge ${readyCount ? "ok" : "warn"} ready-badge` }, `${readyCount} prête${readyCount > 1 ? "s" : ""} en jeu`) : null),
                 h("div", { class: "btn-row" },
+                    h("button", { class: `btn small${drugState.staffView ? " primary" : ""}`, title: "Affiche en jeu tous les points de laboratoire (en orange), même sans être dans un crew du bon type", onclick: async () => {
+                        const enabled = !drugState.staffView;
+                        const res = await act("drugs.staffView", { enabled }, null);
+                        if (!res) return;
+                        drugState.staffView = enabled;
+                        paintIllegal();
+                    } }, icon("i-eye"), drugState.staffView ? "Masquer les labos en jeu" : "Voir les labos en jeu"),
                     h("button", { class: "btn small", title: "Ajoute weed, cocaïne, meth et fentanyl (avec leurs laboratoires) s'ils n'existent pas encore", onclick: async () => {
                         const res = await drugAct("drugs.seed", {}, null);
                         if (res) toast(`${res.created} drogue(s) de départ ajoutée(s) : placez leurs laboratoires (« Emplacement »).`, "ok");
