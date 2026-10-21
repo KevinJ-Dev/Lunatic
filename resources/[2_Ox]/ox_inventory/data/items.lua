@@ -828,4 +828,41 @@ return {
 		weight = 200,
 		stack = true,
 	},
+
+	-- Pièces d'armes (craft d'armes des crews) (images déjà présentes dans web/images)
+	['gun_barrel'] = {
+		label = "Canon d'arme",
+		weight = 400,
+		stack = true,
+	},
+
+	['gun_slide'] = {
+		label = "Culasse",
+		weight = 300,
+		stack = true,
+	},
+
+	['gun_spring'] = {
+		label = "Ressort de détente",
+		weight = 20,
+		stack = true,
+	},
+
+	['gun_stock'] = {
+		label = "Crosse",
+		weight = 600,
+		stack = true,
+	},
+
+	['gunpowder'] = {
+		label = "Poudre à canon",
+		weight = 50,
+		stack = true,
+	},
+
+	['bullet_casing'] = {
+		label = "Douille",
+		weight = 5,
+		stack = true,
+	},
 }
