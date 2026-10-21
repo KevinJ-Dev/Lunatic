@@ -28,3 +28,9 @@ Config.TerritoryBlipSprite = 1      -- icône au centre de la zone
 -- Craft d'armes (ateliers, recettes et emplacements dans le panel, onglet Craft d'armes)
 Config.WorkshopDistance = 1.5       -- distance à l'emplacement de l'atelier pour [E]
 Config.CraftAlertChance = 0.15      -- probabilité d'alerter la police à chaque fabrication (si l'atelier l'autorise)
+
+-- Tablette des crews (objet ox_inventory) et marché noir (catalogue et points de livraison dans le panel, onglet Tablette)
+Config.TabletItem = 'crew_tablet'   -- objet à avoir sur soi pour consulter le marché et commander
+Config.MarketPickupDistance = 2.0   -- distance au point de livraison pour [E]
+Config.MarketRefresh = 60           -- secondes entre deux mises à jour des commandes du crew (points de livraison)
+Config.MarketAlertChance = 0.1      -- probabilité d'alerter la police à chaque récupération de colis

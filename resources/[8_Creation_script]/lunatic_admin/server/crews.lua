@@ -302,7 +302,7 @@ exports('addCrewXp', Crews.addXp)
 
 -- Crew réel d'un joueur connecté (lunatic_illegal) : à utiliser côté serveur à la place du statebag « crew »,
 -- qu'un client peut modifier de son côté
-exports('getPlayerCrew', function(src)
+function Crews.ofPlayer(src)
     local xPlayer = ESX.GetPlayerFromId(tonumber(src) or -1)
     local member = xPlayer and members[xPlayer.identifier]
     local crew = member and crews[member.crew]
@@ -312,7 +312,9 @@ exports('getPlayerCrew', function(src)
     end
 
     return { id = crew.id, label = crew.label, type = crew.type, level = levelOf(crew.xp), rank = member.rank, leader = member.rank == topRank(crew) }
-end)
+end
+
+exports('getPlayerCrew', Crews.ofPlayer)
 
 ---------------------------------------------------------------------
 -- Actions du panel

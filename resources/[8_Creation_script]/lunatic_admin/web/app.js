@@ -1844,6 +1844,12 @@ async function demoNui(name, data) {
                     locations: [{ id: 1, x: 1057.4, y: -3196.5, z: -39.1, h: 90 }] }] },
             { id: 2, item: "coke_bag", label: "Pochon de coke", active: false, price: 450, xp: 12, influence: 4, cops: 2, volumeMin: 1, volumeMax: 3, labs: [] },
         ] };
+    if (name === "action" && data && data.action === "market.info") return { ok: true, maxLevel: 10, account: "black_money", delay: [300, 900], expire: 7200,
+        items: [{ id: 1, item: "gun_barrel", label: "Canon d'arme", price: 2500, minLevel: 1, stock: 8, stockMax: 10 }, { id: 2, item: "gunpowder", label: "Poudre à canon", price: 150, minLevel: 1, stock: 60, stockMax: 60 },
+            { id: 3, item: "chemicals", label: "Produits chimiques", price: 300, minLevel: 2, stock: 0, stockMax: 30 }],
+        dropoffs: [{ id: 1, label: "Hangar abandonné", x: 1736.2, y: 3289.4, z: 41.1, h: 0 }],
+        orders: [{ id: 8, crew: "Ballas", buyer: "Tony Vega", label: "Canon d'arme", count: 2, total: 5000, status: "pending", createdAt: Math.floor(Date.now() / 1000) - 300, collectedBy: "" },
+            { id: 7, crew: "Ballas", buyer: "Jean Dupont", label: "Douille", count: 48, total: 480, status: "collected", createdAt: Math.floor(Date.now() / 1000) - 5000, collectedBy: "Jean Dupont" }] };
     if (name === "action" && data && data.action === "workshops.info") return { ok: true, maxLevel: 10,
         crewTypes: [{ id: "mafia", label: "Mafia" }, { id: "mc", label: "MC" }, { id: "organisation", label: "Organisation" }, { id: "gang", label: "Gang" }],
         crewCounts: { gang: 1, mc: 1 },

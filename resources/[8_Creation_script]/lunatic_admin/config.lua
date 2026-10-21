@@ -83,6 +83,13 @@ Config.CrewLevels = { 0, 1000, 2500, 5000, 10000, 20000, 35000, 55000, 80000, 12
 Config.TerritoryDays = 7       -- l'influence des N derniers jours compte (la plus ancienne de moins en moins)
 Config.TerritoryRefresh = 300  -- secondes entre deux recalculs complets (et recalcul juste après chaque vente dans une zone)
 
+-- Illégal : marché noir de la tablette des crews (catalogue et points de livraison dans le panel, onglet Tablette)
+Config.MarketAccount = 'black_money'  -- compte débité à la commande
+Config.MarketDelay = { 300, 900 }     -- secondes avant que la commande soit prête (tirées au hasard entre les deux)
+Config.MarketExpire = 7200            -- secondes pour la récupérer une fois prête, ensuite elle est perdue
+Config.MarketMaxPending = 3           -- commandes en cours par crew
+Config.MarketPickupDistance = 3.0     -- distance maximale au point de livraison (vérifiée par le serveur)
+
 -- Illégal : recelleur
 Config.FenceDefaultPed = 's_m_y_dealer_01' -- modèle du PNJ d'un nouvel emplacement (modifiable ensuite)
 

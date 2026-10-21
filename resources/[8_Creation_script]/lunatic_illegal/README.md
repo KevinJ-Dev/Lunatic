@@ -59,6 +59,15 @@ Ateliers dans le panel (tuile Illégal, onglet Craft d'armes) : nom, types de cr
 
 Côté serveur, le crew d'un joueur est toujours lu dans `lunatic_admin` (export `getPlayerCrew`, fonction `CrewOf` de `server/common.lua`) : le statebag `crew` ne sert qu'à l'affichage côté client, car un client peut modifier son propre statebag.
 
+## Étape 6 : tablette des crews et marché noir
+
+Objet **« Tablette »** (`crew_tablet`, ox_inventory) : utilisé depuis l'inventaire, il ouvre la tablette (réservée aux membres de crew, animation avec la tablette en main).
+
+- **Crew** : level et XP, membres (en ligne ou non) ; le chef invite un joueur proche, promeut, rétrograde, renvoie ; les autres peuvent quitter.
+- **Territoires** : zones avec le crew qui les tient, l'influence du crew, le crew en tête et le seuil, zones disputées, bouton GPS.
+- **Marché noir** (catalogue et points de livraison dans le panel, onglet Tablette de la tuile Illégal) : paiement immédiat en argent sale (`Config.MarketAccount` de `lunatic_admin`), level de crew minimum et stock du jour par article. La commande arrive après un délai (`Config.MarketDelay`) à un point de livraison tiré au hasard, visible seulement par le crew quand elle est prête ; un membre la récupère avec `[E]` avant `Config.MarketExpire`, sinon elle est perdue. Alerte police possible à la récupération (`Config.MarketAlertChance`). Il faut avoir la tablette sur soi pour consulter le marché et commander.
+- **Missions** : à venir (étape 7).
+
 ## À venir
 
-Tablette, missions et braquages.
+Missions et braquages.

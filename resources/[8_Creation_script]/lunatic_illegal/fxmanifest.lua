@@ -5,7 +5,7 @@ lua54 'yes'
 name 'lunatic_illegal'
 author 'Lunatic RP'
 description 'Illégal : crews (menu /crew), puis drogues, territoires, craft d\'armes, missions'
-version '0.3.0'
+version '0.4.0'
 
 shared_scripts {
     '@es_extended/imports.lua',
@@ -19,6 +19,7 @@ server_scripts {
     'server/fence.lua',
     'server/drugs.lua',
     'server/workshops.lua',
+    'server/tablet.lua',
 }
 
 client_scripts {
@@ -27,6 +28,15 @@ client_scripts {
     'client/drugs.lua',
     'client/territories.lua',
     'client/workshops.lua',
+    'client/tablet.lua',
+}
+
+ui_page 'web/index.html'
+
+files {
+    'web/index.html',
+    'web/style.css',
+    'web/app.js',
 }
 
 dependencies {

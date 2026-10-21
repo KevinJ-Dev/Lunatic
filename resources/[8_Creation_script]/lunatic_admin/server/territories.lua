@@ -279,9 +279,19 @@ exports('getCrewTerritories', function(crewId)
 
             local owner = t.owner and Crews.basic(t.owner)
 
+            local owned = t.owner ~= nil and t.owner == crewId
+            local leader = ranking[1] and ranking[1].score or 0
+            local contested
+
+            if owned then
+                contested = ranking[2] ~= nil and ranking[2].score >= leader * 0.75
+            else
+                contested = mine > 0 and mine >= leader * 0.75
+            end
+
             list[#list + 1] = {
-                label = t.label, owned = t.owner ~= nil and t.owner == crewId, owner = owner and owner.label or nil,
-                influence = mine, leader = ranking[1] and ranking[1].score or 0, minInfluence = t.minInfluence,
+                label = t.label, owned = owned, owner = owner and owner.label or nil, x = t.x, y = t.y, contested = contested,
+                influence = mine, leader = leader, minInfluence = t.minInfluence,
                 priceBonus = t.priceBonus, xpBonus = t.xpBonus,
             }
         end

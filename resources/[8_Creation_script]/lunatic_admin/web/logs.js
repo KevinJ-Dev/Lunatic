@@ -78,6 +78,8 @@ const ACTION_LABELS = {
     "workshops.save": "a modifié un atelier d'armes",
     "workshops.delete": "a supprimé un atelier d'armes",
     "workshops.recipe": "a modifié une recette d'atelier",
+    "market.item": "a modifié le marché noir",
+    "market.dropoff": "a modifié un point de livraison du marché noir",
     "fence.location": "a modifié les emplacements du recelleur",
     "crews.create": "a créé un crew",
     "crews.save": "a modifié un crew",
@@ -248,6 +250,8 @@ function describeLog(log) {
         case "workshops.save":
         case "workshops.delete":
         case "workshops.recipe":
+        case "market.item":
+        case "market.dropoff":
             summary = [d.label, d.item, d.operation].filter(Boolean).join(" · ");
             break;
         case "fence.location":
