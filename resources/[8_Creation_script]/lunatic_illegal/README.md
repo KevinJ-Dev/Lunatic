@@ -13,7 +13,7 @@ Dépendances : `es_extended`, `ox_lib`, `ox_inventory`. Utilise `lunatic_admin` 
 Les crews (type Mafia, MC, Organisation ou Gang, rangs, membres, XP et level) se créent dans la tuile **Crews** du panel.
 Un personnage appartient au plus à un crew, indépendamment de son métier ESX.
 
-En jeu, **`/crew`** (configurable : `Config.CrewCommand`) :
+En jeu, depuis la **tablette** (onglet Crew, voir l'étape 6) :
 
 - tout membre : type et level du crew, XP, liste des membres ;
 - le **chef** (rang le plus haut) : inviter un joueur proche (`Config.InviteDistance`, réponse dans `Config.InviteTimeout` secondes), promouvoir, rétrograder, renvoyer (jamais un autre chef) ;
@@ -44,7 +44,7 @@ Zones circulaires placées dans le panel (tuile Illégal, onglet Territoires) : 
 - **Contrôle** : l'influence gagnée en vendant de la drogue dans la zone (sur `Config.TerritoryDays` jours de `lunatic_admin`, l'ancienne comptant de moins en moins) ; le crew en tête tient la zone dès qu'il atteint le seuil (à égalité, le crew en place la garde). Calcul côté serveur toutes les `Config.TerritoryRefresh` secondes et juste après chaque vente dans une zone ; « remettre à zéro » efface l'influence passée de la zone.
 - **Bonus** : les ventes de drogue du crew qui tient la zone, faites dans la zone, rapportent le bonus de prix et d'XP.
 - **Carte** : les membres d'un crew voient les zones (à leur crew en vert, à un autre en rouge, libres en blanc : `Config.TerritoryColors`) ; le staff peut les afficher avec « Voir sur ma carte ».
-- **/crew** : section Territoires (zones tenues, influence du crew, crew en tête et seuil) ; les membres connectés sont prévenus quand leur crew gagne ou perd une zone.
+- **Tablette** : onglet Territoires (zones tenues, influence du crew, crew en tête et seuil) ; les membres connectés sont prévenus quand leur crew gagne ou perd une zone.
 
 ## Étape 5 : craft d'armes
 
@@ -61,7 +61,11 @@ Côté serveur, le crew d'un joueur est toujours lu dans `lunatic_admin` (export
 
 ## Étape 6 : tablette des crews et marché noir
 
-Objet **« Tablette »** (`crew_tablet`, ox_inventory) : utilisé depuis l'inventaire, il ouvre la tablette (réservée aux membres de crew, animation avec la tablette en main).
+Objet **« Tablette chiffrée »** (`crew_tablet`, ox_inventory) : utilisé depuis l'inventaire, il ouvre la tablette (animation avec la tablette en main ; transparente quand la souris en sort).
+
+- **Liée au crew** : une tablette neuve s'initialise pour le crew du premier membre qui l'allume (métadonnée `crew`, jamais affichée). Ensuite elle reste verrouillée pour tout autre joueur : volée, perdue, saisie par la police ou gardée par un ancien membre, elle ne s'ouvre plus. Son libellé « Tablette chiffrée » la rend suspecte lors d'une fouille.
+- **Remplacement** : le recelleur vend une tablette chiffrée aux membres de crew (`Config.TabletPrice` en `Config.TabletAccount`), déjà liée à leur crew.
+- **Commande arrivée** : les membres connectés du crew sont prévenus ; celui qui l'a passée reçoit le point de livraison sur son GPS.
 
 - **Crew** : level et XP, membres (en ligne ou non) ; le chef invite un joueur proche, promeut, rétrograde, renvoie ; les autres peuvent quitter.
 - **Territoires** : zones avec le crew qui les tient, l'influence du crew, le crew en tête et le seuil, zones disputées, bouton GPS.

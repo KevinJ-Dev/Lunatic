@@ -85,7 +85,7 @@ const HELP = {
     },
     crews: {
         what: "Crews (gangs, MC, mafias, organisations) : identité, rangs, membres et progression.",
-        game: "Les membres gèrent leur crew en jeu avec /crew ; les changements faits ici sont immédiats.",
+        game: "Les membres gèrent leur crew en jeu depuis la tablette (objet de l'inventaire) ; les changements faits ici sont immédiats.",
         tips: ["Un crew sans chef (membre au rang le plus haut) est signalé « Incomplet »."],
     },
     catalogs: {

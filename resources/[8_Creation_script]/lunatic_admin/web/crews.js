@@ -180,7 +180,7 @@ function crewRanksCard(c) {
 
     return h("div", { class: "card" },
         h("h3", { class: "card-title" }, "Rangs, du plus haut au plus bas"),
-        h("p", { class: "hint-line", style: "margin:0 0 12px" }, "Le rang le plus haut est celui du chef : il gère les membres en jeu (/crew)."),
+        h("p", { class: "hint-line", style: "margin:0 0 12px" }, "Le rang le plus haut est celui du chef : il gère les membres en jeu depuis la tablette."),
         h("div", { class: "table" }, rows),
         h("div", { class: "spawn-row", style: "margin-top:12px" }, newRank,
             h("button", { class: "btn", onclick: () => newRank.value.trim() && crewAct("crews.rank", { id: c.id, operation: "add", label: newRank.value.trim() }, "Rang ajouté.") }, icon("i-plus"), "Ajouter"),

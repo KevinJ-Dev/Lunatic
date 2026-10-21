@@ -47,7 +47,38 @@ lib.callback.register('lunatic_illegal:fenceOpen', function(src, locationId)
         end
     end
 
-    return { ok = true, offers = offers }
+    -- Tablette chiffrée à vendre aux membres de crew (déjà liée à leur crew)
+    local tablet = CrewOf(src) and Config.TabletPrice > 0 and { price = Config.TabletPrice } or nil
+
+    return { ok = true, offers = offers, tablet = tablet }
+end)
+
+lib.callback.register('lunatic_illegal:fenceTablet', function(src, locationId)
+    if not locationNear(src, locationId) then
+        return fail('Vous êtes trop loin.')
+    end
+
+    local crew = CrewOf(src)
+    local xPlayer = ESX.GetPlayerFromId(src)
+
+    if not crew or not xPlayer or Config.TabletPrice <= 0 then
+        return fail("Le recelleur ne vend ses tablettes qu'aux crews.")
+    end
+
+    local account = xPlayer.getAccount(Config.TabletAccount)
+
+    if not account or account.money < Config.TabletPrice then
+        return fail("Vous n'avez pas assez d'argent sale.")
+    end
+
+    if not ox:CanCarryItem(src, Config.TabletItem, 1) then
+        return fail("Vous n'avez pas assez de place.")
+    end
+
+    xPlayer.removeAccountMoney(Config.TabletAccount, Config.TabletPrice, 'Recelleur : tablette')
+    ox:AddItem(src, Config.TabletItem, 1, { crew = crew.id })
+
+    return { ok = true }
 end)
 
 lib.callback.register('lunatic_illegal:fenceSell', function(src, locationId, itemId, quantity)

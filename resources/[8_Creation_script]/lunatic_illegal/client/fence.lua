@@ -149,6 +149,27 @@ local function openFence(location)
         options[1] = { title = "Rien qui m'intéresse sur toi.", readOnly = true, icon = 'face-meh' }
     end
 
+    -- Membres de crew : une tablette chiffrée de rechange
+    if data.tablet then
+        table.insert(options, 1, {
+            title = 'Acheter une tablette chiffrée',
+            description = ("%s en argent sale · elle ne s'allumera que pour votre crew"):format(money(data.tablet.price)),
+            image = 'nui://ox_inventory/web/images/crew_tablet.png',
+            icon = 'tablet-screen-button',
+            onSelect = function()
+                local result = lib.callback.await('lunatic_illegal:fenceTablet', false, location.id)
+
+                if result and result.ok then
+                    notify('Tablette chiffrée achetée.', 'success')
+                else
+                    notify(result and result.error or 'Achat impossible.', 'error')
+                end
+
+                openFence(location)
+            end,
+        })
+    end
+
     lib.registerContext({ id = 'li_fence', title = 'Recelleur', options = options })
     lib.showContext('li_fence')
 end

@@ -47,14 +47,21 @@ local function closeTablet()
     stopAnimation()
 end
 
--- Appelé par ox_inventory quand le joueur utilise l'objet « Tablette »
-exports('openTablet', function()
+-- Appelé par ox_inventory quand le joueur utilise l'objet « Tablette » : le serveur vérifie que la tablette
+-- appartient au crew du joueur (une tablette neuve s'initialise pour son crew à la première ouverture)
+exports('openTablet', function(_, slot)
     if open then
         return
     end
 
-    if not LocalPlayer.state.crew then
-        return notify('La tablette ne répond pas : elle est réservée aux membres de crew.', 'error')
+    local result = lib.callback.await('lunatic_illegal:tabletOpen', false, slot and slot.slot)
+
+    if not result or not result.ok then
+        return notify(result and result.error or 'La tablette ne répond pas.', 'error')
+    end
+
+    if result.bound then
+        notify('Tablette initialisée : elle ne fonctionnera que pour votre crew.', 'success')
     end
 
     if IsPedInAnyVehicle(PlayerPedId(), false) == false then
@@ -227,6 +234,22 @@ CreateThread(function()
         end
 
         Wait(sleep)
+    end
+end)
+
+-- Commande arrivée : message à tous les membres connectés, point GPS pour celui qui l'a passée
+RegisterNetEvent('lunatic_illegal:orderReady', function(order)
+    notify(('Livraison arrivée : %d × %s au point « %s ». À récupérer dans les %d min.'):format(order.count, order.label, order.dropoff.label, math.floor(order.expiresIn / 60)), 'success')
+
+    if order.buyer then
+        SetNewWaypoint(order.dropoff.x + 0.0, order.dropoff.y + 0.0)
+        notify('Point de livraison ajouté à votre GPS.', 'info')
+    end
+
+    orders = lib.callback.await('lunatic_illegal:marketOrders', false) or orders
+
+    if open then
+        SendNUIMessage({ action = 'refresh' })
     end
 end)
 

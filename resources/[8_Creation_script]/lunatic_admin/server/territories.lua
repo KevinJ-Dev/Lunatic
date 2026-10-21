@@ -261,7 +261,7 @@ exports('territoryAt', function(x, y)
     return best and { id = best.id, label = best.label, owner = best.owner, priceBonus = best.priceBonus, xpBonus = best.xpBonus } or nil
 end)
 
--- Territoires vus par un crew (menu /crew) : zones tenues d'abord, avec son influence et celle du crew en tête
+-- Territoires vus par un crew (tablette) : zones tenues d'abord, avec son influence et celle du crew en tête
 exports('getCrewTerritories', function(crewId)
     crewId = tonumber(crewId)
     local list = {}

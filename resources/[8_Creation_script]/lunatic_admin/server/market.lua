@@ -9,6 +9,7 @@ local ox = exports.ox_inventory
 local LIMITS = { items = 100, dropoffs = 30, price = 1000000, stock = 10000, level = #Config.CrewLevels, quantity = 100 }
 
 local items, dropoffs = {}, {}
+local ready = false
 
 local function denied()
     return Panel.fail("Vous n'avez pas la permission de gérer l'illégal.")
@@ -126,6 +127,7 @@ table.insert(Panel.readyHooks, function()
             `ready_at` BIGINT NOT NULL,
             `expires_at` BIGINT NOT NULL,
             `status` VARCHAR(12) NOT NULL DEFAULT 'pending',
+            `notified` TINYINT NOT NULL DEFAULT 0,
             `collected_by` VARCHAR(80) NOT NULL DEFAULT '',
             `created_at` BIGINT NOT NULL,
             PRIMARY KEY (`id`),
@@ -133,16 +135,53 @@ table.insert(Panel.readyHooks, function()
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ]])
 
+    -- Colonne ajoutée après la première version de la table (syntaxe MariaDB)
+    pcall(function()
+        MySQL.query.await('ALTER TABLE `lunatic_market_orders` ADD COLUMN IF NOT EXISTS `notified` TINYINT NOT NULL DEFAULT 0')
+    end)
+
     load()
     expireOrders()
+    ready = true
 end)
 
-CreateThread(function()
-    while true do
-        Wait(60000)
+-- Commandes qui viennent d'arriver : les membres connectés du crew sont prévenus, l'acheteur reçoit le point GPS
+local function announceReady()
+    local now = os.time()
+    local rows = MySQL.query.await("SELECT * FROM `lunatic_market_orders` WHERE `status` = 'pending' AND `notified` = 0 AND `ready_at` <= ? AND `expires_at` >= ?", { now, now }) or {}
 
-        if next(dropoffs) or next(items) then
-            expireOrders()
+    for _, row in ipairs(rows) do
+        MySQL.update.await('UPDATE `lunatic_market_orders` SET `notified` = 1 WHERE `id` = ?', { row.id })
+        local point = findDropoff(row.dropoff_id)
+
+        if point then
+            local label = itemLabel(row.item)
+
+            for _, target in ipairs(Crews.onlineSources(tonumber(row.crew_id))) do
+                local xPlayer = ESX.GetPlayerFromId(target)
+
+                TriggerClientEvent('lunatic_illegal:orderReady', target, {
+                    id = tonumber(row.id), label = label, count = tonumber(row.count), buyer = xPlayer and xPlayer.identifier == row.buyer,
+                    dropoff = { label = point.label, x = point.x, y = point.y, z = point.z }, expiresIn = tonumber(row.expires_at) - now,
+                })
+            end
+        end
+    end
+end
+
+CreateThread(function()
+    local nextExpire = 0
+
+    while true do
+        Wait(15000)
+
+        if ready then
+            announceReady()
+
+            if os.time() >= nextExpire then
+                nextExpire = os.time() + 60
+                expireOrders()
+            end
         end
     end
 end)

@@ -8,10 +8,51 @@ local function fail(message)
     return { ok = false, error = message }
 end
 
--- Il faut avoir la tablette sur soi pour consulter le marché et commander
+-- Il faut avoir sur soi une tablette de son crew pour consulter le marché et commander
 local function hasTablet(src)
-    return (ox:GetItemCount(src, Config.TabletItem) or 0) > 0
+    local crew = CrewOf(src)
+
+    if not crew then
+        return false
+    end
+
+    for _, slot in pairs(ox:Search(src, 'slots', Config.TabletItem) or {}) do
+        if slot.metadata and slot.metadata.crew == crew.id then
+            return true
+        end
+    end
+
+    return false
 end
+
+-- Ouverture : la tablette s'initialise pour le crew du premier membre qui l'allume ; ensuite elle reste
+-- verrouillée pour tout autre joueur (volée, perdue, saisie par la police). Le crew n'est jamais affiché.
+lib.callback.register('lunatic_illegal:tabletOpen', function(src, slotId)
+    local item = tonumber(slotId) and ox:GetSlot(src, tonumber(slotId))
+
+    if not item or item.name ~= Config.TabletItem then
+        return fail('Tablette introuvable.')
+    end
+
+    local crew = CrewOf(src)
+    local metadata = item.metadata or {}
+
+    if not crew then
+        return fail("Écran verrouillé : la tablette ne s'ouvre pas pour vous.")
+    end
+
+    if metadata.crew == nil then
+        metadata.crew = crew.id
+        ox:SetMetadata(src, item.slot, metadata)
+        return { ok = true, bound = true }
+    end
+
+    if metadata.crew ~= crew.id then
+        return fail("Écran verrouillé : la tablette ne s'ouvre pas pour vous.")
+    end
+
+    return { ok = true }
+end)
 
 local function call(fn)
     local found, result = pcall(fn)
@@ -20,7 +61,7 @@ end
 
 lib.callback.register('lunatic_illegal:market', function(src)
     if not hasTablet(src) then
-        return fail("Il vous faut une tablette sur vous.")
+        return fail("Il vous faut une tablette de votre crew sur vous.")
     end
 
     return call(function() return admin:marketCatalog(src) end)
@@ -28,7 +69,7 @@ end)
 
 lib.callback.register('lunatic_illegal:marketBuy', function(src, itemId, quantity)
     if not hasTablet(src) then
-        return fail("Il vous faut une tablette sur vous.")
+        return fail("Il vous faut une tablette de votre crew sur vous.")
     end
 
     return call(function() return admin:marketBuy(src, itemId, quantity) end)

@@ -1,4 +1,4 @@
--- Crews côté jeu : menu /crew. Les données (crews, rangs, membres, XP) sont dans lunatic_admin (exports).
+-- Crews côté jeu : actions de la tablette (onglet Crew). Les données (crews, rangs, membres, XP) sont dans lunatic_admin (exports).
 -- Le chef (rang le plus haut) invite, promeut, rétrograde et renvoie ; les autres peuvent quitter le crew.
 
 local admin = exports.lunatic_admin

@@ -1,7 +1,6 @@
 Config = {}
 
 -- Crews (les crews, rangs et types se gèrent dans le panel staff, tuile Crews)
-Config.CrewCommand = 'crew'       -- menu du crew
 Config.InviteDistance = 5.0       -- un joueur invité doit être à moins de cette distance du chef
 Config.InviteTimeout = 60         -- secondes pour accepter une invitation
 
@@ -30,7 +29,9 @@ Config.WorkshopDistance = 1.5       -- distance à l'emplacement de l'atelier po
 Config.CraftAlertChance = 0.15      -- probabilité d'alerter la police à chaque fabrication (si l'atelier l'autorise)
 
 -- Tablette des crews (objet ox_inventory) et marché noir (catalogue et points de livraison dans le panel, onglet Tablette)
-Config.TabletItem = 'crew_tablet'   -- objet à avoir sur soi pour consulter le marché et commander
+Config.TabletItem = 'crew_tablet'   -- objet à avoir sur soi pour consulter le marché et commander (lié au crew à la première ouverture)
+Config.TabletPrice = 2500           -- prix d'une tablette chiffrée chez le recelleur (0 = pas en vente)
+Config.TabletAccount = 'black_money'
 Config.MarketPickupDistance = 2.0   -- distance au point de livraison pour [E]
 Config.MarketRefresh = 60           -- secondes entre deux mises à jour des commandes du crew (points de livraison)
 Config.MarketAlertChance = 0.1      -- probabilité d'alerter la police à chaque récupération de colis

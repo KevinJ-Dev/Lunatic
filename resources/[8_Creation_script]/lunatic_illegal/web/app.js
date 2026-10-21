@@ -245,7 +245,7 @@ function updateClock() {
 }
 
 function open() {
-    document.body.classList.remove("hidden");
+    document.body.classList.remove("hidden", "see-through");
     updateClock();
     clearInterval(clockTimer);
     clockTimer = setInterval(updateClock, 10000);
@@ -260,6 +260,8 @@ function close() {
 }
 
 $("close").addEventListener("click", close);
+document.querySelector(".tablet").addEventListener("mouseleave", () => document.body.classList.add("see-through"));
+document.querySelector(".tablet").addEventListener("mouseenter", () => document.body.classList.remove("see-through"));
 window.addEventListener("keydown", (e) => {
     if (e.key !== "Escape" || document.body.classList.contains("hidden")) return;
     if ($("modalBack").classList.contains("on")) $("modalBack").classList.remove("on");
@@ -270,6 +272,7 @@ window.addEventListener("message", (event) => {
     if (!msg || typeof msg !== "object") return;
     if (msg.action === "openTablet") open();
     else if (msg.action === "closeTablet") document.body.classList.add("hidden");
+    else if (msg.action === "refresh" && !document.body.classList.contains("hidden")) load();
 });
 
 // ---------- Démo (aperçu hors jeu) ----------

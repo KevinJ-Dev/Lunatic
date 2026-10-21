@@ -1,7 +1,7 @@
 -- Illégal, étape 1 : crews (tuile Crews). Un crew a un type (Mafia, MC, Organisation, Gang), des rangs,
 -- des membres (un crew au plus par personnage) et de l'XP qui donne son level.
 -- Indépendant du métier ESX. Le crew de chaque joueur connecté est dans son statebag « crew ».
--- Le jeu (menu /crew de lunatic_illegal) passe par les exports en bas de fichier.
+-- Le jeu (tablette de lunatic_illegal) passe par les exports en bas de fichier.
 
 Crews = {}
 
@@ -223,7 +223,7 @@ local function nameOf(identifier)
     return row and row.firstname and ('%s %s'):format(row.firstname, row.lastname or '') or identifier, nil
 end
 
--- Vue complète d'un crew (panel et menu /crew)
+-- Vue complète d'un crew (panel et tablette)
 -- Nombre de crews par type (les laboratoires sont réservés à un type de crew)
 function Crews.countByType()
     local counts = {}
