@@ -875,4 +875,14 @@ return {
 		description = "Tablette sans marque ni numéro, à l'écran verrouillé.",
 		client = { export = 'lunatic_illegal.openTablet' },
 	},
+
+	-- Colis des contrats de livraison (lunatic_illegal) : lié à son contrat, inutile ailleurs
+	['sealed_package'] = {
+		label = "Colis scellé",
+		weight = 2000,
+		stack = false,
+		close = true,
+		description = "Un colis fermé, sans étiquette. Mieux vaut ne pas l'ouvrir.",
+		client = { image = 'empty_package.png' },
+	},
 }
