@@ -865,4 +865,14 @@ return {
 		weight = 5,
 		stack = true,
 	},
+
+	-- Tablette des crews (lunatic_illegal) : s'ouvre depuis l'inventaire, il faut l'avoir sur soi
+	['crew_tablet'] = {
+		label = "Tablette",
+		weight = 700,
+		stack = false,
+		close = true,
+		description = "Tablette chiffrée : crew, territoires, marché noir.",
+		client = { export = 'lunatic_illegal.openTablet' },
+	},
 }
