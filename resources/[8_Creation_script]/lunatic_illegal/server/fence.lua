@@ -24,7 +24,7 @@ local function locationNear(src, locationId)
 end
 
 local function canUse(src)
-    return not Config.FenceCrewOnly or Player(src).state.crew ~= nil
+    return not Config.FenceCrewOnly or CrewOf(src) ~= nil
 end
 
 lib.callback.register('lunatic_illegal:fenceOpen', function(src, locationId)

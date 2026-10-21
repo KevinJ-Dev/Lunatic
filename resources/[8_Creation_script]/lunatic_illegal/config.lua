@@ -24,3 +24,7 @@ Config.AlertDuration = 90           -- secondes d'affichage de la zone d'alerte 
 Config.TerritoryColors = { mine = 2, enemy = 1, free = 0 } -- couleurs de blip : vert (à votre crew), rouge (à un autre), blanc (libre)
 Config.TerritoryAlpha = 90          -- transparence des zones sur la carte (0 à 255)
 Config.TerritoryBlipSprite = 1      -- icône au centre de la zone
+
+-- Craft d'armes (ateliers, recettes et emplacements dans le panel, onglet Craft d'armes)
+Config.WorkshopDistance = 1.5       -- distance à l'emplacement de l'atelier pour [E]
+Config.CraftAlertChance = 0.15      -- probabilité d'alerter la police à chaque fabrication (si l'atelier l'autorise)

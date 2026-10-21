@@ -83,7 +83,7 @@ local function labCheck(src, locationId)
         return nil, 'Vous êtes trop loin.'
     end
 
-    local crew = Player(src).state.crew
+    local crew = CrewOf(src)
 
     if not crew or crew.type ~= lab.crewType then
         return nil, "Ce laboratoire n'est pas pour votre crew."
@@ -188,7 +188,7 @@ lib.callback.register('lunatic_illegal:sell', function(src, drugId, pedCoords)
     end
 
     -- Territoire : bonus si le crew du vendeur tient la zone où a lieu la vente
-    local crew = Player(src).state.crew
+    local crew = CrewOf(src)
     local found, territory = pcall(function() return admin:territoryAt(pedCoords.x, pedCoords.y) end)
     local held = found and territory and crew and territory.owner == crew.id
 

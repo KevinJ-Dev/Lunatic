@@ -228,7 +228,7 @@ end
 
 -- Liste des objets d'ox_inventory (recherche dans les formulaires)
 Panel.actions['catalogs.items'] = function(_, actor)
-    if not (Ranks.hasPermission(actor, 'companies.manage') or Ranks.hasPermission(actor, 'publics.manage') or Ranks.hasPermission(actor, 'catalogs.manage')) then
+    if not (Ranks.hasPermission(actor, 'companies.manage') or Ranks.hasPermission(actor, 'publics.manage') or Ranks.hasPermission(actor, 'catalogs.manage') or Ranks.hasPermission(actor, 'illegal.manage')) then
         return denied()
     end
 

@@ -46,6 +46,19 @@ Zones circulaires placées dans le panel (tuile Illégal, onglet Territoires) : 
 - **Carte** : les membres d'un crew voient les zones (à leur crew en vert, à un autre en rouge, libres en blanc : `Config.TerritoryColors`) ; le staff peut les afficher avec « Voir sur ma carte ».
 - **/crew** : section Territoires (zones tenues, influence du crew, crew en tête et seuil) ; les membres connectés sont prévenus quand leur crew gagne ou perd une zone.
 
+## Étape 5 : craft d'armes
+
+Ateliers dans le panel (tuile Illégal, onglet Craft d'armes) : nom, types de crew autorisés, level de crew minimum, alerte police, emplacements et recettes (objet fabriqué, quantité, durée, level minimum, XP du crew, ingrédients). « Atelier de départ » crée un atelier prêt (pistolets, mitraillette, fusil, munitions) à partir des pièces d'armes (`gun_barrel`, `gun_slide`, `gun_spring`, `gun_stock`, `gunpowder`, `bullet_casing`) et de la ferraille.
+
+- **En jeu** : marqueur et `[E]` pour les membres des crews autorisés ; menu des recettes (verrouillées sous le level requis, ingrédients possédés / requis) ; fabrication en deux temps vérifiée par le serveur (`Config.WorkshopDistance`).
+- **Armes sans numéro de série** (`registered = false`) : intraçables.
+- **Police** : alerte anonyme avec probabilité `Config.CraftAlertChance` si l'atelier l'autorise.
+- **Vue staff** : « Voir les ateliers en jeu » affiche tous les ateliers en orange, sans fabriquer.
+
+## Sécurité
+
+Côté serveur, le crew d'un joueur est toujours lu dans `lunatic_admin` (export `getPlayerCrew`, fonction `CrewOf` de `server/common.lua`) : le statebag `crew` ne sert qu'à l'affichage côté client, car un client peut modifier son propre statebag.
+
 ## À venir
 
-Craft d'armes et tablette, missions et braquages.
+Tablette, missions et braquages.

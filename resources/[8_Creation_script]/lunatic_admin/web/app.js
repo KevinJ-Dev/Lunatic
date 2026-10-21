@@ -1844,6 +1844,16 @@ async function demoNui(name, data) {
                     locations: [{ id: 1, x: 1057.4, y: -3196.5, z: -39.1, h: 90 }] }] },
             { id: 2, item: "coke_bag", label: "Pochon de coke", active: false, price: 450, xp: 12, influence: 4, cops: 2, volumeMin: 1, volumeMax: 3, labs: [] },
         ] };
+    if (name === "action" && data && data.action === "workshops.info") return { ok: true, maxLevel: 10,
+        crewTypes: [{ id: "mafia", label: "Mafia" }, { id: "mc", label: "MC" }, { id: "organisation", label: "Organisation" }, { id: "gang", label: "Gang" }],
+        crewCounts: { gang: 1, mc: 1 },
+        workshops: [{ id: 1, label: "Atelier d'armes", crewTypes: ["gang", "mc", "mafia", "organisation"], minLevel: 1, alert: true,
+            locations: [{ id: 1, x: 712.4, y: -965.1, z: 30.4, h: 90 }],
+            recipes: [
+                { id: 1, item: "WEAPON_PISTOL", label: "Pistol", count: 1, duration: 75, minLevel: 2, xp: 20, ingredients: [{ item: "gun_barrel", label: "Canon d'arme", count: 1 }, { item: "gun_slide", label: "Culasse", count: 1 }, { item: "gun_spring", label: "Ressort de détente", count: 2 }, { item: "scrapmetal", label: "Ferraille", count: 6 }] },
+                { id: 2, item: "ammo-9", label: "9mm", count: 24, duration: 20, minLevel: 1, xp: 2, ingredients: [{ item: "gunpowder", label: "Poudre à canon", count: 2 }, { item: "bullet_casing", label: "Douille", count: 24 }] },
+            ] },
+            { id: 2, label: "Atelier du port", crewTypes: ["mafia"], minLevel: 3, alert: false, locations: [], recipes: [] }] };
     if (name === "action" && data && data.action === "territories.list") return { ok: true, days: 7, refresh: 300, territories: [
         { id: 1, label: "Grove Street", x: 105.2, y: -1940.6, z: 20.8, radius: 150, priceBonus: 20, xpBonus: 20, minInfluence: 10, active: true,
             owner: { id: 1, label: "Ballas", color: "#9b59b6" }, ranking: [{ crew: 1, label: "Ballas", color: "#9b59b6", score: 42.5 }, { crew: 2, label: "Lost MC", color: "#c0392b", score: 18 }] },

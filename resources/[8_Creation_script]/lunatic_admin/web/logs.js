@@ -75,6 +75,9 @@ const ACTION_LABELS = {
     "territories.save": "a modifié un territoire",
     "territories.reset": "a remis à zéro un territoire",
     "territories.delete": "a supprimé un territoire",
+    "workshops.save": "a modifié un atelier d'armes",
+    "workshops.delete": "a supprimé un atelier d'armes",
+    "workshops.recipe": "a modifié une recette d'atelier",
     "fence.location": "a modifié les emplacements du recelleur",
     "crews.create": "a créé un crew",
     "crews.save": "a modifié un crew",
@@ -242,7 +245,10 @@ function describeLog(log) {
         case "territories.save":
         case "territories.reset":
         case "territories.delete":
-            summary = [d.label, d.operation].filter(Boolean).join(" · ");
+        case "workshops.save":
+        case "workshops.delete":
+        case "workshops.recipe":
+            summary = [d.label, d.item, d.operation].filter(Boolean).join(" · ");
             break;
         case "fence.location":
             summary = [d.operation, d.ped].filter(Boolean).join(" · ");
