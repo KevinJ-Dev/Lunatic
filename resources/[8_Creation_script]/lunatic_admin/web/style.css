@@ -641,3 +641,6 @@ body.hidden.minimized .mini-pill { display: flex; }
 .recent .who { display: grid; min-width: 0; }
 .recent .who b { overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .recent .who span { overflow: hidden; color: var(--muted); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Butin des contrats : objet, min, max, chance */
+.ingredient-row.loot-row { grid-template-columns: minmax(0, 1fr) 72px 72px 72px auto; }

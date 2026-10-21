@@ -1844,6 +1844,16 @@ async function demoNui(name, data) {
                     locations: [{ id: 1, x: 1057.4, y: -3196.5, z: -39.1, h: 90 }] }] },
             { id: 2, item: "coke_bag", label: "Pochon de coke", active: false, price: 450, xp: 12, influence: 4, cops: 2, volumeMin: 1, volumeMax: 3, labs: [] },
         ] };
+    if (name === "action" && data && data.action === "contracts.info") return { ok: true, maxLevel: 10,
+        active: [{ crewId: 1, crew: "Ballas", title: "Livraison : Ruelle de Strawberry -> Docks", stageText: "Livrer le colis", acceptedBy: "Jean Dupont", left: 640 }],
+        types: [
+            { id: "delivery", label: "Livraison", settings: { enabled: true, minLevel: 1, rewardMin: 1500, rewardMax: 3000, xp: 25, duration: 15, alertChance: 30, loot: [{ item: "gun_spring", label: "Ressort de détente", min: 1, max: 3, chance: 50 }] },
+                kinds: [{ id: "pickup", label: "Points de récupération", points: [{ id: 1, label: "Ruelle de Strawberry", x: 120.2, y: -1300.4, z: 29.2 }] }, { id: "dropoff", label: "Points de livraison", points: [{ id: 2, label: "Docks", x: 1200.1, y: -3100.2, z: 5.9 }] }] },
+            { id: "theft", label: "Vol sur commande", settings: { enabled: true, minLevel: 2, rewardMin: 3000, rewardMax: 6000, xp: 40, duration: 25, alertChance: 50, vehicles: ["sultan", "buffalo"], loot: [] },
+                kinds: [{ id: "garage", label: "Garages de livraison", points: [] }, { id: "car_spawn", label: "Véhicules à voler", points: [] }] },
+            { id: "cargo", label: "Cargaison gardée", settings: { enabled: false, minLevel: 3, rewardMin: 4000, rewardMax: 8000, xp: 60, duration: 25, alertChance: 40, guards: 4, guardModel: "g_m_y_mexgoon_01", guardWeapon: "WEAPON_PISTOL", loot: [] },
+                kinds: [{ id: "cargo", label: "Cargaisons", points: [] }] },
+        ] };
     if (name === "action" && data && data.action === "market.info") return { ok: true, maxLevel: 10, account: "black_money", delay: [300, 900], expire: 7200,
         items: [{ id: 1, item: "gun_barrel", label: "Canon d'arme", price: 2500, minLevel: 1, stock: 8, stockMax: 10 }, { id: 2, item: "gunpowder", label: "Poudre à canon", price: 150, minLevel: 1, stock: 60, stockMax: 60 },
             { id: 3, item: "chemicals", label: "Produits chimiques", price: 300, minLevel: 2, stock: 0, stockMax: 30 }],

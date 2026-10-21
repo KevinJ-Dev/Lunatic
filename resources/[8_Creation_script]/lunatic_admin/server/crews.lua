@@ -315,6 +315,7 @@ function Crews.ofPlayer(src)
 end
 
 exports('getPlayerCrew', Crews.ofPlayer)
+exports('getCrewOnline', Crews.onlineSources)
 
 ---------------------------------------------------------------------
 -- Actions du panel

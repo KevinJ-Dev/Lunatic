@@ -14,7 +14,7 @@ const TABS = [
     { id: "crew", label: "Crew", icon: "i-users" },
     { id: "territories", label: "Territoires", icon: "i-map" },
     { id: "market", label: "Marché noir", icon: "i-cart" },
-    { id: "missions", label: "Missions", icon: "i-target", soon: true },
+    { id: "missions", label: "Missions", icon: "i-target" },
 ];
 
 let tab = "crew";
@@ -109,7 +109,7 @@ function render() {
         render();
     } }, icon(t.icon), t.label)));
 
-    const page = tab === "territories" ? territoriesPage() : tab === "market" ? marketPage() : crewPage();
+    const page = tab === "territories" ? territoriesPage() : tab === "market" ? marketPage() : tab === "missions" ? missionsPage() : crewPage();
     const scroll = $("page").scrollTop;
     $("page").replaceChildren(page);
     $("page").scrollTop = scroll;
@@ -238,6 +238,41 @@ function marketPage() {
                 : articles.length ? h("div", { class: "shop" }, articles) : h("div", { class: "empty" }, "Rien à vendre pour le moment.")));
 }
 
+const CONTRACT_ICONS = { delivery: "i-box", theft: "i-flag", cargo: "i-target" };
+
+function missionsPage() {
+    const c = data.contracts;
+    if (!c || !c.ok) {
+        return h("div", null, h("h2", null, "Missions"), h("div", { class: "card" }, h("div", { class: "empty" }, (c && c.error) || "Missions indisponibles.")));
+    }
+
+    const lead = c.canLead;
+    const current = c.active
+        ? h("div", { class: "card" },
+            h("div", { class: "card-title" }, "Contrat en cours", h("span", { class: "grow" }), h("span", { class: "badge warn" }, `reste ${minutes(c.active.left)}`)),
+            h("div", { class: "order ready" }, icon(CONTRACT_ICONS[c.active.type] || "i-target"),
+                h("div", { class: "who" }, h("b", null, c.active.title), h("span", null, `Étape : ${c.active.stageText} · objectif : ${c.active.objective.label} · ${money(c.active.reward)} et ${c.active.xp} XP · accepté par ${c.active.acceptedBy}`)),
+                h("button", { class: "btn small primary", onclick: () => nui("gps", { x: c.active.objective.x, y: c.active.objective.y }).then(() => toast(`GPS : ${c.active.objective.label}.`, "ok")) }, icon("i-gps"), "GPS"),
+                lead ? h("button", { class: "btn small danger", onclick: async () => {
+                    if (await confirmBox("Abandonner le contrat ?", "Le contrat s'arrête sans récompense.", "Abandonner", true)) run("contractAbandon", {}, "Contrat abandonné.");
+                } }, icon("i-x"), "Abandonner") : null))
+        : null;
+
+    const offers = (c.offers || []).map((o) => h("div", { class: "order" },
+        icon(CONTRACT_ICONS[o.type] || "i-target"),
+        h("div", { class: "who" }, h("b", null, o.title), h("span", null, `${o.typeLabel} · ${money(o.reward)} en argent sale · ${o.xp} XP pour le crew · ${o.duration} min`)),
+        h("button", { class: "btn small primary", disabled: !lead, title: lead ? null : `Réservé aux rangs ${c.minRank} et plus`, onclick: async () => {
+            if (!(await confirmBox(`Accepter : ${o.title} ?`, `Votre crew aura ${o.duration} minutes pour le terminer. Tout le crew peut y participer.`, "Accepter"))) return;
+            await run("contractAccept", { offerId: o.id }, "Contrat accepté : l'objectif est sur votre GPS.");
+        } }, lead ? "Accepter" : h("span", null, icon("i-lock")))));
+
+    return h("div", null,
+        h("h2", null, "Missions"), h("p", { class: "sub" }, lead ? "Contrats proposés à votre crew. Tout le crew peut participer une fois le contrat accepté." : `Seuls les rangs ${c.minRank} et plus du crew acceptent les contrats ; vous pouvez participer à celui en cours.`),
+        current,
+        c.active ? null : h("div", { class: "card" }, h("div", { class: "card-title" }, "Contrats disponibles", h("span", { class: "grow" }), h("span", { class: "badge muted" }, `nouveaux dans ${minutes(c.renewIn)}`)),
+            offers.length ? offers : h("div", { class: "empty" }, "Aucun contrat pour votre crew en ce moment.")));
+}
+
 // ---------- Ouverture / fermeture ----------
 
 function updateClock() {
@@ -297,7 +332,13 @@ function demo(name, payload) {
             orders: [
                 { id: 7, label: "Douille", count: 48, buyer: "Jean Dupont", ready: true, readyIn: 0, expiresIn: 5400, dropoff: { label: "Hangar abandonné", x: 1, y: 2 } },
                 { id: 8, label: "Canon d'arme", count: 2, buyer: "Tony Vega", ready: false, readyIn: 420, expiresIn: 7620, dropoff: null },
-            ] } };
+            ] },
+        contracts: { ok: true, canLead: true, minRank: 2, renewIn: 2400, active: null, offers: [
+            { id: "1-1", type: "delivery", typeLabel: "Livraison", title: "Livraison : Ruelle de Strawberry -> Docks", reward: 2250, xp: 25, duration: 15 },
+            { id: "1-2", type: "theft", typeLabel: "Vol sur commande", title: "Vol sur commande : Sultan", reward: 4800, xp: 40, duration: 25 },
+            { id: "1-3", type: "cargo", typeLabel: "Cargaison gardée", title: "Cargaison gardée : Entrepôt de Cypress Flats", reward: 6100, xp: 60, duration: 25 },
+        ] } };
+    if (name === "contractAccept") return { ok: true, contract: { objective: { x: 0, y: 0 } } };
     if (name === "nearby") return { ok: true, players: [{ id: 12, name: "Sarah Klein", inCrew: false }, { id: 14, name: "Marco Rossi", inCrew: true }] };
     if (name === "buy") return { ok: true, readyIn: 540 };
     return { ok: true };

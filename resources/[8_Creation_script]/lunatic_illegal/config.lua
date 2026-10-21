@@ -35,3 +35,10 @@ Config.TabletAccount = 'black_money'
 Config.MarketPickupDistance = 2.0   -- distance au point de livraison pour [E]
 Config.MarketRefresh = 60           -- secondes entre deux mises à jour des commandes du crew (points de livraison)
 Config.MarketAlertChance = 0.1      -- probabilité d'alerter la police à chaque récupération de colis
+
+-- Contrats de mission (onglet Missions de la tablette ; réglages et points dans le panel, onglet Missions)
+Config.ContractMinRank = 2          -- rang de crew minimum pour accepter ou abandonner un contrat (rangs par défaut : 0 = C … 3 = S, le chef)
+Config.ContractOffers = 3           -- offres proposées à chaque crew
+Config.ContractRotation = 3600      -- secondes avant de nouvelles offres
+Config.ContractAccount = 'black_money' -- compte crédité à la réussite
+Config.ContractPackage = 'sealed_package' -- objet du colis des livraisons (inutile hors de son contrat)

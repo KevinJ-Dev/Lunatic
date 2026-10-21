@@ -70,8 +70,18 @@ Objet **« Tablette chiffrée »** (`crew_tablet`, ox_inventory) : utilisé depu
 - **Crew** : level et XP, membres (en ligne ou non) ; le chef invite un joueur proche, promeut, rétrograde, renvoie ; les autres peuvent quitter.
 - **Territoires** : zones avec le crew qui les tient, l'influence du crew, le crew en tête et le seuil, zones disputées, bouton GPS.
 - **Marché noir** (catalogue et points de livraison dans le panel, onglet Tablette de la tuile Illégal) : paiement immédiat en argent sale (`Config.MarketAccount` de `lunatic_admin`), level de crew minimum et stock du jour par article. La commande arrive après un délai (`Config.MarketDelay`) à un point de livraison tiré au hasard, visible seulement par le crew quand elle est prête ; un membre la récupère avec `[E]` avant `Config.MarketExpire`, sinon elle est perdue. Alerte police possible à la récupération (`Config.MarketAlertChance`). Il faut avoir la tablette sur soi pour consulter le marché et commander.
-- **Missions** : à venir (étape 7).
+- **Missions** : contrats du crew (étape 7a).
+
+## Étape 7a : contrats de mission
+
+Onglet **Missions** de la tablette : chaque crew reçoit ses propres offres (`Config.ContractOffers`, renouvelées toutes les `Config.ContractRotation` secondes). Seuls les membres de rang `Config.ContractMinRank` ou plus acceptent ou abandonnent un contrat ; tout le crew peut ensuite y participer (objectif en blip pour les membres connectés). Un seul contrat à la fois par crew, à finir dans le temps imparti.
+
+- **Livraison** : récupérer un colis scellé (`Config.ContractPackage`, inutile hors de son contrat) à un point, le livrer à un autre.
+- **Vol sur commande** : le véhicule attend, fermé (vitre à briser : l'alarme se déclenche), puis à amener au garage ; la récompense baisse s'il est abîmé.
+- **Cargaison gardée** : des PNJ armés apparaissent à l'arrivée du crew ; les éliminer, puis ouvrir la caisse.
+- **Récompense** : argent sale (`Config.ContractAccount`) au joueur qui termine, XP au crew, butin tiré au sort ; alerte police possible.
+- **Panel** (tuile Illégal, onglet Missions) : réglages par type (activation, level minimum, récompense, XP, durée, alerte police, butin, modèles de véhicule, gardes), points placés à la position du staff, contrats en cours (annulation possible).
 
 ## À venir
 
-Missions et braquages.
+Braquages (supérettes, bijouterie, banques Fleeca).

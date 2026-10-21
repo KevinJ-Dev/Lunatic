@@ -5,7 +5,7 @@ lua54 'yes'
 name 'lunatic_illegal'
 author 'Lunatic RP'
 description 'Illégal : crews, recelleur, drogues, territoires, craft d\'armes, tablette et marché noir'
-version '0.4.0'
+version '0.5.0'
 
 shared_scripts {
     '@es_extended/imports.lua',
@@ -20,6 +20,7 @@ server_scripts {
     'server/drugs.lua',
     'server/workshops.lua',
     'server/tablet.lua',
+    'server/contracts.lua',
 }
 
 client_scripts {
@@ -29,6 +30,7 @@ client_scripts {
     'client/territories.lua',
     'client/workshops.lua',
     'client/tablet.lua',
+    'client/contracts.lua',
 }
 
 ui_page 'web/index.html'

@@ -98,12 +98,46 @@ RegisterNUICallback('load', function(_, cb)
 
     local territories = lib.callback.await('lunatic_illegal:territories', false)
     local market = lib.callback.await('lunatic_illegal:market', false)
+    local contracts = lib.callback.await('lunatic_illegal:contracts', false)
+
+    -- Vol sur commande : nom du véhicule tel qu'affiché dans le jeu
+    local function vehicleLabel(model)
+        local name = GetDisplayNameFromVehicleModel(joaat(model))
+        local text = GetLabelText(name)
+        return text ~= 'NULL' and text or model
+    end
+
+    if contracts and contracts.ok then
+        for _, offer in ipairs(contracts.offers or {}) do
+            if offer.type == 'theft' and offer.model then
+                offer.title = ('Vol sur commande : %s'):format(vehicleLabel(offer.model))
+            end
+        end
+
+        if contracts.active and contracts.active.model then
+            contracts.active.title = ('Vol sur commande : %s'):format(vehicleLabel(contracts.active.model))
+        end
+    end
 
     if market and market.ok then
         orders = market.orders or {}
     end
 
-    cb({ ok = true, crew = crew.crew, me = crew.me, territories = territories and territories.territories or {}, market = market })
+    cb({ ok = true, crew = crew.crew, me = crew.me, territories = territories and territories.territories or {}, market = market, contracts = contracts })
+end)
+
+RegisterNUICallback('contractAccept', function(data, cb)
+    local result = lib.callback.await('lunatic_illegal:contractAccept', false, data.offerId)
+
+    if result and result.ok and result.contract then
+        SetNewWaypoint(result.contract.objective.x + 0.0, result.contract.objective.y + 0.0)
+    end
+
+    cb(result or { ok = false })
+end)
+
+RegisterNUICallback('contractAbandon', function(_, cb)
+    cb(lib.callback.await('lunatic_illegal:contractAbandon', false) or { ok = false })
 end)
 
 RegisterNUICallback('buy', function(data, cb)
