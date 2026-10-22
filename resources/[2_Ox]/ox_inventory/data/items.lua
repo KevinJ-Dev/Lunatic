@@ -134,7 +134,7 @@ return {
 	},
 
 	['lockpick'] = {
-		label = 'Lockpick',
+		label = 'Crochet de serrure',
 		weight = 160,
 	},
 
@@ -884,5 +884,48 @@ return {
 		close = true,
 		description = "Un colis fermé, sans étiquette. Mieux vaut ne pas l'ouvrir.",
 		client = { image = 'empty_package.png' },
+	},
+
+	-- Braquages : outils et butin (lunatic_illegal) (images déjà présentes dans web/images)
+	['drill'] = {
+		label = "Perceuse",
+		weight = 2500,
+		stack = true,
+	},
+
+	['hack_device'] = {
+		label = "Boîtier de piratage",
+		weight = 600,
+		stack = true,
+	},
+
+	['marked_bills'] = {
+		label = "Billets marqués",
+		weight = 10,
+		stack = true,
+	},
+
+	['jewel_watch'] = {
+		label = "Montre de luxe",
+		weight = 150,
+		stack = true,
+	},
+
+	['jewel_ring'] = {
+		label = "Bague en diamant",
+		weight = 20,
+		stack = true,
+	},
+
+	['jewel_necklace'] = {
+		label = "Collier en or",
+		weight = 80,
+		stack = true,
+	},
+
+	['gold_bar'] = {
+		label = "Lingot d'or",
+		weight = 1000,
+		stack = true,
 	},
 }
