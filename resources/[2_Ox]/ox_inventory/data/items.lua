@@ -935,6 +935,16 @@ local items = {
 -- Pris en compte au démarrage d'ox_inventory (redémarrage du serveur).
 local found, extra = pcall(lib.load, 'data.lunatic_items')
 
+-- Copie de secours écrite dans lunatic_admin si le panel n'a pas pu écrire ici
+if not found or type(extra) ~= 'table' then
+	local code = LoadResourceFile('lunatic_admin', 'generated_items.lua')
+	local chunk = code and load(code, '@lunatic_admin/generated_items.lua', 't')
+
+	if chunk then
+		found, extra = pcall(chunk)
+	end
+end
+
 if found and type(extra) == 'table' then
 	for name, item in pairs(extra) do
 		local base = items[name]

@@ -22,3 +22,4 @@ desktop.ini
 
 # Généré sur le serveur par lunatic_admin (tuile Items) : ne jamais l'écraser depuis le PC
 resources/[[]2_Ox]/ox_inventory/data/lunatic_items.lua
+resources/[[]8_Creation_script]/lunatic_admin/generated_items.lua

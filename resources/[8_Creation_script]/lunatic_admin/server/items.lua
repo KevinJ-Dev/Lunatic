@@ -187,7 +187,24 @@ local function writeFile()
     parts[#parts + 1] = '}'
 
     local text = table.concat(parts, '\n') .. '\n'
-    return SaveResourceFile('ox_inventory', 'data/lunatic_items.lua', text, -1)
+
+    -- Écriture vérifiée en relisant le fichier (le résultat de SaveResourceFile n'est pas fiable)
+    SaveResourceFile('ox_inventory', 'data/lunatic_items.lua', text, -1)
+
+    if LoadResourceFile('ox_inventory', 'data/lunatic_items.lua') == text then
+        return true
+    end
+
+    -- Secours : copie dans lunatic_admin, que data/items.lua d'ox_inventory lit aussi
+    SaveResourceFile(GetCurrentResourceName(), 'generated_items.lua', text, -1)
+
+    if LoadResourceFile(GetCurrentResourceName(), 'generated_items.lua') == text then
+        print("^3[lunatic_admin] Items : ox_inventory/data/lunatic_items.lua n'a pas pu être écrit, copie de secours dans lunatic_admin/generated_items.lua.^0")
+        return true
+    end
+
+    print("^1[lunatic_admin] Items : impossible d'écrire le fichier des objets (ni dans ox_inventory/data, ni dans lunatic_admin). Vérifiez les droits d'écriture des dossiers sur l'hébergeur.^0")
+    return false
 end
 
 -- Ce qu'ox_inventory a chargé : l'état de la base au démarrage du serveur (ou au redémarrage d'ox_inventory)

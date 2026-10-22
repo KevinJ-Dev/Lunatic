@@ -349,6 +349,24 @@ lib.callback.register('lunatic_admin:vehicleModel', function(model)
     return { ok = true, hash = hash, type = vehicleType(model, hash) }
 end)
 
+-- Tuile Items : image de chaque objet telle que définie dans ox_inventory (client.image), pour la grille du panel
+RegisterNUICallback('itemImages', function(_, cb)
+    local list = {}
+    local ok, items = pcall(function() return exports.ox_inventory:Items() end)
+
+    if ok and type(items) == 'table' then
+        for name, item in pairs(items) do
+            local image = type(item) == 'table' and type(item.client) == 'table' and item.client.image
+
+            if type(image) == 'string' then
+                list[name] = image
+            end
+        end
+    end
+
+    cb(list)
+end)
+
 -- Tuile Items : partie client d'un objet d'ox_inventory (faim, soif, animation, objet en main, durée), connue seulement du jeu
 lib.callback.register('lunatic_admin:itemClientInfo', function(name)
     local item = exports.ox_inventory:Items(name)

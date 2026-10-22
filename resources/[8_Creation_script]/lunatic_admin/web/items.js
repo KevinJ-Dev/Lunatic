@@ -6,13 +6,14 @@
 //  Les changements s'appliquent en jeu au prochain redémarrage du serveur (ox_inventory les charge au démarrage).
 // ====================================================================
 
-const itemsState = { data: null, category: "consumable", search: "", selected: null, draft: null, saved: "", painted: false };
+const itemsState = { data: null, category: "consumable", search: "", selected: null, draft: null, saved: "", painted: false, images: {} };
 
 const ITEM_DEFAULTS = { category: "object", name: "", label: "", weight: 100, price: 0, image: "", prop: "", anim: "", premium: false, permanent: false, hunger: 0, thirst: 0, expiration: 0, usetime: 3, description: "", stack: true, close: true };
 
 function itemImageSrc(name, image) {
     if (image && /^[a-z]+:\/\//i.test(image)) return image;
-    return `nui://ox_inventory/web/images/${image || `${name}.png`}`;
+    if (image) return `nui://ox_inventory/web/images/${image}`;
+    return itemsState.images[name] || `nui://ox_inventory/web/images/${name}.png`;
 }
 
 function renderItems() {
@@ -23,8 +24,12 @@ function renderItems() {
 }
 
 async function loadItems() {
-    const res = await nui("action", { action: "items.list", payload: {} }).catch(() => null);
+    const [res, images] = await Promise.all([
+        nui("action", { action: "items.list", payload: {} }).catch(() => null),
+        nui("itemImages", {}).catch(() => null),
+    ]);
     if (!res || !res.ok) return;
+    if (images && typeof images === "object") itemsState.images = images;
     itemsState.data = res;
     paintItems();
 }
@@ -38,7 +43,7 @@ async function doSelectItem(name) {
     untrackUnsaved("items");
     itemsState.selected = name;
     itemsState.draft = null;
-    paintItems();
+    refreshSelection();
     const res = await nui("action", { action: "items.info", payload: { name } }).catch(() => null);
     if (itemsState.selected !== name) return;
     if (!res || !res.ok) return toast((res && res.error) || "Objet introuvable.", "error");
@@ -54,7 +59,14 @@ function startDraft(item) {
         save: () => saveItem(),
         reset: () => (itemsState.draft.create ? startDraft({ ...ITEM_DEFAULTS, category: itemsState.draft.category, create: true }) : doSelectItem(itemsState.selected)),
     });
-    paintItems();
+    refreshSelection();
+}
+
+// Case active dans la grille et fiche à droite, sans reconstruire la grille
+function refreshSelection() {
+    document.querySelectorAll("#itemsGrid .item-tile").forEach((tile) => tile.classList.toggle("active", tile.dataset.name === itemsState.selected));
+    const editor = document.querySelector("#view-items .item-editor");
+    if (editor) editor.replaceWith(itemEditor());
 }
 
 function newItem() {
@@ -127,13 +139,14 @@ function paintItemGrid() {
     const tiles = list.map((i) => {
         const img = h("img", { src: itemImageSrc(i.name, i.image), alt: "", loading: "lazy" });
         img.addEventListener("error", () => { img.style.visibility = "hidden"; });
-        return h("button", { class: `item-tile${i.name === itemsState.selected ? " active" : ""}`, title: i.name, onclick: () => selectItem(i.name) },
+        return h("button", { class: `item-tile${i.name === itemsState.selected ? " active" : ""}`, title: i.name, "data-name": i.name, onclick: () => selectItem(i.name) },
             i.pending ? h("span", { class: "item-flag", title: `En attente du redémarrage (${i.pending})` }) : null,
             h("div", { class: "pic" }, img), h("span", null, i.label));
     });
 
     grid.replaceChildren(
         ...(editable && !text ? [h("button", { class: "item-tile item-new", onclick: newItem }, h("div", { class: "pic" }, icon("i-plus")), h("span", null, "Créer un item"))] : []),
+        ...(!editable && !text ? [h("p", { class: "hint-line items-note" }, "Armes et munitions sont définies dans weapons.lua : création et modification à venir. Le Give fonctionne déjà.")] : []),
         ...tiles,
         ...(!tiles.length && (text || !editable) ? [h("div", { class: "empty", style: "grid-column:1/-1" }, "Aucun objet.")] : []));
 }
@@ -163,7 +176,7 @@ function itemEditor() {
     const refreshPreview = () => { preview.style.visibility = "visible"; preview.src = itemImageSrc(d.name, d.image); };
 
     const category = bind(h("select", { class: "input", disabled: !editable }, data.categories.filter((c) => c.editable).map((c) => h("option", { value: c.id, selected: c.id === d.category }, c.label))), "category");
-    category.addEventListener("change", () => paintItems());
+    category.addEventListener("change", () => refreshSelection());
     const name = bind(h("input", { class: "input mono", maxlength: "60", value: d.name, disabled: !d.create, placeholder: "ex. cafe_latte" }), "name", (v) => v.trim().toLowerCase());
     name.addEventListener("change", refreshPreview);
     const label = bind(h("input", { class: "input", maxlength: "60", value: d.label, disabled: !editable }), "label");

@@ -96,6 +96,7 @@ files {
     'web/help.js',
     'web/logo.png',
     'web/fonts/*.woff2',
+    'generated_*.lua', -- copie de secours des objets de la tuile Items (lue par ox_inventory)
 }
 
 dependencies {

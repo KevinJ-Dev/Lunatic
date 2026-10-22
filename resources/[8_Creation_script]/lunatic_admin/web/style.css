@@ -690,3 +690,10 @@ body.hidden.minimized .mini-pill { display: flex; }
 .item-prop { display: grid; gap: 6px; }
 .item-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 18px 18px; border-top: 1px solid var(--line); }
 .item-actions .btn { justify-content: center; }
+
+/* Tuile Items : chaque colonne défile seule */
+.items-page { grid-template-rows: minmax(0, 1fr); min-height: 0; }
+.items-page > * { min-height: 0; }
+.items-center { min-height: 0; }
+.items-center .scroll { min-height: 0; }
+.items-note { grid-column: 1 / -1; margin: 0 0 4px; }
