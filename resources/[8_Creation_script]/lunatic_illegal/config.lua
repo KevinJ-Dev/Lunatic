@@ -42,3 +42,7 @@ Config.ContractOffers = 3           -- offres proposées à chaque crew
 Config.ContractRotation = 3600      -- secondes avant de nouvelles offres
 Config.ContractAccount = 'black_money' -- compte crédité à la réussite
 Config.ContractPackage = 'sealed_package' -- objet du colis des livraisons (inutile hors de son contrat)
+
+-- Braquages (réglages, modèles détectés et points dans le panel, onglet Braquages)
+Config.HeistClusterRadius = { store = 25.0, jewelry = 40.0, fleeca = 25.0 } -- cibles proches = un même lieu (même délai)
+Config.HeistWindow = 900            -- secondes pour finir un braquage commencé ; ensuite le lieu est fermé jusqu'à la fin de son délai

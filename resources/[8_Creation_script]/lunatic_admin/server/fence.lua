@@ -7,6 +7,9 @@ local ox = exports.ox_inventory
 local items = {}
 local locations = {}
 
+-- Accès pour les autres modules (braquages : ajout du butin au catalogue)
+Fence = {}
+
 local function publish()
     GlobalState.lunaticFence = { items = items, locations = locations }
 end
@@ -23,6 +26,10 @@ local function load()
     end
 
     publish()
+end
+
+function Fence.reload()
+    load()
 end
 
 table.insert(Panel.readyHooks, function()

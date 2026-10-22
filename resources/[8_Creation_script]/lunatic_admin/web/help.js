@@ -73,7 +73,7 @@ const HELP = {
         tips: ["Un catalogue peut être partagé entre plusieurs structures (ex. armurerie commune)."],
     },
     illegal: {
-        what: "Activités illégales : recelleur, drogues, territoires, craft d'armes, tablette des crews avec son marché noir, et contrats de mission (puis braquages).",
+        what: "Activités illégales : recelleur, drogues, territoires, craft d'armes, tablette des crews avec son marché noir, contrats de mission et braquages.",
         game: "Tout s'applique en jeu sans redémarrage.",
         tips: [
             "Le PNJ du recelleur apparaît là où vous vous tenez, tourné dans votre direction ; pas de blip.",
@@ -82,6 +82,7 @@ const HELP = {
             "Craft d'armes : les ateliers sont réservés à des types de crew et à un level minimum ; les armes fabriquées n'ont pas de numéro de série.",
             "Tablette : objet « Tablette » de l'inventaire, réservé aux crews. Le marché noir livre à un point discret, à placer dans l'onglet Tablette.",
             "Missions : placez les points de chaque type de contrat (récupération, livraison, véhicules, garages, cargaisons) ; sans points, le type n'est pas proposé.",
+            "Braquages : caisses, coffres, vitrines et portes de coffre sont détectés par leur modèle sur toute la carte ; un point ajouté à la main sert seulement pour une cible que la détection ne trouve pas.",
         ],
     },
     crews: {

@@ -82,6 +82,16 @@ Onglet **Missions** de la tablette : chaque crew reçoit ses propres offres (`Co
 - **Récompense** : argent sale (`Config.ContractAccount`) au joueur qui termine, XP au crew, butin tiré au sort ; alerte police possible.
 - **Panel** (tuile Illégal, onglet Missions) : réglages par type (activation, level minimum, récompense, XP, durée, alerte police, butin, modèles de véhicule, gardes), points placés à la position du staff, contrats en cours (annulation possible).
 
+## Étape 7b : braquages
+
+Réglages, modèles détectés et points dans le panel (tuile Illégal, onglet Braquages). Les cibles sont **détectées par leur modèle sur toute la carte** : toutes les supérettes, la bijouterie et les Fleeca sont braquables sans rien placer ; un point ajouté à la main sert pour une cible non détectée.
+
+- **Supérettes** (ouvertes à tous par défaut) : caisse au crochet (`prop_till_01`, mini-jeu), coffre à la perceuse (`p_v_43_safe_s`). Alerte selon un pourcentage pour la caisse, toujours pour le coffre.
+- **Bijouterie** (crews) : vitrines (`des_jewel_cab*_start`) à briser une par une, arme en main ; montres, bagues, colliers.
+- **Banques Fleeca** (crews) : porte du coffre (`v_ilev_gb_vauldr`) à pirater au boîtier (mini-jeu difficile) ; la porte s'ouvre pour tout le monde, puis les casiers se percent dans le coffre. Billets marqués et parfois un lingot d'or.
+- **Règles** : policiers en service minimum, crew et level si réservé, outil en poche (un échec peut le casser), un lieu braqué reste ouvert `Config.HeistWindow` secondes puis fermé jusqu'à la fin de son délai (gardé après un redémarrage) ; la porte d'une Fleeca se referme alors.
+- **Butin** : billets marqués et bijoux à écouler chez le recelleur (bouton « Ajouter le butin au recelleur » du panel).
+
 ## À venir
 
-Braquages (supérettes, bijouterie, banques Fleeca).
+L'illégal de base est complet. Idées : blanchiment, analyse des tablettes saisies par la police, otages pendant les braquages.

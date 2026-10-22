@@ -1844,6 +1844,18 @@ async function demoNui(name, data) {
                     locations: [{ id: 1, x: 1057.4, y: -3196.5, z: -39.1, h: 90 }] }] },
             { id: 2, item: "coke_bag", label: "Pochon de coke", active: false, price: 450, xp: 12, influence: 4, cops: 2, volumeMin: 1, volumeMax: 3, labs: [] },
         ] };
+    if (name === "action" && data && data.action === "heists.info") return { ok: true, maxLevel: 10, fenceMissing: ["marked_bills", "gold_bar"],
+        states: [{ key: "store-1", type: "store", typeLabel: "Supérettes", x: 25.7, y: -1347.3, left: 1800, active: false, done: 2, doorOpen: false }],
+        types: [
+            { id: "store", label: "Supérettes", settings: { enabled: true, police: 1, cooldown: 45, crewOnly: false, minLevel: 1 }, actions: [
+                { id: "register", label: "Caisse", duration: 12, tool: "lockpick", toolLabel: "Crochet", breakChance: 30, alert: 40, models: ["prop_till_01"], loot: [{ item: "marked_bills", label: "Billets marqués", min: 3, max: 8, chance: 100 }], points: [] },
+                { id: "safe", label: "Coffre", duration: 45, tool: "drill", toolLabel: "Perceuse", breakChance: 15, alert: 100, models: ["p_v_43_safe_s"], loot: [{ item: "marked_bills", label: "Billets marqués", min: 10, max: 20, chance: 100 }], points: [{ id: 1, label: "Coffre LTD Grove", x: 28.2, y: -1339.2, z: 29.5 }] }] },
+            { id: "jewelry", label: "Bijouterie", settings: { enabled: true, police: 3, cooldown: 120, crewOnly: true, minLevel: 2 }, actions: [
+                { id: "case", label: "Vitrine", duration: 5, tool: "", toolLabel: "", breakChance: 0, alert: 100, models: ["des_jewel_cab_start"], loot: [{ item: "jewel_ring", label: "Bague en diamant", min: 1, max: 3, chance: 60 }], points: [] }] },
+            { id: "fleeca", label: "Banques Fleeca", settings: { enabled: true, police: 4, cooldown: 180, crewOnly: true, minLevel: 3 }, actions: [
+                { id: "door", label: "Porte du coffre", duration: 15, tool: "hack_device", toolLabel: "Boîtier de piratage", breakChance: 25, alert: 100, models: ["v_ilev_gb_vauldr"], loot: [], points: [] },
+                { id: "locker", label: "Casier", duration: 30, tool: "drill", toolLabel: "Perceuse", breakChance: 10, alert: 0, count: 4, models: [], loot: [{ item: "marked_bills", label: "Billets marqués", min: 15, max: 30, chance: 100 }, { item: "gold_bar", label: "Lingot d'or", min: 1, max: 1, chance: 15 }] }] },
+        ] };
     if (name === "action" && data && data.action === "contracts.info") return { ok: true, maxLevel: 10,
         active: [{ crewId: 1, crew: "Ballas", title: "Livraison : Ruelle de Strawberry -> Docks", stageText: "Livrer le colis", acceptedBy: "Jean Dupont", left: 640 }],
         types: [

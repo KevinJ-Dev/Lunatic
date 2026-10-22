@@ -2,7 +2,7 @@
 
 // ====================================================================
 //  lunatic_admin — tuile Illégal
-//  Onglets ajoutés au fil des étapes : Recelleur (étape 2), Drogues (étape 3), Territoires (étape 4), Craft d'armes (étape 5), Tablette et marché noir (étape 6), Missions (étape 7a), puis braquages.
+//  Onglets ajoutés au fil des étapes : Recelleur (étape 2), Drogues (étape 3), Territoires (étape 4), Craft d'armes (étape 5), Tablette et marché noir (étape 6), Missions (étape 7a), Braquages (étape 7b).
 // ====================================================================
 
 const ILLEGAL_TABS = [
@@ -12,6 +12,7 @@ const ILLEGAL_TABS = [
     { value: "craft", label: "Craft d'armes" },
     { value: "tablet", label: "Tablette" },
     { value: "missions", label: "Missions" },
+    { value: "heists", label: "Braquages" },
 ];
 
 const illegalState = { tab: "fence", fence: null, painted: false };
@@ -50,7 +51,7 @@ function paintIllegal() {
             h("h1", { class: "page-title" }, "Illégal"),
             h("div", { class: "page-sub" }, "Gestion des activités illégales, appliquée en jeu sans redémarrage"))),
         h("div", { class: "struct-tabs", style: "padding-left:0" }, tabs),
-        h("div", { class: "scroll" }, illegalState.tab === "drugs" ? drugsPanel() : illegalState.tab === "territories" ? territoriesPanel() : illegalState.tab === "craft" ? workshopsPanel() : illegalState.tab === "tablet" ? marketPanel() : illegalState.tab === "missions" ? contractsPanel() : fencePanel())
+        h("div", { class: "scroll" }, illegalState.tab === "drugs" ? drugsPanel() : illegalState.tab === "territories" ? territoriesPanel() : illegalState.tab === "craft" ? workshopsPanel() : illegalState.tab === "tablet" ? marketPanel() : illegalState.tab === "missions" ? contractsPanel() : illegalState.tab === "heists" ? heistsPanel() : fencePanel())
     ));
 
     const scroller = root.querySelector(".scroll");

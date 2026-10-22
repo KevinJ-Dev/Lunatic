@@ -83,6 +83,9 @@ const ACTION_LABELS = {
     "contracts.save": "a modifié les réglages d'un type de contrat",
     "contracts.point": "a modifié un point de contrat",
     "contracts.cancel": "a annulé le contrat d'un crew",
+    "heists.save": "a modifié les réglages des braquages",
+    "heists.point": "a modifié un point de braquage",
+    "heists.reset": "a rendu un lieu de braquage disponible",
     "fence.location": "a modifié les emplacements du recelleur",
     "crews.create": "a créé un crew",
     "crews.save": "a modifié un crew",
@@ -258,6 +261,9 @@ function describeLog(log) {
         case "contracts.save":
         case "contracts.point":
         case "contracts.cancel":
+        case "heists.save":
+        case "heists.point":
+        case "heists.reset":
             summary = [d.label, d.item, d.operation].filter(Boolean).join(" · ");
             break;
         case "fence.location":
