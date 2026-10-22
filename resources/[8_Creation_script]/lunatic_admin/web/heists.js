@@ -171,7 +171,7 @@ async function openHeistSettings(t) {
                 h("div", { class: "field" }, h("label", null, "Outil nécessaire"), tool),
                 h("div", { class: "field" }, h("label", null, "Casse de l'outil si échec (%)"), breakChance)),
             count ? h("div", { class: "field" }, h("label", null, "Casiers par braquage"), count) : null,
-            a.id === "locker" ? null : h("div", { class: "field" }, h("label", null, "Modèles détectés automatiquement (séparés par des virgules)"), models),
+            a.id === "locker" ? null : h("div", { class: "field" }, h("label", null, "Modèles détectés (noms ou hash 0x… lus avec « Infos entité » de l'onglet Développeur)"), models),
             h("div", { class: "field" }, h("label", null, "Butin (objet · min · max · chance %)"), list,
                 h("button", { class: "btn small ghost", style: "justify-self:start", onclick: () => {
                     if (draft.loot.length >= 8) return toast("8 objets maximum.", "error");

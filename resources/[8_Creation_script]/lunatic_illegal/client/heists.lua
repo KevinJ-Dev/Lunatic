@@ -28,7 +28,8 @@ local function loadConfig()
             hashes[actionId] = {}
 
             for _, model in ipairs(action.models or {}) do
-                hashes[actionId][#hashes[actionId] + 1] = joaat(model)
+                -- Nom du modèle, ou hash copié depuis « Infos entité » (onglet Développeur du panel), ex. 0x1A2B3C4D
+                hashes[actionId][#hashes[actionId] + 1] = model:match('^0x%x+$') and tonumber(model) or joaat(model)
             end
         end
     end

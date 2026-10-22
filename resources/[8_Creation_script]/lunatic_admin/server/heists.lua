@@ -17,8 +17,8 @@ local POINT_KINDS = { register = 'store', safe = 'store', case = 'jewelry', door
 
 local DEFAULTS = {
     store = { enabled = true, police = 1, cooldown = 45, crewOnly = false, minLevel = 1, actions = {
-        register = { duration = 12, tool = 'lockpick', breakChance = 30, alert = 40, models = { 'prop_till_01' }, loot = { { item = 'marked_bills', min = 3, max = 8, chance = 100 } } },
-        safe = { duration = 45, tool = 'drill', breakChance = 15, alert = 100, models = { 'p_v_43_safe_s' }, loot = { { item = 'marked_bills', min = 10, max = 20, chance = 100 } } },
+        register = { duration = 12, tool = 'lockpick', breakChance = 30, alert = 40, models = { 'prop_till_01', 'prop_till_02', 'prop_till_03' }, loot = { { item = 'marked_bills', min = 3, max = 8, chance = 100 } } },
+        safe = { duration = 45, tool = 'drill', breakChance = 15, alert = 100, models = { 'p_v_43_safe_s', 'prop_ld_int_safe_01' }, loot = { { item = 'marked_bills', min = 10, max = 20, chance = 100 } } },
     } },
     jewelry = { enabled = true, police = 3, cooldown = 120, crewOnly = true, minLevel = 2, actions = {
         case = { duration = 5, tool = '', breakChance = 0, alert = 100, models = { 'des_jewel_cab_start', 'des_jewel_cab2_start', 'des_jewel_cab3_start', 'des_jewel_cab4_start' },
@@ -72,6 +72,26 @@ local function load()
         local ok, value = pcall(json.decode, row.settings or '')
 
         if ok and type(value) == 'table' and settings[row.type] then
+            -- Les modèles par défaut restent toujours détectés (nouveaux modèles ajoutés après un enregistrement)
+            for actionId, defaultAction in pairs(DEFAULTS[row.type].actions) do
+                local action = value.actions and value.actions[actionId]
+
+                if action then
+                    local seen = {}
+                    action.models = action.models or {}
+
+                    for _, model in ipairs(action.models) do
+                        seen[model] = true
+                    end
+
+                    for _, model in ipairs(defaultAction.models) do
+                        if not seen[model] then
+                            action.models[#action.models + 1] = model
+                        end
+                    end
+                end
+            end
+
             settings[row.type] = value
         end
     end

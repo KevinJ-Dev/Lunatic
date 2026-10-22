@@ -644,3 +644,9 @@ body.hidden.minimized .mini-pill { display: flex; }
 
 /* Butin des contrats : objet, min, max, chance */
 .ingredient-row.loot-row { grid-template-columns: minmax(0, 1fr) 72px 72px 72px auto; }
+
+/* Fenêtres longues (réglages des braquages, contrats…) : la hauteur maximale s'applique et le contenu défile
+   jusqu'au bouton Enregistrer (en grille, le pourcentage n'était pas pris en compte) */
+.backdrop.on { display: flex; align-items: center; justify-content: center; }
+.modal { max-height: 88%; }
+.modal header, .modal footer { flex: none; }
