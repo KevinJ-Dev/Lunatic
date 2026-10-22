@@ -605,12 +605,12 @@ local function rent(target, info, offer, account)
     end
 end
 
-local function choosePayment(target, info, offer)
+local function choosePayment(target, info, offer, parent)
     if offer.price <= 0 then
         return rent(target, info, offer, nil)
     end
 
-    lib.registerContext({ id = 'lb_rental_pay', title = ('%s · %s'):format(offer.label, money(offer.price)), menu = 'lb_rental', options = {
+    lib.registerContext({ id = 'lb_rental_pay', title = ('%s · %s'):format(offer.label, money(offer.price)), menu = parent or 'lb_rental', options = {
         { title = 'Payer en liquide', description = ('Liquide : %s'):format(money(info.cash)), icon = 'money-bill',
             disabled = info.cash < offer.price, onSelect = function() rent(target, info, offer, 'money') end },
         { title = 'Payer par carte', description = ('Banque : %s'):format(money(info.bank)), icon = 'credit-card',
@@ -639,14 +639,49 @@ openRental = function(target)
         end }
     end
 
-    for _, offer in ipairs(info.vehicles) do
-        options[#options + 1] = {
+    -- Véhicules rangés par catégorie (un sous-menu par catégorie s'il y en a plusieurs), avec leur photo
+    local function vehicleOption(offer, parent)
+        return {
             title = offer.label,
             description = ('%s pour %d minutes'):format(offer.price > 0 and money(offer.price) or 'Gratuit', offer.duration),
             icon = 'car',
+            image = offer.image ~= '' and offer.image or ('https://docs.fivem.net/vehicles/%s.webp'):format(offer.model),
             disabled = info.active ~= nil,
-            onSelect = function() choosePayment(target, info, offer) end,
+            onSelect = function() choosePayment(target, info, offer, parent) end,
         }
+    end
+
+    local groups, order = {}, {}
+
+    for _, offer in ipairs(info.vehicles) do
+        local name = offer.category ~= '' and offer.category or 'Autres'
+
+        if not groups[name] then
+            groups[name] = {}
+            order[#order + 1] = name
+        end
+
+        table.insert(groups[name], offer)
+    end
+
+    table.sort(order)
+
+    if #order > 1 then
+        for _, name in ipairs(order) do
+            local id = ('lb_rental_%s'):format(name)
+            local list = {}
+
+            for _, offer in ipairs(groups[name]) do
+                list[#list + 1] = vehicleOption(offer, id)
+            end
+
+            lib.registerContext({ id = id, title = ('%s · %s'):format(info.label, name), menu = 'lb_rental', options = list })
+            options[#options + 1] = { title = name, description = ('%d véhicule%s'):format(#groups[name], #groups[name] > 1 and 's' or ''), icon = 'folder', menu = id }
+        end
+    else
+        for _, offer in ipairs(info.vehicles) do
+            options[#options + 1] = vehicleOption(offer, 'lb_rental')
+        end
     end
 
     if #info.vehicles == 0 then
@@ -657,7 +692,52 @@ openRental = function(target)
     lib.showContext('lb_rental')
 end
 
+-- Grossiste : revente des objets que le joueur a sur lui
+local function openBuyback(target)
+    local info = lib.callback.await('lunatic_business:buybackOpen', false, target.shop.slug, target.index)
+
+    if failed(info) then
+        return
+    end
+
+    local options = {}
+
+    for _, offer in ipairs(info.offers) do
+        options[#options + 1] = {
+            title = offer.count > 0 and ('%s × %d'):format(offer.label, offer.count) or offer.label,
+            description = ("%s l'unité%s"):format(money(offer.price), offer.count > 0 and '' or " · vous n'en avez pas"),
+            image = ('nui://ox_inventory/web/images/%s.png'):format(offer.item),
+            icon = 'hand-holding-dollar',
+            disabled = offer.count < 1,
+            onSelect = function()
+                local input = lib.inputDialog(offer.label, { { type = 'number', label = 'Quantité à revendre', default = offer.count, min = 1, max = offer.count, required = true } })
+
+                if input and input[1] then
+                    local result = lib.callback.await('lunatic_business:buybackSell', false, target.shop.slug, target.index, offer.item, math.floor(input[1]))
+
+                    if not failed(result) then
+                        notify(('%d × %s revendu pour %s.'):format(result.quantity, result.label, money(result.total)), 'success')
+                    end
+                end
+
+                openBuyback(target)
+            end,
+        }
+    end
+
+    if #options == 0 then
+        options[1] = { title = 'Ce grossiste ne rachète rien pour le moment.', readOnly = true }
+    end
+
+    lib.registerContext({ id = 'lb_buyback', title = info.label, options = options })
+    lib.showContext('lb_buyback')
+end
+
 local function openShop(target)
+    if target.shop.kind == 'buyback' then
+        return openBuyback(target)
+    end
+
     if target.shop.kind == 'items' then
         return exports.ox_inventory:openInventory('shop', { type = ('lunatic_%s'):format(target.shop.slug), id = target.index })
     end

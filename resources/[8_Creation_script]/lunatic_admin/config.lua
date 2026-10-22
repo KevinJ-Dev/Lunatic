@@ -146,7 +146,7 @@ Config.ShopCategories = {
     { id = 'shenails', label = 'Shenails', kind = 'clothing', blip = { sprite = 621, color = 8 } },
     { id = 'skateshop', label = 'Skateshop', kind = 'items', blip = { sprite = 59, color = 5 } },
     { id = 'tattoo', label = 'Tattoo', kind = 'tattoo', blip = { sprite = 75, color = 1 } },
-    { id = 'wholesale', label = 'Grossistes', kind = 'items', blip = { sprite = 478, color = 66 } },
+    { id = 'wholesale', label = 'Grossistes', kind = 'buyback', blip = { sprite = 478, color = 66 } }, -- points de revente des récoltes
 } -- montant maximum d'une opération staff sur un compte de société
 
 -- Pôle emploi (lot I)

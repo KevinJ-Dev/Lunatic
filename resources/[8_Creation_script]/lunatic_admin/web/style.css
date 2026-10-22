@@ -650,3 +650,10 @@ body.hidden.minimized .mini-pill { display: flex; }
 .backdrop.on { display: flex; align-items: center; justify-content: center; }
 .modal { max-height: 88%; }
 .modal header, .modal footer { flex: none; }
+
+/* Catalogues : images des véhicules de location */
+.vehicle-row { grid-template-columns: 96px minmax(0, 1fr) auto; }
+.vehicle-img { width: 96px; height: 54px; object-fit: contain; border-radius: 8px; background: var(--surface-2); }
+.vehicle-preview { justify-self: center; width: 240px; height: 135px; object-fit: contain; border-radius: 12px; background: var(--surface-2); }
+/* La fenêtre du panel ne défile jamais (un champ qui prend le focus pouvait la décaler vers le haut) */
+.window { overflow: clip; }

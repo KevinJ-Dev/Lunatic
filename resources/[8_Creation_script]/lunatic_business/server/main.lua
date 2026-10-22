@@ -844,6 +844,68 @@ local function rentalInfo(rental)
     return rental and { label = rental.label, plate = rental.plate, remaining = math.max(0, rental.expiresAt - os.time()) } or nil
 end
 
+---------------------------------------------------------------------
+-- Grossistes : les joueurs revendent leurs récoltes et produits (prix fixés dans le panel)
+---------------------------------------------------------------------
+
+lib.callback.register('lunatic_business:buybackOpen', function(src, slug, index)
+    local shop, _, _, err = shopAt(src, slug, index, 'buyback')
+
+    if not shop then
+        return fail(err)
+    end
+
+    local offers = {}
+
+    for _, entry in ipairs(shop.items or {}) do
+        local count = ox:GetItemCount(src, entry.item) or 0
+        local item = ox:Items(entry.item)
+
+        offers[#offers + 1] = { item = entry.item, label = item and item.label or entry.item, price = entry.price, count = count }
+    end
+
+    return { ok = true, label = shop.label, offers = offers }
+end)
+
+lib.callback.register('lunatic_business:buybackSell', function(src, slug, index, itemName, quantity)
+    local shop, _, xPlayer, err = shopAt(src, slug, index, 'buyback')
+
+    if not shop then
+        return fail(err)
+    end
+
+    local entry
+
+    for _, candidate in ipairs(shop.items or {}) do
+        if candidate.item == itemName then
+            entry = candidate
+        end
+    end
+
+    quantity = tonumber(quantity)
+
+    if not entry or not quantity or quantity ~= math.floor(quantity) or quantity < 1 or quantity > Config.BuybackMax then
+        return fail('Quantité invalide.')
+    end
+
+    if (ox:GetItemCount(src, entry.item) or 0) < quantity then
+        return fail("Vous n'en avez pas autant.")
+    end
+
+    if not ox:RemoveItem(src, entry.item, quantity) then
+        return fail('Revente impossible.')
+    end
+
+    local total = entry.price * quantity
+
+    if total > 0 then
+        xPlayer.addAccountMoney(Config.BuybackAccount, total, ('Revente : %s (%s)'):format(entry.item, shop.label))
+    end
+
+    local item = ox:Items(entry.item)
+    return { ok = true, quantity = quantity, total = total, label = item and item.label or entry.item }
+end)
+
 lib.callback.register('lunatic_business:rentalOpen', function(src, slug, index)
     local shop, _, xPlayer, err = shopAt(src, slug, index, 'rental')
 

@@ -48,7 +48,7 @@ local function load()
         shops[tonumber(row.id)] = {
             id = tonumber(row.id), category = row.category, kind = category and category.kind or 'items', slug = row.slug, label = row.label,
             blip = { sprite = tonumber(row.blip_sprite), color = tonumber(row.blip_color), scale = tonumber(row.blip_scale), label = row.blip_label },
-            header = row.header or '', jobs = ok and jobs or {}, items = {}, locations = {}, vehicles = {},
+            header = row.header or '', jobs = ok and jobs or {}, items = {}, locations = {}, vehicles = {}, defaultPrice = tonumber(row.default_price) or 0,
         }
     end
 
@@ -78,6 +78,7 @@ local function load()
         if shop then
             shop.vehicles[#shop.vehicles + 1] = {
                 id = tonumber(row.id), model = row.model, label = row.label, type = row.type, price = tonumber(row.price), duration = tonumber(row.duration),
+                category = row.category or '', image = row.image or '',
             }
         end
     end
@@ -152,6 +153,14 @@ table.insert(Panel.readyHooks, function()
             PRIMARY KEY (`id`),
             KEY `idx_lunatic_shop_vehicles_shop` (`shop_id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ]])
+
+    -- Catalogues lot 1 : prix par défaut d'un magasin, catégorie et image des véhicules de location
+    MySQL.query.await('ALTER TABLE `lunatic_shops` ADD COLUMN IF NOT EXISTS `default_price` INT NOT NULL DEFAULT 0')
+    MySQL.query.await([[
+        ALTER TABLE `lunatic_shop_vehicles`
+            ADD COLUMN IF NOT EXISTS `category` VARCHAR(40) NOT NULL DEFAULT '',
+            ADD COLUMN IF NOT EXISTS `image` VARCHAR(255) NOT NULL DEFAULT ''
     ]])
 
     MySQL.query.await([[
@@ -241,7 +250,7 @@ Panel.actions['shops.categories'] = function(_, actor)
     local list = {}
 
     for _, entry in ipairs(Config.ShopCategories) do
-        list[#list + 1] = { id = entry.id, label = entry.label, kind = entry.kind, ready = entry.kind == 'items' or entry.kind == 'rental', count = counts[entry.id] or 0 }
+        list[#list + 1] = { id = entry.id, label = entry.label, kind = entry.kind, ready = entry.kind == 'items' or entry.kind == 'rental' or entry.kind == 'buyback', count = counts[entry.id] or 0 }
     end
 
     return { ok = true, silent = true, categories = list }
@@ -296,7 +305,7 @@ Panel.actions['shops.info'] = function(_, actor, data)
 
     return { ok = true, silent = true, shop = {
         id = shop.id, category = shop.category, slug = shop.slug, label = shop.label, blip = shop.blip, header = shop.header,
-        jobs = shop.jobs, items = items, locations = shop.locations, vehicles = shop.vehicles, kind = shop.kind,
+        jobs = shop.jobs, items = items, locations = shop.locations, vehicles = shop.vehicles, kind = shop.kind, defaultPrice = shop.defaultPrice,
     }, licenses = licenseList, jobs = jobList }
 end
 
@@ -355,6 +364,7 @@ Panel.actions['shops.save'] = function(src, actor, data)
     local sprite = number(data.blipSprite, 0, 900, true)
     local color = number(data.blipColor, 0, 85, true)
     local scale = number(data.blipScale, 0.1, 3)
+    local defaultPrice = number(data.defaultPrice or 0, 0, LIMITS.price, true)
 
     if not label or not blipLabel or not header then
         return Panel.fail('Label (2-60), label du blip (60 max) ou image (255 max) invalide.')
@@ -366,6 +376,10 @@ Panel.actions['shops.save'] = function(src, actor, data)
 
     if slug ~= shop.slug and (tonumber(MySQL.scalar.await('SELECT COUNT(*) FROM `lunatic_shops` WHERE `slug` = ?', { slug })) or 0) > 0 then
         return Panel.fail('Un magasin utilise déjà cette clé.')
+    end
+
+    if not defaultPrice then
+        return Panel.fail('Prix par défaut invalide.')
     end
 
     if not sprite or not color or not scale then
@@ -386,8 +400,8 @@ Panel.actions['shops.save'] = function(src, actor, data)
     end
 
     local queries = {
-        { query = 'UPDATE `lunatic_shops` SET `slug` = ?, `label` = ?, `blip_sprite` = ?, `blip_color` = ?, `blip_scale` = ?, `blip_label` = ?, `header` = ?, `jobs` = ? WHERE `id` = ?',
-            values = { slug, label, sprite, color, scale, blipLabel, header, json.encode(jobs), shop.id } },
+        { query = 'UPDATE `lunatic_shops` SET `slug` = ?, `label` = ?, `blip_sprite` = ?, `blip_color` = ?, `blip_scale` = ?, `blip_label` = ?, `header` = ?, `jobs` = ?, `default_price` = ? WHERE `id` = ?',
+            values = { slug, label, sprite, color, scale, blipLabel, header, json.encode(jobs), defaultPrice, shop.id } },
         { query = 'DELETE FROM `lunatic_shop_items` WHERE `shop_id` = ?', values = { shop.id } },
     }
 
@@ -550,6 +564,12 @@ Panel.actions['shops.addVehicle'] = function(src, actor, data)
     local label = cleanText(data.label, 2, 60)
     local price = number(data.price, 0, LIMITS.price, true)
     local duration = number(data.duration, 1, 1440, true)
+    local category = cleanText(data.category, 0, 40)
+    local image = cleanText(data.image, 0, 255)
+
+    if not category or not image then
+        return Panel.fail('Catégorie (40 max) ou image (255 max) invalide.')
+    end
 
     if not model:match('^[%w_]+$') or #model > 32 then
         return Panel.fail('Nom de modèle invalide.')
@@ -570,12 +590,44 @@ Panel.actions['shops.addVehicle'] = function(src, actor, data)
         return Panel.fail(('Le modèle « %s » n\'existe pas.'):format(model))
     end
 
-    MySQL.insert.await('INSERT INTO `lunatic_shop_vehicles` (`shop_id`, `model`, `label`, `type`, `price`, `duration`, `position`) VALUES (?, ?, ?, ?, ?, ?, ?)', {
-        shop.id, model, label, info.type, price, duration, #shop.vehicles,
+    MySQL.insert.await('INSERT INTO `lunatic_shop_vehicles` (`shop_id`, `model`, `label`, `type`, `price`, `duration`, `position`, `category`, `image`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', {
+        shop.id, model, label, info.type, price, duration, #shop.vehicles, category, image,
     })
 
     load()
     Logs.add(src, 'shops.save', nil, { id = shop.id, label = shop.label, operation = ('véhicule %s ajouté'):format(model) })
+
+    return { ok = true, silent = true }
+end
+
+-- Modifier un véhicule de location sans le recréer (nom, prix, durée, catégorie, image)
+Panel.actions['shops.updateVehicle'] = function(src, actor, data)
+    local shop, err = shopFor(actor, data.id)
+
+    if not shop then
+        return err
+    end
+
+    local label = cleanText(data.label, 2, 60)
+    local price = number(data.price, 0, LIMITS.price, true)
+    local duration = number(data.duration, 1, 1440, true)
+    local category = cleanText(data.category, 0, 40)
+    local image = cleanText(data.image, 0, 255)
+
+    if not label or not price or not duration or not category or not image then
+        return Panel.fail('Nom (2-60), prix, durée (1 à 1440 min), catégorie (40 max) ou image (255 max) invalide.')
+    end
+
+    local changed = MySQL.update.await('UPDATE `lunatic_shop_vehicles` SET `label` = ?, `price` = ?, `duration` = ?, `category` = ?, `image` = ? WHERE `id` = ? AND `shop_id` = ?', {
+        label, price, duration, category, image, tonumber(data.vehicleId) or -1, shop.id,
+    })
+
+    if (tonumber(changed) or 0) == 0 then
+        return Panel.fail('Véhicule introuvable.')
+    end
+
+    load()
+    Logs.add(src, 'shops.save', nil, { id = shop.id, label = shop.label, operation = ('véhicule %s modifié'):format(label) })
 
     return { ok = true, silent = true }
 end

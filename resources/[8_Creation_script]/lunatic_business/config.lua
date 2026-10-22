@@ -22,6 +22,8 @@ Config.MaxPurchase = 50            -- quantité maximale par achat
 
 -- Location de véhicules
 Config.RentalWarnings = { 300, 60 }   -- avertissements avant la fin (secondes restantes)
+Config.BuybackAccount = 'money'      -- grossistes : compte crédité à la revente ('money' liquide, 'bank')
+Config.BuybackMax = 500              -- quantité maximale par revente
 Config.RentalGrace = 120              -- après la fin : véhicule repris dès qu'il est vide, ou de force après ce délai (secondes)
 Config.RentalReturnDistance = 30.0    -- distance maximale entre le véhicule et le comptoir pour le rendre
 

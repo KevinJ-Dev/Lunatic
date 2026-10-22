@@ -1593,6 +1593,7 @@ function openModal(build) {
     $("modal").className = "modal"; // une fenêtre précédente a pu ajouter sa classe (ex. recherche)
     $("modal").replaceChildren(...build(close));
     $("backdrop").classList.add("on");
+    document.querySelector(".window").scrollTop = 0; // au cas où un ancien focus l'aurait décalée
 }
 
 function closeModal(value) {
@@ -1905,7 +1906,7 @@ async function demoNui(name, data) {
     if (name === "action" && data && data.action === "shops.categories") return { ok: true, categories: [
         ["ltd", "LTD", true, 8], ["binco", "Binco", false, 0], ["vangelico", "Vangelico", true, 1], ["barber", "Barber", false, 0], ["ammunation", "Ammunation", true, 3], ["rental", "Location", true, 2],
         ["masquerade", "Masquerade", false, 0], ["shenails", "Shenails", false, 0], ["skateshop", "Skateshop", true, 1], ["tattoo", "Tattoo", false, 0], ["wholesale", "Grossistes", true, 7],
-    ].map(([id, label, ready, count]) => ({ id, label, ready, count, kind: id === "rental" ? "rental" : "items" })) };
+    ].map(([id, label, ready, count]) => ({ id, label, ready, count, kind: id === "rental" ? "rental" : id === "wholesale" ? "buyback" : "items" })) };
     if (name === "action" && data && data.action === "shops.list") return { ok: true, shops: [
         { id: 1, label: "PostOP", slug: "postop", items: 10, locations: 1 }, { id: 2, label: "Viande", slug: "viande", items: 4, locations: 1 },
         { id: 3, label: "Volaille", slug: "volaille", items: 4, locations: 0 }, { id: 4, label: "Vigneron", slug: "vigneron", items: 4, locations: 2 },
