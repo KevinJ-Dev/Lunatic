@@ -228,14 +228,14 @@ end
 
 -- Liste des objets d'ox_inventory (recherche dans les formulaires)
 Panel.actions['catalogs.items'] = function(_, actor)
-    if not (Ranks.hasPermission(actor, 'companies.manage') or Ranks.hasPermission(actor, 'publics.manage') or Ranks.hasPermission(actor, 'catalogs.manage') or Ranks.hasPermission(actor, 'illegal.manage')) then
+    if not (Ranks.hasPermission(actor, 'companies.manage') or Ranks.hasPermission(actor, 'publics.manage') or Ranks.hasPermission(actor, 'catalogs.manage') or Ranks.hasPermission(actor, 'illegal.manage') or Ranks.hasPermission(actor, 'items.manage')) then
         return denied()
     end
 
     local list = {}
 
     for name, item in pairs(ox:Items() or {}) do
-        list[#list + 1] = { name = name, label = item.label or name }
+        list[#list + 1] = { name = name, label = item.label or name, price = ItemsCatalog and ItemsCatalog.price(name) or 0 }
     end
 
     table.sort(list, function(a, b) return a.label < b.label end)

@@ -1,4 +1,4 @@
-return {
+local items = {
 	['testburger'] = {
 		label = 'Test Burger',
 		weight = 220,
@@ -929,3 +929,30 @@ return {
 		stack = true,
 	},
 }
+
+-- Objets créés ou modifiés depuis le panel staff (tuile Items de lunatic_admin) : data/lunatic_items.lua, généré par le panel.
+-- Un objet existant est complété (ses fonctions, ex. export de la tablette, sont gardées) ; un nouvel objet est ajouté.
+-- Pris en compte au démarrage d'ox_inventory (redémarrage du serveur).
+local found, extra = pcall(lib.load, 'data.lunatic_items')
+
+if found and type(extra) == 'table' then
+	for name, item in pairs(extra) do
+		local base = items[name]
+
+		if base then
+			for key, value in pairs(item) do
+				if key == 'client' and type(base.client) == 'table' and type(value) == 'table' then
+					for clientKey, clientValue in pairs(value) do
+						base.client[clientKey] = clientValue
+					end
+				else
+					base[key] = value
+				end
+			end
+		else
+			items[name] = item
+		end
+	end
+end
+
+return items

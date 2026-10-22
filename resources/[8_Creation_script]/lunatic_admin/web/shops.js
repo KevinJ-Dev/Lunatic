@@ -342,6 +342,11 @@ async function openAddShopItem() {
     const known = new Map(items.map((i) => [i.name, i.label]));
     const input = itemPicker(items, "");
     const price = h("input", { class: "input mono", type: "number", min: "0", value: String(shopState.draft.defaultPrice || 0) });
+    // Prix de base de l'objet (tuile Items) proposé quand il en a un
+    input.addEventListener("change", () => {
+        const found = items.find((i) => i.name === input.value.trim());
+        if (found && found.price > 0) price.value = String(found.price);
+    });
     openModal((close) => {
         const submit = h("button", { class: "btn primary" }, icon("i-plus"), "Ajouter");
         submit.addEventListener("click", () => {

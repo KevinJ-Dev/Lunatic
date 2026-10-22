@@ -19,3 +19,6 @@ node_modules/
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# Généré sur le serveur par lunatic_admin (tuile Items) : ne jamais l'écraser depuis le PC
+resources/[[]2_Ox]/ox_inventory/data/lunatic_items.lua

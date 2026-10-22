@@ -216,6 +216,7 @@ const NAV = [
     { id: "illegal", label: "Illégal", icon: "i-mask", show: () => can("illegal.manage") },
     { id: "crews", label: "Crews", icon: "i-flag", show: () => can("crews.manage") },
     { id: "catalogs", label: "Catalogues", icon: "i-book", show: () => can("catalogs.manage") },
+    { id: "items", label: "Items", icon: "i-box", show: () => can("items.manage") },
     { id: "poles", label: "Pôle emploi", icon: "i-briefcase", show: () => can("poles.manage") },
     { id: "events", label: "Events", icon: "i-calendar", show: () => can("events.manage") },
     { id: "world", label: "Météo", icon: "i-sun", show: () => hasWorld() },
@@ -569,7 +570,7 @@ function render() {
 
     renderMe();
 
-    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "illegal", "crews", "catalogs", "poles", "events", "dev", "ranks", "members"]) {
+    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "illegal", "crews", "catalogs", "items", "poles", "events", "dev", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
     }
 
@@ -584,6 +585,7 @@ function render() {
     if (view === "poles") renderPoles();
     if (view === "companies") renderStructures("company");
     if (view === "catalogs") renderShops();
+    if (view === "items") renderItems();
     if (view === "crews") renderCrews();
     if (view === "illegal") renderIllegal();
     if (view === "publics") renderStructures("public");
@@ -1919,7 +1921,25 @@ async function demoNui(name, data) {
             items: [{ item: "aromefraise", label: "Arôme Fraise", price: 1 }, { item: "barbeapapa", label: "Barbe à papa", price: 50 }, { item: "biscuit", label: "Biscuit", price: 20 }, { item: "bonbon", label: "Bonbon", price: 50, license: null }],
             vehicles: [{ id: 1, model: "faggio", label: "Scooter Faggio", type: "bike", price: 80, duration: 30 }, { id: 2, model: "blista", label: "Blista", type: "automobile", price: 250, duration: 60 }],
             locations: [{ id: 1, x: -1223.4, y: -1495.1, z: 3.4, h: 0, spawn: { x: -1220, y: -1490, z: 3.4, h: 90 } }, { id: 2, x: -800.2, y: -100.5, z: 37.6, h: 0 }] } };
-    if (name === "action" && data && data.action === "catalogs.items") return { ok: true, items: [{ name: "bread", label: "Pain" }, { name: "burger", label: "Burger" }, { name: "cola", label: "eCola" }, { name: "water", label: "Eau" }] };
+    if (name === "action" && data && data.action === "catalogs.items") return { ok: true, items: [{ name: "bread", label: "Pain", price: 5 }, { name: "burger", label: "Burger", price: 12 }, { name: "cola", label: "eCola", price: 0 }, { name: "water", label: "Eau", price: 3 }] };
+    if (name === "action" && data && data.action === "items.list") return { ok: true,
+        categories: [{ id: "consumable", label: "Consommables", editable: true }, { id: "object", label: "Objets", editable: true }, { id: "drug", label: "Drogues", editable: true }, { id: "weapon", label: "Armes", editable: false }, { id: "ammo", label: "Munitions", editable: false }],
+        anims: [{ id: "drink", label: "Boire" }, { id: "smoke", label: "Fumer" }, { id: "eat", label: "Manger" }],
+        props: [{ id: "burger", label: "Burger" }, { id: "can", label: "Canette" }, { id: "cocktail", label: "Cocktail" }, { id: "donut", label: "Donut" }],
+        pending: [{ name: "cafe_latte", label: "Café latte", operation: "nouveau" }, { name: "burger", label: "Burger", operation: "modifié" }],
+        items: [
+            { name: "burger", label: "Burger", category: "consumable", image: "", modified: true, created: false, pending: "modifié" },
+            { name: "cafe_latte", label: "Café latte", category: "consumable", image: "", modified: true, created: true, pending: "nouveau" },
+            { name: "donut", label: "Donut", category: "consumable", image: "", modified: false },
+            { name: "water", label: "Eau", category: "consumable", image: "", modified: false },
+            { name: "lockpick", label: "Crochet de serrure", category: "object", image: "", modified: false },
+            { name: "weed", label: "Pochon de weed", category: "drug", image: "", modified: false },
+            { name: "WEAPON_PISTOL", label: "Pistol", category: "weapon", image: "", modified: false },
+            { name: "ammo-9", label: "9mm", category: "ammo", image: "", modified: false },
+        ] };
+    if (name === "action" && data && data.action === "items.info") return { ok: true, item: { name: data.payload.name, category: data.payload.name === "WEAPON_PISTOL" ? "weapon" : "consumable", weapon: data.payload.name === "WEAPON_PISTOL",
+        label: data.payload.name === "burger" ? "Burger" : data.payload.name, weight: 220, price: 12, image: "", prop: "burger", anim: "eat", premium: false, permanent: false,
+        hunger: 20, thirst: 0, expiration: 6, usetime: 3, description: "", stack: true, close: true, created: false, loaded: true } };
     if (name === "action" && data && data.action === "structures.list") {
         const company = data.payload.kind === "company";
         return { ok: true, orphans: [{ name: "taxi", label: "Taxi" }], types: company

@@ -86,6 +86,9 @@ const ACTION_LABELS = {
     "heists.save": "a modifié les réglages des braquages",
     "heists.point": "a modifié un point de braquage",
     "heists.reset": "a rendu un lieu de braquage disponible",
+    "items.save": "a modifié un objet",
+    "items.delete": "a supprimé ou réinitialisé un objet",
+    "items.give": "a donné un objet",
     "fence.location": "a modifié les emplacements du recelleur",
     "crews.create": "a créé un crew",
     "crews.save": "a modifié un crew",
@@ -265,6 +268,13 @@ function describeLog(log) {
         case "heists.point":
         case "heists.reset":
             summary = [d.label, d.item, d.operation].filter(Boolean).join(" · ");
+            break;
+        case "items.save":
+        case "items.delete":
+            summary = [d.label || d.item, d.item, d.operation].filter(Boolean).join(" · ");
+            break;
+        case "items.give":
+            summary = `${d.count} × ${d.item}`;
             break;
         case "fence.location":
             summary = [d.operation, d.ped].filter(Boolean).join(" · ");

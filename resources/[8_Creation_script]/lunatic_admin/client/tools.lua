@@ -349,6 +349,27 @@ lib.callback.register('lunatic_admin:vehicleModel', function(model)
     return { ok = true, hash = hash, type = vehicleType(model, hash) }
 end)
 
+-- Tuile Items : partie client d'un objet d'ox_inventory (faim, soif, animation, objet en main, durée), connue seulement du jeu
+lib.callback.register('lunatic_admin:itemClientInfo', function(name)
+    local item = exports.ox_inventory:Items(name)
+    local client = item and item.client
+
+    if type(client) ~= 'table' then
+        return {}
+    end
+
+    local anim, prop = client.anim, client.prop
+
+    return {
+        hunger = client.status and client.status.hunger or 0,
+        thirst = client.status and client.status.thirst or 0,
+        usetime = client.usetime,
+        animDict = type(anim) == 'table' and anim.dict or (anim == 'eating' and 'mp_player_inteat@burger') or nil,
+        propModel = type(prop) == 'table' and prop.model or nil,
+        propName = type(prop) == 'string' and prop or nil,
+    }
+end)
+
 -- Appelé par la page Outils : vérifie le modèle, le serveur crée le véhicule, on monte dedans
 RegisterNUICallback('vehicleSpawn', function(data, cb)
     local model = type(data) == 'table' and type(data.model) == 'string' and data.model:lower():gsub('%s', '') or ''

@@ -90,6 +90,15 @@ const HELP = {
         game: "Les membres gèrent leur crew en jeu depuis la tablette (objet de l'inventaire) ; les changements faits ici sont immédiats.",
         tips: ["Un crew sans chef (membre au rang le plus haut) est signalé « Incomplet »."],
     },
+    items: {
+        what: "Objets d'ox_inventory par catégorie : label, poids, prix, image, objet en main, Premium, Permanent, et pour les consommables faim, soif, expiration et animation.",
+        game: "Les changements s'appliquent en jeu au prochain redémarrage du serveur : ox_inventory charge ses objets au démarrage. Le Give est immédiat (objets déjà en jeu).",
+        tips: [
+            "Image : un fichier de ox_inventory/web/images (ex. cafe.png) ou une adresse https.",
+            "Supprimer n'existe que pour les objets créés ici ; un objet de base modifié se « Réinitialise ».",
+            "Le bandeau à gauche liste les modifications qui attendent le redémarrage.",
+        ],
+    },
     catalogs: {
         what: "Magasins automatiques (LTD, Ammunation, grossistes, location…) : articles, prix, permis, jobs autorisés, emplacements et blips.",
         game: "Les magasins sont recréés en jeu à chaque enregistrement, sans redémarrage.",
