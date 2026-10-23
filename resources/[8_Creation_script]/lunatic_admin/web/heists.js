@@ -8,8 +8,11 @@
 
 const heistState = { data: null, staffView: false };
 
+// Arme en main exigée (braquages détectés et braquages de magasins) ; les poings ne comptent jamais
+const WEAPON_RULES = { none: "Aucune", any: "Arme blanche ou à feu", melee: "Arme blanche seulement", firearm: "Arme à feu seulement" };
+
 const HEIST_HELP = {
-    store: "Toutes les supérettes de la carte : caisses et coffres détectés par leur modèle. Crochetage de la caisse, perçage du coffre.",
+    store: "Coffres des supérettes, détectés par leur modèle et percés à la perceuse. La caisse se braque en menaçant le vendeur (page Braquages).",
     jewelry: "Vangelico : vitrines détectées par leur modèle, à briser une par une avec une arme en main.",
     fleeca: "Banques Fleeca : porte du coffre détectée par son modèle, à pirater ; ensuite, casiers à percer dans le coffre.",
 };
@@ -123,6 +126,7 @@ async function openHeistSettings(t) {
     const s = JSON.parse(JSON.stringify(t.settings));
     const num = (value, min, max) => h("input", { class: "input mono", type: "number", min: String(min), max: String(max), value: String(value) });
     const cooldown = num(s.cooldown, 5, 1440);
+    const weapon = h("select", { class: "input" }, Object.entries(WEAPON_RULES).map(([id, label]) => h("option", { value: id, selected: id === (s.weapon || "none") }, label)));
 
     // Un bloc par action (caisse, coffre, vitrine, porte, casier)
     const blocks = t.actions.map((a) => {
@@ -182,14 +186,16 @@ async function openHeistSettings(t) {
                 if (value.loot.some((l) => !known.has(l.item))) return toast("Un objet du butin n'existe pas dans ox_inventory.", "error");
                 actions[b.id] = value;
             }
-            const res = await heistAct("heists.saveSettings", { type: t.id, settings: { enabled: s.enabled !== false, police: s.police, cooldown: Number(cooldown.value), crewOnly: s.crewOnly === true, minLevel: s.minLevel, actions } }, "Réglages enregistrés.");
+            const res = await heistAct("heists.saveSettings", { type: t.id, settings: { enabled: s.enabled !== false, police: s.police, cooldown: Number(cooldown.value), crewOnly: s.crewOnly === true, minLevel: s.minLevel, weapon: weapon.value, actions } }, "Réglages enregistrés.");
             if (res) close();
         });
         return [
             h("header", null, h("h3", null, `Réglages · ${t.label}`), h("p", null, HEIST_HELP[t.id])),
             h("div", { class: "body event-form" },
                 h("p", { class: "hint-line", style: "margin:0" }, "Statut, policiers, level, XP et influence se règlent dans la page Missions."),
-                h("div", { class: "field" }, h("label", null, "Délai avant de rebraquer le lieu (min)"), cooldown),
+                h("div", { class: "event-form-row" },
+                    h("div", { class: "field" }, h("label", null, "Délai avant de rebraquer le lieu (min)"), cooldown),
+                    h("div", { class: "field" }, h("label", null, "Arme en main pour commencer"), weapon)),
                 blocks.map((b) => b.node)),
             h("footer", null, h("button", { class: "btn ghost", onclick: () => close() }, "Annuler"), submit),
         ];

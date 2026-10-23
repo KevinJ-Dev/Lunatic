@@ -46,3 +46,9 @@ Config.ContractPackage = 'sealed_package' -- objet du colis des livraisons (inut
 -- Braquages (réglages, modèles détectés et points dans le panel, onglet Braquages)
 Config.HeistClusterRadius = { store = 25.0, jewelry = 40.0, fleeca = 25.0 } -- cibles proches = un même lieu (même délai)
 Config.HeistWindow = 900            -- secondes pour finir un braquage commencé ; ensuite le lieu est fermé jusqu'à la fin de son délai
+
+-- Braquages de magasins avec un PNJ au comptoir (points et réglages dans le panel, page Braquages)
+Config.HoldupAccount = 'black_money' -- compte crédité du gain
+Config.HoldupRange = 7.0            -- distance maximum au vendeur pour le menacer (m)
+Config.HoldupKeepRange = 9.0        -- au-delà pendant que le sac se remplit : braquage raté, alarme
+Config.HoldupSpawnRange = 60.0      -- les vendeurs apparaissent quand un joueur est à moins de cette distance (m)

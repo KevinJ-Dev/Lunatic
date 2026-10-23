@@ -52,6 +52,9 @@ local START = {
     contract_delivery = { influence = 3 }, contract_theft = { influence = 5 }, contract_cargo = { influence = 8 },
 }
 
+-- Gain de départ des braquages de magasins (argent sale, ±20 % à chaque braquage)
+local HOLDUP_REWARDS = { heist_store = 1500, heist_barber = 1200, heist_binco = 1200, heist_tattoo = 1500, heist_ammunation = 4000, heist_company = 3000 }
+
 local LIMITS = { xp = 10000, influence = 1000, police = 20, reward = 1000000, daily = 500 }
 
 local settings = {}
@@ -194,6 +197,20 @@ local function load()
         end
     end
 
+    -- Braquages de magasins (lot 2b) : un gain de départ pour ceux qui n'en avaient pas encore
+    if not GetResourceKvpString('missions_holdup_rewards') then
+        SetResourceKvp('missions_holdup_rewards', '1')
+
+        for id, reward in pairs(HOLDUP_REWARDS) do
+            local s = settings[id]
+
+            if s and (s.reward or 0) == 0 then
+                s.reward = reward
+                MySQL.update.await('UPDATE `lunatic_missions` SET `settings` = ? WHERE `id` = ?', { json.encode(s), id })
+            end
+        end
+    end
+
     TriggerEvent('lunatic_admin:heistsChanged')
 end
 
@@ -230,7 +247,7 @@ Panel.actions['missions.list'] = function(_, actor)
 
         list[#list + 1] = {
             id = entry.id, label = entry.label, category = entry.category, description = entry.description,
-            ready = entry.link ~= nil, link = entry.link and { kind = entry.link[1], type = entry.link[2] } or nil, reward = entry.reward == true,
+            ready = entry.link ~= nil or (entry.holdup ~= nil and entry.holdup ~= 'heliwave'), link = entry.link and { kind = entry.link[1], type = entry.link[2] } or nil, reward = entry.reward == true,
             holdup = entry.holdup, places = places, settings = settings[entry.id], today = counts[entry.id] or 0,
         }
     end
@@ -302,6 +319,7 @@ Panel.actions['missions.save'] = function(src, actor, data)
     settings[entry.id] = s
     MySQL.update.await('INSERT INTO `lunatic_missions` (`id`, `settings`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `settings` = VALUES(`settings`)', { entry.id, json.encode(s) })
     TriggerEvent('lunatic_admin:heistsChanged')
+    TriggerEvent('lunatic_admin:holdupsChanged')
     Logs.add(src, 'missions.save', nil, { label = entry.label, operation = s.enabled and 'active' or 'désactivée' })
 
     return { ok = true, silent = true }

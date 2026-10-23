@@ -51,6 +51,8 @@ function holdupsPage() {
         title: type ? `Braquages · ${type.label}` : "Braquages",
         sub: "Un PNJ au comptoir de chaque point, à menacer avec l'arme demandée. Statut, policiers, gain, XP et limite par jour : page Missions.",
         actions: [
+            type ? h("button", { class: "btn small", title: "Arme exigée, durée, délai, alarme, résistance du vendeur, butin", onclick: () => openHoldupSettings(type.id) },
+                icon("i-tool"), `Réglages ${type.label}`, h("span", { class: "badge muted", style: "margin-left:4px" }, WEAPON_RULES[type.settings ? type.settings.weapon : "any"])) : null,
             h("button", { class: "btn small", title: "Remet les magasins de la carte de base qui manquent", onclick: async () => {
                 const res = await holdupAct("holdups.seed", {}, null);
                 if (res) toast(res.created ? `${res.created} magasin(s) ajouté(s).` : "Tous les magasins de la carte sont déjà là.", "ok");
@@ -139,6 +141,67 @@ function holdupEditor(p) {
                     await loadHoldups();
                 }) : h("button", { class: "btn small", onclick: () => illegalSwitch(() => { illegalState.holdupSel = null; }) }, "Annuler"))),
         holdupMapPane());
+}
+
+// ---------- Réglages d'un type (arme exigée, durée, délai, alarme, résistance, butin) ----------
+
+async function openHoldupSettings(typeId) {
+    const t = holdupType(typeId);
+    if (!t.settings) return toast("Chargement des braquages…", "info");
+    const items = await loadCatalogItems();
+    const known = new Set(items.map((i) => i.name));
+    const s = JSON.parse(JSON.stringify(t.settings));
+    const num = (value, min, max) => h("input", { class: "input mono", type: "number", min: String(min), max: String(max), value: String(value) });
+    const weapon = h("select", { class: "input" }, Object.entries(WEAPON_RULES).filter(([id]) => id !== "none").map(([id, label]) => h("option", { value: id, selected: id === s.weapon }, label)));
+    const duration = num(s.duration, 5, 180);
+    const cooldown = num(s.cooldown, 5, 1440);
+    const alert = num(s.alert, 0, 100);
+    const resist = num(s.resist, 0, 100);
+
+    const loot = (s.loot || []).map((l) => ({ item: l.item, min: l.min, max: l.max, chance: l.chance }));
+    const list = h("div", { class: "ingredient-list" });
+    const paint = () => list.replaceChildren(...loot.map((entry, index) => {
+        const name = itemPicker(items, entry.item);
+        const field = (key, min, max, title) => {
+            const input = h("input", { class: "input mono", type: "number", min: String(min), max: String(max), value: String(entry[key]), title });
+            input.addEventListener("input", () => { entry[key] = Number(input.value || 0); });
+            return input;
+        };
+        name.addEventListener("input", () => { entry.item = name.value.trim(); });
+        return h("div", { class: "ingredient-row loot-row" }, name, field("min", 1, 1000, "Minimum"), field("max", 1, 1000, "Maximum"), field("chance", 1, 100, "Chance (%)"),
+            h("button", { class: "btn small ghost", onclick: () => { loot.splice(index, 1); paint(); } }, icon("i-trash")));
+    }));
+    paint();
+
+    openModal((close) => {
+        const submit = h("button", { class: "btn primary" }, icon("i-save"), "Enregistrer");
+        submit.addEventListener("click", async () => {
+            if (loot.some((l) => !known.has(l.item))) return toast("Un objet du butin n'existe pas dans ox_inventory.", "error");
+            const res = await holdupAct("holdups.saveSettings", { type: t.id, settings: {
+                weapon: weapon.value, duration: Number(duration.value), cooldown: Number(cooldown.value), alert: Number(alert.value), resist: Number(resist.value), loot,
+            } }, "Réglages enregistrés.");
+            if (res) close();
+        });
+        return [
+            h("header", null, h("h3", null, `Réglages · Braquage ${t.label}`),
+                h("p", null, "Le vendeur se menace avec l'arme demandée (jamais les poings). Statut, policiers, gain, XP, influence et level : page Missions.")),
+            h("div", { class: "body event-form" },
+                h("div", { class: "event-form-row" },
+                    h("div", { class: "field" }, h("label", null, "Arme exigée"), weapon),
+                    h("div", { class: "field" }, h("label", null, "Durée pour remplir le sac (s)"), duration)),
+                h("div", { class: "event-form-row" },
+                    h("div", { class: "field" }, h("label", null, "Délai avant de rebraquer le magasin (min)"), cooldown),
+                    h("div", { class: "field" }, h("label", null, "Alarme silencieuse (%)"), alert)),
+                h("div", { class: "field" }, h("label", null, "Le vendeur résiste à une arme blanche (%)"), resist),
+                h("div", { class: "field" }, h("label", null, "Butin en plus du gain (objet · min · max · chance %)"), list,
+                    h("button", { class: "btn small ghost", style: "justify-self:start", onclick: () => {
+                        if (loot.length >= 8) return toast("8 objets maximum.", "error");
+                        loot.push({ item: "", min: 1, max: 1, chance: 50 });
+                        paint();
+                    } }, icon("i-plus"), "Ajouter un objet"))),
+            h("footer", null, h("button", { class: "btn ghost", onclick: () => close() }, "Annuler"), submit),
+        ];
+    });
 }
 
 // ---------- Mini-carte ----------

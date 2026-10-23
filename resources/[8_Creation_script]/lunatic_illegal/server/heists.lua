@@ -144,6 +144,9 @@ local function alert(place, coords, label)
     place.alerted = true
 end
 
+-- Actions qui lancent un braquage : l'arme exigée est vérifiée à ce moment-là
+local FIRST_ACTIONS = { door = true, case = true, safe = true }
+
 local ALARMS = { register = 'Alarme : caisse forcée', safe = 'Alarme : coffre de magasin', case = 'Alarme : bijouterie', door = 'Alarme : banque Fleeca', locker = 'Alarme : banque Fleeca' }
 
 lib.callback.register('lunatic_illegal:heistStart', function(src, typeId, actionId, coords)
@@ -185,9 +188,9 @@ lib.callback.register('lunatic_illegal:heistStart', function(src, typeId, action
         return fail(('Il vous faut : %s.'):format(itemLabel(action.tool)))
     end
 
-    -- Vitrines : il faut quelque chose en main pour les briser
-    if actionId == 'case' and GetSelectedPedWeapon(ped) == `WEAPON_UNARMED` then
-        return fail('Il vous faut une arme en main pour briser la vitrine.')
+    -- Arme en main exigée pour commencer (porte du coffre, vitrines, coffre), réglée dans le panel
+    if FIRST_ACTIONS[actionId] and not WeaponAllowed(src, s.weapon) then
+        return fail(WeaponRuleText(s.weapon))
     end
 
     if pending[src] then

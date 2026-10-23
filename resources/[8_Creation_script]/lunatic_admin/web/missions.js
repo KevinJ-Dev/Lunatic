@@ -132,11 +132,12 @@ function missionEditor(m) {
                 draftToggle(d, "levelRequired", "Level du crew", m.category === "heist" ? "Activé : réservé aux crews du level requis. Sinon : ouvert à tous." : "Activé : level de crew minimum requis.")),
             fieldRow(`Level requis (1 à ${max})`, draftNumber(d, "minLevel", 1, max)),
             h("p", { class: "hint-line", style: "margin:0" },
-                m.reward ? (m.category === "contract" ? "Chaque offre paie entre 80 % et 120 % du gain, en argent sale." : "Gain payé en argent sale.")
+                m.reward ? (m.category === "contract" ? "Chaque offre paie entre 80 % et 120 % du gain, en argent sale." : "Gain en argent sale (entre 80 % et 120 %) quand le vendeur a rempli le sac.")
                     : "Butin en objets (billets marqués, bijoux…), réglé dans les réglages avancés."),
             h("p", { class: "hint-line", style: "margin:0" }, "XP et influence : au crew, une fois par mission réussie ; l'influence compte pour le territoire où elle a lieu.")),
-        h("div", { class: "item-actions" },
-            m.ready ? h("button", { class: "btn small", onclick: advanced }, icon("i-tool"), "Réglages avancés") : null,
+        h("div", { class: `item-actions${m.holdup && m.link ? " three" : ""}` },
+            m.holdup ? h("button", { class: "btn small", title: "Arme exigée, durée, délai, alarme, résistance du vendeur, butin", onclick: () => (holdupState.data ? openHoldupSettings(m.holdup) : loadHoldups()) }, icon("i-tool"), m.link ? "Vendeur" : "Réglages avancés") : null,
+            m.link ? h("button", { class: "btn small", onclick: advanced }, icon("i-tool"), m.holdup ? "Coffre" : "Réglages avancés") : null,
             saveButton(saveMission, false)));
 }
 

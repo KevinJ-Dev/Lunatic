@@ -1,6 +1,7 @@
 -- Illégal : braquages de magasins avec un PNJ au comptoir (tuile Illégal, page Braquages).
 -- Ici : les points (type, label, modèle du PNJ, position, entreprise), les points par défaut des magasins
--- de la carte et le TP. Les réglages communs sont ceux de la page Missions (heist_<type>).
+-- de la carte, le TP et les réglages de chaque type (arme exigée, durée, délai, alarme, résistance, butin).
+-- Les réglages communs (statut, policiers, gain, XP, influence, level) sont ceux de la page Missions (heist_<type>).
 -- Le braquage en jeu (PNJ menacé, sac, alarme) est dans lunatic_illegal.
 
 local TYPES = {
@@ -13,6 +14,20 @@ local TYPES = {
     company = { label = 'Entreprise', short = 'ENTR', ped = 'a_m_y_business_02' },
 }
 local ORDER = { 'store', 'barber', 'binco', 'ammunation', 'tattoo', 'company', 'heliwave' }
+
+-- Réglages par type, selon la difficulté : arme en main exigée (any = blanche ou à feu, jamais les poings),
+-- durée pour remplir le sac (s), délai avant de rebraquer le même point (min), alarme silencieuse (%),
+-- résistance du vendeur face à une arme blanche (%), butin en objets en plus du gain (page Missions)
+local DEFAULT_SETTINGS = {
+    store = { weapon = 'any', duration = 30, cooldown = 45, alert = 50, resist = 25, loot = {} },
+    barber = { weapon = 'any', duration = 25, cooldown = 45, alert = 40, resist = 25, loot = {} },
+    binco = { weapon = 'any', duration = 25, cooldown = 45, alert = 40, resist = 25, loot = {} },
+    tattoo = { weapon = 'any', duration = 25, cooldown = 45, alert = 40, resist = 30, loot = {} },
+    ammunation = { weapon = 'firearm', duration = 40, cooldown = 90, alert = 100, resist = 40, loot = {} },
+    company = { weapon = 'firearm', duration = 35, cooldown = 60, alert = 80, resist = 20, loot = {} },
+    heliwave = { weapon = 'firearm', duration = 40, cooldown = 90, alert = 80, resist = 20, loot = {} },
+}
+local WEAPONS = { any = true, melee = true, firearm = true }
 
 -- Magasins de la carte de base : position du vendeur derrière le comptoir (à vérifier en jeu avec le TP)
 local DEFAULT_POINTS = {
@@ -56,9 +71,11 @@ local DEFAULT_POINTS = {
 
 -- Hauteur inconnue (point placé sur la carte du panel) : le TP cherche le sol ; « Définir » en jeu donne la vraie hauteur
 local UNKNOWN_Z = -200.0
-local LIMITS = { points = 300 }
+local LIMITS = { points = 300, duration = 180, cooldown = 1440, loot = 8 }
 
-local points = {}
+local points, settings = {}, {}
+
+local ox = exports.ox_inventory
 
 local function denied()
     return Panel.fail("Vous n'avez pas la permission de gérer l'illégal.")
@@ -93,6 +110,28 @@ end
 local function cleanText(value, max)
     local text = type(value) == 'string' and value:gsub('%s+', ' '):match('^%s*(.-)%s*$') or ''
     return #text <= max and text or nil
+end
+
+local function loadSettings()
+    settings = {}
+
+    for typeId, defaults in pairs(DEFAULT_SETTINGS) do
+        settings[typeId] = json.decode(json.encode(defaults))
+    end
+
+    for _, row in ipairs(MySQL.query.await('SELECT * FROM `lunatic_holdup_settings`') or {}) do
+        local ok, value = pcall(json.decode, row.settings or '')
+
+        if ok and type(value) == 'table' and settings[row.type] then
+            for key, default in pairs(DEFAULT_SETTINGS[row.type]) do
+                if value[key] == nil then
+                    value[key] = default
+                end
+            end
+
+            settings[row.type] = value
+        end
+    end
 end
 
 local function load()
@@ -159,6 +198,15 @@ table.insert(Panel.readyHooks, function()
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ]])
 
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `lunatic_holdup_settings` (
+            `type` VARCHAR(20) NOT NULL,
+            `settings` TEXT NOT NULL,
+            PRIMARY KEY (`type`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ]])
+
+    loadSettings()
     load()
 
     -- Premier démarrage : les magasins de la carte sont placés d'office
@@ -171,12 +219,19 @@ table.insert(Panel.readyHooks, function()
     end
 end)
 
--- Points et types lus par lunatic_illegal (serveur)
+-- Points et types lus par lunatic_illegal (serveur) : réglages du type + réglages communs de la mission
 exports('getHoldupConfig', function()
     local types = {}
 
     for id, entry in pairs(TYPES) do
-        types[id] = { label = entry.label, soon = entry.soon == true }
+        local mission = Missions.get('heist_' .. id)
+        types[id] = {
+            label = entry.label, soon = entry.soon == true, settings = settings[id],
+            mission = mission and {
+                id = 'heist_' .. id, enabled = mission.enabled, police = mission.bypass and 0 or mission.police, levelRequired = mission.levelRequired,
+                minLevel = mission.minLevel, xp = mission.xp, influence = mission.influence, reward = mission.reward,
+            } or nil,
+        }
     end
 
     return { types = types, points = points }
@@ -226,7 +281,14 @@ Panel.actions['holdups.list'] = function(_, actor)
 
     for _, id in ipairs(ORDER) do
         local entry = TYPES[id]
-        types[#types + 1] = { id = id, label = entry.label, short = entry.short, ped = entry.ped, soon = entry.soon == true }
+        local s = json.decode(json.encode(settings[id]))
+
+        for _, loot in ipairs(s.loot or {}) do
+            local item = ox:Items(loot.item)
+            loot.label, loot.missing = item and item.label or loot.item, not item
+        end
+
+        types[#types + 1] = { id = id, label = entry.label, short = entry.short, ped = entry.ped, soon = entry.soon == true, settings = s }
     end
 
     return { ok = true, silent = true, types = types, points = points, companies = companies() }
@@ -316,6 +378,63 @@ Panel.actions['holdups.save'] = function(src, actor, data)
     Logs.add(src, 'holdups.save', nil, { label = label, operation = data.id and 'edit' or 'add' })
 
     return { ok = true, silent = true, id = id }
+end
+
+-- Réglages d'un type de braquage (arme, durée, délai, alarme, résistance, butin)
+Panel.actions['holdups.saveSettings'] = function(src, actor, data)
+    if not guard(actor) then
+        return denied()
+    end
+
+    local typeId = TYPES[data.type] and data.type
+    local input = type(data.settings) == 'table' and data.settings or {}
+
+    if not typeId then
+        return Panel.fail('Type de braquage inconnu.')
+    end
+
+    local whole = function(value, min, max)
+        local n = tonumber(value)
+        return n and n == math.floor(n) and n >= min and n <= max and math.floor(n) or nil
+    end
+
+    local value = {
+        weapon = WEAPONS[input.weapon] and input.weapon or nil,
+        duration = whole(input.duration, 5, LIMITS.duration),
+        cooldown = whole(input.cooldown, 5, LIMITS.cooldown),
+        alert = whole(input.alert, 0, 100),
+        resist = whole(input.resist, 0, 100),
+        loot = {},
+    }
+
+    if not value.weapon then
+        return Panel.fail('Arme exigée : choisissez une option.')
+    end
+
+    if not value.duration or not value.cooldown or not value.alert or not value.resist then
+        return Panel.fail(('Durée (5 à %d s), délai (5 à %d min), alarme et résistance (0 à 100 %%) requis.'):format(LIMITS.duration, LIMITS.cooldown))
+    end
+
+    if type(input.loot) ~= 'table' or #input.loot > LIMITS.loot then
+        return Panel.fail(('Butin : %d objets maximum.'):format(LIMITS.loot))
+    end
+
+    for _, entry in ipairs(input.loot) do
+        local min, max, chance = whole(entry.min, 1, 1000), whole(entry.max, 1, 1000), whole(entry.chance, 1, 100)
+
+        if type(entry.item) ~= 'string' or not ox:Items(entry.item) or not min or not max or not chance or min > max then
+            return Panel.fail(('Butin invalide : %s.'):format(tostring(entry.item)))
+        end
+
+        value.loot[#value.loot + 1] = { item = entry.item, min = min, max = max, chance = chance }
+    end
+
+    settings[typeId] = value
+    MySQL.update.await('INSERT INTO `lunatic_holdup_settings` (`type`, `settings`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `settings` = VALUES(`settings`)', { typeId, json.encode(value) })
+    TriggerEvent('lunatic_admin:holdupsChanged')
+    Logs.add(src, 'holdups.save', nil, { label = TYPES[typeId].label, operation = 'settings' })
+
+    return { ok = true, silent = true }
 end
 
 -- PNJ replacé à la position et dans la direction du staff

@@ -1862,7 +1862,8 @@ async function demoNui(name, data) {
     if (name === "action" && data && data.action === "holdups.list") return { ok: true,
         types: [{ id: "store", label: "Supérette", short: "SUP", ped: "mp_m_shopkeep_01" }, { id: "barber", label: "Barber", short: "BARBER", ped: "s_f_m_fembarber" }, { id: "binco", label: "Binco", short: "BINCO", ped: "s_f_y_shop_low" },
             { id: "ammunation", label: "Ammunation", short: "AMMU", ped: "s_m_y_ammucity_01" }, { id: "tattoo", label: "Tattoo", short: "TATTOO", ped: "u_m_y_tattoo_01" }, { id: "company", label: "Entreprise", short: "ENTR", ped: "a_m_y_business_02" },
-            { id: "heliwave", label: "Heliwave", short: "HELI", ped: "s_m_y_airworker", soon: true }],
+            { id: "heliwave", label: "Heliwave", short: "HELI", ped: "s_m_y_airworker", soon: true }]
+            .map((t) => ({ ...t, settings: { weapon: t.id === "ammunation" || t.id === "company" ? "firearm" : "any", duration: 30, cooldown: 45, alert: 50, resist: 25, loot: [] } })),
         companies: [{ job: "burgershot", label: "Burger Shot" }, { job: "bennys", label: "Benny's" }],
         points: [
             { id: 1, type: "store", label: "Supérette Innocence Blvd", ped: "mp_m_shopkeep_01", x: 24.5, y: -1346.6, z: 29.5, h: 271, active: true },

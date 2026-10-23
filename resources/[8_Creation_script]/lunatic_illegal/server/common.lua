@@ -42,3 +42,68 @@ function PolicePlayers()
 
     return list
 end
+
+---------------------------------------------------------------------
+-- Arme en main (braquages) : « melee » (couteau, batte…) ou « firearm » ; les poings et les objets ne comptent pas
+---------------------------------------------------------------------
+
+-- Ni menaçants ni crédibles pour un braquage
+local NOT_WEAPONS = {
+    WEAPON_UNARMED = true, WEAPON_PETROLCAN = true, WEAPON_HAZARDCAN = true, WEAPON_FERTILIZERCAN = true, WEAPON_FIREEXTINGUISHER = true,
+    WEAPON_BALL = true, WEAPON_SNOWBALL = true, WEAPON_FLARE = true, WEAPON_STUNGUN = true, WEAPON_STUNGUN_MP = true,
+}
+
+-- Hash en entier positif : joaat et GetSelectedPedWeapon ne rendent pas toujours le même signe
+local function unsigned(hash)
+    hash = tonumber(hash) or 0
+    return hash < 0 and hash + 4294967296 or hash
+end
+
+local weaponClasses = nil -- hash -> 'melee' | 'firearm', lu dans ox_inventory (une arme avec munitions = arme à feu)
+
+local function classes()
+    if weaponClasses then
+        return weaponClasses
+    end
+
+    weaponClasses = {}
+
+    for name, item in pairs(exports.ox_inventory:Items() or {}) do
+        if type(item) == 'table' and item.weapon and not item.throwable and not NOT_WEAPONS[name:upper()] then
+            weaponClasses[unsigned(joaat(name))] = item.ammoname and 'firearm' or 'melee'
+        end
+    end
+
+    return weaponClasses
+end
+
+-- Classe de l'arme que le joueur tient en main (nil : mains nues ou objet)
+function WeaponClass(src)
+    local ped = GetPlayerPed(src)
+
+    if not ped or ped == 0 then
+        return nil
+    end
+
+    return classes()[unsigned(GetSelectedPedWeapon(ped))]
+end
+
+-- L'arme en main respecte-t-elle la règle du braquage ? (none, any, melee, firearm)
+function WeaponAllowed(src, rule)
+    if not rule or rule == 'none' then
+        return true
+    end
+
+    local class = WeaponClass(src)
+    return class ~= nil and (rule == 'any' or rule == class)
+end
+
+function WeaponRuleText(rule)
+    if rule == 'firearm' then
+        return 'Il vous faut une arme à feu en main.'
+    elseif rule == 'melee' then
+        return 'Il vous faut une arme blanche en main (couteau, batte…).'
+    end
+
+    return 'Il vous faut une arme en main (couteau, batte, arme à feu…).'
+end

@@ -6,25 +6,27 @@
 local ox = exports.ox_inventory
 
 local TYPES = {
-    store = { label = 'Supérettes', actions = { register = 'Caisse', safe = 'Coffre' } },
+    -- La caisse des supérettes se braque maintenant en menaçant le PNJ au comptoir (server/holdups.lua)
+    store = { label = 'Supérettes', actions = { safe = 'Coffre' } },
     jewelry = { label = 'Bijouterie', actions = { case = 'Vitrine' } },
     fleeca = { label = 'Banques Fleeca', actions = { door = 'Porte du coffre', locker = 'Casier' } },
 }
 local ORDER = { store = 1, jewelry = 2, fleeca = 3 }
 local ACTION_ORDER = { register = 1, safe = 2, case = 1, door = 1, locker = 2 }
 -- Les casiers n'ont pas de point : ils se percent dans le coffre, une fois la porte ouverte
-local POINT_KINDS = { register = 'store', safe = 'store', case = 'jewelry', door = 'fleeca' }
+local POINT_KINDS = { safe = 'store', case = 'jewelry', door = 'fleeca' }
+-- Arme en main pour commencer : aucune, blanche ou à feu, blanche seulement, à feu seulement (jamais les poings)
+local WEAPONS = { none = true, any = true, melee = true, firearm = true }
 
 local DEFAULTS = {
-    store = { enabled = true, police = 1, cooldown = 45, crewOnly = false, minLevel = 1, actions = {
-        register = { duration = 12, tool = 'lockpick', breakChance = 30, alert = 40, models = { 'prop_till_01', 'prop_till_02', 'prop_till_03' }, loot = { { item = 'marked_bills', min = 3, max = 8, chance = 100 } } },
+    store = { enabled = true, police = 1, cooldown = 45, crewOnly = false, minLevel = 1, weapon = 'none', actions = {
         safe = { duration = 45, tool = 'drill', breakChance = 15, alert = 100, models = { 'p_v_43_safe_s', 'prop_ld_int_safe_01' }, loot = { { item = 'marked_bills', min = 10, max = 20, chance = 100 } } },
     } },
-    jewelry = { enabled = true, police = 3, cooldown = 120, crewOnly = true, minLevel = 2, actions = {
+    jewelry = { enabled = true, police = 3, cooldown = 120, crewOnly = true, minLevel = 2, weapon = 'any', actions = {
         case = { duration = 5, tool = '', breakChance = 0, alert = 100, models = { 'des_jewel_cab_start', 'des_jewel_cab2_start', 'des_jewel_cab3_start', 'des_jewel_cab4_start' },
             loot = { { item = 'jewel_watch', min = 1, max = 2, chance = 50 }, { item = 'jewel_ring', min = 1, max = 3, chance = 60 }, { item = 'jewel_necklace', min = 1, max = 1, chance = 40 } } },
     } },
-    fleeca = { enabled = true, police = 4, cooldown = 180, crewOnly = true, minLevel = 3, actions = {
+    fleeca = { enabled = true, police = 4, cooldown = 180, crewOnly = true, minLevel = 3, weapon = 'firearm', actions = {
         door = { duration = 15, tool = 'hack_device', breakChance = 25, alert = 100, models = { 'v_ilev_gb_vauldr' }, loot = {} },
         locker = { duration = 30, tool = 'drill', breakChance = 10, alert = 0, count = 4, models = {}, loot = { { item = 'marked_bills', min = 15, max = 30, chance = 100 }, { item = 'gold_bar', min = 1, max = 1, chance = 15 } } },
     } },
@@ -92,6 +94,14 @@ local function load()
                 end
             end
 
+            -- Actions retirées depuis (caisse des supérettes) et arme exigée des anciens enregistrements
+            for actionId in pairs(value.actions or {}) do
+                if not DEFAULTS[row.type].actions[actionId] then
+                    value.actions[actionId] = nil
+                end
+            end
+
+            value.weapon = WEAPONS[value.weapon] and value.weapon or DEFAULTS[row.type].weapon
             settings[row.type] = value
         end
     end
@@ -317,8 +327,13 @@ Panel.actions['heists.saveSettings'] = function(src, actor, data)
         cooldown = whole(input.cooldown, 5, LIMITS.cooldown),
         crewOnly = input.crewOnly == true,
         minLevel = whole(input.minLevel, 1, #Config.CrewLevels),
+        weapon = WEAPONS[input.weapon] and input.weapon or nil,
         actions = {},
     }
+
+    if not value.weapon then
+        return Panel.fail('Arme exigée : choisissez une option.')
+    end
 
     if not value.police or not value.cooldown or not value.minLevel then
         return Panel.fail(('Policiers (0 à %d), délai (5 à %d min) ou level de crew invalide.'):format(LIMITS.police, LIMITS.cooldown))
