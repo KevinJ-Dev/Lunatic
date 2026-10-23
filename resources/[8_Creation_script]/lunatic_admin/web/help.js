@@ -78,7 +78,7 @@ const HELP = {
         tips: [
             "Le PNJ du recelleur apparaît là où vous vous tenez, tourné dans votre direction ; pas de blip.",
             "Le badge « Incomplet » liste ce qui manque (objet inconnu, emplacement, laboratoire…).",
-            "Territoires : le crew qui a le plus d'influence (ventes de drogue) dans un cercle le tient et touche ses bonus ; « Voir sur ma carte » affiche les zones même sans crew.",
+            "Territoires : le crew qui a le plus d'influence (ventes de drogue) dans un cercle le tient et touche ses bonus ; « Mode création » ou « Placer sur la carte » place une zone d'un clic sur la carte ; « Voir en jeu » affiche les zones sur votre carte même sans crew.",
             "Craft d'armes : les ateliers sont réservés à des types de crew et à un level minimum ; les armes fabriquées n'ont pas de numéro de série.",
             "Tablette : objet « Tablette » de l'inventaire, réservé aux crews. Le marché noir livre à un point discret, à placer dans l'onglet Tablette.",
             "Missions : placez les points de chaque type de contrat (récupération, livraison, véhicules, garages, cargaisons) ; sans points, le type n'est pas proposé.",
