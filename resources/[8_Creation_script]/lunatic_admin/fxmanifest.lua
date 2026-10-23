@@ -5,7 +5,7 @@ lua54 'yes'
 name 'lunatic_admin'
 author 'Lunatic RP'
 description 'Panel staff Lunatic : rangs, staff, joueurs, sanctions, outils, économie, logs et tableau de bord'
-version '0.13.0'
+version '0.14.0'
 
 shared_scripts {
     '@es_extended/imports.lua',
@@ -82,6 +82,9 @@ files {
     'web/structure_catalogs.js',
     'web/shops.js',
     'web/crews.js',
+    'web/vendor/leaflet.js',
+    'web/vendor/leaflet.css',
+    'web/map.js',
     'web/illegal.js',
     'web/drugs.js',
     'web/territories.js',

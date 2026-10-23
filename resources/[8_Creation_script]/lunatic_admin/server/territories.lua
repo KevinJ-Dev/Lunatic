@@ -32,6 +32,17 @@ local function positionOf(src)
     return { x = coords.x, y = coords.y, z = coords.z - 0.98 }
 end
 
+-- Position cliquée sur la carte du panel : x / y dans la zone jouable ; hauteur inconnue (-200, le TP cherche alors le sol)
+local function mapPosition(data)
+    local x, y = tonumber(data.x), tonumber(data.y)
+
+    if not x or not y or x < -5000 or x > 5000 or y < -5000 or y > 9000 then
+        return nil
+    end
+
+    return { x = x, y = y, z = -200.0 }
+end
+
 local function whole(value, min, max)
     value = tonumber(value)
 
@@ -389,6 +400,17 @@ Panel.actions['territories.save'] = function(src, actor, data)
         return Panel.fail("Seuil d'influence : un nombre entier positif.")
     end
 
+    -- Centre cliqué sur la carte du panel (facultatif)
+    local placed = nil
+
+    if data.x ~= nil or data.y ~= nil then
+        placed = mapPosition(data)
+
+        if not placed then
+            return Panel.fail('Position sur la carte invalide.')
+        end
+    end
+
     local active = data.active ~= false
     local t
 
@@ -403,6 +425,10 @@ Panel.actions['territories.save'] = function(src, actor, data)
         MySQL.update.await('UPDATE `lunatic_territories` SET `label` = ?, `radius` = ?, `price_bonus` = ?, `xp_bonus` = ?, `min_influence` = ?, `active` = ? WHERE `id` = ?', {
             label, radius, priceBonus, xpBonus, minInfluence, active and 1 or 0, t.id,
         })
+
+        if placed then
+            MySQL.update.await('UPDATE `lunatic_territories` SET `x` = ?, `y` = ?, `z` = ? WHERE `id` = ?', { placed.x, placed.y, placed.z, t.id })
+        end
     else
         local count = 0
 
@@ -414,7 +440,7 @@ Panel.actions['territories.save'] = function(src, actor, data)
             return Panel.fail(('Maximum %d territoires.'):format(LIMITS.territories))
         end
 
-        local position = positionOf(src)
+        local position = placed or positionOf(src)
 
         if not position then
             return Panel.fail('Position introuvable.')

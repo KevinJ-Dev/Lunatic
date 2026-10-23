@@ -31,9 +31,30 @@ function Teleport(coords)
 end
 
 RegisterNetEvent('lunatic_admin:teleport', function(coords)
-    if type(coords) == 'vector3' then
-        Teleport(coords)
+    if type(coords) ~= 'vector3' then
+        return
     end
+
+    -- Hauteur inconnue (point placé sur la carte du panel) : on cherche le sol en descendant depuis le ciel
+    if coords.z < -100.0 then
+        local ground = nil
+
+        for height = 1000.0, 0.0, -25.0 do
+            RequestCollisionAtCoord(coords.x, coords.y, height)
+            Wait(0)
+
+            local found, z = GetGroundZFor_3dCoord(coords.x, coords.y, height, false)
+
+            if found then
+                ground = z
+                break
+            end
+        end
+
+        coords = vector3(coords.x, coords.y, (ground or 200.0) + 1.0)
+    end
+
+    Teleport(coords)
 end)
 
 ---------------------------------------------------------------------

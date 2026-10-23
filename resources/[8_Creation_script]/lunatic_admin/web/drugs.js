@@ -1,7 +1,7 @@
 "use strict";
 
 // ====================================================================
-//  lunatic_admin — tuile Illégal, onglet Drogues (étape 3)
+//  lunatic_admin — tuile Illégal, page Drogues (laboratoires à gauche, drogues au centre, fiche à droite)
 //  Drogues (prix, XP, influence, policiers, volumes), laboratoires (type de crew, recette) et leurs emplacements.
 // ====================================================================
 
@@ -40,124 +40,125 @@ function drugProblems(drug) {
     return problems;
 }
 
-function drugsPanel() {
+function drugsPage() {
     const d = drugState.data;
     if (!d) {
         loadDrugs();
-        return h("div", { class: "empty" }, icon("i-mask"), "Chargement des drogues…");
+        return illegalLoading("Drogues", "i-sparkle", "Chargement des drogues…");
     }
-
-    const cards = d.drugs.map((drug) => {
-        const labs = drug.labs.map((lab) => {
-            const problems = labProblems(lab);
-            const recipe = `${lab.ingredients.map((i) => `${i.count} × ${i.label}`).join(" + ")} → ${lab.output} × ${drug.label} en ${lab.duration} s`;
-            const locations = lab.locations.map((l, i) => h("div", { class: "row point-row lab-location" },
-                h("span", { class: "pid mono" }, String(i + 1)),
-                h("div", { class: "who" }, h("span", null, `${l.x.toFixed(1)}, ${l.y.toFixed(1)}, ${l.z.toFixed(1)}`)),
-                h("div", { class: "btn-row" },
-                    h("button", { class: "btn small", onclick: () => drugAct("drugs.moveLocation", { locationId: l.id }, "Emplacement replacé à votre position.") }, icon("i-crosshair"), "Définir"),
-                    h("button", { class: "btn small ghost", onclick: () => act("drugs.tpLocation", { locationId: l.id }, null) }, icon("i-goto"), "TP"),
-                    h("button", { class: "btn small ghost", title: "Supprimer", onclick: () => drugAct("drugs.deleteLocation", { locationId: l.id }, "Emplacement supprimé.") }, icon("i-trash")))));
-            return h("div", { class: "lab-block" },
-                h("div", { class: "row point-row" },
-                    readyDot(problems),
-                    h("div", { class: "who" }, h("b", null, `Laboratoire · ${lab.crewTypeLabel}`, readyBadge(problems)), h("span", null, recipe)),
-                    h("div", { class: "btn-row" },
-                        h("button", { class: "btn small", onclick: () => drugAct("drugs.addLocation", { labId: lab.id }, "Emplacement ajouté à votre position.") }, icon("i-plus"), "Emplacement"),
-                        h("button", { class: "btn small ghost", onclick: () => openDrugLab(drug, lab) }, icon("i-edit")),
-                        h("button", { class: "btn small ghost", title: "Supprimer le laboratoire", onclick: async () => {
-                            const yes = await confirmBox("Supprimer ce laboratoire ?", "Sa recette et ses emplacements sont effacés.", "Supprimer", true);
-                            if (yes) drugAct("drugs.deleteLab", { labId: lab.id }, "Laboratoire supprimé.");
-                        } }, icon("i-trash")))),
-                locations.length ? h("div", { class: "table lab-locations" }, locations) : null,
-                problems.length ? h("p", { class: "hint-line", style: "margin:4px 0 0 40px" }, `À compléter : ${problems.join(" · ")}`) : null);
-        });
-
-        return h("div", { class: "card", style: "margin-top:16px" },
-            h("div", { class: "card-head dev-head" },
-                h("div", { class: "drug-title" }, itemImage(drug.item),
-                    h("div", { class: "who" }, h("b", null, drug.label, h("span", { class: `badge ${drug.active ? "ok" : "muted"}`, style: "margin-left:8px" }, drug.active ? "Active" : "Désactivée"),
-                        drug.missing ? h("span", { class: "badge ban", style: "margin-left:6px" }, "objet inconnu") : null, readyBadge(drugProblems(drug))),
-                        h("span", { class: "muted" }, `${drug.item} · ${money(drug.price)} l'unité · ${drug.volumeMin} à ${drug.volumeMax} par vente · ${drug.xp} XP · ${drug.influence} influence · ${drug.cops} policier${drug.cops > 1 ? "s" : ""} min.`))),
-                h("div", { class: "btn-row" },
-                    h("button", { class: "btn small primary", onclick: () => openDrugLab(drug, null) }, icon("i-plus"), "Laboratoire"),
-                    h("button", { class: "btn small ghost", onclick: () => openDrug(drug) }, icon("i-edit"), "Modifier"),
-                    h("button", { class: "btn small ghost", title: "Dupliquer (désactivée, sans emplacements)", onclick: () => drugAct("drugs.duplicate", { id: drug.id }, "Drogue dupliquée (désactivée).") }, icon("i-copy")),
-                    h("button", { class: "btn small ghost", title: "Supprimer", onclick: async () => {
-                        const yes = await confirmBox(`Supprimer ${drug.label} ?`, "La drogue, ses laboratoires et leurs emplacements sont effacés.", "Supprimer", true);
-                        if (yes) drugAct("drugs.delete", { id: drug.id }, "Drogue supprimée.");
-                    } }, icon("i-trash")))),
-            readyHint(drugProblems(drug)),
-            labs.length ? h("div", { class: "table" }, labs) : null);
-    });
-
+    const sel = illegalState.drugSel;
+    const selected = d.drugs.find((drug) => drug.id === sel);
     const readyCount = d.drugs.filter((drug) => drug.active && !drugProblems(drug).length).length;
-    return h("div", null,
-        h("div", { class: "card" },
-            h("div", { class: "card-head dev-head" }, h("h3", { class: "card-title" }, `Drogues (${d.drugs.length})`,
-                d.drugs.length ? h("span", { class: `badge ${readyCount ? "ok" : "warn"} ready-badge` }, `${readyCount} prête${readyCount > 1 ? "s" : ""} en jeu`) : null),
-                h("div", { class: "btn-row" },
-                    h("button", { class: `btn small${drugState.staffView ? " primary" : ""}`, title: "Affiche en jeu tous les points de laboratoire (en orange), même sans être dans un crew du bon type", onclick: async () => {
-                        const enabled = !drugState.staffView;
-                        const res = await act("drugs.staffView", { enabled }, null);
-                        if (!res) return;
-                        drugState.staffView = enabled;
-                        paintIllegal();
-                    } }, icon("i-eye"), drugState.staffView ? "Masquer les labos en jeu" : "Voir les labos en jeu"),
-                    h("button", { class: "btn small", title: "Ajoute weed, cocaïne, meth et fentanyl (avec leurs laboratoires) s'ils n'existent pas encore", onclick: async () => {
-                        const res = await drugAct("drugs.seed", {}, null);
-                        if (res) toast(`${res.created} drogue(s) de départ ajoutée(s) : placez leurs laboratoires (« Emplacement »).`, "ok");
-                    } }, icon("i-sparkle"), "Drogues de départ"),
-                    h("button", { class: "btn small primary", onclick: () => openDrug(null) }, icon("i-plus"), "Nouvelle drogue"))),
-            h("p", { class: "hint-line", style: "margin:0" }, "Vente aux passants en jeu ([E] près d'un PNJ qui marche) ; production dans les laboratoires, réservés à un type de crew. Prix variable de ±15 %, payé en argent sale.")),
-        cards);
+
+    const tiles = d.drugs.map((drug) => illegalTile({
+        item: drug.item, label: drug.label, badge: drug.active ? null : "off", active: drug.id === sel, warn: drugProblems(drug).length > 0, off: !drug.active,
+        onclick: () => drug.id !== sel && illegalSwitch(() => { illegalState.drugSel = drug.id; }),
+    }));
+
+    // Laboratoires de la drogue choisie
+    const labs = selected ? selected.labs.map((lab) => {
+        const problems = labProblems(lab);
+        const locations = lab.locations.map((l, i) => pointLine(i + 1, null, l, [
+            iconButton("i-crosshair", "Replacer à votre position", () => drugAct("drugs.moveLocation", { locationId: l.id }, "Emplacement replacé à votre position.")),
+            iconButton("i-goto", "TP", () => act("drugs.tpLocation", { locationId: l.id }, null)),
+            iconButton("i-trash", "Supprimer", () => drugAct("drugs.deleteLocation", { locationId: l.id }, "Emplacement supprimé.")),
+        ]));
+        return h("div", { class: "side-card" },
+            h("div", { class: "side-card-head" }, readyDot(problems), h("b", null, lab.crewTypeLabel),
+                iconButton("i-plus", "Ajouter un emplacement à votre position", () => drugAct("drugs.addLocation", { labId: lab.id }, "Emplacement ajouté à votre position.")),
+                iconButton("i-edit", "Modifier le laboratoire", () => openDrugLab(selected, lab)),
+                iconButton("i-trash", "Supprimer le laboratoire", async () => {
+                    const yes = await confirmBox("Supprimer ce laboratoire ?", "Sa recette et ses emplacements sont effacés.", "Supprimer", true);
+                    if (yes) drugAct("drugs.deleteLab", { labId: lab.id }, "Laboratoire supprimé.");
+                })),
+            h("span", { class: "side-card-sub" }, `${lab.ingredients.map((i) => `${i.count} × ${i.label}`).join(" + ")} → ${lab.output} en ${lab.duration} s`),
+            locations,
+            problems.length ? h("span", { class: "side-card-warn" }, `À compléter : ${problems.join(" · ")}`) : null);
+    }) : [];
+
+    return {
+        title: "Drogues",
+        sub: "Vente aux passants ([E] près d'un PNJ), production dans les laboratoires réservés à un type de crew. Prix ±15 %, payé en argent sale.",
+        actions: [
+            d.drugs.length ? h("span", { class: `badge ${readyCount ? "ok" : "warn"}` }, `${readyCount} prête${readyCount > 1 ? "s" : ""} en jeu`) : null,
+            h("button", { class: `btn small${drugState.staffView ? " primary" : ""}`, title: "Affiche en jeu tous les points de laboratoire (en orange), même sans être dans un crew du bon type", onclick: async () => {
+                const enabled = !drugState.staffView;
+                const res = await act("drugs.staffView", { enabled }, null);
+                if (!res) return;
+                drugState.staffView = enabled;
+                paintIllegal();
+            } }, icon("i-eye"), drugState.staffView ? "Masquer les labos" : "Voir les labos en jeu"),
+            h("button", { class: "btn small", title: "Ajoute weed, cocaïne, meth et fentanyl (avec leurs laboratoires) s'ils n'existent pas encore", onclick: async () => {
+                const res = await drugAct("drugs.seed", {}, null);
+                if (res) toast(`${res.created} drogue(s) de départ ajoutée(s) : placez leurs laboratoires.`, "ok");
+            } }, icon("i-sparkle"), "Drogues de départ"),
+        ],
+        side: [selected
+            ? sideBlock(`Laboratoires (${selected.labs.length})`, iconButton("i-plus", "Nouveau laboratoire", () => openDrugLab(selected, null)),
+                labs.length ? labs : h("p", { class: "hint-line" }, "Aucun laboratoire : la drogue ne peut pas être produite."))
+            : sideBlock("Laboratoires", null, h("p", { class: "hint-line" }, "Choisissez une drogue pour voir ses laboratoires."))],
+        center: h("div", { class: "items-grid" }, newTile("Nouvelle drogue", () => illegalSwitch(() => { illegalState.drugSel = "new"; }), sel === "new"), tiles),
+        editor: drugEditor(selected),
+    };
 }
 
-function openDrug(drug) {
-    loadCatalogItems().then((items) => {
-        const known = new Set(items.map((i) => i.name));
-        const item = itemPicker(items, drug ? drug.item : "");
-        const num = (value) => h("input", { class: "input mono", type: "number", min: "0", value: String(value) });
-        const price = num(drug ? drug.price : 100);
-        const xp = num(drug ? drug.xp : 5);
-        const influence = num(drug ? drug.influence : 1);
-        const cops = num(drug ? drug.cops : 0);
-        const volumeMin = num(drug ? drug.volumeMin : 1);
-        const volumeMax = num(drug ? drug.volumeMax : 5);
-        let active = drug ? drug.active : true;
-        const activeRow = h("div", { class: `perm${active ? " on" : ""}` }, h("span", { class: "switch" }), h("span", { class: "txt" }, h("span", null, "Active"), h("code", null, "Désactivée : ni vente ni production.")));
-        activeRow.addEventListener("click", () => { active = !active; activeRow.classList.toggle("on", active); });
+function drugEditor(drug) {
+    if (!drug && illegalState.drugSel !== "new") return emptySelection("i-sparkle", "Choisissez une drogue ou créez-en une.");
+    const d = illegalDraft("drug", drug ? drug.id : "new", drug ? `Drogue ${drug.label}` : "Nouvelle drogue",
+        () => (drug ? { item: drug.item, active: drug.active, price: drug.price, xp: drug.xp, influence: drug.influence, cops: drug.cops, volumeMin: drug.volumeMin, volumeMax: drug.volumeMax }
+            : { item: "", active: true, price: 100, xp: 5, influence: 1, cops: 0, volumeMin: 1, volumeMax: 5 }),
+        saveDrug);
+    const problems = drug ? drugProblems(drug) : [];
 
-        openModal((close) => {
-            const submit = h("button", { class: "btn primary" }, icon("i-save"), drug ? "Enregistrer" : "Créer");
-            submit.addEventListener("click", async () => {
-                const name = item.value.trim();
-                if (!known.has(name)) return toast(`L'objet « ${name} » n'existe pas dans ox_inventory.`, "error");
-                const res = await drugAct("drugs.save", {
-                    id: drug ? drug.id : null, item: name, active, price: Number(price.value), xp: Number(xp.value), influence: Number(influence.value),
-                    cops: Number(cops.value), volumeMin: Number(volumeMin.value), volumeMax: Number(volumeMax.value),
-                }, drug ? "Drogue enregistrée." : "Drogue créée.");
-                if (res) close();
-            });
-            return [
-                h("header", null, h("h3", null, drug ? `Modifier ${drug.label}` : "Nouvelle drogue")),
-                h("div", { class: "body event-form" },
-                    h("div", { class: "field" }, h("label", null, "Objet vendu"), item),
-                    h("div", { class: "event-form-row" },
-                        h("div", { class: "field" }, h("label", null, "Prix de base à l'unité ($)"), price),
-                        h("div", { class: "field" }, h("label", null, "Policiers en service requis"), cops)),
-                    h("div", { class: "event-form-row" },
-                        h("div", { class: "field" }, h("label", null, "Volume min par vente"), volumeMin),
-                        h("div", { class: "field" }, h("label", null, "Volume max par vente"), volumeMax)),
-                    h("div", { class: "event-form-row" },
-                        h("div", { class: "field" }, h("label", null, "XP du crew par vente"), xp),
-                        h("div", { class: "field" }, h("label", null, "Influence par vente"), influence)),
-                    h("div", { class: "mode-list" }, activeRow)),
-                h("footer", null, h("button", { class: "btn ghost", onclick: () => close() }, "Annuler"), submit),
-            ];
-        });
-        item.focus();
+    return selectionPanel({
+        item: d.item, title: drug ? drug.label : "Nouvelle drogue", sub: d.item || "objet à choisir",
+        badges: drug ? readyBadge(problems) : null,
+        body: [
+            readyHint(problems),
+            h("div", { class: "section-head" }, "Informations"),
+            fieldRow("Objet vendu", draftItem(d, "item", () => paintIllegal())),
+            fieldRow("Prix à l'unité ($)", draftNumber(d, "price", 0, 1000000)),
+            fieldRow("XP du crew / vente", draftNumber(d, "xp", 0, 10000)),
+            fieldRow("Influence / vente", draftNumber(d, "influence", 0, 10000)),
+            fieldRow("Policiers en service", draftNumber(d, "cops", 0, 50)),
+            fieldRow("Volume min", draftNumber(d, "volumeMin", 1, 100)),
+            fieldRow("Volume max", draftNumber(d, "volumeMax", 1, 100)),
+            h("div", { class: "mode-list" }, draftToggle(d, "active", "Active", "Désactivée : ni vente ni production.")),
+        ],
+        actions: [
+            drug ? deleteButton(async () => {
+                const yes = await confirmBox(`Supprimer ${drug.label} ?`, "La drogue, ses laboratoires et leurs emplacements sont effacés.", "Supprimer", true);
+                if (!yes) return;
+                const res = await act("drugs.delete", { id: drug.id }, "Drogue supprimée.");
+                if (!res) return;
+                illegalSaved();
+                illegalState.drugSel = null;
+                await loadDrugs();
+            }) : null,
+            drug ? duplicateButton(async () => {
+                const res = await act("drugs.duplicate", { id: drug.id }, "Drogue dupliquée (désactivée, sans emplacements).");
+                if (!res) return;
+                illegalSaved();
+                if (res.id) illegalState.drugSel = res.id;
+                await loadDrugs();
+            }) : null,
+            saveButton(saveDrug, !drug),
+        ],
     });
+}
+
+async function saveDrug() {
+    const draft = illegalState.draft;
+    if (!draft || draft.kind !== "drug") return;
+    const d = draft.data;
+    if (!knownItem(d.item)) return toast(`L'objet « ${d.item} » n'existe pas dans ox_inventory.`, "error");
+    const creating = draft.key === "new";
+    const res = await act("drugs.save", { id: creating ? null : draft.key, ...d }, creating ? "Drogue créée." : "Drogue enregistrée.");
+    if (!res) return;
+    illegalSaved();
+    if (res.id) illegalState.drugSel = res.id;
+    await loadDrugs();
+    paintIllegal();
 }
 
 async function openDrugLab(drug, lab) {

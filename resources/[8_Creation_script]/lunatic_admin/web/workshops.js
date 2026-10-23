@@ -1,7 +1,7 @@
 "use strict";
 
 // ====================================================================
-//  lunatic_admin — tuile Illégal, onglet Craft d'armes (étape 5)
+//  lunatic_admin — tuile Illégal, page Craft (ateliers à gauche, recettes au centre, fiche à droite)
 //  Ateliers (types de crew, level minimum, alerte police, emplacements) et leurs recettes.
 // ====================================================================
 
@@ -34,74 +34,142 @@ function workshopProblems(w) {
     return problems;
 }
 
-function workshopsPanel() {
+function workshopsPage() {
     const d = workshopState.data;
     if (!d) {
         loadWorkshops();
-        return h("div", { class: "empty" }, icon("i-tool"), "Chargement des ateliers…");
+        return illegalLoading("Craft", "i-tool", "Chargement des ateliers…");
+    }
+    // Atelier affiché : celui choisi, sinon le premier
+    const w = d.workshops.find((entry) => entry.id === illegalState.craftWorkshop) || d.workshops[0] || null;
+    if (w) illegalState.craftWorkshop = w.id;
+    const sel = illegalState.craftRecipe;
+    const recipe = w && w.recipes.find((r) => r.id === sel);
+
+    const workshops = d.workshops.map((entry) => h("button", { class: `list-row${w && entry.id === w.id ? " active" : ""}`, onclick: () => entry.id !== w.id && illegalSwitch(() => { illegalState.craftWorkshop = entry.id; illegalState.craftRecipe = null; }) },
+        readyDot(workshopProblems(entry)), h("span", { class: "name" }, entry.label), h("span", { class: "cnt" }, String(entry.recipes.length))));
+
+    const side = [sideBlock(`Ateliers (${d.workshops.length})`, iconButton("i-plus", "Nouvel atelier", () => openWorkshop(null)),
+        workshops.length ? workshops : h("p", { class: "hint-line" }, "Aucun atelier : « Atelier de départ » en crée un tout prêt."))];
+
+    if (w) {
+        const problems = workshopProblems(w);
+        const locations = w.locations.map((l, i) => pointLine(i + 1, null, l, [
+            iconButton("i-crosshair", "Replacer à votre position", () => workshopAct("workshops.moveLocation", { locationId: l.id }, "Emplacement replacé à votre position.")),
+            iconButton("i-goto", "TP", () => act("workshops.tpLocation", { locationId: l.id }, null)),
+            iconButton("i-trash", "Supprimer", () => workshopAct("workshops.deleteLocation", { locationId: l.id }, "Emplacement supprimé.")),
+        ]));
+        side.push(
+            sideBlock("Atelier", h("div", { class: "btn-row" },
+                iconButton("i-edit", "Modifier l'atelier", () => openWorkshop(w)),
+                iconButton("i-trash", "Supprimer l'atelier", async () => {
+                    const yes = await confirmBox(`Supprimer « ${w.label} » ?`, "L'atelier, ses recettes et ses emplacements sont effacés.", "Supprimer", true);
+                    if (!yes) return;
+                    illegalSaved();
+                    illegalState.craftWorkshop = null;
+                    illegalState.craftRecipe = null;
+                    workshopAct("workshops.delete", { id: w.id }, "Atelier supprimé.");
+                })),
+                h("div", { class: "side-facts" },
+                    h("span", null, "Types de crew"), h("b", null, w.crewTypes.map(crewTypeLabel).join(", ") || "aucun"),
+                    h("span", null, "Level minimum"), h("b", null, String(w.minLevel)),
+                    h("span", null, "Alerte police"), h("b", null, w.alert ? "possible" : "non")),
+                problems.length ? h("span", { class: "side-card-warn" }, `À compléter : ${problems.join(" · ")}`) : null),
+            sideBlock(`Points de craft (${w.locations.length})`, iconButton("i-plus", "Ajouter un point à votre position", () => workshopAct("workshops.addLocation", { id: w.id }, "Emplacement ajouté à votre position.")),
+                locations.length ? locations : h("p", { class: "hint-line" }, "Aucun point : personne ne peut fabriquer ici.")));
     }
 
-    const cards = d.workshops.map((w) => {
-        const problems = workshopProblems(w);
-        const recipes = w.recipes.map((r) => h("div", { class: "row catalog-row" },
-            itemImage(r.item),
-            h("div", { class: "who" },
-                h("b", null, `${r.count > 1 ? `${r.count} × ` : ""}${r.label}`, r.missing ? h("span", { class: "badge ban", style: "margin-left:6px" }, "objet inconnu") : null,
-                    h("span", { class: "badge muted ready-badge" }, `level ${Math.max(w.minLevel, r.minLevel)}+`)),
-                h("span", null, `${r.ingredients.map((i) => `${i.count} × ${i.label}`).join(" + ")} · ${r.duration} s · ${r.xp} XP`)),
-            h("div", { class: "btn-row" },
-                h("button", { class: "btn small ghost", onclick: () => openWorkshopRecipe(w, r) }, icon("i-edit"), "Modifier"),
-                h("button", { class: "btn small ghost", title: "Supprimer", onclick: async () => {
-                    const yes = await confirmBox(`Retirer « ${r.label} » ?`, "La recette disparaît de l'atelier.", "Retirer", true);
-                    if (yes) workshopAct("workshops.deleteRecipe", { recipeId: r.id }, "Recette retirée.");
-                } }, icon("i-trash")))));
+    const tiles = w ? w.recipes.map((r) => illegalTile({
+        item: r.item, label: `${r.count > 1 ? `${r.count} × ` : ""}${r.label}`, badge: `Lv ${Math.max(w.minLevel, r.minLevel)}`, active: r.id === sel, warn: r.missing || r.ingredients.some((i) => i.missing),
+        onclick: () => r.id !== sel && illegalSwitch(() => { illegalState.craftRecipe = r.id; }),
+    })) : [];
 
-        const locations = w.locations.map((l, i) => h("div", { class: "row point-row" },
-            h("span", { class: "pid mono" }, String(i + 1)),
-            h("div", { class: "who" }, h("span", null, `${l.x.toFixed(1)}, ${l.y.toFixed(1)}, ${l.z.toFixed(1)}`)),
-            h("div", { class: "btn-row" },
-                h("button", { class: "btn small", onclick: () => workshopAct("workshops.moveLocation", { locationId: l.id }, "Emplacement replacé à votre position.") }, icon("i-crosshair"), "Définir"),
-                h("button", { class: "btn small ghost", onclick: () => act("workshops.tpLocation", { locationId: l.id }, null) }, icon("i-goto"), "TP"),
-                h("button", { class: "btn small ghost", title: "Supprimer", onclick: () => workshopAct("workshops.deleteLocation", { locationId: l.id }, "Emplacement supprimé.") }, icon("i-trash")))));
+    // Ingrédients de la recette choisie, en cases sous la grille
+    const ingredients = recipe ? h("div", null,
+        h("div", { class: "section-head", style: "margin-top:22px" }, `Ingrédients · ${recipe.label}`),
+        h("div", { class: "items-grid" }, recipe.ingredients.map((i) => illegalTile({ item: i.item, label: i.label, badge: `× ${i.count}`, warn: i.missing, onclick: null })))) : null;
 
-        return h("div", { class: "card", style: "margin-top:16px" },
-            h("div", { class: "card-head dev-head" },
-                h("div", { class: "drug-title" },
-                    h("div", { class: "who" },
-                        h("b", null, w.label, readyBadge(problems)),
-                        h("span", { class: "muted" }, `${w.crewTypes.map(crewTypeLabel).join(", ")} · level ${w.minLevel}+ · ${w.alert ? "alerte police possible" : "sans alerte police"}`))),
-                h("div", { class: "btn-row" },
-                    h("button", { class: "btn small primary", onclick: () => openWorkshopRecipe(w, null) }, icon("i-plus"), "Recette"),
-                    h("button", { class: "btn small", onclick: () => workshopAct("workshops.addLocation", { id: w.id }, "Emplacement ajouté à votre position.") }, icon("i-plus"), "Emplacement"),
-                    h("button", { class: "btn small ghost", onclick: () => openWorkshop(w) }, icon("i-edit"), "Modifier"),
-                    h("button", { class: "btn small ghost", title: "Supprimer l'atelier", onclick: async () => {
-                        const yes = await confirmBox(`Supprimer « ${w.label} » ?`, "L'atelier, ses recettes et ses emplacements sont effacés.", "Supprimer", true);
-                        if (yes) workshopAct("workshops.delete", { id: w.id }, "Atelier supprimé.");
-                    } }, icon("i-trash")))),
-            readyHint(problems),
-            recipes.length ? h("div", { class: "table" }, recipes) : null,
-            locations.length ? h("div", null, h("div", { class: "section-head", style: "margin-top:14px" }, "Emplacements"), h("div", { class: "table" }, locations)) : null);
+    return {
+        title: w ? w.label : "Craft",
+        sub: "Les membres des crews autorisés fabriquent au point de craft ([E]) : ingrédients consommés, objet donné à la fin, XP au crew. Armes sans numéro de série.",
+        actions: [
+            h("button", { class: `btn small${workshopState.staffView ? " primary" : ""}`, title: "Affiche en jeu tous les ateliers (en orange), même sans être dans un crew autorisé", onclick: async () => {
+                const enabled = !workshopState.staffView;
+                const res = await act("workshops.staffView", { enabled }, null);
+                if (!res) return;
+                workshopState.staffView = enabled;
+                paintIllegal();
+            } }, icon("i-eye"), workshopState.staffView ? "Masquer les ateliers" : "Voir les ateliers en jeu"),
+            h("button", { class: "btn small", title: "Crée un atelier avec pistolets, mitraillette, fusil et munitions (pièces d'armes et ferraille)", onclick: async () => {
+                const res = await workshopAct("workshops.seed", {}, null);
+                if (res) toast(`Atelier de départ créé (${res.created} recette${res.created > 1 ? "s" : ""}) : placez son point de craft.`, "ok");
+            } }, icon("i-sparkle"), "Atelier de départ"),
+        ],
+        side,
+        center: w ? h("div", null,
+            h("div", { class: "items-grid" }, newTile("Nouvelle recette", () => illegalSwitch(() => { illegalState.craftRecipe = "new"; }), sel === "new"), tiles),
+            ingredients)
+            : h("div", { class: "empty" }, icon("i-tool"), "Aucun atelier. Créez-en un avec le + à gauche, ou « Atelier de départ »."),
+        editor: w ? recipeEditor(w, recipe) : null,
+    };
+}
+
+function recipeEditor(w, r) {
+    if (!r && illegalState.craftRecipe !== "new") return emptySelection("i-tool", "Choisissez une recette ou créez-en une.");
+    const max = workshopState.data.maxLevel;
+    const d = illegalDraft("recipe", r ? r.id : "new", r ? `Recette ${r.label}` : "Nouvelle recette",
+        () => (r ? { item: r.item, count: r.count, duration: r.duration, minLevel: r.minLevel, xp: r.xp, ingredients: r.ingredients.map((i) => ({ item: i.item, count: i.count })) }
+            : { item: "", count: 1, duration: 60, minLevel: 1, xp: 10, ingredients: [{ item: "", count: 1 }] }),
+        saveRecipe);
+
+    return selectionPanel({
+        item: d.item, title: r ? r.label : "Nouvelle recette", sub: d.item || "objet à choisir",
+        badges: h("span", { class: "badge muted", style: "justify-self:start" }, w.label),
+        body: [
+            h("div", { class: "section-head" }, "Informations"),
+            fieldRow("Objet fabriqué", draftItem(d, "item", () => paintIllegal())),
+            fieldRow("Quantité", draftNumber(d, "count", 1, 500)),
+            fieldRow("Durée (secondes)", draftNumber(d, "duration", 1, 900)),
+            fieldRow(`Level min (1 à ${max})`, draftNumber(d, "minLevel", 1, max)),
+            fieldRow("XP du crew", draftNumber(d, "xp", 0, 10000)),
+            h("p", { class: "hint-line" }, `Level requis : le plus haut entre celui de l'atelier (${w.minLevel}) et celui de la recette.`),
+            h("div", { class: "section-head", style: "margin-top:10px" }, `Ingrédients (${d.ingredients.length}/10)`),
+            draftIngredients(d),
+        ],
+        actions: [
+            r ? deleteButton(async () => {
+                const yes = await confirmBox(`Retirer « ${r.label} » ?`, "La recette disparaît de l'atelier.", "Retirer", true);
+                if (!yes) return;
+                const res = await act("workshops.deleteRecipe", { recipeId: r.id }, "Recette retirée.");
+                if (!res) return;
+                illegalSaved();
+                illegalState.craftRecipe = null;
+                await loadWorkshops();
+            }) : null,
+            r ? duplicateButton(() => illegalSwitch(() => { illegalState.craftRecipe = "new"; illegalState.prefill = { ...d, ingredients: d.ingredients.map((i) => ({ ...i })) }; })) : null,
+            saveButton(saveRecipe, !r),
+        ],
     });
+}
 
-    return h("div", null,
-        h("div", { class: "card" },
-            h("div", { class: "card-head dev-head" }, h("h3", { class: "card-title" }, `Ateliers (${d.workshops.length})`),
-                h("div", { class: "btn-row" },
-                    h("button", { class: `btn small${workshopState.staffView ? " primary" : ""}`, title: "Affiche en jeu tous les ateliers (en orange), même sans être dans un crew autorisé", onclick: async () => {
-                        const enabled = !workshopState.staffView;
-                        const res = await act("workshops.staffView", { enabled }, null);
-                        if (!res) return;
-                        workshopState.staffView = enabled;
-                        paintIllegal();
-                    } }, icon("i-eye"), workshopState.staffView ? "Masquer les ateliers en jeu" : "Voir les ateliers en jeu"),
-                    h("button", { class: "btn small", title: "Crée un atelier avec pistolets, mitraillette, fusil et munitions (pièces d'armes et ferraille)", onclick: async () => {
-                        const res = await workshopAct("workshops.seed", {}, null);
-                        if (res) toast(`Atelier de départ créé (${res.created} recette${res.created > 1 ? "s" : ""}) : placez son emplacement.`, "ok");
-                    } }, icon("i-sparkle"), "Atelier de départ"),
-                    h("button", { class: "btn small primary", onclick: () => openWorkshop(null) }, icon("i-plus"), "Nouvel atelier"))),
-            h("p", { class: "hint-line", style: "margin:0" }, "Les membres des crews autorisés fabriquent à l'atelier ([E]) : ingrédients consommés, objet donné à la fin, XP au crew. Les armes fabriquées n'ont pas de numéro de série. Le level requis d'une recette est le plus haut entre celui de l'atelier et le sien.")),
-        d.workshops.length ? cards : h("div", { class: "card", style: "margin-top:16px" }, h("p", { class: "hint-line", style: "margin:0" }, "Aucun atelier : « Atelier de départ » en crée un tout prêt, ou « Nouvel atelier »."))
-    );
+async function saveRecipe() {
+    const draft = illegalState.draft;
+    if (!draft || draft.kind !== "recipe") return;
+    const d = draft.data;
+    if (!knownItem(d.item)) return toast(`L'objet « ${d.item} » n'existe pas dans ox_inventory.`, "error");
+    if (d.ingredients.some((i) => !knownItem(i.item))) return toast("Un ingrédient n'existe pas dans ox_inventory.", "error");
+    const creating = draft.key === "new";
+    const workshopId = illegalState.craftWorkshop;
+    const res = await act("workshops.saveRecipe", { workshopId, recipeId: creating ? null : draft.key, ...d }, creating ? "Recette ajoutée." : "Recette enregistrée.");
+    if (!res) return;
+    illegalSaved();
+    await loadWorkshops();
+    if (creating) {
+        const w = workshopState.data.workshops.find((entry) => entry.id === workshopId);
+        const added = w && latestOf(w.recipes.filter((r) => r.item === d.item));
+        illegalState.craftRecipe = added ? added.id : null;
+    }
+    paintIllegal();
 }
 
 function openWorkshop(w) {
@@ -143,58 +211,3 @@ function openWorkshop(w) {
     label.focus();
 }
 
-async function openWorkshopRecipe(w, r) {
-    const items = await loadCatalogItems();
-    const known = new Set(items.map((i) => i.name));
-    const d = workshopState.data;
-    const item = itemPicker(items, r ? r.item : "");
-    const num = (value, min, max) => h("input", { class: "input mono", type: "number", min: String(min), max: String(max), value: String(value) });
-    const count = num(r ? r.count : 1, 1, 500);
-    const duration = num(r ? r.duration : 60, 1, 900);
-    const minLevel = num(r ? r.minLevel : 1, 1, d.maxLevel);
-    const xp = num(r ? r.xp : 10, 0, 10000);
-    const ingredients = (r ? r.ingredients : [{ item: "", count: 1 }]).map((i) => ({ item: i.item, count: i.count }));
-    const list = h("div", { class: "ingredient-list" });
-    const paint = () => list.replaceChildren(...ingredients.map((entry, index) => {
-        const name = itemPicker(items, entry.item);
-        const amount = h("input", { class: "input mono", type: "number", min: "1", value: String(entry.count) });
-        name.addEventListener("input", () => { entry.item = name.value.trim(); });
-        amount.addEventListener("input", () => { entry.count = Number(amount.value || 1); });
-        return h("div", { class: "ingredient-row" }, name, amount,
-            h("button", { class: "btn small ghost", disabled: ingredients.length <= 1, onclick: () => { ingredients.splice(index, 1); paint(); } }, icon("i-trash")));
-    }));
-    paint();
-
-    openModal((close) => {
-        const submit = h("button", { class: "btn primary" }, icon("i-save"), r ? "Enregistrer" : "Ajouter");
-        submit.addEventListener("click", async () => {
-            const name = item.value.trim();
-            if (!known.has(name)) return toast(`L'objet « ${name} » n'existe pas dans ox_inventory.`, "error");
-            if (ingredients.some((i) => !known.has(i.item))) return toast("Un ingrédient n'existe pas dans ox_inventory.", "error");
-            const res = await workshopAct("workshops.saveRecipe", {
-                workshopId: w.id, recipeId: r ? r.id : null, item: name, count: Number(count.value), duration: Number(duration.value),
-                minLevel: Number(minLevel.value), xp: Number(xp.value), ingredients,
-            }, r ? "Recette enregistrée." : "Recette ajoutée.");
-            if (res) close();
-        });
-        return [
-            h("header", null, h("h3", null, r ? "Modifier la recette" : "Nouvelle recette"), h("p", null, `${w.label} · armes (WEAPON_…), munitions (ammo-…) ou tout autre objet`)),
-            h("div", { class: "body event-form" },
-                h("div", { class: "field" }, h("label", null, "Objet fabriqué"), item),
-                h("div", { class: "event-form-row" },
-                    h("div", { class: "field" }, h("label", null, "Quantité"), count),
-                    h("div", { class: "field" }, h("label", null, "Durée (secondes)"), duration)),
-                h("div", { class: "event-form-row" },
-                    h("div", { class: "field" }, h("label", null, "Level de crew minimum"), minLevel),
-                    h("div", { class: "field" }, h("label", null, "XP du crew par fabrication"), xp)),
-                h("div", { class: "field" }, h("label", null, "Ingrédients consommés"), list,
-                    h("button", { class: "btn small ghost", style: "justify-self:start", onclick: () => {
-                        if (ingredients.length >= 10) return toast("10 ingrédients maximum.", "error");
-                        ingredients.push({ item: "", count: 1 });
-                        paint();
-                    } }, icon("i-plus"), "Ajouter un ingrédient"))),
-            h("footer", null, h("button", { class: "btn ghost", onclick: () => close() }, "Annuler"), submit),
-        ];
-    });
-    item.focus();
-}

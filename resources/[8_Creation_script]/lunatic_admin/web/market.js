@@ -1,7 +1,7 @@
 "use strict";
 
 // ====================================================================
-//  lunatic_admin — tuile Illégal, onglet Tablette (étape 6)
+//  lunatic_admin — tuile Illégal, page Tablette (points de livraison à gauche, articles au centre, fiche à droite)
 //  Marché noir de la tablette des crews : catalogue, points de livraison, dernières commandes.
 // ====================================================================
 
@@ -31,35 +31,26 @@ function marketProblems(d) {
     return problems;
 }
 
-function marketPanel() {
+function marketPage() {
     const d = marketState.data;
     if (!d) {
         loadMarket();
-        return h("div", { class: "empty" }, icon("i-store"), "Chargement du marché noir…");
+        return illegalLoading("Tablette", "i-box", "Chargement du marché noir…");
     }
     const problems = marketProblems(d);
     const minutes = (s) => Math.round(s / 60);
+    const sel = illegalState.marketSel;
 
-    const items = d.items.map((i) => h("div", { class: "row catalog-row" },
-        itemImage(i.item),
-        h("div", { class: "who" },
-            h("b", null, i.label, i.missing ? h("span", { class: "badge ban", style: "margin-left:6px" }, "objet inconnu") : null,
-                h("span", { class: "badge muted ready-badge" }, `level ${i.minLevel}+`)),
-            h("span", null, `${i.item} · ${money(i.price)} l'unité · stock du jour ${i.stock}/${i.stockMax}`)),
-        h("div", { class: "btn-row" },
-            h("button", { class: "btn small ghost", onclick: () => openMarketItem(i) }, icon("i-edit"), "Modifier"),
-            h("button", { class: "btn small ghost", title: "Retirer", onclick: async () => {
-                const yes = await confirmBox(`Retirer « ${i.label} » du marché ?`, "Il ne sera plus proposé sur la tablette.", "Retirer", true);
-                if (yes) marketAct("market.deleteItem", { id: i.id }, "Article retiré.");
-            } }, icon("i-trash")))));
+    const tiles = d.items.map((i) => illegalTile({
+        item: i.item, label: i.label, badge: `Lv ${i.minLevel}`, active: i.id === sel, warn: i.missing, off: i.stock <= 0,
+        onclick: () => i.id !== sel && illegalSwitch(() => { illegalState.marketSel = i.id; }),
+    }));
 
-    const dropoffs = d.dropoffs.map((p, index) => h("div", { class: "row point-row" },
-        h("span", { class: "pid mono" }, String(index + 1)),
-        h("div", { class: "who" }, h("b", null, p.label), h("span", null, `${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)}`)),
-        h("div", { class: "btn-row" },
-            h("button", { class: "btn small", onclick: () => marketAct("market.moveDropoff", { id: p.id }, "Point replacé à votre position.") }, icon("i-crosshair"), "Définir"),
-            h("button", { class: "btn small ghost", onclick: () => act("market.tpDropoff", { id: p.id }, null) }, icon("i-goto"), "TP"),
-            h("button", { class: "btn small ghost", title: "Supprimer", onclick: () => marketAct("market.deleteDropoff", { id: p.id }, "Point supprimé.") }, icon("i-trash")))));
+    const dropoffs = d.dropoffs.map((p, index) => pointLine(index + 1, p.label, p, [
+        iconButton("i-crosshair", "Replacer à votre position", () => marketAct("market.moveDropoff", { id: p.id }, "Point replacé à votre position.")),
+        iconButton("i-goto", "TP", () => act("market.tpDropoff", { id: p.id }, null)),
+        iconButton("i-trash", "Supprimer", () => marketAct("market.deleteDropoff", { id: p.id }, "Point supprimé.")),
+    ]));
 
     const orders = d.orders.map((o) => h("div", { class: "row point-row" },
         h("span", { class: "pid mono" }, `#${o.id}`),
@@ -67,60 +58,77 @@ function marketPanel() {
             h("span", null, `${o.crew} · commandé par ${o.buyer}${o.collectedBy ? ` · récupéré par ${o.collectedBy}` : ""} · ${new Date(o.createdAt * 1000).toLocaleString("fr-FR")}`)),
         h("span", { class: `badge ${o.status === "collected" ? "ok" : o.status === "expired" ? "ban" : "warn"}` }, MARKET_STATUS[o.status] || o.status)));
 
-    return h("div", null,
-        h("div", { class: "card" },
-            h("div", { class: "card-head dev-head" }, h("h3", { class: "card-title" }, "Marché noir de la tablette", readyBadge(problems)),
-                h("div", { class: "btn-row" },
-                    h("button", { class: "btn small", title: "Ajoute les pièces d'armes et les ingrédients des drogues de départ", onclick: async () => {
-                        const res = await marketAct("market.seed", {}, null);
-                        if (res) toast(`${res.created} article(s) ajouté(s) au marché.`, "ok");
-                    } }, icon("i-sparkle"), "Catalogue de départ"),
-                    h("button", { class: "btn small primary", onclick: () => openMarketItem(null) }, icon("i-plus"), "Ajouter un article"))),
+    return {
+        title: "Tablette",
+        sub: `Marché noir des crews : paiement en argent sale, livraison entre ${minutes(d.delay[0])} et ${minutes(d.delay[1])} min à un point tiré au hasard, perdue après ${minutes(d.expire)} min. Stock remis au maximum chaque jour.`,
+        actions: [
+            readyBadge(problems),
+            h("button", { class: "btn small", title: "Ajoute les pièces d'armes et les ingrédients des drogues de départ", onclick: async () => {
+                const res = await marketAct("market.seed", {}, null);
+                if (res) toast(`${res.created} article(s) ajouté(s) au marché.`, "ok");
+            } }, icon("i-sparkle"), "Catalogue de départ"),
+        ],
+        side: [sideBlock(`Points de livraison (${d.dropoffs.length})`, iconButton("i-plus", "Ajouter un point à votre position", () => openMarketDropoff()),
+            dropoffs.length ? dropoffs : h("p", { class: "hint-line" }, "Aucun point : les commandes sont impossibles."),
+            h("p", { class: "hint-line" }, "Sans blip : seul le crew qui attend une commande voit son point."))],
+        center: h("div", null,
             readyHint(problems),
-            h("p", { class: "hint-line", style: "margin:0" }, `Les membres de crew ouvrent la tablette depuis leur inventaire (objet « Tablette »). Paiement immédiat en argent sale ; la commande arrive entre ${minutes(d.delay[0])} et ${minutes(d.delay[1])} min plus tard à un point de livraison tiré au hasard, puis est perdue si personne ne la récupère dans les ${minutes(d.expire)} min. Le stock de chaque article revient au maximum chaque jour.`),
-            items.length ? h("div", { class: "table", style: "margin-top:12px" }, items) : null),
-        h("div", { class: "card", style: "margin-top:16px" },
-            h("div", { class: "card-head dev-head" }, h("h3", { class: "card-title" }, `Points de livraison (${d.dropoffs.length})`),
-                h("button", { class: "btn small", onclick: () => openMarketDropoff() }, icon("i-plus"), "Ajouter à ma position")),
-            dropoffs.length ? h("div", { class: "table" }, dropoffs) : h("p", { class: "hint-line", style: "margin:0" }, "Aucun point : les commandes sont impossibles."),
-            h("p", { class: "hint-line" }, "Sans blip : seul le crew qui attend une commande voit son point (sur la tablette et au sol quand elle est prête).")),
-        h("div", { class: "card", style: "margin-top:16px" },
-            h("h3", { class: "card-title" }, "Dernières commandes"),
-            orders.length ? h("div", { class: "table" }, orders) : h("p", { class: "hint-line", style: "margin:0" }, "Aucune commande pour l'instant."))
-    );
+            h("div", { class: "items-grid" }, newTile("Ajouter un article", () => illegalSwitch(() => { illegalState.marketSel = "new"; }), sel === "new"), tiles),
+            h("div", { class: "section-head", style: "margin-top:22px" }, "Dernières commandes"),
+            orders.length ? h("div", { class: "table" }, orders) : h("p", { class: "hint-line", style: "margin:0" }, "Aucune commande pour l'instant.")),
+        editor: marketEditor(d.items.find((i) => i.id === sel)),
+    };
 }
 
-async function openMarketItem(entry) {
-    const items = await loadCatalogItems();
-    const known = new Set(items.map((i) => i.name));
-    const d = marketState.data;
-    const item = itemPicker(items, entry ? entry.item : "");
-    const num = (value, min, max) => h("input", { class: "input mono", type: "number", min: String(min), max: String(max), value: String(value) });
-    const price = num(entry ? entry.price : 100, 0, 1000000);
-    const minLevel = num(entry ? entry.minLevel : 1, 1, d.maxLevel);
-    const stockMax = num(entry ? entry.stockMax : 20, 1, 10000);
+function marketEditor(entry) {
+    if (!entry && illegalState.marketSel !== "new") return emptySelection("i-box", "Choisissez un article ou ajoutez-en un.");
+    const max = marketState.data.maxLevel;
+    const d = illegalDraft("market", entry ? entry.id : "new", entry ? `Article ${entry.label}` : "Nouvel article",
+        () => (entry ? { item: entry.item, price: entry.price, minLevel: entry.minLevel, stockMax: entry.stockMax } : { item: "", price: 100, minLevel: 1, stockMax: 20 }),
+        saveMarketItem);
 
-    openModal((close) => {
-        const submit = h("button", { class: "btn primary" }, icon("i-save"), entry ? "Enregistrer" : "Ajouter");
-        submit.addEventListener("click", async () => {
-            const name = item.value.trim();
-            if (!known.has(name)) return toast(`L'objet « ${name} » n'existe pas dans ox_inventory.`, "error");
-            const res = await marketAct("market.saveItem", { id: entry ? entry.id : null, item: name, price: Number(price.value), minLevel: Number(minLevel.value), stockMax: Number(stockMax.value) },
-                entry ? "Article enregistré." : "Article ajouté.");
-            if (res) close();
-        });
-        return [
-            h("header", null, h("h3", null, entry ? `Modifier ${entry.label}` : "Ajouter un article"), h("p", null, "Prix payé en argent sale, à l'unité.")),
-            h("div", { class: "body event-form" },
-                h("div", { class: "field" }, h("label", null, "Objet"), item),
-                h("div", { class: "event-form-row" },
-                    h("div", { class: "field" }, h("label", null, "Prix à l'unité ($)"), price),
-                    h("div", { class: "field" }, h("label", null, "Level de crew minimum"), minLevel)),
-                h("div", { class: "field" }, h("label", null, "Stock du jour (remis au maximum chaque jour)"), stockMax)),
-            h("footer", null, h("button", { class: "btn ghost", onclick: () => close() }, "Annuler"), submit),
-        ];
+    return selectionPanel({
+        item: d.item, title: entry ? entry.label : "Nouvel article", sub: d.item || "objet à choisir",
+        badges: entry ? h("span", { class: `badge ${entry.stock > 0 ? "muted" : "warn"}`, style: "justify-self:start" }, `stock du jour ${entry.stock}/${entry.stockMax}`) : null,
+        body: [
+            h("div", { class: "section-head" }, "Informations"),
+            fieldRow("Objet", draftItem(d, "item", () => paintIllegal())),
+            fieldRow("Prix à l'unité ($)", draftNumber(d, "price", 0, 1000000)),
+            fieldRow(`Level min (1 à ${max})`, draftNumber(d, "minLevel", 1, max)),
+            fieldRow("Stock du jour", draftNumber(d, "stockMax", 1, 10000)),
+            h("p", { class: "hint-line" }, "Prix payé en argent sale. Le stock revient au maximum chaque jour."),
+        ],
+        actions: [
+            entry ? deleteButton(async () => {
+                const yes = await confirmBox(`Retirer « ${entry.label} » du marché ?`, "Il ne sera plus proposé sur la tablette.", "Retirer", true);
+                if (!yes) return;
+                const res = await act("market.deleteItem", { id: entry.id }, "Article retiré.");
+                if (!res) return;
+                illegalSaved();
+                illegalState.marketSel = null;
+                await loadMarket();
+            }) : null,
+            entry ? duplicateButton(() => illegalSwitch(() => { illegalState.marketSel = "new"; illegalState.prefill = { ...d }; })) : null,
+            saveButton(saveMarketItem, !entry),
+        ],
     });
-    item.focus();
+}
+
+async function saveMarketItem() {
+    const draft = illegalState.draft;
+    if (!draft || draft.kind !== "market") return;
+    const d = draft.data;
+    if (!knownItem(d.item)) return toast(`L'objet « ${d.item} » n'existe pas dans ox_inventory.`, "error");
+    const creating = draft.key === "new";
+    const res = await act("market.saveItem", { id: creating ? null : draft.key, ...d }, creating ? "Article ajouté." : "Article enregistré.");
+    if (!res) return;
+    illegalSaved();
+    await loadMarket();
+    if (creating) {
+        const added = latestOf(marketState.data.items.filter((i) => i.item === d.item));
+        illegalState.marketSel = added ? added.id : null;
+    }
+    paintIllegal();
 }
 
 function openMarketDropoff() {
