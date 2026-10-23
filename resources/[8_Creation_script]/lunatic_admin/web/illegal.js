@@ -120,7 +120,7 @@ function illegalPage() {
         case "tablet": return marketPage();
         case "drugs": return drugsPage();
         case "missions": return missionsPage();
-        case "heists": return { title: "Braquages", sub: "Supérettes, bijouterie, banques : réglages, actions et points.", center: heistsPanel() };
+        case "heists": return holdupsPage();
         default: return fencePage();
     }
 }

@@ -58,10 +58,18 @@ function missionsPage() {
                     iconButton("i-trash", "Supprimer", () => contractAct("contracts.deletePoint", { id: p.id }, "Point supprimé.")),
                 ])) : h("p", { class: "hint-line" }, "Aucun point : le contrat ne sera pas proposé.")));
         }
-    } else if (selected && selected.link && selected.link.kind === "heist") {
-        side.push(sideBlock("Cibles", null,
-            h("p", { class: "hint-line" }, "Les cibles sont détectées par leur modèle sur toute la carte ; les points ajoutés à la main se gèrent dans la page Braquages."),
-            h("button", { class: "btn small", style: "margin:4px", onclick: () => illegalSwitch(() => { illegalState.tab = "heists"; }) }, icon("i-gem"), "Ouvrir Braquages")));
+    }
+
+    // Lieux de la mission, avec TP : magasins de la page Braquages, ou lieux fixes (banques, bijouterie)
+    if (selected && selected.holdup) {
+        if (!holdupState.data) loadHoldups();
+        const points = holdupState.data ? holdupState.data.points.filter((p) => p.type === selected.holdup) : [];
+        side.push(sideBlock(`Lieux (${points.length})`, iconButton("i-edit", "Gérer les points dans la page Braquages", () => illegalSwitch(() => { illegalState.tab = "heists"; illegalState.holdupType = selected.holdup; illegalState.holdupSel = null; })),
+            points.length ? points.map((p, i) => pointLine(i + 1, p.label, p, [iconButton("i-goto", "TP", () => act("holdups.tp", { id: p.id }, null))]))
+                : h("p", { class: "hint-line" }, holdupState.data ? "Aucun point : ajoutez-en dans la page Braquages." : "Chargement…")));
+    } else if (selected && selected.places.length) {
+        side.push(sideBlock(`Lieux (${selected.places.length})`, null,
+            selected.places.map((p) => pointLine(p.index, p.label, p, [iconButton("i-goto", "TP", () => act("missions.tp", { id: selected.id, index: p.index }, null))]))));
     }
 
     // Contrats en cours, sous la liste

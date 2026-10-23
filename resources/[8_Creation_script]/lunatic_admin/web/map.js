@@ -66,9 +66,14 @@ function gtaMap(options = {}) {
             return dot;
         },
         // Centre la carte sur une position du jeu
-        focus: (x, y, zoom) => map.setView([y, x], zoom ?? Math.max(map.getZoom(), 4)),
+        // (taille remesurée d'abord : la carte vient souvent d'être remise dans la page)
+        focus: (x, y, zoom) => {
+            map.invalidateSize(false);
+            map.setView([y, x], zoom ?? Math.max(map.getZoom(), 4));
+        },
         // Cadre l'ensemble de ce qui est dessiné
         fit: () => {
+            map.invalidateSize(false);
             const bounds = layer.getBounds();
             if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 4 });
         },

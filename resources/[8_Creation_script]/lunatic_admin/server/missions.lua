@@ -13,17 +13,21 @@ local CATEGORIES = {
     { id = 'street', label = 'Rue' },
 }
 
--- link : système déjà en jeu qui applique ces réglages ; reward : la mission paie un gain en argent sale
+-- link : système déjà en jeu qui applique ces réglages ; reward : la mission paie un gain en argent sale ;
+-- holdup : type des points de la page Braquages (PNJ au comptoir) ; places : lieux fixes de la carte, pour le TP
 local CATALOG = {
-    { id = 'heist_ammunation', label = 'Braquage Ammunation', category = 'heist', description = "Braquer l'armurerie." },
+    { id = 'heist_ammunation', label = 'Braquage Ammunation', category = 'heist', description = "Menacer l'armurier au comptoir.", holdup = 'ammunation', reward = true },
     { id = 'heist_atm', label = 'Braquage ATM', category = 'heist', description = 'Braquer un distributeur automatique.' },
-    { id = 'heist_barber', label = 'Braquage Barber', category = 'heist', description = 'Braquer le salon de coiffure.' },
-    { id = 'heist_binco', label = 'Braquage Binco', category = 'heist', description = 'Braquer la boutique de vêtements.' },
-    { id = 'heist_company', label = 'Braquage Entreprise', category = 'heist', description = 'Braquer une entreprise (activable une par une).' },
-    { id = 'heist_fleeca', label = 'Braquage Fleeca', category = 'heist', description = 'Pirater la porte du coffre, puis percer les casiers.', link = { 'heist', 'fleeca' } },
-    { id = 'heist_store', label = 'Braquage Supérette', category = 'heist', description = 'Forcer la caisse, puis percer le coffre.', link = { 'heist', 'store' } },
-    { id = 'heist_tattoo', label = 'Braquage Tattoo', category = 'heist', description = 'Braquer le salon de tatouage.' },
-    { id = 'heist_jewelry', label = 'Braquage Vangelico', category = 'heist', description = 'Briser les vitrines de la bijouterie.', link = { 'heist', 'jewelry' } },
+    { id = 'heist_barber', label = 'Braquage Barber', category = 'heist', description = 'Menacer le coiffeur au comptoir.', holdup = 'barber', reward = true },
+    { id = 'heist_binco', label = 'Braquage Binco', category = 'heist', description = 'Menacer le vendeur de la boutique de vêtements.', holdup = 'binco', reward = true },
+    { id = 'heist_company', label = 'Braquage Entreprise', category = 'heist', description = 'Braquer une entreprise (activable une par une).', holdup = 'company', reward = true },
+    { id = 'heist_fleeca', label = 'Braquage Fleeca', category = 'heist', description = 'Pirater la porte du coffre, puis percer les casiers.', link = { 'heist', 'fleeca' },
+        places = { { 'Fleeca Legion Square', 146.9, -1046.0, 29.4 }, { 'Fleeca Alta', 311.3, -284.5, 54.2 }, { 'Fleeca Burton', -353.5, -55.4, 49.0 },
+            { 'Fleeca Rockford Hills', -1211.0, -336.6, 37.8 }, { 'Fleeca Banham Canyon', -2957.7, 481.7, 15.7 }, { 'Fleeca Route 68', 1176.1, 2712.9, 38.1 } } },
+    { id = 'heist_store', label = 'Braquage Supérette', category = 'heist', description = 'Menacer le vendeur au comptoir, puis percer le coffre.', link = { 'heist', 'store' }, holdup = 'store', reward = true },
+    { id = 'heist_tattoo', label = 'Braquage Tattoo', category = 'heist', description = 'Menacer le tatoueur au comptoir.', holdup = 'tattoo', reward = true },
+    { id = 'heist_jewelry', label = 'Braquage Vangelico', category = 'heist', description = 'Briser les vitrines de la bijouterie.', link = { 'heist', 'jewelry' },
+        places = { { 'Vangelico Rockford Hills', -630.7, -237.0, 38.1 } } },
     { id = 'heist_yacht', label = 'Braquage Yacht', category = 'heist', description = 'Braquer le yacht.' },
     { id = 'contract_delivery', label = 'Livraison', category = 'contract', description = 'Récupérer un colis scellé et le livrer à temps.', link = { 'contract', 'delivery' }, reward = true },
     { id = 'contract_theft', label = 'Vol sur commande', category = 'contract', description = "Voler un modèle précis et l'amener au garage.", link = { 'contract', 'theft' }, reward = true },
@@ -218,14 +222,37 @@ Panel.actions['missions.list'] = function(_, actor)
     local list = {}
 
     for _, entry in ipairs(CATALOG) do
+        local places = {}
+
+        for index, place in ipairs(entry.places or {}) do
+            places[#places + 1] = { index = index, label = place[1], x = place[2], y = place[3], z = place[4] }
+        end
+
         list[#list + 1] = {
             id = entry.id, label = entry.label, category = entry.category, description = entry.description,
             ready = entry.link ~= nil, link = entry.link and { kind = entry.link[1], type = entry.link[2] } or nil, reward = entry.reward == true,
-            settings = settings[entry.id], today = counts[entry.id] or 0,
+            holdup = entry.holdup, places = places, settings = settings[entry.id], today = counts[entry.id] or 0,
         }
     end
 
     return { ok = true, silent = true, categories = CATEGORIES, missions = list, maxLevel = maxLevel() }
+end
+
+-- TP à un lieu fixe d'une mission (banques Fleeca, bijouterie)
+Panel.actions['missions.tp'] = function(src, actor, data)
+    if not Ranks.hasPermission(actor, 'illegal.manage') then
+        return denied()
+    end
+
+    local entry = BY_ID[data.id]
+    local place = entry and entry.places and entry.places[tonumber(data.index)]
+
+    if not place then
+        return Panel.fail('Lieu introuvable.')
+    end
+
+    TriggerClientEvent('lunatic_admin:teleport', src, vector3(place[2], place[3], place[4] + 1.0))
+    return { ok = true, silent = true }
 end
 
 Panel.actions['missions.save'] = function(src, actor, data)

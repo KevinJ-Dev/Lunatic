@@ -772,6 +772,14 @@ body.hidden.minimized .mini-pill { display: flex; }
 .mission-tag { min-width: 44px; padding: 2px 6px; border-radius: 6px; background: var(--surface-2); color: var(--muted); font: 600 10px var(--mono); text-align: center; }
 .mission-row.active .mission-tag { background: rgba(var(--accent-rgb), .25); color: #fff; }
 
+.illegal-page.holdup-layout { grid-template-columns: 270px minmax(0, 1fr) minmax(400px, 1.15fr); }
+.holdup-editor .item-head { padding-bottom: 6px; }
+.holdup-form { display: grid; gap: 8px; padding: 4px 18px 10px; }
+.holdup-form .btn-row { gap: 6px; }
+.holdup-map { flex: 1; min-height: 220px; display: flex; flex-direction: column; padding: 4px 18px 18px; border-top: 1px solid var(--line); }
+.holdup-map .section-head { margin: 10px 0 8px; }
+.holdup-editor > .empty { flex: none; padding: 30px 20px 10px; }
+
 /* Carte de Los Santos (Leaflet) */
 .map-pane { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 16px 18px 18px; border-left: 1px solid var(--line); }
 .map-head { display: flex; align-items: center; gap: 8px; min-height: 30px; }

@@ -1859,8 +1859,21 @@ async function demoNui(name, data) {
                 { id: "door", label: "Porte du coffre", duration: 15, tool: "hack_device", toolLabel: "Boîtier de piratage", breakChance: 25, alert: 100, models: ["v_ilev_gb_vauldr"], loot: [], points: [] },
                 { id: "locker", label: "Casier", duration: 30, tool: "drill", toolLabel: "Perceuse", breakChance: 10, alert: 0, count: 4, models: [], loot: [{ item: "marked_bills", label: "Billets marqués", min: 15, max: 30, chance: 100 }, { item: "gold_bar", label: "Lingot d'or", min: 1, max: 1, chance: 15 }] }] },
         ] };
+    if (name === "action" && data && data.action === "holdups.list") return { ok: true,
+        types: [{ id: "store", label: "Supérette", short: "SUP", ped: "mp_m_shopkeep_01" }, { id: "barber", label: "Barber", short: "BARBER", ped: "s_f_m_fembarber" }, { id: "binco", label: "Binco", short: "BINCO", ped: "s_f_y_shop_low" },
+            { id: "ammunation", label: "Ammunation", short: "AMMU", ped: "s_m_y_ammucity_01" }, { id: "tattoo", label: "Tattoo", short: "TATTOO", ped: "u_m_y_tattoo_01" }, { id: "company", label: "Entreprise", short: "ENTR", ped: "a_m_y_business_02" },
+            { id: "heliwave", label: "Heliwave", short: "HELI", ped: "s_m_y_airworker", soon: true }],
+        companies: [{ job: "burgershot", label: "Burger Shot" }, { job: "bennys", label: "Benny's" }],
+        points: [
+            { id: 1, type: "store", label: "Supérette Innocence Blvd", ped: "mp_m_shopkeep_01", x: 24.5, y: -1346.6, z: 29.5, h: 271, active: true },
+            { id: 10, type: "store", label: "LTD Grove Street", ped: "mp_m_shopkeep_01", x: -46.7, y: -1757.9, z: 29.4, h: 47, active: true },
+            { id: 21, type: "barber", label: "Herr Kutz Davis", ped: "s_f_m_fembarber", x: 134.6, y: -1707.9, z: 29.3, h: 140, active: true },
+            { id: 34, type: "ammunation", label: "Ammunation Pillbox Hill", ped: "s_m_y_ammucity_01", x: 22.1, y: -1107.3, z: 29.8, h: 160, active: true },
+            { id: 51, type: "company", label: "Caisse du Burger Shot", ped: "a_m_y_business_02", company: "burgershot", x: -1193.1, y: -893.8, z: 14, h: 0, active: false },
+        ] };
     if (name === "action" && data && data.action === "missions.list") {
         const m = (id, label, category, link, reward, enabled) => ({ id, label, category, description: `${label} (démo)`, ready: !!link, link: link ? { kind: link[0], type: link[1] } : null, reward: !!reward, today: link ? 2 : 0,
+            holdup: id === "heist_store" ? "store" : id === "heist_ammunation" ? "ammunation" : null, places: id === "heist_fleeca" ? [{ index: 1, label: "Fleeca Legion Square", x: 146.9, y: -1046, z: 29.4 }] : [],
             settings: { enabled: !!enabled, xp: 20, influence: 3, police: 2, bypass: false, reward: reward ? 3000 : 0, dailyLimit: 0, levelRequired: true, minLevel: 1 } });
         return { ok: true, maxLevel: 10, categories: [{ id: "heist", label: "Braquages" }, { id: "contract", label: "Contrats" }, { id: "traffic", label: "Trafic" }, { id: "street", label: "Rue" }], missions: [
             m("heist_ammunation", "Braquage Ammunation", "heist"), m("heist_fleeca", "Braquage Fleeca", "heist", ["heist", "fleeca"], false, true),

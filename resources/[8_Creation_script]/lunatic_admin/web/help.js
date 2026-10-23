@@ -81,8 +81,8 @@ const HELP = {
             "Territoires : le crew qui a le plus d'influence (ventes de drogue) dans un cercle le tient et touche ses bonus ; « Mode création » ou « Placer sur la carte » place une zone d'un clic sur la carte ; « Voir en jeu » affiche les zones sur votre carte même sans crew.",
             "Craft d'armes : les ateliers sont réservés à des types de crew et à un level minimum ; les armes fabriquées n'ont pas de numéro de série.",
             "Tablette : objet « Tablette » de l'inventaire, réservé aux crews. Le marché noir livre à un point discret, à placer dans l'onglet Tablette.",
-            "Missions : placez les points de chaque type de contrat (récupération, livraison, véhicules, garages, cargaisons) ; sans points, le type n'est pas proposé.",
-            "Braquages : caisses, coffres, vitrines et portes de coffre sont détectés par leur modèle sur toute la carte ; un point ajouté à la main sert seulement pour une cible que la détection ne trouve pas.",
+            "Missions : statut, XP, influence, policiers, gain, limite par jour et level de chaque mission ; la fiche liste aussi ses lieux avec un bouton TP. Les contrats ont besoin de leurs points en ville pour être proposés.",
+            "Braquages : un point par magasin, avec son PNJ au comptoir ; un clic sur la mini-carte le place, « Définir » le met exactement là où vous êtes (hauteur et orientation). « Cibles détectées » : coffres, vitrines et Fleeca trouvés par leur modèle.",
         ],
     },
     crews: {
