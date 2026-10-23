@@ -1896,7 +1896,10 @@ async function demoNui(name, data) {
             m("heist_ammunation", "Braquage Ammunation", "heist"), m("heist_fleeca", "Braquage Fleeca", "heist", ["heist", "fleeca"], false, true),
             m("heist_store", "Braquage Supérette", "heist", ["heist", "store"], false, true), m("heist_jewelry", "Braquage Vangelico", "heist", ["heist", "jewelry"], false, false),
             m("contract_delivery", "Livraison", "contract", ["contract", "delivery"], true, true), m("contract_cargo", "Cargaison gardée", "contract", ["contract", "cargo"], true, true),
-            m("gofast", "GoFast", "traffic", null, true), m("racket", "Racket", "street", null, true), m("snatch", "Vol à l'arraché", "street"),
+            m("gofast", "GoFast", "traffic", null, true), m("racket", "Racket", "street", null, true),
+            { ...m("snatch", "Vol à l'arraché", "street", null, true, true), ready: true,
+                advanced: [{ key: "success", label: "Chance de réussite (%)", min: 0, max: 100, value: 70 }, { key: "alert", label: "Un témoin appelle la police (%)", min: 0, max: 100, value: 25 }, { key: "cooldown", label: "Délai entre deux vols, par joueur (s)", min: 10, max: 3600, value: 90 }],
+                loot: [{ item: "jewel_ring", label: "Bague", min: 1, max: 1, chance: 10 }] },
         ] };
     }
     if (name === "action" && data && data.action === "contracts.info") return { ok: true, maxLevel: 10,

@@ -132,13 +132,63 @@ function missionEditor(m) {
                 draftToggle(d, "levelRequired", "Level du crew", m.category === "heist" ? "Activé : réservé aux crews du level requis. Sinon : ouvert à tous." : "Activé : level de crew minimum requis.")),
             fieldRow(`Level requis (1 à ${max})`, draftNumber(d, "minLevel", 1, max)),
             h("p", { class: "hint-line", style: "margin:0" },
-                m.reward ? (m.category === "contract" ? "Chaque offre paie entre 80 % et 120 % du gain, en argent sale." : "Gain en argent sale (entre 80 % et 120 %) quand le vendeur a rempli le sac.")
+                m.reward ? (m.category === "contract" ? "Chaque offre paie entre 80 % et 120 % du gain, en argent sale."
+                    : m.category === "street" ? "Gain en argent sale, entre 60 % et 140 % selon la victime. Ouvert à tous : XP et influence si le joueur a un crew."
+                        : "Gain en argent sale (entre 80 % et 120 %) quand le vendeur a rempli le sac.")
                     : "Butin en objets (billets marqués, bijoux…), réglé dans les réglages avancés."),
             h("p", { class: "hint-line", style: "margin:0" }, "XP et influence : au crew, une fois par mission réussie ; l'influence compte pour le territoire où elle a lieu.")),
         h("div", { class: `item-actions${m.holdup && m.link ? " three" : ""}` },
             m.holdup ? h("button", { class: "btn small", title: "Arme exigée, durée, délai, alarme, résistance du vendeur, butin", onclick: () => (holdupState.data ? openHoldupSettings(m.holdup) : loadHoldups()) }, icon("i-tool"), m.link ? "Vendeur" : "Réglages avancés") : null,
             m.link ? h("button", { class: "btn small", onclick: advanced }, icon("i-tool"), m.holdup ? "Coffre" : "Réglages avancés") : null,
+            m.advanced ? h("button", { class: "btn small", onclick: () => openMissionAdvanced(m) }, icon("i-tool"), "Réglages avancés") : null,
             saveButton(saveMission, false)));
+}
+
+// Réglages propres à une mission (champs décrits par le serveur) et son butin
+async function openMissionAdvanced(m) {
+    const items = await loadCatalogItems();
+    const known = new Set(items.map((i) => i.name));
+    const fields = m.advanced.map((f) => ({ ...f, input: h("input", { class: "input mono", type: "number", min: String(f.min), max: String(f.max), value: String(f.value) }) }));
+
+    const loot = (m.loot || []).map((l) => ({ item: l.item, min: l.min, max: l.max, chance: l.chance }));
+    const list = h("div", { class: "ingredient-list" });
+    const paint = () => list.replaceChildren(...loot.map((entry, index) => {
+        const name = itemPicker(items, entry.item);
+        const field = (key, min, max, title) => {
+            const input = h("input", { class: "input mono", type: "number", min: String(min), max: String(max), value: String(entry[key]), title });
+            input.addEventListener("input", () => { entry[key] = Number(input.value || 0); });
+            return input;
+        };
+        name.addEventListener("input", () => { entry.item = name.value.trim(); });
+        return h("div", { class: "ingredient-row loot-row" }, name, field("min", 1, 1000, "Minimum"), field("max", 1, 1000, "Maximum"), field("chance", 1, 100, "Chance (%)"),
+            h("button", { class: "btn small ghost", onclick: () => { loot.splice(index, 1); paint(); } }, icon("i-trash")));
+    }));
+    paint();
+
+    openModal((close) => {
+        const submit = h("button", { class: "btn primary" }, icon("i-save"), "Enregistrer");
+        submit.addEventListener("click", async () => {
+            if (loot.some((l) => !known.has(l.item))) return toast("Un objet du butin n'existe pas dans ox_inventory.", "error");
+            const advanced = {};
+            for (const f of fields) advanced[f.key] = Number(f.input.value);
+            const res = await act("missions.saveAdvanced", { id: m.id, advanced, loot }, "Réglages enregistrés.");
+            if (!res) return;
+            close();
+            await loadMissions();
+        });
+        return [
+            h("header", null, h("h3", null, `Réglages · ${m.label}`), h("p", null, m.description)),
+            h("div", { class: "body event-form" },
+                fields.map((f) => h("div", { class: "field" }, h("label", null, f.label), f.input)),
+                h("div", { class: "field" }, h("label", null, "Butin en plus du gain (objet · min · max · chance %)"), list,
+                    h("button", { class: "btn small ghost", style: "justify-self:start", onclick: () => {
+                        if (loot.length >= 8) return toast("8 objets maximum.", "error");
+                        loot.push({ item: "", min: 1, max: 1, chance: 20 });
+                        paint();
+                    } }, icon("i-plus"), "Ajouter un objet"))),
+            h("footer", null, h("button", { class: "btn ghost", onclick: () => close() }, "Annuler"), submit),
+        ];
+    });
 }
 
 async function saveMission() {

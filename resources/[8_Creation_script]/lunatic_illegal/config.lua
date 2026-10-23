@@ -52,3 +52,6 @@ Config.HoldupAccount = 'black_money' -- compte crédité du gain
 Config.HoldupRange = 7.0            -- distance maximum au vendeur pour le menacer (m)
 Config.HoldupKeepRange = 9.0        -- au-delà pendant que le sac se remplit : braquage raté, alarme
 Config.HoldupSpawnRange = 60.0      -- les vendeurs apparaissent quand un joueur est à moins de cette distance (m)
+
+-- Délinquance de rue (vol à l'arraché ; réglages dans le panel, page Missions)
+Config.StreetAccount = 'black_money' -- compte crédité de l'argent volé

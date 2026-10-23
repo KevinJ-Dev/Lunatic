@@ -14,7 +14,8 @@ local CATEGORIES = {
 }
 
 -- link : système déjà en jeu qui applique ces réglages ; reward : la mission paie un gain en argent sale ;
--- holdup : type des points de la page Braquages (PNJ au comptoir) ; places : lieux fixes de la carte, pour le TP
+-- holdup : type des points de la page Braquages (PNJ au comptoir) ; places : lieux fixes de la carte, pour le TP ;
+-- ready : codée dans lunatic_illegal ; advanced : réglages propres à la mission (nombres entiers), loot : butin par défaut
 local CATALOG = {
     { id = 'heist_ammunation', label = 'Braquage Ammunation', category = 'heist', description = "Menacer l'armurier au comptoir.", holdup = 'ammunation', reward = true },
     { id = 'heist_atm', label = 'Braquage ATM', category = 'heist', description = 'Braquer un distributeur automatique.' },
@@ -36,7 +37,13 @@ local CATALOG = {
     { id = 'gofast_sea', label = 'GoFast Maritime', category = 'traffic', description = 'Livraison de drogue maritime.', reward = true },
     { id = 'burglary', label = 'Cambriolage', category = 'street', description = 'Cambrioler des habitations.' },
     { id = 'racket', label = 'Racket', category = 'street', description = 'Racketter des PNJ.', reward = true },
-    { id = 'snatch', label = "Vol à l'arraché", category = 'street', description = 'Voler des PNJ dans la rue.' },
+    { id = 'snatch', label = "Vol à l'arraché", category = 'street', description = "Arracher le sac ou le portefeuille d'un passant ([E] tout près de lui).", ready = true, reward = true,
+        advanced = {
+            { key = 'success', label = 'Chance de réussite (%)', min = 0, max = 100, default = 70 },
+            { key = 'alert', label = 'Un témoin appelle la police (%)', min = 0, max = 100, default = 25 },
+            { key = 'cooldown', label = 'Délai entre deux vols, par joueur (s)', min = 10, max = 3600, default = 90 },
+        },
+        loot = { { item = 'jewel_ring', min = 1, max = 1, chance = 10 }, { item = 'jewel_watch', min = 1, max = 1, chance = 6 } } },
 }
 
 local BY_ID = {}
@@ -55,7 +62,14 @@ local START = {
 -- Gain de départ des braquages de magasins (argent sale, ±20 % à chaque braquage)
 local HOLDUP_REWARDS = { heist_store = 1500, heist_barber = 1200, heist_binco = 1200, heist_tattoo = 1500, heist_ammunation = 4000, heist_company = 3000 }
 
-local LIMITS = { xp = 10000, influence = 1000, police = 20, reward = 1000000, daily = 500 }
+-- Missions codées après coup : réglages de départ appliqués une fois (KVP) sur la ligne déjà créée
+local READY_START = {
+    snatch = { kvp = 'missions_snatch_ready', values = { reward = 250, xp = 2, influence = 1, police = 0, levelRequired = false } },
+}
+
+local LIMITS = { xp = 10000, influence = 1000, police = 20, reward = 1000000, daily = 500, loot = 8 }
+
+local ox = exports.ox_inventory
 
 local settings = {}
 local daily = { date = '', counts = {} }
@@ -150,6 +164,29 @@ function Missions.get(id)
     return settings[id]
 end
 
+-- Réglages complets d'une mission codée dans lunatic_illegal : communs + avancés (valeurs par défaut comprises) + butin
+exports('getMissionSettings', function(id)
+    local entry, s = BY_ID[id], settings[id]
+
+    if not entry or not s then
+        return nil
+    end
+
+    local full = json.decode(json.encode(s))
+    full.id = id
+    full.police = s.bypass and 0 or s.police
+    full.advanced = full.advanced or {}
+
+    for _, field in ipairs(entry.advanced or {}) do
+        if full.advanced[field.key] == nil then
+            full.advanced[field.key] = field.default
+        end
+    end
+
+    full.loot = full.loot or json.decode(json.encode(entry.loot or {}))
+    return full
+end)
+
 -- Réglages communs appliqués sur ceux d'un braquage ou d'un contrat (utilisé par getHeistConfig / getContractConfig)
 function Missions.apply(kind, typeId, s)
     local id = (kind == 'heist' and 'heist_' or 'contract_') .. typeId
@@ -226,6 +263,22 @@ local function load()
         end
     end
 
+    for id, start in pairs(READY_START) do
+        local s = settings[id]
+
+        if s and not GetResourceKvpString(start.kvp) then
+            SetResourceKvp(start.kvp, '1')
+
+            for key, value in pairs(start.values) do
+                if key ~= 'reward' or (s.reward or 0) == 0 then
+                    s[key] = value
+                end
+            end
+
+            MySQL.update.await('UPDATE `lunatic_missions` SET `settings` = ? WHERE `id` = ?', { json.encode(s), id })
+        end
+    end
+
     TriggerEvent('lunatic_admin:heistsChanged')
 end
 
@@ -253,8 +306,31 @@ Panel.actions['missions.list'] = function(_, actor)
     local counts = today()
     local list = {}
 
+    local function itemLabel(name)
+        local item = ox:Items(name)
+        return item and item.label or name, not item
+    end
+
     for _, entry in ipairs(CATALOG) do
         local places = {}
+        local advanced, loot = nil, nil
+
+        -- Réglages avancés : champs du catalogue avec la valeur enregistrée, et butin avec le nom des objets
+        if entry.advanced then
+            local saved = settings[entry.id] and settings[entry.id].advanced or {}
+            advanced = {}
+
+            for _, field in ipairs(entry.advanced) do
+                advanced[#advanced + 1] = { key = field.key, label = field.label, min = field.min, max = field.max, value = saved[field.key] or field.default }
+            end
+
+            loot = {}
+
+            for _, l in ipairs(settings[entry.id] and settings[entry.id].loot or entry.loot or {}) do
+                local label, missing = itemLabel(l.item)
+                loot[#loot + 1] = { item = l.item, min = l.min, max = l.max, chance = l.chance, label = label, missing = missing }
+            end
+        end
 
         for index, place in ipairs(entry.places or {}) do
             places[#places + 1] = { index = index, label = place[1], x = place[2], y = place[3], z = place[4] }
@@ -262,8 +338,9 @@ Panel.actions['missions.list'] = function(_, actor)
 
         list[#list + 1] = {
             id = entry.id, label = entry.label, category = entry.category, description = entry.description,
-            ready = entry.link ~= nil or (entry.holdup ~= nil and entry.holdup ~= 'heliwave'), link = entry.link and { kind = entry.link[1], type = entry.link[2] } or nil, reward = entry.reward == true,
+            ready = entry.ready == true or entry.link ~= nil or (entry.holdup ~= nil and entry.holdup ~= 'heliwave'), link = entry.link and { kind = entry.link[1], type = entry.link[2] } or nil, reward = entry.reward == true,
             holdup = entry.holdup, places = places, settings = settings[entry.id], today = counts[entry.id] or 0,
+            advanced = advanced, loot = loot,
         }
     end
 
@@ -331,11 +408,65 @@ Panel.actions['missions.save'] = function(src, actor, data)
         return Panel.fail(('Level requis : un nombre entier entre 1 et %d.'):format(maxLevel()))
     end
 
+    -- Les réglages avancés et le butin se gardent (ils s'enregistrent à part)
+    local previous = settings[entry.id] or {}
+    s.advanced, s.loot = previous.advanced, previous.loot
+
     settings[entry.id] = s
     MySQL.update.await('INSERT INTO `lunatic_missions` (`id`, `settings`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `settings` = VALUES(`settings`)', { entry.id, json.encode(s) })
     TriggerEvent('lunatic_admin:heistsChanged')
     TriggerEvent('lunatic_admin:holdupsChanged')
     Logs.add(src, 'missions.save', nil, { label = entry.label, operation = s.enabled and 'active' or 'désactivée' })
+
+    return { ok = true, silent = true }
+end
+
+-- Réglages avancés d'une mission (champs décrits dans le catalogue) et butin
+Panel.actions['missions.saveAdvanced'] = function(src, actor, data)
+    if not Ranks.hasPermission(actor, 'illegal.manage') then
+        return denied()
+    end
+
+    local entry = BY_ID[data.id]
+    local s = entry and settings[entry.id]
+
+    if not s or not entry.advanced then
+        return Panel.fail('Mission inconnue.')
+    end
+
+    local input = type(data.advanced) == 'table' and data.advanced or {}
+    local advanced = {}
+
+    for _, field in ipairs(entry.advanced) do
+        local value = whole(input[field.key], field.min, field.max)
+
+        if not value then
+            return Panel.fail(('%s : un nombre entier entre %d et %d.'):format(field.label, field.min, field.max))
+        end
+
+        advanced[field.key] = value
+    end
+
+    local loot = {}
+
+    if type(data.loot) ~= 'table' or #data.loot > LIMITS.loot then
+        return Panel.fail(('Butin : %d objets maximum.'):format(LIMITS.loot))
+    end
+
+    for _, l in ipairs(data.loot) do
+        local min, max, chance = whole(l.min, 1, 1000), whole(l.max, 1, 1000), whole(l.chance, 1, 100)
+
+        if type(l.item) ~= 'string' or not ox:Items(l.item) or not min or not max or not chance or min > max then
+            return Panel.fail(('Butin invalide : %s.'):format(tostring(l.item)))
+        end
+
+        loot[#loot + 1] = { item = l.item, min = min, max = max, chance = chance }
+    end
+
+    s.advanced, s.loot = advanced, loot
+    MySQL.update.await('UPDATE `lunatic_missions` SET `settings` = ? WHERE `id` = ?', { json.encode(s), entry.id })
+    TriggerEvent('lunatic_admin:heistsChanged')
+    Logs.add(src, 'missions.save', nil, { label = entry.label, operation = 'réglages avancés' })
 
     return { ok = true, silent = true }
 end
