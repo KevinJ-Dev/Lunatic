@@ -177,8 +177,10 @@ async function loadJobs() {
     jobsCache = res && res.ok && Array.isArray(res.jobs) ? res.jobs.map((j) => ({ ...j, grades: Array.isArray(j.grades) ? j.grades : [] })) : [];
 }
 
-async function loadItems() {
-    if (itemsCache) return;
+// Objets du serveur pour « Donner un objet » (nom distinct de loadItems de la tuile Items : même portée globale)
+async function loadGiveItems() {
+    // Une liste vide (serveur pas prêt) n'est pas gardée : nouvel essai à la prochaine ouverture
+    if (itemsCache && itemsCache.length) return;
     const res = await nui("action", { action: "economy.itemList", payload: {} });
     itemsCache = res && res.ok && Array.isArray(res.items) ? res.items : [];
 }
@@ -201,7 +203,7 @@ function openGiveItem(panel, info) {
         }) : [h("span", { class: "muted" }, "Aucun objet ne correspond.")]));
     };
     search.addEventListener("input", () => { filter = search.value.trim(); paint(); });
-    loadItems().then(paint);
+    loadGiveItems().then(paint);
 
     openModal((close) => {
         confirmBtn.addEventListener("click", async () => {
