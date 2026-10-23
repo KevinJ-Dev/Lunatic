@@ -1893,7 +1893,11 @@ async function demoNui(name, data) {
             holdup: id === "heist_store" ? "store" : id === "heist_ammunation" ? "ammunation" : null, places: id === "heist_fleeca" ? [{ index: 1, label: "Fleeca Legion Square", x: 146.9, y: -1046, z: 29.4 }] : [],
             settings: { enabled: !!enabled, xp: 20, influence: 3, police: 2, bypass: false, reward: reward ? 3000 : 0, dailyLimit: 0, levelRequired: true, minLevel: 1 } });
         return { ok: true, maxLevel: 10, categories: [{ id: "heist", label: "Braquages" }, { id: "contract", label: "Contrats" }, { id: "traffic", label: "Trafic" }, { id: "street", label: "Rue" }], missions: [
-            m("heist_ammunation", "Braquage Ammunation", "heist"), m("heist_fleeca", "Braquage Fleeca", "heist", ["heist", "fleeca"], false, true),
+            m("heist_ammunation", "Braquage Ammunation", "heist"),
+            { ...m("heist_atm", "Braquage ATM", "heist", null, true, true), ready: true, loot: [],
+                advanced: [{ key: "tool", label: "Outil nécessaire (objet)", item: true, value: "hack_device" }, { key: "difficulty", label: "Difficulté du piratage", value: "medium", options: [{ value: "easy", label: "Facile" }, { value: "medium", label: "Moyenne" }, { value: "hard", label: "Difficile" }] },
+                    { key: "duration", label: "Temps pour que les billets sortent (s)", min: 5, max: 180, value: 25 }] },
+m("heist_fleeca", "Braquage Fleeca", "heist", ["heist", "fleeca"], false, true),
             m("heist_store", "Braquage Supérette", "heist", ["heist", "store"], false, true), m("heist_jewelry", "Braquage Vangelico", "heist", ["heist", "jewelry"], false, false),
             m("contract_delivery", "Livraison", "contract", ["contract", "delivery"], true, true), m("contract_cargo", "Cargaison gardée", "contract", ["contract", "cargo"], true, true),
             m("gofast", "GoFast", "traffic", null, true), { ...m("racket", "Racket", "street", null, true, true), ready: true, loot: [],

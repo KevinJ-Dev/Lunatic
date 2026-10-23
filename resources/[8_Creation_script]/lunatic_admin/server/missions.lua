@@ -18,7 +18,17 @@ local CATEGORIES = {
 -- ready : codée dans lunatic_illegal ; advanced : réglages propres à la mission (nombres entiers), loot : butin par défaut
 local CATALOG = {
     { id = 'heist_ammunation', label = 'Braquage Ammunation', category = 'heist', description = "Menacer l'armurier au comptoir.", holdup = 'ammunation', reward = true },
-    { id = 'heist_atm', label = 'Braquage ATM', category = 'heist', description = 'Braquer un distributeur automatique.' },
+    { id = 'heist_atm', label = 'Braquage ATM', category = 'heist', description = "Pirater un distributeur avec l'outil demandé ([E] devant), réussir le piratage, puis attendre que les billets sortent.", ready = true, reward = true,
+        advanced = {
+            { key = 'tool', label = 'Outil nécessaire (objet)', default = 'hack_device', item = true },
+            { key = 'difficulty', label = 'Difficulté du piratage', default = 'medium', options = { { 'easy', 'Facile' }, { 'medium', 'Moyenne' }, { 'hard', 'Difficile' } } },
+            { key = 'duration', label = "Temps pour que les billets sortent (s)", min = 5, max = 180, default = 25 },
+            { key = 'breakChance', label = "Casse de l'outil si le piratage échoue (%)", min = 0, max = 100, default = 30 },
+            { key = 'alert', label = 'Alarme du distributeur (%)', min = 0, max = 100, default = 60 },
+            { key = 'cooldown', label = 'Délai avant de repirater ce distributeur (min)', min = 5, max = 1440, default = 60 },
+            { key = 'playerCooldown', label = 'Délai entre deux piratages, par joueur (s)', min = 0, max = 3600, default = 300 },
+        },
+        loot = {} },
     { id = 'heist_barber', label = 'Braquage Barber', category = 'heist', description = 'Menacer le coiffeur au comptoir.', holdup = 'barber', reward = true },
     { id = 'heist_binco', label = 'Braquage Binco', category = 'heist', description = 'Menacer le vendeur de la boutique de vêtements.', holdup = 'binco', reward = true },
     { id = 'heist_company', label = 'Braquage Entreprise', category = 'heist', description = 'Braquer une entreprise (activable une par une).', holdup = 'company', reward = true },
@@ -74,6 +84,7 @@ local HOLDUP_REWARDS = { heist_store = 1500, heist_barber = 1200, heist_binco = 
 local READY_START = {
     snatch = { kvp = 'missions_snatch_ready', values = { reward = 250, xp = 2, influence = 1, police = 0, levelRequired = false } },
     racket = { kvp = 'missions_racket_ready', values = { reward = 400, xp = 3, influence = 2, police = 0, levelRequired = false } },
+    heist_atm = { kvp = 'missions_atm_ready', values = { reward = 2000, xp = 5, influence = 2, police = 1, levelRequired = false } },
 }
 
 local LIMITS = { xp = 10000, influence = 1000, police = 20, reward = 1000000, daily = 500, loot = 8 }
@@ -337,7 +348,7 @@ Panel.actions['missions.list'] = function(_, actor)
                     options[#options + 1] = { value = option[1], label = option[2] }
                 end
 
-                advanced[#advanced + 1] = { key = field.key, label = field.label, min = field.min, max = field.max, options = options, value = saved[field.key] or field.default }
+                advanced[#advanced + 1] = { key = field.key, label = field.label, min = field.min, max = field.max, options = options, item = field.item, value = saved[field.key] or field.default }
             end
 
             loot = {}
@@ -456,8 +467,14 @@ Panel.actions['missions.saveAdvanced'] = function(src, actor, data)
     for _, field in ipairs(entry.advanced) do
         local value = nil
 
-        -- Liste de choix (ex. arme exigée) ou nombre entier
-        if field.options then
+        -- Objet d'ox_inventory (vide : aucun), liste de choix (ex. arme exigée) ou nombre entier
+        if field.item then
+            value = type(input[field.key]) == 'string' and input[field.key]:match('^%s*(.-)%s*$') or ''
+
+            if value ~= '' and not ox:Items(value) then
+                return Panel.fail(("%s : l'objet « %s » n'existe pas dans ox_inventory."):format(field.label, value))
+            end
+        elseif field.options then
             for _, option in ipairs(field.options) do
                 if input[field.key] == option[1] then
                     value = option[1]

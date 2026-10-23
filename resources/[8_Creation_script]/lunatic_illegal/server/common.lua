@@ -107,3 +107,97 @@ function WeaponRuleText(rule)
 
     return 'Il vous faut une arme en main (couteau, batte, arme à feu…).'
 end
+
+---------------------------------------------------------------------
+-- Missions du panel (page Missions) : réglages, contrôles communs, gain et alerte police
+---------------------------------------------------------------------
+
+-- Réglages complets d'une mission : communs, avancés et butin (nil si lunatic_admin ne répond pas)
+function MissionSettings(id)
+    local found, value = pcall(function() return exports.lunatic_admin:getMissionSettings(id) end)
+    return found and value or nil
+end
+
+-- Pourquoi la mission ne peut pas commencer (activée, policiers, crew et level), ou nil
+function MissionProblem(src, m)
+    if not m or not m.enabled then
+        return "Ce n'est pas le moment."
+    end
+
+    if #PolicePlayers() < (m.police or 0) then
+        return "Trop risqué : il n'y a pas assez de policiers en ville."
+    end
+
+    if m.levelRequired then
+        local crew = CrewOf(src)
+
+        if not crew then
+            return "Ce coup-là, c'est pour les crews."
+        end
+
+        if crew.level < (m.minLevel or 1) then
+            return ('Votre crew doit être level %d pour ce coup.'):format(m.minLevel)
+        end
+    end
+end
+
+function MoneyText(amount)
+    return ('%s $'):format(tostring(math.floor(amount or 0)):reverse():gsub('(%d%d%d)', '%1 '):reverse():gsub('^ ', ''))
+end
+
+-- Mission réussie : gain (60 à 140 % du gain réglé) sur le compte donné, butin, XP et influence si le joueur a un crew
+function MissionPayout(src, m, coords, origin, account)
+    local ox = exports.ox_inventory
+    local reward = math.floor((m.reward or 0) * math.random(60, 140) / 100)
+    local xPlayer = ESX.GetPlayerFromId(src)
+
+    if xPlayer and reward > 0 then
+        xPlayer.addAccountMoney(account, reward, origin)
+    end
+
+    local loot = {}
+
+    for _, entry in ipairs(m.loot or {}) do
+        if math.random(100) <= entry.chance then
+            local count = math.random(entry.min, entry.max)
+
+            if ox:CanCarryItem(src, entry.item, count) and ox:AddItem(src, entry.item, count) then
+                local item = ox:Items(entry.item)
+                loot[#loot + 1] = ('%d × %s'):format(count, item and item.label or entry.item)
+            end
+        end
+    end
+
+    local crew = CrewOf(src)
+
+    if crew then
+        if (m.xp or 0) > 0 then
+            pcall(function() exports.lunatic_admin:addCrewXp(crew.id, m.xp) end)
+        end
+
+        if (m.influence or 0) > 0 then
+            pcall(function() exports.lunatic_admin:addCrewInfluence(crew.id, m.influence, coords.x, coords.y, origin) end)
+        end
+    end
+
+    return reward, loot
+end
+
+-- Alerte aux policiers en service (position floutée de « blur » mètres)
+function AlertPolice(coords, label, blur)
+    blur = blur or 0
+
+    for _, officer in ipairs(PolicePlayers()) do
+        TriggerClientEvent('lunatic_illegal:heistAlert', officer, { x = coords.x + math.random(-blur, blur), y = coords.y + math.random(-blur, blur), label = label })
+    end
+end
+
+function IsPolice(src)
+    for _, officer in ipairs(PolicePlayers()) do
+        if officer == src then
+            return true
+        end
+    end
+
+    return false
+end

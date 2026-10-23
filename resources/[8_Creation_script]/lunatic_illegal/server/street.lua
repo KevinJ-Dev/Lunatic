@@ -4,93 +4,24 @@
 -- tient en respect. Un témoin peut appeler la police. Ouvert à tous ; XP et influence si le joueur a un crew.
 -- Tout est revérifié ici : passant réel (PNJ vivant, à pied, tout près), délai par joueur, policiers, level, limite du jour.
 
-local ox = exports.ox_inventory
 local admin = exports.lunatic_admin
 
 local lastSnatch = {} -- joueur -> dernier vol (os.time)
 local robbed = {}     -- PNJ -> déjà volé (os.time), un passant ne se fait pas voler deux fois
 
+-- Outils communs des missions (server/common.lua)
+local mission, checkMission, money = MissionSettings, MissionProblem, MoneyText
+
 local function fail(message)
     return { ok = false, error = message }
 end
 
-local function mission(id)
-    local found, value = pcall(function() return admin:getMissionSettings(id) end)
-    return found and value or nil
-end
-
-local function itemLabel(name)
-    local item = ox:Items(name)
-    return item and item.label or name
-end
-
-local function money(amount)
-    return ('%s $'):format(tostring(math.floor(amount or 0)):reverse():gsub('(%d%d%d)', '%1 '):reverse():gsub('^ ', ''))
-end
-
--- Réglages communs aux missions de rue : activée, policiers, crew et level, limite du jour
-local function checkMission(src, m)
-    if not m or not m.enabled then
-        return "Ce n'est pas le moment."
-    end
-
-    if #PolicePlayers() < (m.police or 0) then
-        return "Trop risqué : il n'y a pas assez de policiers en ville."
-    end
-
-    if m.levelRequired then
-        local crew = CrewOf(src)
-
-        if not crew then
-            return "Ce coup-là, c'est pour les crews."
-        end
-
-        if crew.level < (m.minLevel or 1) then
-            return ('Votre crew doit être level %d pour ce coup.'):format(m.minLevel)
-        end
-    end
-end
-
--- Gain, butin, XP et influence (crew) d'une mission de rue réussie
 local function payOut(src, m, coords, origin)
-    local reward = math.floor((m.reward or 0) * math.random(60, 140) / 100)
-    local xPlayer = ESX.GetPlayerFromId(src)
-
-    if xPlayer and reward > 0 then
-        xPlayer.addAccountMoney(Config.StreetAccount, reward, origin)
-    end
-
-    local loot = {}
-
-    for _, entry in ipairs(m.loot or {}) do
-        if math.random(100) <= entry.chance then
-            local count = math.random(entry.min, entry.max)
-
-            if ox:CanCarryItem(src, entry.item, count) and ox:AddItem(src, entry.item, count) then
-                loot[#loot + 1] = ('%d × %s'):format(count, itemLabel(entry.item))
-            end
-        end
-    end
-
-    local crew = CrewOf(src)
-
-    if crew then
-        if (m.xp or 0) > 0 then
-            pcall(function() admin:addCrewXp(crew.id, m.xp) end)
-        end
-
-        if (m.influence or 0) > 0 then
-            pcall(function() admin:addCrewInfluence(crew.id, m.influence, coords.x, coords.y, origin) end)
-        end
-    end
-
-    return reward, loot
+    return MissionPayout(src, m, coords, origin, Config.StreetAccount)
 end
 
 local function alertPolice(coords, label)
-    for _, officer in ipairs(PolicePlayers()) do
-        TriggerClientEvent('lunatic_illegal:heistAlert', officer, { x = coords.x + math.random(-40, 40), y = coords.y + math.random(-40, 40), label = label })
-    end
+    AlertPolice(coords, label, 40)
 end
 
 -- Missions de rue activées, pour afficher ou non les invites en jeu
@@ -204,10 +135,8 @@ lib.callback.register('lunatic_illegal:racketStart', function(src, netId)
     end
 
     -- Un policier en service qui met en joue un passant ne le rackette pas
-    for _, officer in ipairs(PolicePlayers()) do
-        if officer == src then
-            return fail('Vous êtes en service.')
-        end
+    if IsPolice(src) then
+        return fail('Vous êtes en service.')
     end
 
     local now = os.time()

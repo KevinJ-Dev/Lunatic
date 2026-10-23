@@ -55,3 +55,6 @@ Config.HoldupSpawnRange = 60.0      -- les vendeurs apparaissent quand un joueur
 
 -- Délinquance de rue (vol à l'arraché et racket ; réglages dans le panel, page Missions)
 Config.StreetAccount = 'black_money' -- compte crédité de l'argent volé
+
+-- Braquage ATM (réglages dans le panel, page Missions) : modèles de distributeurs reconnus
+Config.AtmModels = { 'prop_atm_01', 'prop_atm_02', 'prop_atm_03', 'prop_fleeca_atm' }

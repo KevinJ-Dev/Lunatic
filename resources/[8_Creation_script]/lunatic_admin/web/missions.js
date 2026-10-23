@@ -148,7 +148,7 @@ function missionEditor(m) {
 async function openMissionAdvanced(m) {
     const items = await loadCatalogItems();
     const known = new Set(items.map((i) => i.name));
-    const fields = m.advanced.map((f) => ({ ...f, input: f.options
+    const fields = m.advanced.map((f) => ({ ...f, input: f.item ? itemPicker(items, f.value) : f.options
         ? h("select", { class: "input" }, f.options.map((o) => h("option", { value: o.value, selected: o.value === f.value }, o.label)))
         : h("input", { class: "input mono", type: "number", min: String(f.min), max: String(f.max), value: String(f.value) }) }));
 
@@ -172,7 +172,8 @@ async function openMissionAdvanced(m) {
         submit.addEventListener("click", async () => {
             if (loot.some((l) => !known.has(l.item))) return toast("Un objet du butin n'existe pas dans ox_inventory.", "error");
             const advanced = {};
-            for (const f of fields) advanced[f.key] = f.options ? f.input.value : Number(f.input.value);
+            for (const f of fields) advanced[f.key] = f.item ? f.input.value.trim() : f.options ? f.input.value : Number(f.input.value);
+            if (fields.some((f) => f.item && advanced[f.key] && !known.has(advanced[f.key]))) return toast("Un objet n'existe pas dans ox_inventory.", "error");
             const res = await act("missions.saveAdvanced", { id: m.id, advanced, loot }, "Réglages enregistrés.");
             if (!res) return;
             close();
