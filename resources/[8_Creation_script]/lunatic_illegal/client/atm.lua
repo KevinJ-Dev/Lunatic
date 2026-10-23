@@ -38,9 +38,14 @@ local function loadConfig()
     end
 end
 
+-- Au démarrage puis chaque minute (au cas où le panel n'était pas encore prêt), et à chaque changement dans le panel
 CreateThread(function()
     Wait(3000)
-    loadConfig()
+
+    while true do
+        loadConfig()
+        Wait(60000)
+    end
 end)
 
 RegisterNetEvent('lunatic_illegal:atmConfigChanged', loadConfig)
@@ -51,10 +56,10 @@ for _, model in ipairs(Config.AtmModels) do
     hashes[#hashes + 1] = joaat(model)
 end
 
--- Distributeur le plus proche (à moins de 1,5 m)
+-- Distributeur le plus proche (à moins de 2 m)
 local function nearestAtm(coords)
     for _, hash in ipairs(hashes) do
-        local object = GetClosestObjectOfType(coords.x, coords.y, coords.z, 1.5, hash, false, false, false)
+        local object = GetClosestObjectOfType(coords.x, coords.y, coords.z, 2.0, hash, false, false, false)
 
         if object ~= 0 then
             return object

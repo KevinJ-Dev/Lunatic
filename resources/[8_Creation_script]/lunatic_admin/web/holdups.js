@@ -49,9 +49,12 @@ function holdupsPage() {
     const type = filter ? holdupType(filter) : null;
     return {
         title: type ? `Braquages · ${type.label}` : "Braquages",
-        sub: "Un PNJ au comptoir de chaque point, à menacer avec l'arme demandée. Statut, policiers, gain, XP et limite par jour : page Missions.",
+        sub: type && type.house
+            ? "Maisons à cambrioler : « Définir » devant la porte, tourné vers elle. Outil, horaire, fouille et butin : page Missions → Cambriolage."
+            : "Un PNJ au comptoir de chaque point, à menacer avec l'arme demandée. Statut, policiers, gain, XP et limite par jour : page Missions.",
         actions: [
-            type ? h("button", { class: "btn small", title: "Arme exigée, durée, délai, alarme, résistance du vendeur, butin", onclick: () => openHoldupSettings(type.id) },
+            type && type.house ? h("button", { class: "btn small", title: "Outil, horaire, fouille, réveil du propriétaire, délai, butin", onclick: () => illegalSwitch(() => { illegalState.tab = "missions"; illegalState.missionSel = "burglary"; }) }, icon("i-tool"), "Réglages du cambriolage") : null,
+            type && !type.house ? h("button", { class: "btn small", title: "Arme exigée, durée, délai, alarme, résistance du vendeur, butin", onclick: () => openHoldupSettings(type.id) },
                 icon("i-tool"), `Réglages ${type.label}`, h("span", { class: "badge muted", style: "margin-left:4px" }, WEAPON_RULES[type.settings ? type.settings.weapon : "any"])) : null,
             h("button", { class: "btn small", title: "Remet les magasins de la carte de base qui manquent", onclick: async () => {
                 const res = await holdupAct("holdups.seed", {}, null);
@@ -88,7 +91,7 @@ function newHoldup(position) {
     const type = holdupType(filter && filter !== "detected" ? filter : "store");
     illegalSwitch(() => {
         illegalState.holdupSel = "new";
-        illegalState.prefill = { type: type.id, ped: type.ped || "", ...(position || {}) };
+        illegalState.prefill = { type: type.id, ped: type.ped || "", interior: "low", ...(position || {}) };
     });
 }
 
@@ -97,7 +100,7 @@ const holdupDraft = () => (illegalState.draft && illegalState.draft.kind === "ho
 function holdupEditor(p) {
     if (!p && illegalState.holdupSel !== "new") return h("aside", { class: "item-editor holdup-editor" }, h("div", { class: "empty" }, icon("i-gem"), "Choisissez un braquage, ou cliquez sur la carte pour en placer un."), holdupMapPane());
     const d = illegalDraft("holdup", p ? p.id : "new", p ? `Braquage ${p.label}` : "Nouveau braquage",
-        () => (p ? { type: p.type, label: p.label, ped: p.ped, company: p.company || "", active: p.active } : { type: "store", label: "", ped: holdupType("store").ped || "", company: "", active: true }),
+        () => (p ? { type: p.type, label: p.label, ped: p.ped, company: p.company || "", interior: p.interior || "low", active: p.active } : { type: "store", label: "", ped: holdupType("store").ped || "", company: "", interior: "low", active: true }),
         saveHoldup);
     const data = holdupState.data;
 
@@ -111,6 +114,9 @@ function holdupEditor(p) {
     const company = h("select", { class: "input" }, h("option", { value: "" }, "Choisir…"),
         data.companies.map((c) => h("option", { value: c.job, selected: c.job === d.company }, c.label)));
     company.addEventListener("change", () => { d.company = company.value; });
+    const isHouse = holdupType(d.type).house;
+    const interior = h("select", { class: "input" }, (data.interiors || []).map((i) => h("option", { value: i.id, selected: i.id === d.interior }, i.label)));
+    interior.addEventListener("change", () => { d.interior = interior.value; });
 
     const placed = d.x != null ? { x: d.x, y: d.y, z: null } : p ? { x: p.x, y: p.y, z: p.z } : null;
     const where = !placed ? "Votre position en jeu à la création (ou cliquez sur la carte)."
@@ -123,12 +129,12 @@ function holdupEditor(p) {
             fieldRow("Label", draftText(d, "label", { placeholder: "Ex. LTD Grove Street" })),
             fieldRow("Type", type),
             d.type === "company" ? fieldRow("Entreprise", company) : null,
-            fieldRow("Modèle PED", draftText(d, "ped", { class: "input mono", maxlength: "40", placeholder: "mp_m_shopkeep_01" })),
-            fieldRow("Position PED", h("div", { class: "btn-row" },
-                p ? h("button", { class: "btn small primary", title: "Place le PNJ là où vous êtes, tourné dans votre direction", onclick: () => holdupAct("holdups.move", { id: p.id }, "PNJ placé à votre position.") }, icon("i-crosshair"), "Définir") : null,
+            isHouse ? fieldRow("Intérieur", interior) : fieldRow("Modèle PED", draftText(d, "ped", { class: "input mono", maxlength: "40", placeholder: "mp_m_shopkeep_01" })),
+            fieldRow(isHouse ? "Porte" : "Position PED", h("div", { class: "btn-row" },
+                p ? h("button", { class: "btn small primary", title: isHouse ? "Place la porte là où vous êtes, tourné vers elle" : "Place le PNJ là où vous êtes, tourné dans votre direction", onclick: () => holdupAct("holdups.move", { id: p.id }, isHouse ? "Porte placée à votre position." : "PNJ placé à votre position.") }, icon("i-crosshair"), "Définir") : null,
                 p ? h("button", { class: "btn small", onclick: () => act("holdups.tp", { id: p.id }, null) }, icon("i-goto"), "TP") : null)),
             h("p", { class: "hint-line", style: "margin:0" }, where, d.x != null ? " · placée sur la carte, pensez à « Définir » sur place pour la hauteur et l'orientation" : ""),
-            h("div", { class: "mode-list" }, draftToggle(d, "active", "Actif", d.type === "company" ? "Désactivé : cette entreprise ne peut pas être braquée." : "Désactivé : pas de PNJ ni de braquage ici.")),
+            h("div", { class: "mode-list" }, draftToggle(d, "active", "Actif", d.type === "company" ? "Désactivé : cette entreprise ne peut pas être braquée." : isHouse ? "Désactivé : cette maison ne peut pas être cambriolée." : "Désactivé : pas de PNJ ni de braquage ici.")),
             h("div", { class: "item-actions", style: "padding:0;border:0" },
                 saveButton(saveHoldup, !p),
                 p ? deleteButton(async () => {

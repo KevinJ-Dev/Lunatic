@@ -58,3 +58,38 @@ Config.StreetAccount = 'black_money' -- compte crédité de l'argent volé
 
 -- Braquage ATM (réglages dans le panel, page Missions) : modèles de distributeurs reconnus
 Config.AtmModels = { 'prop_atm_01', 'prop_atm_02', 'prop_atm_03', 'prop_fleeca_atm' }
+
+-- Cambriolage (maisons dans le panel, page Braquages → Maison ; réglages dans la page Missions)
+-- Intérieurs des appartements du jeu de base : arrivée, porte de sortie, endroits à fouiller (à ajuster si un repère
+-- tombe mal). Chaque maison a son propre « monde » (routing bucket) : seuls ceux qui y sont entrés s'y croisent.
+Config.BurglaryAccount = 'black_money' -- compte crédité de l'argent trouvé
+Config.BurglaryBucket = 4000            -- monde de la maison n = 4000 + n
+Config.BurglaryInteriors = {
+    low = {
+        label = 'Petit appartement',
+        entry = vector4(266.1, -1005.4, -100.0, 0.0),
+        exit = vector3(266.0, -1007.4, -100.0),
+        spots = {
+            { label = 'Cuisine', coords = vector3(265.9, -997.5, -99.0) },
+            { label = 'Commode', coords = vector3(262.5, -1002.0, -99.0) },
+            { label = 'Armoire', coords = vector3(260.1, -1004.0, -99.0) },
+            { label = 'Table de nuit', coords = vector3(257.0, -1003.0, -99.0) },
+            { label = 'Salon', coords = vector3(259.0, -997.5, -99.0) },
+            { label = 'Salle de bain', coords = vector3(254.4, -1000.5, -99.0) },
+        },
+    },
+    mid = {
+        label = 'Appartement moyen',
+        entry = vector4(346.5, -1010.5, -99.2, 0.0),
+        exit = vector3(346.5, -1012.6, -99.2),
+        spots = {
+            { label = 'Cuisine', coords = vector3(342.0, -1003.5, -99.2) },
+            { label = 'Salon', coords = vector3(341.0, -997.0, -99.2) },
+            { label = 'Bureau', coords = vector3(338.5, -1002.0, -99.2) },
+            { label = 'Armoire', coords = vector3(351.2, -999.5, -99.2) },
+            { label = 'Table de nuit', coords = vector3(350.5, -994.0, -99.2) },
+            { label = 'Salle de bain', coords = vector3(347.0, -994.5, -99.2) },
+            { label = 'Dressing', coords = vector3(352.5, -996.5, -99.2) },
+        },
+    },
+}

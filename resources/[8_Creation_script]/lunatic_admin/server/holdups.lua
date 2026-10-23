@@ -11,9 +11,12 @@ local TYPES = {
     ammunation = { label = 'Ammunation', short = 'AMMU', ped = 's_m_y_ammucity_01' },
     tattoo = { label = 'Tattoo', short = 'TATTOO', ped = 'u_m_y_tattoo_01' },
     heliwave = { label = 'Heliwave', short = 'HELI', ped = 's_m_y_airworker', soon = true },
+    -- Cambriolage : la porte d'une maison (pas de PNJ), avec l'intérieur où l'on entre (lunatic_illegal, Config.BurglaryInteriors)
+    house = { label = 'Maison', short = 'MAISON', ped = '', house = true },
     company = { label = 'Entreprise', short = 'ENTR', ped = 'a_m_y_business_02' },
 }
-local ORDER = { 'store', 'barber', 'binco', 'ammunation', 'tattoo', 'company', 'heliwave' }
+local ORDER = { 'store', 'barber', 'binco', 'ammunation', 'tattoo', 'company', 'house', 'heliwave' }
+local INTERIORS = { low = 'Petit appartement', mid = 'Appartement moyen' }
 
 -- Réglages par type, selon la difficulté : arme en main exigée (any = blanche ou à feu, jamais les poings),
 -- durée pour remplir le sac (s), délai avant de rebraquer le même point (min), alarme silencieuse (%),
@@ -26,11 +29,23 @@ local DEFAULT_SETTINGS = {
     ammunation = { weapon = 'firearm', duration = 40, cooldown = 90, alert = 100, resist = 40, loot = {} },
     company = { weapon = 'firearm', duration = 35, cooldown = 60, alert = 80, resist = 20, loot = {} },
     heliwave = { weapon = 'firearm', duration = 40, cooldown = 90, alert = 80, resist = 20, loot = {} },
+    house = { weapon = 'any', duration = 0, cooldown = 0, alert = 0, resist = 0, loot = {} }, -- réglages : page Missions → Cambriolage
 }
 local WEAPONS = { any = true, melee = true, firearm = true }
 
 -- Magasins de la carte de base : position du vendeur derrière le comptoir (à vérifier en jeu avec le TP)
 local DEFAULT_POINTS = {
+    -- Maisons : position devant la porte, tourné vers elle ; 6e valeur : intérieur
+    house = {
+        { 'Maison Forum Drive', -14.3, -1441.0, 31.1, 0.0, 'low' }, { 'Maison Grove Street', 126.7, -1930.1, 21.4, 210.0, 'low' },
+        { 'Maison Grove Street (2)', 114.3, -1961.2, 21.3, 200.0, 'low' }, { 'Maison Grove Street (3)', 85.7, -1959.4, 21.1, 230.0, 'low' },
+        { 'Maison Chamberlain Hills', -147.5, -1596.4, 34.8, 50.0, 'low' }, { 'Maison El Burro Heights', 1273.9, -1719.5, 54.8, 30.0, 'low' },
+        { 'Maison Mirror Park', 1060.6, -378.4, 68.2, 40.0, 'mid' }, { 'Maison Mirror Park (2)', 1100.9, -411.4, 67.6, 80.0, 'mid' },
+        { 'Maison Mirror Park (3)', 1250.5, -515.4, 69.3, 75.0, 'mid' }, { 'Appartement Vespucci Beach', -1150.8, -1520.7, 10.6, 35.0, 'low' },
+        { 'Villa Rockford Hills', -816.7, 178.0, 72.2, 110.0, 'mid' }, { 'Villa Vinewood Hills', 7.7, 538.6, 176.0, 155.0, 'mid' },
+        { 'Caravane Sandy Shores', 1973.3, 3815.9, 33.4, 300.0, 'low' }, { 'Maison Paleto Bay', -360.3, 6260.7, 31.5, 315.0, 'low' },
+        { 'Ferme Grapeseed', 1662.0, 4776.0, 42.0, 280.0, 'low' },
+    },
     store = {
         { 'Supérette Innocence Blvd', 24.5, -1346.6, 29.5, 271.0 }, { 'Supérette Clinton Ave', 372.5, 326.4, 103.6, 255.0 },
         { 'Supérette Palomino Fwy', 2557.4, 380.8, 108.6, 355.0 }, { 'Supérette Sandy Shores', 1959.8, 3740.1, 32.3, 300.0 },
@@ -141,6 +156,7 @@ local function load()
         if TYPES[row.type] then
             points[#points + 1] = {
                 id = tonumber(row.id), type = row.type, label = row.label, ped = row.ped, company = row.company ~= '' and row.company or nil,
+                interior = INTERIORS[row.interior] and row.interior or 'low',
                 x = tonumber(row.x), y = tonumber(row.y), z = tonumber(row.z), h = tonumber(row.h),
                 -- TINYINT(1) : oxmysql le renvoie en booléen
                 active = row.active == true or tonumber(row.active) == 1,
@@ -160,8 +176,8 @@ local function findPoint(id)
     end
 end
 
--- Ajoute les magasins de la carte absents (même type et même nom) ; renvoie le nombre ajouté
-local function seed()
+-- Ajoute les points par défaut absents (même type et même nom), d'un seul type si demandé ; renvoie le nombre ajouté
+local function seed(onlyType)
     local known, created = {}, 0
 
     for _, point in ipairs(points) do
@@ -170,9 +186,9 @@ local function seed()
 
     for typeId, list in pairs(DEFAULT_POINTS) do
         for _, entry in ipairs(list) do
-            if not known[typeId .. ':' .. entry[1]] then
-                MySQL.insert.await('INSERT INTO `lunatic_holdups` (`type`, `label`, `ped`, `x`, `y`, `z`, `h`, `active`) VALUES (?, ?, ?, ?, ?, ?, ?, 1)', {
-                    typeId, entry[1], TYPES[typeId].ped, entry[2], entry[3], entry[4], entry[5],
+            if (not onlyType or typeId == onlyType) and not known[typeId .. ':' .. entry[1]] then
+                MySQL.insert.await('INSERT INTO `lunatic_holdups` (`type`, `label`, `ped`, `x`, `y`, `z`, `h`, `interior`, `active`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)', {
+                    typeId, entry[1], TYPES[typeId].ped, entry[2], entry[3], entry[4], entry[5], entry[6] or '',
                 })
                 created = created + 1
             end
@@ -200,6 +216,9 @@ table.insert(Panel.readyHooks, function()
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ]])
 
+    -- Cambriolage : intérieur où mène la porte d'une maison
+    MySQL.query.await("ALTER TABLE `lunatic_holdups` ADD COLUMN IF NOT EXISTS `interior` VARCHAR(20) NOT NULL DEFAULT ''")
+
     MySQL.query.await([[
         CREATE TABLE IF NOT EXISTS `lunatic_holdup_settings` (
             `type` VARCHAR(20) NOT NULL,
@@ -211,13 +230,20 @@ table.insert(Panel.readyHooks, function()
     loadSettings()
     load()
 
-    -- Premier démarrage : les magasins de la carte sont placés d'office
+    -- Premier démarrage : les magasins de la carte sont placés d'office ; les maisons (ajoutées plus tard) une fois aussi
+    local created = 0
+
     if not GetResourceKvpString('holdups_seeded') then
         SetResourceKvp('holdups_seeded', '1')
+        SetResourceKvp('holdups_houses_seeded', '1')
+        created = seed()
+    elseif not GetResourceKvpString('holdups_houses_seeded') then
+        SetResourceKvp('holdups_houses_seeded', '1')
+        created = seed('house')
+    end
 
-        if seed() > 0 then
-            load()
-        end
+    if created > 0 then
+        load()
     end
 end)
 
@@ -304,10 +330,17 @@ Panel.actions['holdups.list'] = function(_, actor)
             loot.label, loot.missing = item and item.label or loot.item, not item
         end
 
-        types[#types + 1] = { id = id, label = entry.label, short = entry.short, ped = entry.ped, soon = entry.soon == true, settings = s }
+        types[#types + 1] = { id = id, label = entry.label, short = entry.short, ped = entry.ped, soon = entry.soon == true, house = entry.house == true, settings = s }
     end
 
-    return { ok = true, silent = true, types = types, points = points, companies = companies() }
+    local interiors = {}
+
+    for key, label in pairs(INTERIORS) do
+        interiors[#interiors + 1] = { id = key, label = label }
+    end
+
+    table.sort(interiors, function(a, b) return a.id < b.id end)
+    return { ok = true, silent = true, types = types, points = points, companies = companies(), interiors = interiors }
 end
 
 Panel.actions['holdups.save'] = function(src, actor, data)
@@ -328,7 +361,17 @@ Panel.actions['holdups.save'] = function(src, actor, data)
         return Panel.fail('Le label doit faire entre 2 et 60 caractères.')
     end
 
-    if not ped or not ped:match('^[%w_]+$') then
+    local interior = ''
+
+    -- Maison : pas de PNJ, mais un intérieur
+    if TYPES[typeId].house then
+        ped = ''
+        interior = INTERIORS[data.interior] and data.interior or nil
+
+        if not interior then
+            return Panel.fail("Choisissez l'intérieur de la maison.")
+        end
+    elseif not ped or not ped:match('^[%w_]+$') then
         return Panel.fail('Modèle du PNJ : lettres, chiffres et _ uniquement (ex. mp_m_shopkeep_01).')
     end
 
@@ -361,8 +404,8 @@ Panel.actions['holdups.save'] = function(src, actor, data)
             return Panel.fail('Point introuvable.')
         end
 
-        MySQL.update.await('UPDATE `lunatic_holdups` SET `type` = ?, `label` = ?, `ped` = ?, `company` = ?, `active` = ? WHERE `id` = ?', {
-            typeId, label, ped, company, active and 1 or 0, point.id,
+        MySQL.update.await('UPDATE `lunatic_holdups` SET `type` = ?, `label` = ?, `ped` = ?, `company` = ?, `interior` = ?, `active` = ? WHERE `id` = ?', {
+            typeId, label, ped, company, interior, active and 1 or 0, point.id,
         })
 
         if placed then
@@ -385,8 +428,8 @@ Panel.actions['holdups.save'] = function(src, actor, data)
             return Panel.fail('Position introuvable.')
         end
 
-        id = MySQL.insert.await('INSERT INTO `lunatic_holdups` (`type`, `label`, `ped`, `company`, `x`, `y`, `z`, `h`, `active`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', {
-            typeId, label, ped, company, position.x, position.y, position.z, position.h, active and 1 or 0,
+        id = MySQL.insert.await('INSERT INTO `lunatic_holdups` (`type`, `label`, `ped`, `company`, `interior`, `x`, `y`, `z`, `h`, `active`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', {
+            typeId, label, ped, company, interior, position.x, position.y, position.z, position.h, active and 1 or 0,
         })
     end
 
@@ -484,9 +527,13 @@ Panel.actions['holdups.tp'] = function(src, actor, data)
         return Panel.fail('Point introuvable.')
     end
 
-    -- Devant le comptoir, face au vendeur (hauteur inconnue : le client cherche le sol)
+    -- Devant le comptoir, face au vendeur ; maison : devant la porte (hauteur inconnue : le client cherche le sol)
     local heading = math.rad(point.h or 0.0)
     local x, y = point.x - math.sin(heading) * 1.5, point.y + math.cos(heading) * 1.5
+
+    if TYPES[point.type] and TYPES[point.type].house then
+        x, y = point.x, point.y
+    end
 
     TriggerClientEvent('lunatic_admin:teleport', src, vector3(x, y, point.z + (point.z > -100.0 and 1.0 or 0.0)))
     return { ok = true, silent = true }

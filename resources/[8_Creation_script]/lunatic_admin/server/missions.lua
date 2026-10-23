@@ -45,7 +45,19 @@ local CATALOG = {
     { id = 'contract_cargo', label = 'Cargaison gardée', category = 'contract', description = 'Éliminer les gardes et ouvrir la caisse.', link = { 'contract', 'cargo' }, reward = true },
     { id = 'gofast', label = 'GoFast', category = 'traffic', description = 'Livraison de drogue terrestre.', reward = true },
     { id = 'gofast_sea', label = 'GoFast Maritime', category = 'traffic', description = 'Livraison de drogue maritime.', reward = true },
-    { id = 'burglary', label = 'Cambriolage', category = 'street', description = 'Cambrioler des habitations.' },
+    { id = 'burglary', label = 'Cambriolage', category = 'street', description = "Crocheter la porte d'une maison (page Braquages, type Maison), fouiller l'intérieur avant que le propriétaire se réveille, ressortir.", ready = true, reward = true, points = 'house',
+        advanced = {
+            { key = 'tool', label = 'Outil nécessaire (objet)', default = 'lockpick', item = true },
+            { key = 'difficulty', label = 'Difficulté du crochetage', default = 'medium', options = { { 'easy', 'Facile' }, { 'medium', 'Moyenne' }, { 'hard', 'Difficile' } } },
+            { key = 'night', label = 'Horaire', default = 'yes', options = { { 'yes', 'Seulement la nuit' }, { 'no', 'À toute heure' } } },
+            { key = 'nightStart', label = 'Début de la nuit (heure du jeu)', min = 0, max = 23, default = 22 },
+            { key = 'nightEnd', label = 'Fin de la nuit (heure du jeu)', min = 0, max = 23, default = 6 },
+            { key = 'search', label = "Temps pour fouiller un endroit (s)", min = 2, max = 60, default = 6 },
+            { key = 'wake', label = 'Le propriétaire se réveille, à chaque fouille (%)', min = 0, max = 100, default = 15 },
+            { key = 'breakChance', label = "Casse de l'outil si le crochetage échoue (%)", min = 0, max = 100, default = 30 },
+            { key = 'cooldown', label = 'Délai avant de recambrioler cette maison (min)', min = 5, max = 2880, default = 120 },
+        },
+        loot = { { item = 'jewel_ring', min = 1, max = 2, chance = 30 }, { item = 'jewel_watch', min = 1, max = 1, chance = 20 }, { item = 'jewel_necklace', min = 1, max = 1, chance = 10 }, { item = 'marked_bills', min = 2, max = 6, chance = 40 } } },
     { id = 'racket', label = 'Racket', category = 'street', description = "Menacer un passant avec une arme (le viser, ou [E] tout près) : il lève les mains et donne son argent tant qu'on le tient en respect.", ready = true, reward = true,
         advanced = {
             { key = 'weapon', label = 'Arme exigée', default = 'any', options = { { 'any', 'Arme blanche ou à feu' }, { 'firearm', 'Arme à feu seulement' }, { 'melee', 'Arme blanche seulement' } } },
@@ -85,6 +97,7 @@ local READY_START = {
     snatch = { kvp = 'missions_snatch_ready', values = { reward = 250, xp = 2, influence = 1, police = 0, levelRequired = false } },
     racket = { kvp = 'missions_racket_ready', values = { reward = 400, xp = 3, influence = 2, police = 0, levelRequired = false } },
     heist_atm = { kvp = 'missions_atm_ready', values = { reward = 2000, xp = 5, influence = 2, police = 1, levelRequired = false } },
+    burglary = { kvp = 'missions_burglary_ready', values = { reward = 1500, xp = 8, influence = 3, police = 1, levelRequired = false } },
 }
 
 local LIMITS = { xp = 10000, influence = 1000, police = 20, reward = 1000000, daily = 500, loot = 8 }
@@ -366,7 +379,7 @@ Panel.actions['missions.list'] = function(_, actor)
         list[#list + 1] = {
             id = entry.id, label = entry.label, category = entry.category, description = entry.description,
             ready = entry.ready == true or entry.link ~= nil or (entry.holdup ~= nil and entry.holdup ~= 'heliwave'), link = entry.link and { kind = entry.link[1], type = entry.link[2] } or nil, reward = entry.reward == true,
-            holdup = entry.holdup, places = places, settings = settings[entry.id], today = counts[entry.id] or 0,
+            holdup = entry.holdup, points = entry.points, places = places, settings = settings[entry.id], today = counts[entry.id] or 0,
             advanced = advanced, loot = loot,
         }
     end

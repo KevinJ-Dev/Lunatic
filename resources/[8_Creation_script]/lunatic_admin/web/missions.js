@@ -61,10 +61,11 @@ function missionsPage() {
     }
 
     // Lieux de la mission, avec TP : magasins de la page Braquages, ou lieux fixes (banques, bijouterie)
-    if (selected && selected.holdup) {
+    const pointsType = selected && (selected.holdup || selected.points);
+    if (pointsType) {
         if (!holdupState.data) loadHoldups();
-        const points = holdupState.data ? holdupState.data.points.filter((p) => p.type === selected.holdup) : [];
-        side.push(sideBlock(`Lieux (${points.length})`, iconButton("i-edit", "Gérer les points dans la page Braquages", () => illegalSwitch(() => { illegalState.tab = "heists"; illegalState.holdupType = selected.holdup; illegalState.holdupSel = null; })),
+        const points = holdupState.data ? holdupState.data.points.filter((p) => p.type === pointsType) : [];
+        side.push(sideBlock(`Lieux (${points.length})`, iconButton("i-edit", "Gérer les points dans la page Braquages", () => illegalSwitch(() => { illegalState.tab = "heists"; illegalState.holdupType = pointsType; illegalState.holdupSel = null; })),
             points.length ? points.map((p, i) => pointLine(i + 1, p.label, p, [iconButton("i-goto", "TP", () => act("holdups.tp", { id: p.id }, null))]))
                 : h("p", { class: "hint-line" }, holdupState.data ? "Aucun point : ajoutez-en dans la page Braquages." : "Chargement…")));
     } else if (selected && selected.places.length) {

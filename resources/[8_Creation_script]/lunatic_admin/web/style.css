@@ -708,7 +708,8 @@ body.hidden.minimized .mini-pill { display: flex; }
 .illegal-side .side-scroll { padding: 14px 10px 14px; }
 .illegal-head { display: grid; gap: 8px; }
 .illegal-title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
-.illegal-title-row .page-title { flex: 1; min-width: 0; }
+/* Le titre ne passe jamais sous les boutons : ce sont eux qui vont à la ligne */
+.illegal-title-row .page-title { flex: 1 1 auto; min-width: 0; white-space: nowrap; }
 .illegal-title-row .btn-row { flex-wrap: wrap; }
 .illegal-center .page-sub { max-width: 760px; }
 .side-block { display: grid; gap: 4px; margin-bottom: 14px; padding: 8px; border: 1px solid var(--line); border-radius: 14px; background: #ffffff05; }
