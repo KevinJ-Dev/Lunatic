@@ -17,6 +17,9 @@ function DB.init()
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ]])
 
+    -- Page Permissions : ID du rôle Discord lié au rang (synchronisation plus tard)
+    MySQL.query.await("ALTER TABLE `lunatic_admin_ranks` ADD COLUMN IF NOT EXISTS `discord_role` VARCHAR(25) NOT NULL DEFAULT ''")
+
     MySQL.query.await([[
         CREATE TABLE IF NOT EXISTS `lunatic_admin_staff` (
             `license` VARCHAR(60) NOT NULL,

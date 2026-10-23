@@ -109,7 +109,43 @@ Permissions.List = {
     { id = 'chat.clear',    family = 'chat', label = 'Vider le tchat de tous les joueurs (/vidertchat)' },
 }
 
+-- Blocs de la page Permissions : Joueur, Serveur, Commandes, et Accès (tuiles du menu de gestion)
+Permissions.Groups = {
+    { id = 'player', label = 'Joueur' },
+    { id = 'server', label = 'Serveur' },
+    { id = 'commands', label = 'Commandes' },
+    { id = 'access', label = 'Accès', sub = 'Menu de gestion' },
+}
+
+-- Bloc par famille ; le reste (tuiles et gestion) va dans Accès
+local FAMILY_GROUP = { players = 'player', sanctions = 'player', economy = 'player', tools = 'commands', world = 'server', chat = 'server' }
+local GROUP_OF = { ['players.crash'] = 'commands', ['contextmenu.use'] = 'commands', ['contextmenu.dev'] = 'commands', ['staff.online'] = 'server' }
+
+-- Nom court affiché dans la page Permissions (le libellé complet s'affiche au survol)
+local SHORT = {
+    ['players.view'] = 'Fiche joueur', ['players.goto'] = 'Goto', ['players.bring'] = 'Bring / Return', ['players.spectate'] = 'Spectate',
+    ['players.freeze'] = 'Freeze un joueur', ['players.heal'] = 'Heal / Revive', ['players.appearance'] = 'Menu apparence',
+    ['players.recreate'] = 'Recréer le personnage', ['players.licenses'] = 'Give un permis', ['players.copy_appearance'] = "Récupérer l'apparence",
+    ['players.wipe'] = 'Wipe un joueur', ['players.offline'] = 'Gérer les joueurs offline', ['players.kick'] = 'Kick', ['players.crash'] = 'Crash Player',
+    ['server.manage'] = 'Gestion Global', ['dev.manage'] = 'Gestion Développeur', ['events.manage'] = 'Gestion des events', ['poles.manage'] = 'Pôle emploi',
+    ['illegal.manage'] = 'Illégal', ['crews.manage'] = 'Crews', ['companies.manage'] = 'Entreprises', ['items.manage'] = 'Items',
+    ['catalogs.manage'] = 'Catalogues', ['publics.manage'] = 'Services publics', ['premium.manage'] = 'Premium', ['shop.manage'] = 'Gestion Boutique',
+    ['world.weather'] = 'Météo', ['world.time'] = 'Heure',
+    ['economy.money'] = 'Argent (liquide, banque)', ['economy.black_money'] = 'Argent sale', ['economy.job'] = 'Changer de métier',
+    ['economy.items'] = "Gérer l'inventaire", ['economy.clear'] = "Vider l'inventaire", ['vehicles.give'] = 'Give un véhicule',
+    ['tools.noclip'] = 'Noclip', ['tools.invisible'] = 'Invisible', ['tools.godmode'] = 'Godmode', ['tools.names'] = 'Noms et ID',
+    ['tools.coords'] = 'Coordonnées', ['tools.tpm'] = 'TP au marqueur', ['tools.ghost'] = 'Godmod invisible', ['tools.vehicles'] = 'Véhicules (spawn, réparer)',
+    ['sanctions.view'] = 'Voir les sanctions', ['sanctions.warn'] = 'Avertir', ['sanctions.ban'] = 'Ban', ['sanctions.ban_permanent'] = 'Ban définitif',
+    ['sanctions.jail'] = 'Prison staff', ['sanctions.revoke'] = 'Révoquer une sanction',
+    ['contextmenu.use'] = 'Menu contextuel', ['contextmenu.dev'] = 'Menu contextuel dev', ['panel.open'] = 'Ouvrir le panel',
+    ['ranks.view'] = 'Voir les permissions', ['ranks.manage'] = 'Permissions', ['staff.online'] = 'Liste des staff en ligne',
+    ['staff.view'] = 'Voir les membres', ['logs.view'] = 'Logs', ['logs.chat'] = 'Historique du tchat', ['staff.manage'] = 'Gérer les membres',
+    ['chat.staff'] = 'Tchat staff', ['chat.announce'] = 'Annonces Serveur', ['chat.announce_mod'] = 'Annonces Modérateur', ['chat.clear'] = 'Vider le tchat',
+}
+
 Permissions.Known = {}
 for _, perm in ipairs(Permissions.List) do
     Permissions.Known[perm.id] = true
+    perm.group = GROUP_OF[perm.id] or FAMILY_GROUP[perm.family] or 'access'
+    perm.short = SHORT[perm.id]
 end

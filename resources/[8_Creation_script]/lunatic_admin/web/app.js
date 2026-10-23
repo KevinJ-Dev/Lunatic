@@ -181,6 +181,7 @@ function loadDraft() {
         color: rank.color,
         level: rank.level,
         owner: rank.owner,
+        discord: rank.discord || "",
         permissions: new Set(rank.permissions || []),
     };
 }
@@ -194,6 +195,7 @@ function isDirty() {
     return draft.name !== rank.name
         || draft.color !== rank.color
         || Number(draft.level) !== rank.level
+        || (draft.discord || "") !== (rank.discord || "")
         || perms.length !== draft.permissions.size
         || perms.some((p) => !draft.permissions.has(p));
 }
@@ -1219,6 +1221,7 @@ function newRank() {
             color: SWATCHES.find((c) => !used.has(c)) || SWATCHES[0],
             level,
             owner: false,
+            discord: "",
             permissions: new Set(["panel.open"].filter(can)),
         };
         selectedRankId = null;
@@ -1233,12 +1236,11 @@ function newRank() {
     create();
 }
 
-// Recherche dans les permissions : gardée d'un rang à l'autre
-let permSearch = "";
-
 // Texte comparable : minuscules, sans accents
 const fold = (text) => String(text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
+// Page Permissions (façon Vision) : en-tête (rang, ID Discord, niveau), bloc « Permissions » en trois colonnes
+// (Joueur, Serveur, Commandes), bloc « Accès » (tuiles du menu de gestion), boutons en bas.
 function renderEditor() {
     if (!draft) {
         return h("div", { class: "content" }, h("div", { class: "empty" }, icon("i-layers"), "Sélectionnez un rang pour voir ses permissions."));
@@ -1249,104 +1251,65 @@ function renderEditor() {
     const structural = editable && !draft.owner; // niveau et permissions
     const members = staff().filter((m) => m.rankId === draft.id);
 
-    // En-tête
-    const titleDot = dot(draft.color);
-    const titleText = h("span", null, draft.name || "Sans nom");
-    const sub = h("div", { class: "page-sub" });
-    const saveBtn = h("button", { class: "btn primary", onclick: saveDraft }, icon("i-save"), draft.id === null ? "Créer le rang" : "Enregistrer");
+    // En-tête : pastille (couleur), nom, ID Discord, niveau
+    const titleDot = h("button", { class: "rank-dot", title: editable ? "Changer la couleur" : null, disabled: !editable, onclick: () => openRankColor(refreshChrome) });
+    const titleText = h("b", null, draft.name || "Sans nom");
+    const sub = h("span", { class: "rank-sub" });
+    const saveBtn = h("button", { class: "btn primary", onclick: saveDraft }, icon("i-save"), draft.id === null ? "Créer le rang" : "Sauvegarder les modifications");
     const resetBtn = h("button", { class: "btn ghost", onclick: resetDraft, title: "Annuler les modifications" }, icon("i-undo"), "Annuler");
 
     function refreshChrome() {
         titleDot.style.background = draft.color;
         titleText.textContent = draft.name || "Sans nom";
-        const parts = draft.owner
-            ? ["Fondateur", "Toutes les permissions"]
-            : [`Niveau ${draft.level}`, `${draft.permissions.size} permission${draft.permissions.size > 1 ? "s" : ""}`];
+        const parts = draft.owner ? ["Fondateur · toutes les permissions"] : [`${draft.permissions.size} permission${draft.permissions.size > 1 ? "s" : ""}`];
         if (rank) parts.push(`${rank.members} membre${rank.members > 1 ? "s" : ""}`);
-        sub.replaceChildren(...parts.flatMap((p, i) => (i ? [h("span", { class: "sep" }), p] : [p])));
+        sub.textContent = parts.join(" · ");
         const dirty = isDirty();
         saveBtn.disabled = !dirty;
         resetBtn.style.display = dirty && draft.id !== null ? "" : "none";
         renderRanks(true);
     }
 
-    const actions = h("div", { class: "actions" });
-    if (editable) {
-        actions.append(resetBtn);
-        if (rank && !rank.owner) {
-            actions.append(
-                h("button", { class: "btn", onclick: () => duplicateRank(rank) }, icon("i-copy"), "Dupliquer"),
-                h("button", { class: "btn danger", onclick: () => deleteRank(rank) }, icon("i-trash"), "Supprimer")
-            );
-        }
-        actions.append(saveBtn);
-    }
-
-    // Formulaire
-    const nameInput = h("input", { id: "rank-name", class: "input", maxlength: "32", value: draft.name, disabled: !editable });
-    nameInput.addEventListener("input", () => { draft.name = nameInput.value; refreshChrome(); });
-
-    const swatches = h("div", { class: "swatches" });
-    const picker = h("input", { type: "color", value: draft.color, disabled: !editable });
-    function paintSwatches() {
-        swatches.replaceChildren(
-            ...SWATCHES.map((color) => {
-                const b = h("button", { class: `swatch${draft.color === color ? " on" : ""}`, disabled: !editable, title: color });
-                b.style.background = color;
-                b.addEventListener("click", () => { draft.color = color; picker.value = color; paintSwatches(); refreshChrome(); });
-                return b;
-            }),
-            h("label", { class: "color-pick", title: "Couleur personnalisée" }, picker, icon("i-plus"))
-        );
-    }
-    picker.addEventListener("input", () => { draft.color = picker.value.toLowerCase(); paintSwatches(); refreshChrome(); });
-    paintSwatches();
+    const discordInput = h("input", { class: "input mono", maxlength: "20", inputmode: "numeric", placeholder: "ID du rôle", value: draft.discord || "", disabled: !editable,
+        title: "Identifiant du rôle Discord lié à ce rang (la synchronisation avec Discord viendra plus tard)" });
+    discordInput.addEventListener("input", () => { draft.discord = discordInput.value.replace(/\D/g, ""); if (discordInput.value !== draft.discord) discordInput.value = draft.discord; refreshChrome(); });
 
     const maxLevel = myLevel() - 1;
-    const levelInput = h("input", { class: "input mono", type: draft.owner ? "text" : "number", min: "1", max: String(maxLevel), value: draft.owner ? "MAX" : String(draft.level), disabled: !structural });
+    const levelInput = h("input", { class: "input mono", type: draft.owner ? "text" : "number", min: "1", max: String(maxLevel), value: draft.owner ? "MAX" : String(draft.level), disabled: !structural,
+        title: draft.owner ? "Niveau maximal" : `De 1 à ${maxLevel}, plus haut = prioritaire` });
     levelInput.addEventListener("input", () => { draft.level = levelInput.value === "" ? "" : Number(levelInput.value); refreshChrome(); });
 
-    const form = h("div", { class: "card" },
-        h("div", { class: "fields" },
-            h("div", { class: "field" }, h("label", { for: "rank-name" }, "Nom"), nameInput),
-            h("div", { class: "field" }, h("label", null, "Couleur"), swatches),
-            h("div", { class: "field" }, h("label", null, "Niveau"), levelInput,
-                h("span", { class: "hint" }, draft.owner ? "Niveau maximal" : `De 1 à ${maxLevel}, plus haut = prioritaire`))
-        )
-    );
+    const head = h("div", { class: "rank-head" },
+        titleDot, h("div", { class: "rank-name" }, titleText, h("span", { class: "rank-tag" }, "Permission"), sub),
+        h("label", { class: "rank-field" }, h("span", null, "ID Discord"), discordInput),
+        h("label", { class: "rank-field small" }, h("span", null, "Rang"), levelInput));
 
-    // Permissions par famille : recherche, et « Tout cocher / Tout décocher » sur ce qui est affiché
-    // (seulement les permissions que vous avez vous-même)
-    const sections = [];
-    const permSections = state.catalogue.families.map((family) => {
-        const perms = state.catalogue.permissions.filter((p) => p.family === family.id);
-        if (!perms.length) return null;
-        const count = h("span", { class: "count" });
-        const updateCount = () => { count.textContent = `${perms.filter((p) => draft.owner || draft.permissions.has(p.id)).length}/${perms.length}`; };
-        updateCount();
+    // Une ligne par permission : libellé court (avant « : »), interrupteur ; le détail au survol
+    const allRows = [];
+    const permRow = (perm) => {
+        const on = draft.owner || draft.permissions.has(perm.id);
+        const locked = !structural || !can(perm.id);
+        const short = perm.short || perm.label.split(" : ")[0];
+        const row = h("div", {
+            class: `pv-row${on ? " on" : ""}${locked ? " locked" : ""}`,
+            title: `${perm.label} (${perm.id})${locked && structural ? " · vous ne pouvez pas donner une permission que vous n'avez pas" : ""}`,
+        }, h("span", { class: "pv-label" }, short), h("span", { class: "switch" }));
+        if (!locked) {
+            row.addEventListener("click", () => {
+                if (draft.permissions.has(perm.id)) draft.permissions.delete(perm.id);
+                else draft.permissions.add(perm.id);
+                row.classList.toggle("on", draft.permissions.has(perm.id));
+                refreshChrome();
+            });
+        }
+        const entry = { perm, row, locked };
+        allRows.push(entry);
+        return entry;
+    };
 
-        const rows = perms.map((perm) => {
-            const on = draft.owner || draft.permissions.has(perm.id);
-            const locked = !structural || !can(perm.id);
-            const row = h("div", {
-                class: `perm${on ? " on" : ""}${locked ? " locked" : ""}`,
-                title: locked && structural ? "Vous ne pouvez pas donner une permission que vous n'avez pas." : null,
-            },
-            h("span", { class: "switch" }),
-            h("span", { class: "txt" }, h("span", null, perm.label), h("code", null, perm.id))
-            );
-            if (!locked) {
-                row.addEventListener("click", () => {
-                    if (draft.permissions.has(perm.id)) draft.permissions.delete(perm.id);
-                    else draft.permissions.add(perm.id);
-                    row.classList.toggle("on", draft.permissions.has(perm.id));
-                    updateCount();
-                    refreshChrome();
-                });
-            }
-            return { perm, row, locked };
-        });
-
+    // Colonne d'un bloc, avec « tout cocher / tout décocher » sur ce qui est affiché
+    const column = (group) => {
+        const rows = state.catalogue.permissions.filter((p) => (p.group || "access") === group.id).map(permRow);
         const setAll = (value) => {
             for (const r of rows) {
                 if (r.locked || r.row.style.display === "none") continue;
@@ -1354,71 +1317,108 @@ function renderEditor() {
                 else draft.permissions.delete(r.perm.id);
                 r.row.classList.toggle("on", value);
             }
-            updateCount();
             refreshChrome();
         };
-        const bulk = rows.some((r) => !r.locked) ? h("span", { class: "perm-bulk" },
-            h("button", { class: "btn small ghost", onclick: () => setAll(true) }, icon("i-save"), "Tout cocher"),
-            h("button", { class: "btn small ghost", onclick: () => setAll(false) }, icon("i-x"), "Tout décocher")) : null;
-
-        const section = h("div", { class: "section" },
-            h("div", { class: "section-head" }, family.label, count, bulk),
-            h("div", { class: "perm-grid" }, rows.map((r) => r.row)));
-        sections.push({ section, rows, family });
-        return section;
-    });
-
-    const permEmpty = h("div", { class: "muted perm-empty" }, "Aucune permission ne correspond à la recherche.");
-    const applyPermFilter = () => {
-        const q = fold(permSearch.trim());
-        let any = false;
-        for (const s of sections) {
-            const familyMatch = q && fold(s.family.label).includes(q);
-            let visible = 0;
-            for (const r of s.rows) {
-                const show = !q || familyMatch || fold(r.perm.label).includes(q) || fold(r.perm.id).includes(q);
-                r.row.style.display = show ? "" : "none";
-                if (show) visible++;
-            }
-            s.section.style.display = visible ? "" : "none";
-            if (visible) any = true;
-        }
-        permEmpty.style.display = any ? "none" : "";
+        const bulk = rows.some((r) => !r.locked) ? h("span", { class: "pv-bulk" },
+            h("button", { class: "btn small ghost", title: "Tout cocher", onclick: () => setAll(true) }, icon("i-save")),
+            h("button", { class: "btn small ghost", title: "Tout décocher", onclick: () => setAll(false) }, icon("i-x"))) : null;
+        return { node: h("div", { class: "pv-col" }, h("div", { class: "pv-col-head" }, h("span", null, group.sub || group.label), bulk), h("div", { class: "pv-list" }, rows.map((r) => r.row))), rows };
     };
-    const permSearchInput = h("input", { placeholder: "Rechercher une permission", value: permSearch });
-    permSearchInput.addEventListener("input", () => { permSearch = permSearchInput.value; applyPermFilter(); });
-    applyPermFilter();
+
+    const groups = state.catalogue.groups || [{ id: "player", label: "Joueur" }, { id: "server", label: "Serveur" }, { id: "commands", label: "Commandes" }, { id: "access", label: "Accès", sub: "Menu de gestion" }];
+    const columns = groups.filter((g) => g.id !== "access").map(column);
+    const access = column(groups.find((g) => g.id === "access"));
+
+    // Recherche dans un bloc (gardée d'un rang à l'autre)
+    const searchBox = (key, cols) => {
+        const input = h("input", { placeholder: "Rechercher…", value: permSearches[key] || "" });
+        const apply = () => {
+            const q = fold((permSearches[key] || "").trim());
+            for (const c of cols) for (const r of c.rows) r.row.style.display = !q || fold(r.perm.short).includes(q) || fold(r.perm.label).includes(q) || fold(r.perm.id).includes(q) ? "" : "none";
+        };
+        input.addEventListener("input", () => { permSearches[key] = input.value; apply(); });
+        apply();
+        return h("label", { class: "search pv-search" }, icon("i-search"), input);
+    };
+
+    const permPanel = h("div", { class: "pv-panel" },
+        h("div", { class: "pv-panel-head" }, icon("i-lock"), h("b", null, "Permissions"), searchBox("perms", columns)),
+        h("div", { class: "pv-cols three" }, columns.map((c) => c.node)));
+    const accessPanel = h("div", { class: "pv-panel" },
+        h("div", { class: "pv-panel-head" }, icon("i-lock"), h("b", null, "Accès"), searchBox("access", [access])),
+        h("div", { class: "pv-cols access" }, access.node));
 
     const banner = !editable
         ? h("div", { class: "banner" }, icon("i-lock"), draft.owner
             ? "Seul un Fondateur peut modifier ce rang."
             : can("ranks.manage") ? "Ce rang est égal ou supérieur au vôtre : lecture seule." : "Lecture seule : vous n'avez pas la permission de gérer les rangs.")
-        : draft.owner ? h("div", { class: "banner info" }, icon("i-crown"), "Le Fondateur a toutes les permissions. Seuls son nom et sa couleur sont modifiables.")
+        : draft.owner ? h("div", { class: "banner info" }, icon("i-crown"), "Le Fondateur a toutes les permissions. Seuls son nom, sa couleur et son ID Discord sont modifiables.")
             : null;
 
-    const membersCard = rank && state.staff ? h("div", { class: "card" },
-        h("h3", { class: "card-title" }, `Membres (${members.length})`),
-        members.length
-            ? h("div", { class: "chips" }, members.map((m) => h("span", { class: "chip" }, h("span", { class: `status${m.online ? " on" : ""}` }), m.name)))
-            : h("span", { class: "muted" }, "Aucun membre n'a ce rang.")
-    ) : null;
+    const membersLine = rank && state.staff ? h("div", { class: "pv-members" },
+        h("span", { class: "muted" }, `Membres (${members.length}) :`),
+        members.length ? members.map((m) => h("span", { class: "chip" }, h("span", { class: `status${m.online ? " on" : ""}` }), m.name)) : h("span", { class: "muted" }, "aucun")) : null;
 
-    const content = h("div", { class: "content" },
-        h("div", { class: "page-head" },
-            h("div", { class: "grow" }, h("h1", { class: "page-title" }, titleDot, titleText), sub),
-            actions
-        ),
-        h("div", { class: "scroll" }, banner, form,
-            h("div", { class: "card" },
-                h("div", { class: "card-head dev-head" }, h("h3", { class: "card-title" }, "Permissions"),
-                    h("label", { class: "search" }, icon("i-search"), permSearchInput)),
-                permEmpty, permSections),
-            membersCard)
-    );
+    const footer = editable ? h("div", { class: "pv-footer" },
+        saveBtn, resetBtn,
+        h("span", { class: "grow" }),
+        rank && !rank.owner ? h("button", { class: "btn", onclick: () => duplicateRank(rank) }, icon("i-copy"), "Dupliquer") : null,
+        h("button", { class: "btn", onclick: () => openRankRename(refreshChrome) }, icon("i-edit"), "Renommer"),
+        rank && !rank.owner ? h("button", { class: "btn danger", onclick: () => deleteRank(rank) }, icon("i-trash"), "Supprimer") : null) : null;
+
+    const content = h("div", { class: "content perm-page" },
+        head, banner,
+        h("div", { class: "pv-body" }, permPanel, accessPanel),
+        membersLine, footer);
 
     queueMicrotask(refreshChrome);
     return content;
 }
+
+// Recherches des blocs Permissions et Accès
+const permSearches = { perms: "", access: "" };
+
+// Couleur du rang : pastilles et couleur personnalisée
+function openRankColor(done) {
+    const picker = h("input", { type: "color", value: draft.color });
+    const swatches = h("div", { class: "swatches" });
+    const paint = () => swatches.replaceChildren(...SWATCHES.map((color) => {
+        const b = h("button", { class: `swatch${draft.color === color ? " on" : ""}`, title: color });
+        b.style.background = color;
+        b.addEventListener("click", () => { draft.color = color; picker.value = color; paint(); done(); });
+        return b;
+    }), h("label", { class: "color-pick", title: "Couleur personnalisée" }, picker, icon("i-plus")));
+    picker.addEventListener("input", () => { draft.color = picker.value.toLowerCase(); paint(); done(); });
+    paint();
+    openModal((close) => [
+        h("header", null, h("h3", null, "Couleur du rang"), h("p", null, "Appliquée à la sauvegarde.")),
+        h("div", { class: "body" }, swatches),
+        h("footer", null, h("button", { class: "btn primary", onclick: () => close() }, "OK")),
+    ]);
+}
+
+// Renommer : change le nom, puis enregistre (un nouveau rang reste à créer)
+function openRankRename(done) {
+    const input = h("input", { class: "input", maxlength: "32", value: draft.name });
+    openModal((close) => {
+        const submit = h("button", { class: "btn primary" }, icon("i-save"), draft.id === null ? "Valider" : "Renommer");
+        submit.addEventListener("click", async () => {
+            draft.name = input.value.trim();
+            done();
+            close();
+            if (draft.id !== null) await saveDraft();
+        });
+        input.addEventListener("keydown", (e) => { if (e.key === "Enter") submit.click(); });
+        return [
+            h("header", null, h("h3", null, "Renommer le rang")),
+            h("div", { class: "body" }, input),
+            h("footer", null, h("button", { class: "btn ghost", onclick: () => close() }, "Annuler"), submit),
+        ];
+    });
+    input.focus();
+    input.select();
+}
+
 
 function resetDraft() {
     draft = null;
@@ -1431,6 +1431,7 @@ async function saveDraft() {
         name: (draft.name || "").trim(),
         color: draft.color,
         level: Number(draft.level),
+        discord: draft.discord || "",
         permissions: [...draft.permissions],
     };
     if (draft.id !== null) payload.id = draft.id;
@@ -1765,12 +1766,27 @@ function demoState() {
         ownerLevel: 100,
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],
+            groups: [{ id: "player", label: "Joueur" }, { id: "server", label: "Serveur" }, { id: "commands", label: "Commandes" }, { id: "access", label: "Accès", sub: "Menu de gestion" }],
             permissions: [
-                { id: "panel.open", family: "manage", label: "Ouvrir le panel staff" },
-                { id: "ranks.view", family: "manage", label: "Voir les rangs et leurs permissions" },
-                { id: "ranks.manage", family: "manage", label: "Créer, modifier et supprimer les rangs inférieurs" },
-                { id: "staff.view", family: "manage", label: "Voir les membres du staff" },
-                { id: "staff.manage", family: "manage", label: "Ajouter, promouvoir et retirer des membres inférieurs" },
+                { id: "players.view", family: "players", group: "player", short: "Fiche joueur", label: "Voir la liste des joueurs et leur fiche" },
+                { id: "players.goto", family: "players", group: "player", short: "Goto", label: "Aller vers un joueur" },
+                { id: "players.licenses", family: "players", group: "player", label: "Give un permis : donner et retirer les permis" },
+                { id: "players.wipe", family: "players", group: "player", label: "Wipe un joueur : réinitialiser complètement son personnage" },
+                { id: "sanctions.ban", family: "sanctions", group: "player", label: "Bannir temporairement" },
+                { id: "economy.money", family: "economy", group: "player", label: "Donner, retirer et fixer liquide et banque" },
+                { id: "world.weather", family: "world", group: "server", short: "Météo", label: "Changer la météo, le cycle météo et les pannes de courant" },
+                { id: "world.time", family: "world", group: "server", label: "Changer et figer l'heure" },
+                { id: "tools.noclip", family: "tools", group: "commands", short: "Noclip", label: "Noclip (vol libre, invisible et invincible)" },
+                { id: "tools.godmode", family: "tools", group: "commands", label: "Se rendre invincible" },
+                { id: "players.crash", family: "players", group: "commands", label: "Crash Player : déconnecter un joueur sans raison affichée (/crash)" },
+                { id: "panel.open", family: "manage", group: "access", label: "Ouvrir le panel staff" },
+                { id: "ranks.view", family: "manage", group: "access", label: "Voir les rangs et leurs permissions" },
+                { id: "ranks.manage", family: "manage", group: "access", label: "Créer, modifier et supprimer les rangs inférieurs" },
+                { id: "staff.view", family: "manage", group: "access", label: "Voir les membres du staff" },
+                { id: "staff.manage", family: "manage", group: "access", label: "Ajouter, promouvoir et retirer des membres inférieurs" },
+                { id: "illegal.manage", family: "illegal", group: "access", short: "Illégal", label: "Illégal : recelleur, puis drogues, territoires, craft d'armes, tablette, missions" },
+                { id: "items.manage", family: "manage", group: "access", label: "Items : créer, modifier, dupliquer, supprimer et donner les objets" },
+                { id: "logs.view", family: "manage", group: "access", short: "Logs", label: "Voir les actions du staff (page Logs, tableau de bord)" },
             ],
         },
         ranks: [

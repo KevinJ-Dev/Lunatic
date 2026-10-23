@@ -46,6 +46,7 @@ local function fromRow(row)
         color = row.color,
         level = row.level,
         owner = row.is_owner == 1 or row.is_owner == true,
+        discord = row.discord_role or '',
         permissions = decodePermissions(row.permissions),
     }
 end
@@ -53,7 +54,7 @@ end
 function Ranks.load()
     byId = {}
 
-    local rows = MySQL.query.await('SELECT `id`, `name`, `color`, `level`, `is_owner`, `permissions` FROM `lunatic_admin_ranks`')
+    local rows = MySQL.query.await('SELECT `id`, `name`, `color`, `level`, `is_owner`, `permissions`, `discord_role` FROM `lunatic_admin_ranks`')
 
     for _, row in ipairs(rows or {}) do
         byId[row.id] = fromRow(row)
@@ -79,7 +80,7 @@ function Ranks.seed()
             def.name, def.color, def.level, def.owner and 1 or 0, encodePermissions(set),
         })
 
-        byId[id] = { id = id, name = def.name, color = def.color, level = def.level, owner = def.owner == true, permissions = set }
+        byId[id] = { id = id, name = def.name, color = def.color, level = def.level, owner = def.owner == true, discord = '', permissions = set }
     end
 
     print(('[lunatic_admin] %d rangs par défaut créés.'):format(#Config.DefaultRanks))
@@ -157,22 +158,24 @@ end
 ---@param data {name:string, color:string, level:number, permissions:table<string, true>}
 ---@return StaffRank
 function Ranks.create(data)
-    local id = MySQL.insert.await('INSERT INTO `lunatic_admin_ranks` (`name`, `color`, `level`, `is_owner`, `permissions`) VALUES (?, ?, ?, 0, ?)', {
-        data.name, data.color, data.level, encodePermissions(data.permissions),
+    local id = MySQL.insert.await('INSERT INTO `lunatic_admin_ranks` (`name`, `color`, `level`, `is_owner`, `permissions`, `discord_role`) VALUES (?, ?, ?, 0, ?, ?)', {
+        data.name, data.color, data.level, encodePermissions(data.permissions), data.discord or '',
     })
 
-    byId[id] = { id = id, name = data.name, color = data.color, level = data.level, owner = false, permissions = data.permissions }
+    byId[id] = { id = id, name = data.name, color = data.color, level = data.level, owner = false, discord = data.discord or '', permissions = data.permissions }
     return byId[id]
 end
 
 ---@param rank StaffRank
 ---@param data {name:string, color:string, level:number, permissions:table<string, true>}
 function Ranks.update(rank, data)
-    MySQL.update.await('UPDATE `lunatic_admin_ranks` SET `name` = ?, `color` = ?, `level` = ?, `permissions` = ? WHERE `id` = ?', {
-        data.name, data.color, data.level, encodePermissions(data.permissions), rank.id,
+    local discord = data.discord or rank.discord or ''
+
+    MySQL.update.await('UPDATE `lunatic_admin_ranks` SET `name` = ?, `color` = ?, `level` = ?, `permissions` = ?, `discord_role` = ? WHERE `id` = ?', {
+        data.name, data.color, data.level, encodePermissions(data.permissions), discord, rank.id,
     })
 
-    rank.name, rank.color, rank.level, rank.permissions = data.name, data.color, data.level, data.permissions
+    rank.name, rank.color, rank.level, rank.permissions, rank.discord = data.name, data.color, data.level, data.permissions, discord
 end
 
 ---@param rank StaffRank

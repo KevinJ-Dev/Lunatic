@@ -73,6 +73,15 @@ local function cleanColor(value)
     end
 end
 
+-- ID d'un rôle Discord (17 à 20 chiffres), ou vide. Synchronisation avec Discord : plus tard
+local function cleanDiscord(value)
+    local text = type(value) == 'string' and value:match('^%s*(.-)%s*$') or ''
+
+    if text == '' or text:match('^%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d?%d?%d?$') then
+        return text
+    end
+end
+
 local function cleanLevel(value)
     local level = tonumber(value)
 
@@ -133,6 +142,7 @@ local function publicRank(rank)
         color = rank.color,
         level = rank.level,
         owner = rank.owner,
+        discord = rank.discord or '',
         permissions = Ranks.permissionList(rank),
         members = Staff.countByRank(rank.id),
     }
@@ -155,7 +165,7 @@ local function buildState(src)
             rank = publicRank(rank),
             permissions = Ranks.permissionList(rank),
         },
-        catalogue = { families = Permissions.Families, permissions = Permissions.List },
+        catalogue = { families = Permissions.Families, groups = Permissions.Groups, permissions = Permissions.List },
         ownerLevel = Config.OwnerLevel,
     }
 
@@ -245,6 +255,12 @@ Actions['rank.save'] = function(src, actor, data)
         return fail('Couleur invalide.')
     end
 
+    local discord = cleanDiscord(data.discord)
+
+    if not discord then
+        return fail("ID Discord : l'identifiant du rôle (17 à 20 chiffres), ou vide.")
+    end
+
     local requested = requestedSet(data.permissions)
 
     -- Modification
@@ -261,7 +277,7 @@ Actions['rank.save'] = function(src, actor, data)
                 return fail('Seul un Fondateur peut modifier ce rang.')
             end
 
-            Ranks.update(rank, { name = name, color = color, level = rank.level, permissions = rank.permissions })
+            Ranks.update(rank, { name = name, color = color, level = rank.level, permissions = rank.permissions, discord = discord })
             Logs.add(src, 'rank.update', name, { id = rank.id, color = color })
             return { ok = true, id = rank.id }
         end
@@ -281,7 +297,7 @@ Actions['rank.save'] = function(src, actor, data)
         end
 
         local before = { name = rank.name, level = rank.level, permissions = Ranks.permissionList(rank) }
-        Ranks.update(rank, { name = name, color = color, level = level, permissions = mergePermissions(actor, rank.permissions, requested) })
+        Ranks.update(rank, { name = name, color = color, level = level, permissions = mergePermissions(actor, rank.permissions, requested), discord = discord })
         Logs.add(src, 'rank.update', name, { id = rank.id, before = before, after = { name = name, level = level, permissions = Ranks.permissionList(rank) } })
 
         return { ok = true, id = rank.id }
@@ -302,7 +318,7 @@ Actions['rank.save'] = function(src, actor, data)
         return fail(('Le niveau %d est déjà utilisé par un autre rang.'):format(level))
     end
 
-    local rank = Ranks.create({ name = name, color = color, level = level, permissions = mergePermissions(actor, {}, requested) })
+    local rank = Ranks.create({ name = name, color = color, level = level, permissions = mergePermissions(actor, {}, requested), discord = discord })
     Logs.add(src, 'rank.create', name, { id = rank.id, level = level, permissions = Ranks.permissionList(rank) })
 
     return { ok = true, id = rank.id }
