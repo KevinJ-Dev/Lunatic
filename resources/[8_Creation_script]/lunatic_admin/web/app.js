@@ -1226,8 +1226,8 @@ function newRank() {
         };
         selectedRankId = null;
         renderRanks();
-        const input = document.querySelector("#rank-name");
-        if (input) { input.focus(); input.select(); }
+        // Nom du nouveau rang tout de suite (la création se fait ensuite avec « Créer le rang »)
+        openRankRename(() => renderRanks());
     };
     if (isDirty()) {
         confirmBox("Modifications non enregistrées", "Créer un rang annule les changements en cours.", "Continuer", true).then((yes) => yes && create());
