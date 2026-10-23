@@ -71,8 +71,8 @@ function heistsPanel() {
         return h("div", { class: "card", style: "margin-top:16px" },
             h("div", { class: "card-head dev-head" },
                 h("div", { class: "drug-title" }, h("div", { class: "who" },
-                    h("b", null, t.label, s.enabled ? h("span", { class: "badge ok ready-badge" }, "Actif") : h("span", { class: "badge muted ready-badge" }, "Désactivé")),
-                    h("span", { class: "muted" }, `${s.police} policier${s.police > 1 ? "s" : ""} en service minimum · ${s.cooldown} min avant de rebraquer le même lieu · ${s.crewOnly ? `crews level ${s.minLevel}+` : "ouvert à tous"}`))),
+                    h("b", null, t.label),
+                    h("span", { class: "muted" }, `${s.cooldown} min avant de rebraquer le même lieu · statut, policiers, level, XP et influence : page Missions`))),
                 h("button", { class: "btn small ghost", onclick: () => openHeistSettings(t) }, icon("i-edit"), "Réglages")),
             h("p", { class: "hint-line", style: "margin:0" }, HEIST_HELP[t.id]),
             actions);
@@ -122,16 +122,7 @@ async function openHeistSettings(t) {
     const d = heistState.data;
     const s = JSON.parse(JSON.stringify(t.settings));
     const num = (value, min, max) => h("input", { class: "input mono", type: "number", min: String(min), max: String(max), value: String(value) });
-    const police = num(s.police, 0, 20);
     const cooldown = num(s.cooldown, 5, 1440);
-    const minLevel = num(s.minLevel, 1, d.maxLevel);
-    let enabled = s.enabled !== false;
-    let crewOnly = s.crewOnly === true;
-    const toggle = (label, hint, get, set) => {
-        const row = h("div", { class: `perm${get() ? " on" : ""}` }, h("span", { class: "switch" }), h("span", { class: "txt" }, h("span", null, label), h("code", null, hint)));
-        row.addEventListener("click", () => { set(!get()); row.classList.toggle("on", get()); });
-        return row;
-    };
 
     // Un bloc par action (caisse, coffre, vitrine, porte, casier)
     const blocks = t.actions.map((a) => {
@@ -191,19 +182,14 @@ async function openHeistSettings(t) {
                 if (value.loot.some((l) => !known.has(l.item))) return toast("Un objet du butin n'existe pas dans ox_inventory.", "error");
                 actions[b.id] = value;
             }
-            const res = await heistAct("heists.saveSettings", { type: t.id, settings: { enabled, police: Number(police.value), cooldown: Number(cooldown.value), crewOnly, minLevel: Number(minLevel.value), actions } }, "Réglages enregistrés.");
+            const res = await heistAct("heists.saveSettings", { type: t.id, settings: { enabled: s.enabled !== false, police: s.police, cooldown: Number(cooldown.value), crewOnly: s.crewOnly === true, minLevel: s.minLevel, actions } }, "Réglages enregistrés.");
             if (res) close();
         });
         return [
             h("header", null, h("h3", null, `Réglages · ${t.label}`), h("p", null, HEIST_HELP[t.id])),
             h("div", { class: "body event-form" },
-                h("div", { class: "mode-list" },
-                    toggle("Braquage actif", "Désactivé : plus aucune cible de ce type.", () => enabled, (v) => { enabled = v; }),
-                    toggle("Réservé aux crews", "Sinon : ouvert à tout le monde.", () => crewOnly, (v) => { crewOnly = v; })),
-                h("div", { class: "event-form-row" },
-                    h("div", { class: "field" }, h("label", null, "Policiers en service minimum"), police),
-                    h("div", { class: "field" }, h("label", null, "Délai avant de rebraquer le lieu (min)"), cooldown)),
-                h("div", { class: "field" }, h("label", null, "Level de crew minimum (si réservé aux crews)"), minLevel),
+                h("p", { class: "hint-line", style: "margin:0" }, "Statut, policiers, level, XP et influence se règlent dans la page Missions."),
+                h("div", { class: "field" }, h("label", null, "Délai avant de rebraquer le lieu (min)"), cooldown),
                 blocks.map((b) => b.node)),
             h("footer", null, h("button", { class: "btn ghost", onclick: () => close() }, "Annuler"), submit),
         ];

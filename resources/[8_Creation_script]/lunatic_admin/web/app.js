@@ -1859,6 +1859,16 @@ async function demoNui(name, data) {
                 { id: "door", label: "Porte du coffre", duration: 15, tool: "hack_device", toolLabel: "Boîtier de piratage", breakChance: 25, alert: 100, models: ["v_ilev_gb_vauldr"], loot: [], points: [] },
                 { id: "locker", label: "Casier", duration: 30, tool: "drill", toolLabel: "Perceuse", breakChance: 10, alert: 0, count: 4, models: [], loot: [{ item: "marked_bills", label: "Billets marqués", min: 15, max: 30, chance: 100 }, { item: "gold_bar", label: "Lingot d'or", min: 1, max: 1, chance: 15 }] }] },
         ] };
+    if (name === "action" && data && data.action === "missions.list") {
+        const m = (id, label, category, link, reward, enabled) => ({ id, label, category, description: `${label} (démo)`, ready: !!link, link: link ? { kind: link[0], type: link[1] } : null, reward: !!reward, today: link ? 2 : 0,
+            settings: { enabled: !!enabled, xp: 20, influence: 3, police: 2, bypass: false, reward: reward ? 3000 : 0, dailyLimit: 0, levelRequired: true, minLevel: 1 } });
+        return { ok: true, maxLevel: 10, categories: [{ id: "heist", label: "Braquages" }, { id: "contract", label: "Contrats" }, { id: "traffic", label: "Trafic" }, { id: "street", label: "Rue" }], missions: [
+            m("heist_ammunation", "Braquage Ammunation", "heist"), m("heist_fleeca", "Braquage Fleeca", "heist", ["heist", "fleeca"], false, true),
+            m("heist_store", "Braquage Supérette", "heist", ["heist", "store"], false, true), m("heist_jewelry", "Braquage Vangelico", "heist", ["heist", "jewelry"], false, false),
+            m("contract_delivery", "Livraison", "contract", ["contract", "delivery"], true, true), m("contract_cargo", "Cargaison gardée", "contract", ["contract", "cargo"], true, true),
+            m("gofast", "GoFast", "traffic", null, true), m("racket", "Racket", "street", null, true), m("snatch", "Vol à l'arraché", "street"),
+        ] };
+    }
     if (name === "action" && data && data.action === "contracts.info") return { ok: true, maxLevel: 10,
         active: [{ crewId: 1, crew: "Ballas", title: "Livraison : Ruelle de Strawberry -> Docks", stageText: "Livrer le colis", acceptedBy: "Jean Dupont", left: 640 }],
         types: [

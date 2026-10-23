@@ -224,6 +224,13 @@ local function complete(src, contract, factor)
         pcall(function() admin:addCrewXp(contract.crewId, contract.xp) end)
     end
 
+    -- Influence (page Missions) : comptée là où le contrat se termine, pour les territoires
+    local place = contract.to or contract.from
+
+    if (contract.influence or 0) > 0 and place then
+        pcall(function() admin:addCrewInfluence(contract.crewId, contract.influence, place.x, place.y, "contract:" .. contract.type) end)
+    end
+
     for _, entry in ipairs(contract.loot or {}) do
         if math.random(100) <= entry.chance then
             local count = math.random(entry.min, entry.max)
@@ -309,10 +316,25 @@ lib.callback.register('lunatic_illegal:contractAccept', function(src, offerId)
     end
 
     local s = cfg.settings[offer.type]
+
+    if not s.enabled then
+        return fail("Ce contrat n'est plus disponible.")
+    end
+
+    if #PolicePlayers() < (s.police or 0) then
+        return fail("Trop risqué : il n'y a pas assez de policiers en ville.")
+    end
+
+    -- Limite du jour réglée dans la page Missions du panel (tout le serveur)
+    if s.mission and not admin:takeMissionSlot(s.mission.id) then
+        return fail("Plus de contrat de ce genre aujourd'hui : revenez demain.")
+    end
+
     local xPlayer = ESX.GetPlayerFromId(src)
     local contract = {
         id = offer.id, crewId = crew.id, type = offer.type, title = offer.title, reward = offer.reward, xp = offer.xp,
         from = offer.from, to = offer.to, model = offer.model, deadline = os.time() + offer.duration * 60,
+        influence = s.mission and s.mission.influence or 0,
         alertChance = s.alertChance, loot = s.loot, acceptedBy = xPlayer and xPlayer.getName() or '?',
         stage = offer.type == 'delivery' and 'pickup' or offer.type == 'theft' and 'steal' or 'assault',
         guardsSettings = offer.type == 'cargo' and { count = s.guards, model = s.guardModel, weapon = s.guardWeapon } or nil,

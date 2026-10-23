@@ -767,6 +767,11 @@ body.hidden.minimized .mini-pill { display: flex; }
 .illegal-page.map-layout .illegal-center .scroll { padding: 6px 12px 18px; }
 .illegal-page.map-layout .illegal-center .page-title { font-size: 22px; }
 
+.mission-row { min-height: 40px; }
+.mission-row.soon .name { color: var(--muted); }
+.mission-tag { min-width: 44px; padding: 2px 6px; border-radius: 6px; background: var(--surface-2); color: var(--muted); font: 600 10px var(--mono); text-align: center; }
+.mission-row.active .mission-tag { background: rgba(var(--accent-rgb), .25); color: #fff; }
+
 /* Carte de Los Santos (Leaflet) */
 .map-pane { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 16px 18px 18px; border-left: 1px solid var(--line); }
 .map-head { display: flex; align-items: center; gap: 8px; min-height: 30px; }

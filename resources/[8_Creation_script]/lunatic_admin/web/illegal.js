@@ -119,7 +119,7 @@ function illegalPage() {
         case "craft": return workshopsPage();
         case "tablet": return marketPage();
         case "drugs": return drugsPage();
-        case "missions": return { title: "Missions", sub: "Contrats proposés aux crews sur la tablette.", center: contractsPanel() };
+        case "missions": return missionsPage();
         case "heists": return { title: "Braquages", sub: "Supérettes, bijouterie, banques : réglages, actions et points.", center: heistsPanel() };
         default: return fencePage();
     }

@@ -37,7 +37,7 @@ local function save()
     local list = {}
 
     for key, place in pairs(places) do
-        list[#list + 1] = { key = key, type = place.type, x = place.x, y = place.y, z = place.z, started = place.started, untilAt = place.untilAt, done = place.done, lockers = place.lockers, doorOpen = place.doorOpen, alerted = place.alerted }
+        list[#list + 1] = { key = key, type = place.type, x = place.x, y = place.y, z = place.z, started = place.started, untilAt = place.untilAt, done = place.done, lockers = place.lockers, doorOpen = place.doorOpen, alerted = place.alerted, rewarded = place.rewarded }
     end
 
     SetResourceKvp('heists', json.encode(list))
@@ -223,6 +223,11 @@ lib.callback.register('lunatic_illegal:heistStart', function(src, typeId, action
         return fail("La porte du coffre est fermée.")
     end
 
+    -- Nouveau lieu = une mission commencée : limite du jour réglée dans la page Missions du panel
+    if not place and s.mission and not admin:takeMissionSlot(s.mission.id) then
+        return fail("Plus de coup de ce genre aujourd'hui : la ville est sur ses gardes.")
+    end
+
     if not place then
         sequence = sequence + 1
         key = ('%s-%d-%d'):format(typeId, now, sequence)
@@ -296,6 +301,25 @@ lib.callback.register('lunatic_illegal:heistFinish', function(src, success)
         place.doorOpen = true
         place.doorX, place.doorY, place.doorZ = job.coords.x, job.coords.y, job.coords.z
         broadcastDoors()
+    end
+
+    -- XP et influence du crew (page Missions) : une fois par lieu, à la première action réussie
+    local mission = cfg.settings[job.typeId].mission
+
+    if mission and not place.rewarded then
+        local crew = CrewOf(src)
+
+        if crew then
+            place.rewarded = true
+
+            if (mission.xp or 0) > 0 then
+                pcall(function() admin:addCrewXp(crew.id, mission.xp) end)
+            end
+
+            if (mission.influence or 0) > 0 then
+                pcall(function() admin:addCrewInfluence(crew.id, mission.influence, job.coords.x, job.coords.y, "heist:" .. job.typeId) end)
+            end
+        end
     end
 
     save()

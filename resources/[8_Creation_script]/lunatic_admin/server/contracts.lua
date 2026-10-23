@@ -123,8 +123,22 @@ end)
 
 -- Configuration lue par lunatic_illegal (serveur uniquement)
 exports('getContractConfig', function()
-    return { settings = settings, points = points, labels = { delivery = TYPES.delivery.label, theft = TYPES.theft.label, cargo = TYPES.cargo.label } }
+    -- Réglages communs de la page Missions (statut, policiers, level, XP, influence, gain) appliqués sur une copie
+    local effective = {}
+
+    for typeId, s in pairs(settings) do
+        effective[typeId] = Missions.apply('contract', typeId, copy(s))
+    end
+
+    return { settings = effective, points = points, labels = { delivery = TYPES.delivery.label, theft = TYPES.theft.label, cargo = TYPES.cargo.label } }
 end)
+
+-- Réglages enregistrés d'un type (valeurs de départ de la page Missions)
+Contracts = {}
+
+function Contracts.settings(typeId)
+    return settings[typeId]
+end
 
 ---------------------------------------------------------------------
 -- Actions du panel

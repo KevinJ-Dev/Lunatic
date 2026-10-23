@@ -154,8 +154,22 @@ exports('getHeistConfig', function()
         labels[typeId] = { label = entry.label, actions = entry.actions }
     end
 
-    return { settings = settings, points = points, labels = labels }
+    -- Réglages communs de la page Missions (statut, policiers, level, XP, influence) appliqués sur une copie
+    local effective = {}
+
+    for typeId, s in pairs(settings) do
+        effective[typeId] = Missions.apply('heist', typeId, copy(s))
+    end
+
+    return { settings = effective, points = points, labels = labels }
 end)
+
+-- Réglages enregistrés d'un type (valeurs de départ de la page Missions)
+Heists = {}
+
+function Heists.settings(typeId)
+    return settings[typeId]
+end
 
 ---------------------------------------------------------------------
 -- Validation des réglages
