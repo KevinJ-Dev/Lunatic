@@ -1,11 +1,13 @@
--- Braquages de magasins côté client : PNJ vendeurs au comptoir (apparition à proximité), menace (viser le vendeur
--- avec une arme à feu, ou [E] tout près avec une arme blanche ou à feu), compte à rebours tant que le vendeur reste
--- tenu en respect. Les animations du vendeur sont partagées avec les joueurs proches. Le serveur revérifie tout.
+-- Braquages de magasins côté client. Les vendeurs sont créés par le serveur (en réseau, vus de tous, tuables) et
+-- reconnus ici par leur statebag « lunaticClerk ». Menace : viser le vendeur avec une arme à feu, ou [E] tout près
+-- avec une arme blanche ou à feu ; compte à rebours tant que le vendeur reste tenu en respect.
+-- Le joueur qui contrôle le PNJ joue ses animations (vues de tous). Le serveur revérifie tout.
 
-local points = {}   -- id -> { id, x, y, z, h, ped, weapon }
-local clerks = {}   -- id -> PNJ du vendeur (propre à chaque joueur)
-local respawnAt = {} -- id -> moment où le vendeur reprend sa place (après avoir résisté)
-local blocked = {}  -- id -> pas de nouvel essai avant (évite de relancer en boucle en visant)
+local clerks = {}   -- point -> PNJ du vendeur (présent autour du joueur)
+local prepared = {} -- PNJ -> réglé par ce joueur (quand il en a le contrôle)
+local unknown = {}  -- points placés sur la carte dont la hauteur reste à mesurer : id -> { x, y }
+local measured = {} -- points déjà mesurés par ce joueur
+local blocked = {}  -- point -> pas de nouvel essai avant (évite de relancer en boucle en visant)
 local busy = false
 local promptText = nil
 
@@ -27,16 +29,6 @@ local function hidePrompt()
     end
 end
 
-local function removeClerk(id)
-    local ped = clerks[id]
-
-    if ped and DoesEntityExist(ped) then
-        DeleteEntity(ped)
-    end
-
-    clerks[id] = nil
-end
-
 local function loadConfig()
     local list = lib.callback.await('lunatic_illegal:holdupConfig', false)
 
@@ -44,22 +36,11 @@ local function loadConfig()
         return
     end
 
-    local fresh = {}
+    unknown, measured = {}, {}
 
     for _, point in ipairs(list) do
-        fresh[point.id] = point
+        unknown[point.id] = point
     end
-
-    -- Points retirés ou modifiés dans le panel : le vendeur réapparaît avec les nouveaux réglages
-    for id in pairs(clerks) do
-        local old, new = points[id], fresh[id]
-
-        if not new or not old or old.x ~= new.x or old.y ~= new.y or old.z ~= new.z or old.h ~= new.h or old.ped ~= new.ped then
-            removeClerk(id)
-        end
-    end
-
-    points = fresh
 end
 
 CreateThread(function()
@@ -70,87 +51,70 @@ end)
 RegisterNetEvent('lunatic_illegal:holdupConfigChanged', loadConfig)
 
 ---------------------------------------------------------------------
--- Vendeurs : apparition près des joueurs
+-- Vendeurs autour du joueur
 ---------------------------------------------------------------------
 
--- Hauteur du sol sous le point (point placé sur la carte du panel : hauteur inconnue)
-local function groundZ(point)
-    if point.z > -100.0 then
-        local found, z = GetGroundZFor_3dCoord(point.x, point.y, point.z + 1.0, false)
-        return found and math.abs(z - point.z) < 2.0 and z or point.z
-    end
+-- Réglages du PNJ par le joueur qui le contrôle : reste à son comptoir, ne réagit pas tout seul
+local function prepare(ped)
+    SetBlockingOfNonTemporaryEvents(ped, true)
+    SetPedFleeAttributes(ped, 0, false)
+    SetPedKeepTask(ped, true)
+    SetPedCanBeTargetted(ped, true)
+end
 
+-- Hauteur du sol sous un point placé sur la carte du panel
+local function groundZ(x, y)
     for height = 1000.0, 0.0, -25.0 do
-        RequestCollisionAtCoord(point.x, point.y, height)
-        local found, z = GetGroundZFor_3dCoord(point.x, point.y, height, false)
+        RequestCollisionAtCoord(x, y, height)
+        Wait(0)
+        local found, z = GetGroundZFor_3dCoord(x, y, height, false)
 
         if found then
             return z
         end
     end
-
-    return nil
-end
-
-local function spawnClerk(point)
-    local model = joaat(point.ped)
-
-    if not IsModelInCdimage(model) or not IsModelAPed(model) then
-        return
-    end
-
-    if not pcall(lib.requestModel, model, 5000) then
-        return
-    end
-
-    local z = groundZ(point)
-
-    if not z then
-        return
-    end
-
-    local ped = CreatePed(4, model, point.x, point.y, z, point.h or 0.0, false, false)
-    SetModelAsNoLongerNeeded(model)
-
-    if ped == 0 then
-        return
-    end
-
-    SetEntityHeading(ped, point.h or 0.0)
-    SetEntityInvincible(ped, true)
-    SetBlockingOfNonTemporaryEvents(ped, true)
-    SetPedFleeAttributes(ped, 0, false)
-    SetPedCanRagdollFromPlayerImpact(ped, false)
-    FreezeEntityPosition(ped, true)
-    clerks[point.id] = ped
 end
 
 CreateThread(function()
     while true do
-        local coords = GetEntityCoords(PlayerPedId()).xy
-        local now = GetGameTimer()
+        local found = {}
+        local me = PlayerId()
+        local coords = GetEntityCoords(PlayerPedId())
 
-        for id, point in pairs(points) do
-            local distance = #(coords - vector2(point.x, point.y))
+        for _, ped in ipairs(GetGamePool('CPed')) do
+            local id = Entity(ped).state.lunaticClerk
 
-            if distance < Config.HoldupSpawnRange then
-                if respawnAt[id] and now >= respawnAt[id] then
-                    respawnAt[id] = nil
-                    removeClerk(id)
+            if id then
+                found[id] = ped
+
+                if NetworkGetEntityOwner(ped) == me then
+                    if not prepared[ped] then
+                        prepared[ped] = true
+                        prepare(ped)
+                    end
+                else
+                    prepared[ped] = nil
                 end
-
-                if not clerks[id] or not DoesEntityExist(clerks[id]) then
-                    spawnClerk(point)
-                end
-            elseif clerks[id] and distance > Config.HoldupSpawnRange + 20.0 then
-                respawnAt[id] = nil
-                removeClerk(id)
             end
         end
 
-        for id in pairs(clerks) do
-            if not points[id] then
-                removeClerk(id)
+        clerks = found
+
+        for ped in pairs(prepared) do
+            if not DoesEntityExist(ped) then
+                prepared[ped] = nil
+            end
+        end
+
+        -- Mesure du sol pour les points placés sur la carte : le serveur pourra ensuite y faire apparaître le vendeur
+        for id, point in pairs(unknown) do
+            if not measured[id] and #(coords.xy - vector2(point.x, point.y)) < Config.HoldupSpawnRange then
+                measured[id] = true
+                local z = groundZ(point.x, point.y)
+
+                if z then
+                    TriggerServerEvent('lunatic_illegal:holdupGround', id, z)
+                end
             end
         end
 
@@ -159,7 +123,7 @@ CreateThread(function()
 end)
 
 ---------------------------------------------------------------------
--- Animations du vendeur (envoyées par le serveur à tous les joueurs)
+-- Animations du vendeur (jouées par le joueur qui le contrôle, vues de tous)
 ---------------------------------------------------------------------
 
 local function playAnim(ped, dict, clip, flag)
@@ -171,10 +135,14 @@ local function playAnim(ped, dict, clip, flag)
     RemoveAnimDict(dict)
 end
 
-RegisterNetEvent('lunatic_illegal:holdupClerk', function(id, state)
-    local ped = clerks[id]
+RegisterNetEvent('lunatic_illegal:holdupClerk', function(netId, state, robber)
+    if not NetworkDoesEntityExistWithNetworkId(netId) then
+        return
+    end
 
-    if not ped or not DoesEntityExist(ped) then
+    local ped = NetToPed(netId)
+
+    if not DoesEntityExist(ped) or IsPedDeadOrDying(ped, true) or NetworkGetEntityOwner(ped) ~= PlayerId() then
         return
     end
 
@@ -187,15 +155,15 @@ RegisterNetEvent('lunatic_illegal:holdupClerk', function(id, state)
         playAnim(ped, 'missminuteman_1ig_2', 'handsup_base', 49)
 
         SetTimeout(45000, function()
-            if DoesEntityExist(ped) then
+            if DoesEntityExist(ped) and not IsPedDeadOrDying(ped, true) and NetworkGetEntityOwner(ped) == PlayerId() then
                 ClearPedTasks(ped)
             end
         end)
     elseif state == 'resist' then
-        -- A appuyé sur l'alarme et se met à l'abri derrière le comptoir
-        FreezeEntityPosition(ped, false)
-        TaskCower(ped, -1)
-        respawnAt[id] = GetGameTimer() + 60000
+        -- A appuyé sur l'alarme et s'enfuit
+        local player = robber and GetPlayerFromServerId(robber)
+        local target = player and player ~= -1 and GetPlayerPed(player) or PlayerPedId()
+        TaskSmartFleePed(ped, target, 100.0, -1, false, false)
     end
 end)
 
@@ -216,14 +184,14 @@ local function startHoldup(id)
         return
     end
 
-    local clerk = clerks[id]
     local endAt = GetGameTimer() + res.duration * 1000
     local shown = -1
-    local cancelled = false
+    local cancelled = nil
 
-    -- Garder le vendeur en respect : rester près de lui, arme en main
+    -- Garder le vendeur en respect : rester près de lui, arme en main ; s'il meurt, la caisse reste fermée
     while GetGameTimer() < endAt do
         local ped = PlayerPedId()
+        local clerk = clerks[id]
         local left = math.ceil((endAt - GetGameTimer()) / 1000)
 
         if left ~= shown then
@@ -231,10 +199,13 @@ local function startHoldup(id)
             lib.showTextUI(('Le vendeur remplit le sac… %d s'):format(left))
         end
 
-        local far = not clerk or not DoesEntityExist(clerk) or #(GetEntityCoords(ped) - GetEntityCoords(clerk)) > Config.HoldupKeepRange
+        if not clerk or not DoesEntityExist(clerk) or IsPedDeadOrDying(clerk, true) then
+            cancelled = 'dead'
+            break
+        end
 
-        if far or IsEntityDead(ped) or not IsPedArmed(ped, 5) then
-            cancelled = true
+        if #(GetEntityCoords(ped) - GetEntityCoords(clerk)) > Config.HoldupKeepRange or IsEntityDead(ped) or not IsPedArmed(ped, 5) then
+            cancelled = 'left'
             break
         end
 
@@ -245,7 +216,7 @@ local function startHoldup(id)
 
     if cancelled then
         TriggerServerEvent('lunatic_illegal:holdupCancel')
-        notify("Vous avez lâché le vendeur : il a déclenché l'alarme.", 'error')
+        notify(cancelled == 'dead' and 'Le vendeur est mort : la caisse reste fermée.' or "Vous avez lâché le vendeur : il a déclenché l'alarme.", 'error')
     else
         local done = lib.callback.await('lunatic_illegal:holdupFinish', false)
 
@@ -271,7 +242,7 @@ CreateThread(function()
             local now = GetGameTimer()
 
             for id, clerk in pairs(clerks) do
-                if DoesEntityExist(clerk) and not respawnAt[id] and (blocked[id] or 0) < now then
+                if DoesEntityExist(clerk) and not IsPedDeadOrDying(clerk, true) and (blocked[id] or 0) < now then
                     local distance = #(coords - GetEntityCoords(clerk))
 
                     if distance < 15.0 then
@@ -309,9 +280,5 @@ end)
 AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
         hidePrompt()
-
-        for id in pairs(clerks) do
-            removeClerk(id)
-        end
     end
 end)

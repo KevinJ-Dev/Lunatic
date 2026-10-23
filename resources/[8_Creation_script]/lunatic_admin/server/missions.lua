@@ -74,7 +74,8 @@ local function denied()
 end
 
 local function defaultsFor(entry)
-    local base = { enabled = false, xp = 20, influence = 3, police = 2, bypass = false, reward = 0, dailyLimit = 0, levelRequired = true, minLevel = 1 }
+    -- Les braquages de magasins sont ouverts à tous les joueurs (crew ou non) ; les autres missions demandent un crew
+    local base = { enabled = false, xp = 20, influence = 3, police = 2, bypass = false, reward = 0, dailyLimit = 0, levelRequired = entry.holdup == nil, minLevel = 1 }
     local start = START[entry.id] or {}
 
     for key, value in pairs(start) do
@@ -206,6 +207,20 @@ local function load()
 
             if s and (s.reward or 0) == 0 then
                 s.reward = reward
+                MySQL.update.await('UPDATE `lunatic_missions` SET `settings` = ? WHERE `id` = ?', { json.encode(s), id })
+            end
+        end
+    end
+
+    -- Braquages de magasins ouverts à tous les joueurs, pas seulement aux crews (une fois, pour les réglages déjà créés)
+    if not GetResourceKvpString('missions_holdup_open') then
+        SetResourceKvp('missions_holdup_open', '1')
+
+        for id in pairs(HOLDUP_REWARDS) do
+            local s = settings[id]
+
+            if s and s.levelRequired then
+                s.levelRequired = false
                 MySQL.update.await('UPDATE `lunatic_missions` SET `settings` = ? WHERE `id` = ?', { json.encode(s), id })
             end
         end

@@ -141,7 +141,9 @@ local function load()
         if TYPES[row.type] then
             points[#points + 1] = {
                 id = tonumber(row.id), type = row.type, label = row.label, ped = row.ped, company = row.company ~= '' and row.company or nil,
-                x = tonumber(row.x), y = tonumber(row.y), z = tonumber(row.z), h = tonumber(row.h), active = tonumber(row.active) == 1,
+                x = tonumber(row.x), y = tonumber(row.y), z = tonumber(row.z), h = tonumber(row.h),
+                -- TINYINT(1) : oxmysql le renvoie en booléen
+                active = row.active == true or tonumber(row.active) == 1,
             }
         end
     end
@@ -235,6 +237,20 @@ exports('getHoldupConfig', function()
     end
 
     return { types = types, points = points }
+end)
+
+-- Hauteur du sol d'un point placé sur la carte, mesurée en jeu par un joueur proche (lunatic_illegal)
+exports('setHoldupGround', function(id, z)
+    local point = findPoint(id)
+    z = tonumber(z)
+
+    if not point or point.z > -100.0 or not z or z < -100.0 or z > 1500.0 then
+        return false
+    end
+
+    MySQL.update.await('UPDATE `lunatic_holdups` SET `z` = ? WHERE `id` = ?', { z, point.id })
+    load()
+    return true
 end)
 
 -- Points d'un type (fiches de la page Missions)

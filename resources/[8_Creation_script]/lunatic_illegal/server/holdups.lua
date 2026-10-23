@@ -1,8 +1,10 @@
 -- Braquages de magasins : un PNJ vendeur au comptoir (points et réglages dans le panel, page Braquages ;
--- statut, policiers, gain, XP, influence et level dans la page Missions).
+-- statut, policiers, gain, XP, influence et level dans la page Missions). Ouvert à tous, crew ou non.
+-- Le vendeur est créé ici, en réseau : tous les joueurs voient le même, et il peut être tué. Mort, la caisse
+-- reste fermée (seul le coffre reste à percer) jusqu'à ce qu'un nouveau vendeur prenne sa place après le délai.
 -- Le joueur menace le vendeur avec l'arme demandée (jamais les poings) ; avec une arme blanche il peut résister.
 -- Sinon il remplit le sac pendant la durée réglée, tant que le joueur reste près de lui, arme en main.
--- Tout est revérifié ici : distance, arme, policiers, crew et level, délai du magasin, limite du jour, durée.
+-- Tout est revérifié ici : distance, arme, vendeur vivant, policiers, crew et level, délai, limite du jour, durée.
 
 local ox = exports.ox_inventory
 local admin = exports.lunatic_admin
@@ -10,6 +12,8 @@ local admin = exports.lunatic_admin
 local cooldowns = {} -- point -> fin du délai (os.time), gardé d'un redémarrage à l'autre
 local robbing = {}   -- point -> joueur en train de le braquer
 local pending = {}   -- joueur -> braquage en cours
+local clerks = {}    -- point -> { ped, key } vendeur en réseau et réglages avec lesquels il a été créé
+local deadUntil = {} -- point -> vendeur mort (ou parti) : remplacé après cette heure (os.time)
 
 local function fail(message)
     return { ok = false, error = message }
@@ -65,11 +69,6 @@ local function available(cfg, point)
     return point and point.active and t and not t.soon and t.mission and t.mission.enabled and t or nil
 end
 
--- État du vendeur pour tous les joueurs proches : robbed (mains en l'air, remplit le sac), resist, done, idle
-local function clerkState(pointId, state)
-    TriggerClientEvent('lunatic_illegal:holdupClerk', -1, pointId, state)
-end
-
 local function alertPolice(point, label)
     for _, officer in ipairs(PolicePlayers()) do
         TriggerClientEvent('lunatic_illegal:heistAlert', officer, { x = point.x, y = point.y, label = label })
@@ -77,7 +76,149 @@ local function alertPolice(point, label)
 end
 
 ---------------------------------------------------------------------
--- Configuration pour les joueurs (PNJ à faire apparaître, arme demandée)
+-- Vendeurs en réseau : créés quand un joueur approche, retirés quand plus personne n'est autour
+---------------------------------------------------------------------
+
+local function clerkPed(pointId)
+    local clerk = clerks[pointId]
+    return clerk and DoesEntityExist(clerk.ped) and clerk.ped or nil
+end
+
+-- Tant qu'aucun joueur ne contrôle le PNJ, sa santé n'est pas encore synchronisée : il est considéré vivant
+local function clerkAlive(ped)
+    return ped ~= nil and DoesEntityExist(ped) and (NetworkGetEntityOwner(ped) == -1 or GetEntityHealth(ped) > 0)
+end
+
+local function removeClerk(pointId)
+    local ped = clerkPed(pointId)
+
+    if ped then
+        DeleteEntity(ped)
+    end
+
+    clerks[pointId] = nil
+end
+
+-- Animation du vendeur, jouée par le joueur qui contrôle le PNJ (et vue par tous) : robbed, done, resist, idle
+local function clerkState(pointId, state, robber)
+    local ped = clerkPed(pointId)
+
+    if ped then
+        TriggerClientEvent('lunatic_illegal:holdupClerk', -1, NetworkGetNetworkIdFromEntity(ped), state, robber)
+    end
+end
+
+local function pointKey(point)
+    return ('%s:%.2f:%.2f:%.2f:%.1f'):format(point.ped, point.x, point.y, point.z, point.h or 0.0)
+end
+
+local function spawnClerk(point)
+    local ped = CreatePed(4, joaat(point.ped), point.x, point.y, point.z, point.h or 0.0, true, true)
+    local timeout = GetGameTimer() + 3000
+
+    while not DoesEntityExist(ped) and GetGameTimer() < timeout do
+        Wait(50)
+    end
+
+    if not DoesEntityExist(ped) then
+        -- Modèle de PNJ invalide ? Nouvel essai dans une minute (vérifier le modèle dans le panel)
+        deadUntil[point.id] = os.time() + 60
+        print(("^3[lunatic_illegal] Braquage #%d (%s) : le vendeur « %s » n'a pas pu être créé.^0"):format(point.id, point.label, point.ped))
+        return
+    end
+
+    -- Les joueurs reconnaissent le vendeur par ce statebag (réglages du PNJ, menace)
+    Entity(ped).state:set('lunaticClerk', point.id, true)
+    clerks[point.id] = { ped = ped, key = pointKey(point) }
+end
+
+CreateThread(function()
+    Wait(5000)
+
+    while true do
+        local cfg = config()
+
+        if cfg then
+            local now = os.time()
+            local players = {}
+
+            for _, id in ipairs(GetPlayers()) do
+                local ped = GetPlayerPed(id)
+
+                if ped and ped ~= 0 then
+                    players[#players + 1] = GetEntityCoords(ped).xy
+                end
+            end
+
+            local wanted = {}
+
+            for _, point in ipairs(cfg.points) do
+                -- Hauteur inconnue (placé sur la carte) : en attente de la mesure d'un joueur proche
+                if available(cfg, point) and point.z > -100.0 then
+                    local nearest = math.huge
+
+                    for _, coords in ipairs(players) do
+                        nearest = math.min(nearest, #(coords - vector2(point.x, point.y)))
+                    end
+
+                    if nearest < Config.HoldupSpawnRange or (clerks[point.id] and nearest < Config.HoldupSpawnRange + 40.0) then
+                        wanted[point.id] = point
+                    end
+                end
+            end
+
+            for id, clerk in pairs(clerks) do
+                local point = wanted[id]
+
+                if not point or not DoesEntityExist(clerk.ped) or clerk.key ~= pointKey(point) then
+                    removeClerk(id)
+                elseif not clerkAlive(clerk.ped) then
+                    -- Vendeur tué : la caisse reste fermée jusqu'à son remplaçant
+                    if not deadUntil[id] then
+                        local t = cfg.types[point.type]
+                        deadUntil[id] = now + (t and t.settings.cooldown or 30) * 60
+                    elseif now >= deadUntil[id] then
+                        removeClerk(id)
+                    end
+                end
+            end
+
+            for id, point in pairs(wanted) do
+                if not clerks[id] and (deadUntil[id] or 0) <= now then
+                    deadUntil[id] = nil
+                    spawnClerk(point)
+                end
+            end
+        end
+
+        Wait(2000)
+    end
+end)
+
+AddEventHandler('onResourceStop', function(resource)
+    if resource == GetCurrentResourceName() then
+        for id in pairs(clerks) do
+            removeClerk(id)
+        end
+    end
+end)
+
+-- Hauteur du sol d'un point placé sur la carte du panel, mesurée par un joueur proche
+RegisterNetEvent('lunatic_illegal:holdupGround', function(pointId, z)
+    local src = source
+    local cfg = config()
+    local point = cfg and findPoint(cfg, pointId)
+    local ped = GetPlayerPed(src)
+
+    if not point or point.z > -100.0 or not ped or ped == 0 or #(GetEntityCoords(ped).xy - vector2(point.x, point.y)) > Config.HoldupSpawnRange + 20.0 then
+        return
+    end
+
+    pcall(function() admin:setHoldupGround(point.id, z) end)
+end)
+
+---------------------------------------------------------------------
+-- Configuration pour les joueurs (points dont la hauteur reste à mesurer)
 ---------------------------------------------------------------------
 
 lib.callback.register('lunatic_illegal:holdupConfig', function()
@@ -90,10 +231,8 @@ lib.callback.register('lunatic_illegal:holdupConfig', function()
     local list = {}
 
     for _, point in ipairs(cfg.points) do
-        local t = available(cfg, point)
-
-        if t then
-            list[#list + 1] = { id = point.id, x = point.x, y = point.y, z = point.z, h = point.h, ped = point.ped, weapon = t.settings.weapon }
+        if available(cfg, point) and point.z <= -100.0 then
+            list[#list + 1] = { id = point.id, x = point.x, y = point.y }
         end
     end
 
@@ -122,9 +261,15 @@ lib.callback.register('lunatic_illegal:holdupStart', function(src, pointId)
     end
 
     local s, m = t.settings, t.mission
+    local clerk = clerkPed(point.id)
+
+    if not clerkAlive(clerk) then
+        return fail("Le vendeur est mort : plus personne pour ouvrir la caisse.")
+    end
+
     local ped = GetPlayerPed(src)
 
-    if not ped or ped == 0 or #(GetEntityCoords(ped).xy - vector2(point.x, point.y)) > Config.HoldupRange then
+    if not ped or ped == 0 or #(GetEntityCoords(ped) - GetEntityCoords(clerk)) > Config.HoldupRange then
         return fail('Vous êtes trop loin du vendeur.')
     end
 
@@ -152,6 +297,7 @@ lib.callback.register('lunatic_illegal:holdupStart', function(src, pointId)
 
     local crew = CrewOf(src)
 
+    -- Level du crew activé dans la page Missions : réservé aux crews du level requis ; sinon ouvert à tous
     if m.levelRequired then
         if not crew then
             return fail("Ce coup-là, c'est pour les crews.")
@@ -166,20 +312,26 @@ lib.callback.register('lunatic_illegal:holdupStart', function(src, pointId)
         return fail("Plus de braquage de ce genre aujourd'hui : la ville est sur ses gardes.")
     end
 
-    -- Arme blanche : le vendeur peut ne pas se laisser faire (alarme, magasin fermé un moment)
+    -- Arme blanche : le vendeur peut ne pas se laisser faire (alarme, il s'enfuit, magasin fermé un moment)
     if WeaponClass(src) == 'melee' and math.random(100) <= (s.resist or 0) then
         cooldowns[point.id] = now + math.floor(s.cooldown * 60 / 2)
         saveCooldowns()
-        clerkState(point.id, 'resist')
+        clerkState(point.id, 'resist', src)
         alertPolice(point, ('Alarme : %s'):format(point.label))
+
+        -- Parti en courant : un remplaçant prend sa place une minute plus tard
+        SetTimeout(60000, function()
+            removeClerk(point.id)
+        end)
+
         return { ok = false, resisted = true, error = "Le vendeur ne s'est pas laissé impressionner : il a déclenché l'alarme !" }
     end
 
     cooldowns[point.id] = now + s.cooldown * 60
     saveCooldowns()
     robbing[point.id] = src
-    pending[src] = { pointId = point.id, typeId = point.type, at = GetGameTimer(), duration = s.duration, crewId = crew and crew.id or nil }
-    clerkState(point.id, 'robbed')
+    pending[src] = { pointId = point.id, at = GetGameTimer(), duration = s.duration }
+    clerkState(point.id, 'robbed', src)
 
     -- Alarme silencieuse : la police est prévenue quelques secondes après le début
     if math.random(100) <= (s.alert or 0) then
@@ -188,10 +340,10 @@ lib.callback.register('lunatic_illegal:holdupStart', function(src, pointId)
         end)
     end
 
-    return { ok = true, duration = s.duration }
+    return { ok = true, duration = s.duration, clerk = NetworkGetNetworkIdFromEntity(clerk) }
 end)
 
--- Braquage interrompu (le joueur s'est éloigné ou a baissé son arme) : le vendeur donne l'alerte
+-- Braquage interrompu (le joueur s'est éloigné, a baissé son arme ou le vendeur est mort)
 local function abort(src, alarm)
     local job = pending[src]
     pending[src] = nil
@@ -237,8 +389,15 @@ lib.callback.register('lunatic_illegal:holdupFinish', function(src)
         return fail('Braquage interrompu.')
     end
 
+    local clerk = clerkPed(point.id)
+
+    if not clerkAlive(clerk) then
+        abort(src, false)
+        return fail('Le vendeur est mort : la caisse reste fermée.')
+    end
+
     local ped = GetPlayerPed(src)
-    local far = not ped or ped == 0 or #(GetEntityCoords(ped).xy - vector2(point.x, point.y)) > Config.HoldupKeepRange
+    local far = not ped or ped == 0 or #(GetEntityCoords(ped) - GetEntityCoords(clerk)) > Config.HoldupKeepRange
 
     if far or not WeaponAllowed(src, t.settings.weapon) then
         abort(src, true)
@@ -254,7 +413,7 @@ lib.callback.register('lunatic_illegal:holdupFinish', function(src)
     robbing[job.pointId] = nil
     clerkState(job.pointId, 'done')
 
-    -- Gain en argent sale (±20 %), butin éventuel, XP et influence du crew
+    -- Gain en argent sale (±20 %), butin éventuel ; XP et influence si le joueur est dans un crew
     local m = t.mission
     local reward = math.floor((m.reward or 0) * math.random(80, 120) / 100)
     local xPlayer = ESX.GetPlayerFromId(src)
