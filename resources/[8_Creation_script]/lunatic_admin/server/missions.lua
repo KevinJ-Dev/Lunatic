@@ -36,7 +36,15 @@ local CATALOG = {
     { id = 'gofast', label = 'GoFast', category = 'traffic', description = 'Livraison de drogue terrestre.', reward = true },
     { id = 'gofast_sea', label = 'GoFast Maritime', category = 'traffic', description = 'Livraison de drogue maritime.', reward = true },
     { id = 'burglary', label = 'Cambriolage', category = 'street', description = 'Cambrioler des habitations.' },
-    { id = 'racket', label = 'Racket', category = 'street', description = 'Racketter des PNJ.', reward = true },
+    { id = 'racket', label = 'Racket', category = 'street', description = "Menacer un passant avec une arme (le viser, ou [E] tout près) : il lève les mains et donne son argent tant qu'on le tient en respect.", ready = true, reward = true,
+        advanced = {
+            { key = 'weapon', label = 'Arme exigée', default = 'any', options = { { 'any', 'Arme blanche ou à feu' }, { 'firearm', 'Arme à feu seulement' }, { 'melee', 'Arme blanche seulement' } } },
+            { key = 'duration', label = 'Temps à le tenir en respect (s)', min = 3, max = 60, default = 8 },
+            { key = 'success', label = 'Il obéit (%)', min = 0, max = 100, default = 80 },
+            { key = 'alert', label = 'Un témoin appelle la police (%)', min = 0, max = 100, default = 35 },
+            { key = 'cooldown', label = 'Délai entre deux rackets, par joueur (s)', min = 10, max = 3600, default = 120 },
+        },
+        loot = {} },
     { id = 'snatch', label = "Vol à l'arraché", category = 'street', description = "Arracher le sac ou le portefeuille d'un passant ([E] tout près de lui).", ready = true, reward = true,
         advanced = {
             { key = 'success', label = 'Chance de réussite (%)', min = 0, max = 100, default = 70 },
@@ -65,6 +73,7 @@ local HOLDUP_REWARDS = { heist_store = 1500, heist_barber = 1200, heist_binco = 
 -- Missions codées après coup : réglages de départ appliqués une fois (KVP) sur la ligne déjà créée
 local READY_START = {
     snatch = { kvp = 'missions_snatch_ready', values = { reward = 250, xp = 2, influence = 1, police = 0, levelRequired = false } },
+    racket = { kvp = 'missions_racket_ready', values = { reward = 400, xp = 3, influence = 2, police = 0, levelRequired = false } },
 }
 
 local LIMITS = { xp = 10000, influence = 1000, police = 20, reward = 1000000, daily = 500, loot = 8 }
@@ -321,7 +330,14 @@ Panel.actions['missions.list'] = function(_, actor)
             advanced = {}
 
             for _, field in ipairs(entry.advanced) do
-                advanced[#advanced + 1] = { key = field.key, label = field.label, min = field.min, max = field.max, value = saved[field.key] or field.default }
+                local options = nil
+
+                for _, option in ipairs(field.options or {}) do
+                    options = options or {}
+                    options[#options + 1] = { value = option[1], label = option[2] }
+                end
+
+                advanced[#advanced + 1] = { key = field.key, label = field.label, min = field.min, max = field.max, options = options, value = saved[field.key] or field.default }
             end
 
             loot = {}
@@ -438,10 +454,25 @@ Panel.actions['missions.saveAdvanced'] = function(src, actor, data)
     local advanced = {}
 
     for _, field in ipairs(entry.advanced) do
-        local value = whole(input[field.key], field.min, field.max)
+        local value = nil
 
-        if not value then
-            return Panel.fail(('%s : un nombre entier entre %d et %d.'):format(field.label, field.min, field.max))
+        -- Liste de choix (ex. arme exigée) ou nombre entier
+        if field.options then
+            for _, option in ipairs(field.options) do
+                if input[field.key] == option[1] then
+                    value = option[1]
+                end
+            end
+
+            if not value then
+                return Panel.fail(('%s : choisissez une option.'):format(field.label))
+            end
+        else
+            value = whole(input[field.key], field.min, field.max)
+
+            if not value then
+                return Panel.fail(('%s : un nombre entier entre %d et %d.'):format(field.label, field.min, field.max))
+            end
         end
 
         advanced[field.key] = value

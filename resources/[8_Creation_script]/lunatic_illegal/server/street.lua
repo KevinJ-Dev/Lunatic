@@ -1,6 +1,7 @@
--- Délinquance de rue : vol à l'arraché (réglages dans le panel, page Missions → « Vol à l'arraché »).
--- Le joueur arrache le sac ou le portefeuille d'un passant ([E] tout près de lui) : réussite selon un pourcentage,
--- sinon le passant se débat ; un témoin peut appeler la police. Ouvert à tous ; XP et influence si le joueur a un crew.
+-- Délinquance de rue (réglages dans le panel, page Missions → « Vol à l'arraché » et « Racket »).
+-- Vol à l'arraché, mains nues : le joueur arrache le sac d'un passant ([E] tout près) ; réussite selon un pourcentage,
+-- sinon le passant se débat. Racket, arme en main : le passant lève les mains et donne son argent tant qu'on le
+-- tient en respect. Un témoin peut appeler la police. Ouvert à tous ; XP et influence si le joueur a un crew.
 -- Tout est revérifié ici : passant réel (PNJ vivant, à pied, tout près), délai par joueur, policiers, level, limite du jour.
 
 local ox = exports.ox_inventory
@@ -94,8 +95,8 @@ end
 
 -- Missions de rue activées, pour afficher ou non les invites en jeu
 lib.callback.register('lunatic_illegal:streetConfig', function()
-    local snatch = mission('snatch')
-    return { snatch = snatch ~= nil and snatch.enabled == true }
+    local snatch, racket = mission('snatch'), mission('racket')
+    return { snatch = snatch ~= nil and snatch.enabled == true, racket = racket ~= nil and racket.enabled == true }
 end)
 
 AddEventHandler('lunatic_admin:heistsChanged', function()
@@ -161,6 +162,132 @@ lib.callback.register('lunatic_illegal:snatch', function(src, netId)
 
     local reward, loot = payOut(src, m, coords, 'snatch')
     return { ok = true, success = true, reward = money(reward), loot = loot }
+end)
+
+---------------------------------------------------------------------
+-- Racket : menacer un passant avec une arme ; il donne son argent tant qu'on le tient en respect
+---------------------------------------------------------------------
+
+local lastRacket = {} -- joueur -> dernier racket (os.time)
+local rackets = {}    -- joueur -> racket en cours
+
+-- Le passant visé : PNJ vivant, à pied, assez près
+local function streetTarget(src, netId, range)
+    local target = NetworkGetEntityFromNetworkId(tonumber(netId) or 0)
+    local ped = GetPlayerPed(src)
+
+    if not target or target == 0 or not DoesEntityExist(target) or GetEntityType(target) ~= 1 or IsPedAPlayer(target) then
+        return nil, 'Personne à racketter ici.'
+    end
+
+    if GetEntityHealth(target) <= 0 or GetVehiclePedIsIn(target, false) ~= 0 or Entity(target).state.lunaticClerk then
+        return nil, 'Personne à racketter ici.'
+    end
+
+    if not ped or ped == 0 or #(GetEntityCoords(ped) - GetEntityCoords(target)) > range then
+        return nil, 'Vous êtes trop loin.'
+    end
+
+    return target
+end
+
+lib.callback.register('lunatic_illegal:racketStart', function(src, netId)
+    local m = mission('racket')
+    local problem = checkMission(src, m)
+
+    if problem then
+        return fail(problem)
+    end
+
+    if rackets[src] then
+        return fail('Vous êtes déjà occupé.')
+    end
+
+    -- Un policier en service qui met en joue un passant ne le rackette pas
+    for _, officer in ipairs(PolicePlayers()) do
+        if officer == src then
+            return fail('Vous êtes en service.')
+        end
+    end
+
+    local now = os.time()
+    local wait = (lastRacket[src] or 0) + m.advanced.cooldown - now
+
+    if wait > 0 then
+        return fail(('Faites-vous oublier un peu : encore %d s.'):format(wait))
+    end
+
+    if not WeaponAllowed(src, m.advanced.weapon) then
+        return fail(WeaponRuleText(m.advanced.weapon))
+    end
+
+    local target, err = streetTarget(src, netId, 8.0)
+
+    if not target then
+        return fail(err)
+    end
+
+    if robbed[target] then
+        return fail("Il n'a plus rien sur lui.")
+    end
+
+    if not admin:takeMissionSlot('racket') then
+        return fail("Plus de racket aujourd'hui : la rue est sur ses gardes.")
+    end
+
+    lastRacket[src] = now
+    robbed[target] = now
+    local coords = GetEntityCoords(target)
+
+    if math.random(100) <= m.advanced.alert then
+        alertPolice(coords, 'Racket signalé')
+    end
+
+    -- Il ne se laisse pas faire : il s'enfuit
+    if math.random(100) > m.advanced.success then
+        return { ok = true, refused = true }
+    end
+
+    rackets[src] = { target = target, at = GetGameTimer(), duration = m.advanced.duration }
+    return { ok = true, duration = m.advanced.duration }
+end)
+
+RegisterNetEvent('lunatic_illegal:racketCancel', function()
+    rackets[source] = nil
+end)
+
+lib.callback.register('lunatic_illegal:racketFinish', function(src)
+    local job = rackets[src]
+    rackets[src] = nil
+
+    if not job then
+        return fail('Racket interrompu.')
+    end
+
+    local m = mission('racket')
+
+    if not m or not m.enabled then
+        return fail('Racket interrompu.')
+    end
+
+    if GetGameTimer() - job.at < job.duration * 1000 - 1500 then
+        return fail('Trop rapide.')
+    end
+
+    local ped = GetPlayerPed(src)
+
+    if not DoesEntityExist(job.target) or GetEntityHealth(job.target) <= 0 or not ped or ped == 0
+        or #(GetEntityCoords(ped) - GetEntityCoords(job.target)) > 10.0 or not WeaponAllowed(src, m.advanced.weapon) then
+        return fail("Vous l'avez lâché : il s'est enfui.")
+    end
+
+    local reward, loot = payOut(src, m, GetEntityCoords(ped), 'racket')
+    return { ok = true, reward = money(reward), loot = loot }
+end)
+
+AddEventHandler('playerDropped', function()
+    lastRacket[source] = nil
+    rackets[source] = nil
 end)
 
 -- Passants volés : oubliés au bout d'une heure (le PNJ a disparu depuis longtemps)
