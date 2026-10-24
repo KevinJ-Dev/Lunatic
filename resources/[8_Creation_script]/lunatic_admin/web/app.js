@@ -2006,17 +2006,28 @@ m("heist_fleeca", "Braquage Fleeca", "heist", ["heist", "fleeca"], false, true),
     if (name === "action" && data && data.action === "fence.info") return { ok: true, defaultPed: "s_m_y_dealer_01", categories: ["Objets volés", "Bijoux"],
         items: [{ id: 1, item: "bouteille2", label: "Bouteille", price: 15, category: "Objets volés" }, { id: 2, item: "phone", label: "Téléphone", price: 120, category: "Objets volés" }, { id: 3, item: "goldchain", label: "Chaîne en or", price: 450, category: "Bijoux", missing: true }],
         locations: [{ id: 1, x: 1240.3, y: -3110.2, z: 5.5, h: 90, ped: "s_m_y_dealer_01" }] };
-    if (name === "action" && data && data.action === "crews.list") return { ok: true,
-        types: [{ id: "mafia", label: "Mafia" }, { id: "mc", label: "MC" }, { id: "organisation", label: "Organisation" }, { id: "gang", label: "Gang" }],
+    if (name === "action" && data && data.action === "crews.list") return { ok: true, requests: 2,
+        types: [{ id: "independent", label: "Indépendant", color: "#e6e6e6" }, { id: "mafia", label: "Mafia", color: "#e5484d" }, { id: "mc", label: "MC", color: "#f5d90a" }, { id: "organisation", label: "Organisation", color: "#f76b15" }, { id: "gang", label: "Gang", color: "#30a46c" }],
         crews: [{ id: 1, label: "Ballas", type: "gang", typeLabel: "Gang", color: "#9b59b6", level: 3, members: 8, leader: true }, { id: 2, label: "Lost MC", type: "mc", typeLabel: "MC", color: "#c0392b", level: 5, members: 12 }] };
     if (name === "action" && data && data.action === "crews.info") return { ok: true,
-        types: [{ id: "mafia", label: "Mafia" }, { id: "mc", label: "MC" }, { id: "organisation", label: "Organisation" }, { id: "gang", label: "Gang" }],
+        types: [{ id: "independent", label: "Indépendant", color: "#e6e6e6" }, { id: "mafia", label: "Mafia", color: "#e5484d" }, { id: "mc", label: "MC", color: "#f5d90a" }, { id: "organisation", label: "Organisation", color: "#f76b15" }, { id: "gang", label: "Gang", color: "#30a46c" }],
         crew: { id: data.payload.id, slug: "ballas", label: "Ballas", type: "gang", typeLabel: "Gang", color: "#9b59b6", logo: "", xp: 3200, level: 3, nextLevelXp: 5000, topRank: 3,
+            motto: "Grove ne dort jamais", lab: "", levels: [0, 1000, 2500, 5000, 10000, 20000, 35000, 55000, 80000, 120000],
             ranks: [{ rank: 0, label: "Rang C" }, { rank: 1, label: "Rang B" }, { rank: 2, label: "Rang A" }, { rank: 3, label: "Rang S" }],
             members: [
                 { identifier: "aa11223344", name: "Jean Dupont", online: 2, rank: 3, rankLabel: "Rang S", joined: Math.floor(Date.now() / 1000) - 86400 * 9 },
                 { identifier: "cc33445566", name: "Lina Petit", rank: 1, rankLabel: "Rang B", joined: Math.floor(Date.now() / 1000) - 86400 * 3 },
             ], createdBy: "Ramiro Lotus", createdAt: Math.floor(Date.now() / 1000) - 86400 * 10 } };
+    if (name === "action" && data && data.action === "crews.territories") return { ok: true, territories: [
+        { label: "Grove Street", owned: true, contested: false, influence: 1840, leader: 1840, minInfluence: 500 },
+        { label: "Davis", owned: false, owner: "Vagos", influence: 320, leader: 900, minInfluence: 500 },
+    ] };
+    if (name === "action" && data && data.action === "crews.requests") return { ok: true,
+        pending: [
+            { id: 4, name: "Marco Rossi", kind: "create", label: "Famiglia Rossi", type: "mafia", typeLabel: "Mafia", message: "On veut monter une famille italienne autour du restaurant de Little Seoul.", createdAt: Math.floor(Date.now() / 1000) - 3600 },
+            { id: 5, name: "Kenny West", kind: "join", label: "Ballas", type: "gang", typeLabel: "Gang", message: "Je connais déjà Jean Dupont en RP.", createdAt: Math.floor(Date.now() / 1000) - 600 },
+        ],
+        handled: [{ id: 2, name: "Lina Petit", kind: "join", label: "Ballas", typeLabel: "Gang", status: "accepted", handledBy: "Ramiro Lotus", handledAt: Math.floor(Date.now() / 1000) - 86400 }] };
     if (name === "action" && data && data.action === "shops.categories") return { ok: true, categories: [
         ["ltd", "LTD", true, 8], ["binco", "Binco", false, 0], ["vangelico", "Vangelico", true, 1], ["barber", "Barber", false, 0], ["ammunation", "Ammunation", true, 3], ["rental", "Location", true, 2],
         ["masquerade", "Masquerade", false, 0], ["shenails", "Shenails", false, 0], ["skateshop", "Skateshop", true, 1], ["tattoo", "Tattoo", false, 0], ["wholesale", "Grossistes", true, 7],

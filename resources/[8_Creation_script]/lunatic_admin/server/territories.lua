@@ -273,7 +273,7 @@ exports('territoryAt', function(x, y)
 end)
 
 -- Territoires vus par un crew (tablette) : zones tenues d'abord, avec son influence et celle du crew en tête
-exports('getCrewTerritories', function(crewId)
+function Territories.forCrew(crewId)
     crewId = tonumber(crewId)
     local list = {}
 
@@ -317,7 +317,14 @@ exports('getCrewTerritories', function(crewId)
     end)
 
     return list
-end)
+end
+
+exports('getCrewTerritories', Territories.forCrew)
+
+-- Après un effacement d'influence (wipe d'un crew)
+function Territories.recompute()
+    computeAll()
+end
 
 ---------------------------------------------------------------------
 -- Actions du panel

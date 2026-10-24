@@ -92,6 +92,9 @@ const ACTION_LABELS = {
     "economy.salaries": "a modifié des salaires",
     "economy.settings": "a modifié l'économie",
     "images.save": "a modifié une image",
+    "crews.wipe": "a remis à zéro un crew",
+    "crews.influence": "a effacé l'influence d'un crew",
+    "crews.request": "a traité la demande de crew de",
     "images.delete": "a supprimé une image",
     "mugshots.retake": "a refait le mugshot de",
     "items.save": "a modifié un objet",
@@ -229,6 +232,15 @@ function describeLog(log) {
             break;
         case "poles.delete":
             summary = `${d.label} (${d.job})`;
+            break;
+        case "crews.wipe":
+            summary = [d.label, d.members ? `${d.members} membre(s) retiré(s)` : null].filter(Boolean).join(" · ");
+            break;
+        case "crews.influence":
+            summary = d.label || "";
+            break;
+        case "crews.request":
+            summary = `${d.kind === "join" ? "rejoindre" : "créer"} ${d.label} · ${d.accept ? "acceptée" : "refusée"}`;
             break;
         case "images.save":
         case "images.delete":

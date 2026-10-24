@@ -60,7 +60,7 @@ local function publishPlayer(identifier)
     local crew = member and crews[member.crew]
 
     Player(xPlayer.source).state:set('crew', crew and {
-        id = crew.id, slug = crew.slug, label = crew.label, type = crew.type, color = crew.color,
+        id = crew.id, slug = crew.slug, label = crew.label, type = crew.type, color = crew.color, lab = Crews.labOf(crew),
         rank = member.rank, rankLabel = rankLabel(crew, member.rank), leader = member.rank == topRank(crew), level = levelOf(crew.xp),
     } or nil, true)
 end
@@ -85,6 +85,7 @@ local function load()
     for _, row in ipairs(MySQL.query.await('SELECT * FROM `lunatic_crews`') or {}) do
         crews[tonumber(row.id)] = {
             id = tonumber(row.id), slug = row.slug, label = row.label, type = row.type, color = row.color, logo = row.logo or '',
+            motto = row.motto or '', lab = row.lab or '',
             xp = tonumber(row.xp) or 0, createdBy = row.created_by, createdAt = tonumber(row.created_at), ranks = {},
         }
     end
@@ -139,6 +140,30 @@ table.insert(Panel.readyHooks, function()
             `joined_at` BIGINT NOT NULL,
             PRIMARY KEY (`identifier`),
             KEY `idx_lunatic_crew_members_crew` (`crew_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ]])
+
+    -- Devise (slogan) et laboratoire ('' = celui du type, 'none' = aucun, sinon un type de crew)
+    MySQL.query.await("ALTER TABLE `lunatic_crews` ADD COLUMN IF NOT EXISTS `motto` VARCHAR(80) NOT NULL DEFAULT '', ADD COLUMN IF NOT EXISTS `lab` VARCHAR(20) NOT NULL DEFAULT ''")
+
+    -- Demandes faites en jeu (commande /crew) : rejoindre un crew ou en créer un
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `lunatic_crew_requests` (
+            `id` INT NOT NULL AUTO_INCREMENT,
+            `identifier` VARCHAR(60) NOT NULL,
+            `name` VARCHAR(80) NOT NULL,
+            `kind` VARCHAR(10) NOT NULL,
+            `crew_id` INT NULL DEFAULT NULL,
+            `label` VARCHAR(60) NOT NULL DEFAULT '',
+            `type` VARCHAR(20) NOT NULL DEFAULT '',
+            `message` VARCHAR(255) NOT NULL DEFAULT '',
+            `status` VARCHAR(10) NOT NULL DEFAULT 'pending',
+            `handled_by` VARCHAR(80) NOT NULL DEFAULT '',
+            `created_at` BIGINT NOT NULL,
+            `handled_at` BIGINT NULL DEFAULT NULL,
+            PRIMARY KEY (`id`),
+            KEY `idx_lunatic_crew_requests_status` (`status`, `created_at`),
+            KEY `idx_lunatic_crew_requests_identifier` (`identifier`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ]])
 
@@ -287,6 +312,7 @@ function Crews.view(crewId)
     return {
         id = crew.id, slug = crew.slug, label = crew.label, type = crew.type, typeLabel = TYPES[crew.type] or crew.type, color = crew.color, logo = crew.logo,
         xp = crew.xp, level = levelOf(crew.xp), nextLevelXp = nextLevel, ranks = crew.ranks, topRank = topRank(crew), members = list,
+        motto = crew.motto, lab = crew.lab, levels = Config.CrewLevels,
         createdBy = crew.createdBy, createdAt = crew.createdAt,
     }
 end
@@ -300,6 +326,19 @@ exports('getCrewView', Crews.view)
 exports('setCrewMember', Crews.setMember)
 exports('addCrewXp', Crews.addXp)
 
+-- Laboratoire de drogue accessible : celui du type par défaut, un autre type, ou aucun
+function Crews.labOf(crew)
+    if crew.lab == 'none' then
+        return nil
+    end
+
+    if crew.lab ~= '' and TYPES[crew.lab] then
+        return crew.lab
+    end
+
+    return crew.type ~= 'independent' and crew.type or nil
+end
+
 -- Crew réel d'un joueur connecté (lunatic_illegal) : à utiliser côté serveur à la place du statebag « crew »,
 -- qu'un client peut modifier de son côté
 function Crews.ofPlayer(src)
@@ -311,7 +350,7 @@ function Crews.ofPlayer(src)
         return nil
     end
 
-    return { id = crew.id, label = crew.label, type = crew.type, level = levelOf(crew.xp), rank = member.rank, leader = member.rank == topRank(crew) }
+    return { id = crew.id, label = crew.label, type = crew.type, lab = Crews.labOf(crew), level = levelOf(crew.xp), rank = member.rank, leader = member.rank == topRank(crew) }
 end
 
 exports('getPlayerCrew', Crews.ofPlayer)
@@ -372,7 +411,8 @@ Panel.actions['crews.list'] = function(_, actor)
     end
 
     table.sort(list, function(a, b) return a.label < b.label end)
-    return { ok = true, silent = true, crews = list, types = Config.CrewTypes }
+    local requests = tonumber(MySQL.scalar.await("SELECT COUNT(*) FROM `lunatic_crew_requests` WHERE `status` = 'pending'")) or 0
+    return { ok = true, silent = true, crews = list, types = Config.CrewTypes, requests = requests }
 end
 
 Panel.actions['crews.info'] = function(_, actor, data)
@@ -383,6 +423,23 @@ Panel.actions['crews.info'] = function(_, actor, data)
     end
 
     return { ok = true, silent = true, crew = Crews.view(crew.id), types = Config.CrewTypes }
+end
+
+-- Crée un crew avec les rangs par défaut ; renvoie son id
+function Crews.create(label, slug, crewType, by)
+    local id = MySQL.insert.await('INSERT INTO `lunatic_crews` (`slug`, `label`, `type`, `created_by`, `created_at`) VALUES (?, ?, ?, ?, ?)', {
+        slug, label, crewType, by, os.time(),
+    })
+
+    local queries = {}
+
+    for index, rankName in ipairs(Config.CrewDefaultRanks) do
+        queries[#queries + 1] = { query = 'INSERT INTO `lunatic_crew_ranks` (`crew_id`, `rank`, `label`) VALUES (?, ?, ?)', values = { id, index - 1, rankName } }
+    end
+
+    MySQL.transaction.await(queries)
+    load()
+    return id
 end
 
 Panel.actions['crews.create'] = function(src, actor, data)
@@ -409,18 +466,7 @@ Panel.actions['crews.create'] = function(src, actor, data)
         return Panel.fail('Un crew utilise déjà cette clé.')
     end
 
-    local id = MySQL.insert.await('INSERT INTO `lunatic_crews` (`slug`, `label`, `type`, `created_by`, `created_at`) VALUES (?, ?, ?, ?, ?)', {
-        slug, label, data.type, Staff.displayName(src), os.time(),
-    })
-
-    local queries = {}
-
-    for index, rankName in ipairs(Config.CrewDefaultRanks) do
-        queries[#queries + 1] = { query = 'INSERT INTO `lunatic_crew_ranks` (`crew_id`, `rank`, `label`) VALUES (?, ?, ?)', values = { id, index - 1, rankName } }
-    end
-
-    MySQL.transaction.await(queries)
-    load()
+    local id = Crews.create(label, slug, data.type, Staff.displayName(src))
     Logs.add(src, 'crews.create', nil, { id = id, label = label, type = data.type })
 
     return { ok = true, silent = true, id = id }
@@ -445,10 +491,58 @@ Panel.actions['crews.save'] = function(src, actor, data)
         return Panel.fail('Type de crew inconnu.')
     end
 
-    MySQL.update.await('UPDATE `lunatic_crews` SET `label` = ?, `type` = ?, `color` = ?, `logo` = ? WHERE `id` = ?', { label, data.type, color, logo, crew.id })
-    crew.label, crew.type, crew.color, crew.logo = label, data.type, color, logo
+    local motto = cleanText(data.motto or '', 0, 80)
+    local lab = data.lab == '' and '' or data.lab == 'none' and 'none' or (TYPES[data.lab] and data.lab)
+    local xp = tonumber(data.xp)
+
+    if not motto then
+        return Panel.fail('La devise fait 80 caractères maximum.')
+    end
+
+    if not lab then
+        return Panel.fail('Laboratoire inconnu.')
+    end
+
+    if not xp or xp ~= math.floor(xp) or xp < 0 or xp > 10000000 then
+        return Panel.fail("XP invalide : nombre entier de 0 à 10 000 000.")
+    end
+
+    local before = { label = crew.label, type = crew.type, xp = crew.xp, lab = crew.lab }
+
+    MySQL.update.await('UPDATE `lunatic_crews` SET `label` = ?, `type` = ?, `color` = ?, `logo` = ?, `motto` = ?, `lab` = ?, `xp` = ? WHERE `id` = ?', { label, data.type, color, logo, motto, lab, xp, crew.id })
+    crew.label, crew.type, crew.color, crew.logo, crew.motto, crew.lab, crew.xp = label, data.type, color, logo, motto, lab, xp
+
+    -- Chef choisi parmi les membres : il passe au rang le plus haut, l'ancien chef descend d'un rang
+    if type(data.leader) == 'string' and data.leader ~= '' then
+        local member = members[data.leader]
+
+        if not member or member.crew ~= crew.id then
+            return Panel.fail("Le chef choisi ne fait pas partie du crew.")
+        end
+
+        local top = topRank(crew)
+
+        if member.rank ~= top then
+            local below = nil
+
+            for _, entry in ipairs(crew.ranks) do
+                if entry.rank < top and (not below or entry.rank > below) then
+                    below = entry.rank
+                end
+            end
+
+            for identifier, other in pairs(members) do
+                if other.crew == crew.id and other.rank == top and identifier ~= data.leader and below then
+                    Crews.setMember(identifier, crew.id, below)
+                end
+            end
+
+            Crews.setMember(data.leader, crew.id, top)
+        end
+    end
+
     publishCrew(crew.id)
-    Logs.add(src, 'crews.save', nil, { id = crew.id, label = label, type = data.type })
+    Logs.add(src, 'crews.save', nil, { id = crew.id, label = label, type = data.type, before = before, xp = xp, lab = lab })
 
     return { ok = true, silent = true }
 end
@@ -649,6 +743,309 @@ Panel.actions['crews.xp'] = function(src, actor, data)
     Logs.add(src, 'crews.xp', nil, { id = crew.id, label = crew.label, amount = amount })
 
     return { ok = true, silent = true }
+end
+
+---------------------------------------------------------------------
+-- Rejoindre, wipe, influence, territoires
+---------------------------------------------------------------------
+
+local function lowestRank(crew)
+    local low
+
+    for _, entry in ipairs(crew.ranks) do
+        if not low or entry.rank < low then
+            low = entry.rank
+        end
+    end
+
+    return low or 0
+end
+
+-- Le membre du staff rejoint le crew avec son personnage (rang le plus bas, modifiable ensuite)
+Panel.actions['crews.join'] = function(src, actor, data)
+    local crew, err = crewFor(actor, data.id)
+
+    if not crew then
+        return err
+    end
+
+    local xPlayer = ESX.GetPlayerFromId(src)
+
+    if not xPlayer then
+        return Panel.fail("Votre personnage n'est pas chargé.")
+    end
+
+    local ok, failure = Crews.setMember(xPlayer.identifier, crew.id, lowestRank(crew))
+
+    if not ok then
+        return Panel.fail(failure)
+    end
+
+    Logs.add(src, 'crews.member', xPlayer.getName(), { id = crew.id, label = crew.label, operation = 'rejoint (staff)' })
+    return { ok = true, silent = true }
+end
+
+-- Fonctions appelées par le wipe (coffres des positions et des planques, partie infrastructure)
+Crews.wipeHooks = {}
+
+local function clearInfluence(crewId)
+    MySQL.update.await('DELETE FROM `lunatic_crew_influence` WHERE `crew_id` = ?', { crewId })
+
+    if Territories and Territories.recompute then
+        Territories.recompute()
+    end
+end
+
+-- Remet le crew à zéro : XP, influence, coffres ; membres retirés si demandé
+Panel.actions['crews.wipe'] = function(src, actor, data)
+    local crew, err = crewFor(actor, data.id)
+
+    if not crew then
+        return err
+    end
+
+    crew.xp = 0
+    MySQL.update.await('UPDATE `lunatic_crews` SET `xp` = 0 WHERE `id` = ?', { crew.id })
+    clearInfluence(crew.id)
+
+    for _, hook in ipairs(Crews.wipeHooks) do
+        hook(crew.id)
+    end
+
+    local removed = 0
+
+    if data.members == true then
+        for identifier, member in pairs(members) do
+            if member.crew == crew.id then
+                Crews.setMember(identifier, nil)
+                removed = removed + 1
+            end
+        end
+    end
+
+    publishCrew(crew.id)
+    Logs.add(src, 'crews.wipe', nil, { id = crew.id, label = crew.label, members = removed })
+    return { ok = true, silent = true }
+end
+
+-- Efface l'influence du crew dans toutes les zones
+Panel.actions['crews.resetInfluence'] = function(src, actor, data)
+    local crew, err = crewFor(actor, data.id)
+
+    if not crew then
+        return err
+    end
+
+    clearInfluence(crew.id)
+    Logs.add(src, 'crews.influence', nil, { id = crew.id, label = crew.label })
+    return { ok = true, silent = true }
+end
+
+-- Zones où le crew a de l'influence ou qu'il tient
+Panel.actions['crews.territories'] = function(_, actor, data)
+    local crew, err = crewFor(actor, data.id)
+
+    if not crew then
+        return err
+    end
+
+    local list = {}
+
+    for _, t in ipairs(Territories and Territories.forCrew and Territories.forCrew(crew.id) or {}) do
+        if t.owned or (t.influence or 0) > 0 then
+            list[#list + 1] = t
+        end
+    end
+
+    return { ok = true, silent = true, territories = list }
+end
+
+---------------------------------------------------------------------
+-- Demandes de crew (commande /crew en jeu, lunatic_illegal)
+---------------------------------------------------------------------
+
+local ACCENTS = { ['à'] = 'a', ['â'] = 'a', ['ä'] = 'a', ['ç'] = 'c', ['é'] = 'e', ['è'] = 'e', ['ê'] = 'e', ['ë'] = 'e',
+    ['î'] = 'i', ['ï'] = 'i', ['ô'] = 'o', ['ö'] = 'o', ['ù'] = 'u', ['û'] = 'u', ['ü'] = 'u', ['ÿ'] = 'y', ['œ'] = 'oe' }
+
+-- Clé interne libre à partir du nom (« Les Ballas » -> « les_ballas », puis « les_ballas_2 »…)
+local function freeSlug(label)
+    local base = label:lower()
+
+    for accent, plain in pairs(ACCENTS) do
+        base = base:gsub(accent, plain)
+    end
+
+    base = base:gsub('[^a-z0-9]+', '_'):gsub('^_+', ''):gsub('_+$', ''):sub(1, 26)
+
+    if #base < 2 then
+        base = 'crew'
+    end
+
+    local slug, index = base, 1
+
+    while (tonumber(MySQL.scalar.await('SELECT COUNT(*) FROM `lunatic_crews` WHERE `slug` = ?', { slug })) or 0) > 0 do
+        index = index + 1
+        slug = ('%s_%d'):format(base, index)
+    end
+
+    return slug
+end
+
+-- Ce que le formulaire en jeu propose
+exports('getCrewRequestOptions', function()
+    local list = {}
+
+    for _, crew in pairs(crews) do
+        list[#list + 1] = { id = crew.id, label = crew.label, typeLabel = TYPES[crew.type] or crew.type }
+    end
+
+    table.sort(list, function(a, b) return a.label < b.label end)
+    return { crews = list, types = Config.CrewTypes, messageMax = Config.CrewRequestMessageMax }
+end)
+
+-- Nouvelle demande d'un joueur connecté ; renvoie ok, message d'erreur
+exports('createCrewRequest', function(src, data)
+    local xPlayer = ESX.GetPlayerFromId(tonumber(src) or -1)
+
+    if not xPlayer or type(data) ~= 'table' then
+        return false, 'Personnage introuvable.'
+    end
+
+    if members[xPlayer.identifier] then
+        return false, "Vous faites déjà partie d'un crew."
+    end
+
+    if (tonumber(MySQL.scalar.await("SELECT COUNT(*) FROM `lunatic_crew_requests` WHERE `identifier` = ? AND `status` = 'pending'", { xPlayer.identifier })) or 0) > 0 then
+        return false, 'Vous avez déjà une demande en attente.'
+    end
+
+    local message = cleanText(data.message or '', 0, Config.CrewRequestMessageMax)
+
+    if not message then
+        return false, ('La motivation fait %d caractères maximum.'):format(Config.CrewRequestMessageMax)
+    end
+
+    local crewId, label, crewType = nil, '', ''
+
+    if data.kind == 'join' then
+        local crew = crews[tonumber(data.crew) or -1]
+
+        if not crew then
+            return false, 'Crew introuvable.'
+        end
+
+        crewId, label, crewType = crew.id, crew.label, crew.type
+    elseif data.kind == 'create' then
+        label = cleanText(data.label, 2, 60)
+        crewType = TYPES[data.type] and data.type
+
+        if not label then
+            return false, 'Le nom du crew doit faire entre 2 et 60 caractères.'
+        end
+
+        if not crewType then
+            return false, 'Type de crew inconnu.'
+        end
+    else
+        return false, 'Demande inconnue.'
+    end
+
+    MySQL.insert.await('INSERT INTO `lunatic_crew_requests` (`identifier`, `name`, `kind`, `crew_id`, `label`, `type`, `message`, `created_at`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', {
+        xPlayer.identifier, xPlayer.getName(), data.kind, crewId, label, crewType, message, os.time(),
+    })
+
+    return true
+end)
+
+local function requestOf(row)
+    return {
+        id = tonumber(row.id), identifier = row.identifier, name = row.name, kind = row.kind, crewId = tonumber(row.crew_id), label = row.label,
+        type = row.type, typeLabel = TYPES[row.type] or row.type, message = row.message, status = row.status, handledBy = row.handled_by,
+        createdAt = tonumber(row.created_at), handledAt = tonumber(row.handled_at),
+        member = members[row.identifier] and crews[members[row.identifier].crew] and crews[members[row.identifier].crew].label or nil,
+    }
+end
+
+Panel.actions['crews.requests'] = function(_, actor)
+    if not Ranks.hasPermission(actor, 'crews.manage') then
+        return denied()
+    end
+
+    local pending, handled = {}, {}
+
+    for _, row in ipairs(MySQL.query.await("SELECT * FROM `lunatic_crew_requests` WHERE `status` = 'pending' ORDER BY `created_at`") or {}) do
+        pending[#pending + 1] = requestOf(row)
+    end
+
+    for _, row in ipairs(MySQL.query.await("SELECT * FROM `lunatic_crew_requests` WHERE `status` <> 'pending' ORDER BY `handled_at` DESC LIMIT 20") or {}) do
+        handled[#handled + 1] = requestOf(row)
+    end
+
+    return { ok = true, silent = true, pending = pending, handled = handled }
+end
+
+Panel.actions['crews.handleRequest'] = function(src, actor, data)
+    if not Ranks.hasPermission(actor, 'crews.manage') then
+        return denied()
+    end
+
+    local row = MySQL.single.await("SELECT * FROM `lunatic_crew_requests` WHERE `id` = ? AND `status` = 'pending'", { tonumber(data.id) or -1 })
+
+    if not row then
+        return Panel.fail('Demande introuvable ou déjà traitée.')
+    end
+
+    local accept = data.accept == true
+    local crewId
+
+    if accept then
+        if members[row.identifier] then
+            return Panel.fail("Ce personnage fait déjà partie d'un crew : refusez la demande.")
+        end
+
+        if row.kind == 'join' then
+            local crew = crews[tonumber(row.crew_id) or -1]
+
+            if not crew then
+                return Panel.fail("Ce crew n'existe plus : refusez la demande.")
+            end
+
+            crewId = crew.id
+            local ok, failure = Crews.setMember(row.identifier, crew.id, lowestRank(crew))
+
+            if not ok then
+                return Panel.fail(failure)
+            end
+        else
+            if not TYPES[row.type] then
+                return Panel.fail('Type de crew inconnu : refusez la demande.')
+            end
+
+            crewId = Crews.create(row.label, freeSlug(row.label), row.type, Staff.displayName(src))
+            local ok, failure = Crews.setMember(row.identifier, crewId, topRank(crews[crewId]))
+
+            if not ok then
+                return Panel.fail(failure)
+            end
+        end
+    end
+
+    MySQL.update.await('UPDATE `lunatic_crew_requests` SET `status` = ?, `handled_by` = ?, `handled_at` = ? WHERE `id` = ?', {
+        accept and 'accepted' or 'refused', Staff.displayName(src), os.time(), row.id,
+    })
+
+    -- Réponse au joueur s'il est connecté
+    local xPlayer = ESX.GetPlayerFromIdentifier(row.identifier)
+
+    if xPlayer then
+        local text = accept
+            and (row.kind == 'join' and ('Demande acceptée : bienvenue dans %s.'):format(row.label) or ('Demande acceptée : le crew %s est créé, vous en êtes le chef.'):format(row.label))
+            or ('Votre demande de crew (%s) a été refusée.'):format(row.label)
+        xPlayer.showNotification(text, accept and 'success' or 'error')
+    end
+
+    Logs.add(src, 'crews.request', row.name, { kind = row.kind, label = row.label, accept = accept, id = crewId })
+    return { ok = true, silent = true, crewId = crewId }
 end
 
 print('[lunatic_admin] Module Crews chargé.')

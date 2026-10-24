@@ -50,6 +50,39 @@ local function memberIn(view, identifier)
     end
 end
 
+-- Commande /crew : demande pour rejoindre un crew ou en créer un, traitée par le staff dans le panel (tuile Crews)
+lib.callback.register('lunatic_illegal:crewRequestOptions', function(src)
+    local xPlayer, view = myCrew(src)
+
+    if not xPlayer then
+        return fail('Personnage non chargé.')
+    end
+
+    if view then
+        return fail(('Vous faites déjà partie de %s.'):format(view.label))
+    end
+
+    local options = admin:getCrewRequestOptions()
+    return { ok = true, crews = options.crews, types = options.types, messageMax = options.messageMax }
+end)
+
+local lastRequest = {}
+
+lib.callback.register('lunatic_illegal:crewRequest', function(src, data)
+    if lastRequest[src] and os.time() - lastRequest[src] < 10 then
+        return fail('Patientez quelques secondes avant une nouvelle demande.')
+    end
+
+    lastRequest[src] = os.time()
+    local ok, err = admin:createCrewRequest(src, data)
+
+    if not ok then
+        return fail(err)
+    end
+
+    return { ok = true }
+end)
+
 lib.callback.register('lunatic_illegal:crew', function(src)
     local xPlayer, view, me = myCrew(src)
 

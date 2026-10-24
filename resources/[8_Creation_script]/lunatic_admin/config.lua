@@ -71,11 +71,13 @@ Config.CrashMessage = 'Vous avez été déconnecté du serveur.'
 
 -- Illégal : crews
 Config.CrewTypes = {
-    { id = 'mafia', label = 'Mafia' },
-    { id = 'mc', label = 'MC' },
-    { id = 'organisation', label = 'Organisation' },
-    { id = 'gang', label = 'Gang' },
+    { id = 'independent', label = 'Indépendant', color = '#e6e6e6' }, -- sans laboratoire par défaut
+    { id = 'mafia', label = 'Mafia', color = '#e5484d' },
+    { id = 'mc', label = 'MC', color = '#f5d90a' },
+    { id = 'organisation', label = 'Organisation', color = '#f76b15' },
+    { id = 'gang', label = 'Gang', color = '#30a46c' },
 }
+Config.CrewRequestMessageMax = 200 -- motivation d'une demande de crew (commande /crew)
 Config.CrewDefaultRanks = { 'Rang C', 'Rang B', 'Rang A', 'Rang S' } -- du plus bas au plus haut (le plus haut = chef)
 Config.CrewLevels = { 0, 1000, 2500, 5000, 10000, 20000, 35000, 55000, 80000, 120000 } -- XP nécessaire pour chaque level (level 1 à 10)
 

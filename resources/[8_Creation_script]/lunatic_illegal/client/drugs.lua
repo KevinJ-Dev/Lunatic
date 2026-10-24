@@ -37,7 +37,7 @@ local function report()
             if #(lab.locations or {}) > 0 then
                 placed = placed + 1
 
-                if drug.active and crew and lab.crewType == crew.type then
+                if drug.active and crew and lab.crewType == crew.lab then
                     mine = mine + 1
                 end
             end
@@ -117,7 +117,7 @@ local function myLabs()
 
     for _, drug in ipairs(drugs) do
         for _, lab in ipairs(drug.labs or {}) do
-            local usable = drug.active and crew and lab.crewType == crew.type
+            local usable = drug.active and crew and lab.crewType == crew.lab
 
             if usable or staffView then
                 for _, location in ipairs(lab.locations or {}) do

@@ -85,7 +85,7 @@ local function labCheck(src, locationId)
 
     local crew = CrewOf(src)
 
-    if not crew or crew.type ~= lab.crewType then
+    if not crew or crew.lab ~= lab.crewType then
         return nil, "Ce laboratoire n'est pas pour votre crew."
     end
 
