@@ -1306,3 +1306,38 @@ body.hidden.minimized .mini-pill { display: flex; }
 .zone-outfit .muted { font-size: 12px; }
 .zone-vehicle-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) 140px minmax(0, 1.2fr) auto auto; gap: 8px; align-items: center; font-size: 12px; }
 .zone-vehicle-row svg.i { width: 16px; height: 16px; color: var(--muted); }
+
+/* Events à zone, partie 3 : props et communication (affiche Weazel News) */
+.zone-prop-row { display: grid; grid-template-columns: 18px minmax(0, 1.4fr) repeat(4, minmax(0, 0.7fr)) auto; gap: 6px; align-items: center; font-size: 12px; }
+.zone-prop-row svg.i { width: 16px; height: 16px; color: var(--muted); }
+.zone-prop-row .who { display: grid; min-width: 0; }
+.zone-prop-row .who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zone-prop-row .who span { color: var(--muted); font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; }
+.zone-prop-row .input { height: 30px; padding: 0 6px; font-size: 11.5px; }
+.zone-prop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; }
+.zone-prop-cell { display: grid; justify-items: center; gap: 6px; padding: 10px 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink-2); font-size: 11.5px; text-align: center; }
+.zone-prop-cell:hover { border-color: rgba(var(--accent-rgb), .6); color: #fff; }
+.zone-prop-cell svg.i { width: 20px; height: 20px; color: var(--muted); }
+.zone-custom-prop { display: flex; gap: 8px; align-items: center; }
+.zone-custom-prop .input { flex: 1; max-width: 320px; }
+.zone-com { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
+.zone-com .item-field { grid-template-columns: 130px minmax(0, 1fr); }
+.zone-poster-types button { padding: 0 8px; }
+.zone-slots { display: flex; flex-wrap: wrap; gap: 6px; }
+.zone-slot { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 10px; border: 1px solid var(--line); border-radius: var(--r-pill); background: var(--surface); font: 600 12px var(--mono); }
+.zone-slot .sq-btn { width: 22px; height: 22px; }
+.zone-poster-preview { position: sticky; top: 0; }
+.event-poster { width: 300px; overflow: hidden; border-radius: 12px; background: #0d0d10; box-shadow: 0 20px 50px -10px #000; color: #fff; font-family: var(--font); }
+.event-poster:not(.preview) { position: fixed; top: 90px; right: 24px; z-index: 50; animation: pop-in .3s var(--ease); }
+.poster-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; }
+.poster-brand { font: 900 20px/1 var(--font); letter-spacing: .04em; font-style: italic; }
+.poster-tag { padding: 2px 8px; border-radius: 4px; background: #00000040; font-size: 10.5px; font-weight: 800; letter-spacing: .1em; }
+.poster-media { display: block; width: 100%; max-height: 170px; object-fit: cover; }
+.poster-media.empty { display: grid; place-items: center; gap: 6px; height: 120px; background: #1a1a20; color: #ffffff55; font-size: 11.5px; }
+.poster-media.empty svg.i { width: 26px; height: 26px; }
+.poster-body { display: grid; gap: 4px; padding: 12px 14px 14px; }
+.poster-body b { font-size: 15px; }
+.poster-body p { margin: 0; color: #ffffffcc; font-size: 12.5px; line-height: 1.45; white-space: pre-wrap; }
+.poster-foot { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-top: 1px solid #ffffff14; color: #ffffffb3; font-size: 11.5px; }
+.poster-foot kbd { display: grid; place-items: center; min-width: 22px; height: 22px; border-radius: 5px; background: #ffffff1f; font: 700 11px var(--mono); }
+.zone-com .item-field textarea.input { height: 84px; padding-top: 8px; resize: vertical; }

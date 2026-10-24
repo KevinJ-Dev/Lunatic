@@ -6,10 +6,13 @@
 -- ou décharger l'event, retire tout.
 -- Contenu (partie 2) : objets temporaires donnés à l'entrée et repris à la sortie (marqués metadata.event, ni donnés
 -- ni jetés), tenues homme / femme appliquées dans la zone, points de TP, véhicules posés au chargement.
+-- Partie 3 : props posés par chaque client autour de la zone tant que l'event est chargé ; affiche de l'event
+-- (style Weazel News) diffusée à tous aux créneaux choisis (heure du serveur) ou à la demande, avec annonce au tchat.
 
 EventZones = {}
 
-local LIMITS = { label = 60, description = 300, players = 500, duration = 1440, radiusMin = 10, radiusMax = 1000, audio = 255, items = 20, tp = 10, vehicles = 20 }
+local LIMITS = { label = 60, description = 300, players = 500, duration = 1440, radiusMin = 10, radiusMax = 1000, audio = 255, items = 20, tp = 10, vehicles = 20, props = 50, slots = 5 }
+local POSTER_TYPES = { news = true, media = true, event = true, ad = true }
 local RULES = { 'noKO', 'godmode', 'vehicleGodmode', 'policeCalls', 'respawn', 'noNeeds' }
 local VEHICLE_TYPES = { automobile = true, bike = true, boat = true, heli = true, plane = true, submarine = true, trailer = true }
 
@@ -70,6 +73,8 @@ local function fromRow(row)
             outfits = type(content.outfits) == 'table' and content.outfits or {},
             tp = type(content.tp) == 'table' and content.tp or {},
             vehicles = type(content.vehicles) == 'table' and content.vehicles or {},
+            props = type(content.props) == 'table' and content.props or {},
+            communication = type(content.communication) == 'table' and content.communication or nil,
         },
         id = tonumber(row.id),
         label = row.label,
@@ -179,7 +184,7 @@ local function publish()
 
     for _, event in pairs(events) do
         if event.loadedAt and event.x then
-            list[#list + 1] = { id = event.id, label = event.label, x = event.x, y = event.y, radius = event.radius }
+            list[#list + 1] = { id = event.id, label = event.label, x = event.x, y = event.y, radius = event.radius, props = event.content.props }
         end
     end
 
@@ -426,6 +431,60 @@ CreateThread(function()
     end
 end)
 
+---------------------------------------------------------------------
+-- Communication : affiche à tous les joueurs (+ annonce au tchat)
+---------------------------------------------------------------------
+
+local function broadcast(event)
+    local com = event.content.communication
+
+    if not com then
+        return false
+    end
+
+    local title = com.title ~= '' and com.title or event.label
+
+    TriggerClientEvent('lunatic_admin:eventPoster', -1, {
+        type = com.type, title = title, text = com.text, image = com.image ~= '' and com.image or nil,
+        gps = com.gps and event.x ~= nil, x = event.x, y = event.y,
+    })
+
+    local text = ('%s%s'):format(title, com.text ~= '' and (' : ' .. com.text) or '')
+
+    if GetResourceState('lunatic_chat') == 'started' then
+        TriggerClientEvent('lunatic_chat:message', -1, { kind = 'announce', tag = 'Event', text = text })
+    end
+
+    return true
+end
+
+-- Créneaux de diffusion (heure du serveur), vérifiés toutes les 20 secondes
+local lastSlot = {}
+
+CreateThread(function()
+    while true do
+        Wait(20000)
+        local slot = os.date('%H:%M')
+        local day = os.date('%Y-%m-%d')
+
+        for _, event in pairs(events) do
+            local com = event.content.communication
+
+            if com and com.enabled then
+                for _, wanted in ipairs(com.slots or {}) do
+                    local key = ('%d|%s|%s'):format(event.id, day, wanted)
+
+                    if wanted == slot and not lastSlot[key] then
+                        lastSlot[key] = true
+                        broadcast(event)
+                        Logs.event('staff', 'info', nil, 'eventZones.broadcast', event.label, { id = event.id, slot = wanted })
+                    end
+                end
+            end
+        end
+    end
+end)
+
 ---@param src number
 ---@return table|nil event dans lequel se trouve le joueur (règles comprises)
 function EventZones.of(src)
@@ -625,6 +684,67 @@ local function readContent(data)
         end
 
         content.vehicles[#content.vehicles + 1] = { model = model, type = entry.type, x = spot.x, y = spot.y, z = spot.z, h = spot.h }
+    end
+
+    content.props = {}
+    local props = type(data.props) == 'table' and data.props or {}
+
+    if #props > LIMITS.props then
+        return nil, ('%d props au maximum.'):format(LIMITS.props)
+    end
+
+    for index, entry in ipairs(props) do
+        local model = type(entry.model) == 'string' and entry.model:lower():match('^[%w_]+$')
+        local spot = position(entry, true)
+
+        if not model or #model > 50 then
+            return nil, ('Prop n°%d : nom de modèle invalide.'):format(index)
+        end
+
+        if not spot then
+            return nil, ('Prop %s : position invalide.'):format(model)
+        end
+
+        content.props[#content.props + 1] = { model = model, x = spot.x, y = spot.y, z = spot.z, h = spot.h }
+    end
+
+    -- Affiche de l'event (onglet Communication)
+    local com = type(data.communication) == 'table' and data.communication or nil
+
+    if com then
+        local title = cleanText(com.title, 0, 60)
+        local text = cleanText(com.text, 0, 300)
+        local image = cleanText(com.image, 0, 255)
+
+        if not title or not text then
+            return nil, 'Affiche : titre de 60 caractères et texte de 300 caractères au maximum.'
+        end
+
+        if not image or (image ~= '' and not image:match('^https://[%w%-%.]+%.%a+/.*')) then
+            return nil, "Affiche : l'image doit être un lien https (.png, .jpg, .webp, .gif)."
+        end
+
+        if not POSTER_TYPES[com.type] then
+            return nil, "Affiche : type d'annonce invalide."
+        end
+
+        local slots = {}
+
+        for _, slot in ipairs(type(com.slots) == 'table' and com.slots or {}) do
+            local hour, minute = tostring(slot):match('^(%d%d):(%d%d)$')
+
+            if not hour or tonumber(hour) > 23 or tonumber(minute) > 59 then
+                return nil, ('Créneau de diffusion invalide : %s (format HH:MM).'):format(tostring(slot))
+            end
+
+            if #slots >= LIMITS.slots then
+                return nil, ('%d créneaux de diffusion au maximum.'):format(LIMITS.slots)
+            end
+
+            slots[#slots + 1] = slot
+        end
+
+        content.communication = { enabled = com.enabled == true, type = com.type, title = title, text = text, image = image, gps = com.gps == true, slots = slots }
     end
 
     return content
@@ -852,6 +972,21 @@ Panel.actions['eventZones.load'] = function(src, actor, data)
 
     Logs.add(src, 'eventZones.load', event.label, { id = event.id, duration = event.duration })
     return { ok = true, silent = true, loaded = true }
+end
+
+Panel.actions['eventZones.broadcast'] = function(src, actor, data)
+    local event, err = eventFor(actor, data.id)
+
+    if not event then
+        return err
+    end
+
+    if not broadcast(event) then
+        return Panel.fail("Enregistrez d'abord l'affiche de l'event (onglet Communication).")
+    end
+
+    Logs.add(src, 'eventZones.broadcast', event.label, { id = event.id })
+    return { ok = true, silent = true }
 end
 
 Panel.actions['eventZones.tp'] = function(src, actor, data)

@@ -20,22 +20,36 @@ const ZONE_RULES = [
 
 const ZONE_TABS = [
     { value: "info", label: "Informations" },
-    { value: "communication", label: "Communication", soon: true },
+    { value: "communication", label: "Communication" },
     { value: "items", label: "Items" },
     { value: "tp", label: "Points de TP" },
-    { value: "props", label: "Props", soon: true },
+    { value: "props", label: "Props" },
     { value: "outfits", label: "Tenues" },
     { value: "vehicles", label: "Véhicules" },
 ];
 
 const ZONE_VEHICLE_TYPES = [["automobile", "Voiture"], ["bike", "Moto / vélo"], ["boat", "Bateau"], ["heli", "Hélicoptère"], ["plane", "Avion"], ["submarine", "Sous-marin"], ["trailer", "Remorque"]];
 
-const emptyZoneContent = () => ({ items: [], outfits: { male: null, female: null }, tp: [], vehicles: [] });
+// Bibliothèque de props (modèles GTA de base) ; un autre modèle peut être saisi à la main
+const ZONE_PROPS = [
+    ["Barrières et sécurité", [["prop_barrier_work05", "Barrière de chantier"], ["prop_mp_barrier_02b", "Barrière de course"], ["prop_mp_arrow_barrier_01", "Barrière flèche"], ["prop_trafficdiv_01a", "Séparateur de voie"], ["prop_roadcone02a", "Cône"], ["prop_mp_cone_02", "Grand cône"], ["prop_mb_sandblock_01", "Sacs de sable"], ["prop_barrier_wat_03b", "Barrière béton"]]],
+    ["Course et cascade", [["prop_tri_start_banner", "Arche de départ"], ["prop_tri_finish_banner", "Arche d'arrivée"], ["prop_mp_ramp_02", "Rampe"], ["prop_mp_ramp_03", "Grande rampe"], ["prop_skate_flatramp", "Rampe plate"], ["prop_offroad_tyres02", "Pile de pneus"]]],
+    ["Fête et scène", [["prop_speaker_06", "Enceinte"], ["prop_portable_hifi_01", "Radio portable"], ["prop_gazebo_02", "Tonnelle"], ["prop_beach_parasol_02", "Parasol"], ["prop_beach_fire", "Feu de camp"], ["prop_bbq_1", "Barbecue"], ["prop_worklight_03b", "Projecteur"], ["prop_food_van_01", "Food truck"]]],
+    ["Mobilier", [["prop_table_03", "Table"], ["prop_chair_01a", "Chaise"], ["prop_bench_01a", "Banc"], ["prop_table_para_comb_04", "Table et parasol"], ["prop_portaloo_01a", "Toilettes de chantier"], ["prop_tool_bench02", "Établi"]]],
+    ["Décor", [["prop_box_wood02a", "Caisse en bois"], ["prop_container_01a", "Conteneur"], ["prop_haybale_01", "Botte de foin"], ["prop_gold_cont_01", "Chariot de convoi"]]],
+];
+const zonePropLabel = (model) => { for (const [, list] of ZONE_PROPS) for (const [m, label] of list) if (m === model) return label; return model; };
+
+const POSTER_TYPES = [["news", "News", "#c4242b"], ["media", "Média", "#2c5ec4"], ["event", "Event", "#7a3fd6"], ["ad", "Annonce", "#c99a2e"]];
+
+const emptyZoneContent = () => ({ items: [], outfits: { male: null, female: null }, tp: [], vehicles: [], props: [], communication: emptyPoster() });
+const emptyPoster = () => ({ enabled: false, type: "event", title: "", text: "", image: "", gps: true, slots: [] });
 
 // Copie modifiable du contenu enregistré (objets, tenues, points de TP, véhicules)
 function zoneContentDraft(content) {
     const c = content ? JSON.parse(JSON.stringify(content)) : emptyZoneContent();
-    return { items: c.items || [], outfits: { male: (c.outfits && c.outfits.male) || null, female: (c.outfits && c.outfits.female) || null }, tp: c.tp || [], vehicles: c.vehicles || [] };
+    return { items: c.items || [], outfits: { male: (c.outfits && c.outfits.male) || null, female: (c.outfits && c.outfits.female) || null }, tp: c.tp || [], vehicles: c.vehicles || [],
+        props: c.props || [], communication: c.communication || emptyPoster() };
 }
 
 function zoneDuration(minutes) {
@@ -294,6 +308,8 @@ function zonePane(d, changed) {
     if (zoneState.tab === "tp") return zoneTpTab(d.content);
     if (zoneState.tab === "outfits") return zoneOutfitsTab(d.content);
     if (zoneState.tab === "vehicles") return zoneVehiclesTab(d.content);
+    if (zoneState.tab === "props") return zonePropsTab(d.content);
+    if (zoneState.tab === "communication") return zoneCommunicationTab(d);
     return zoneInfoTab(d, changed);
 }
 
@@ -426,6 +442,131 @@ function zoneVehiclesTab(content) {
         } }, icon("i-plus"), "Ajouter un véhicule"));
 }
 
+// ---------- Props : posés autour de la zone tant que l'event est chargé ----------
+
+function zonePropsTab(content) {
+    const placed = h("div", { class: "zone-list" });
+    const paintPlaced = () => placed.replaceChildren(...(content.props.length ? content.props.map((p, index) => {
+        const num = (key, step) => {
+            const input = h("input", { class: "input mono", type: "number", step, value: String(p[key]) });
+            input.addEventListener("input", () => { p[key] = Number(input.value || 0); });
+            return input;
+        };
+        return h("div", { class: "zone-prop-row" }, icon("i-box"),
+            h("span", { class: "who" }, h("b", null, zonePropLabel(p.model)), h("span", { class: "mono" }, p.model)),
+            num("x", "0.1"), num("y", "0.1"), num("z", "0.05"), num("h", "5"),
+            h("button", { class: "btn small ghost sq-btn", title: "Retirer", onclick: () => { content.props.splice(index, 1); paintPlaced(); } }, icon("i-trash")));
+    }) : [h("p", { class: "hint-line" }, "Aucun prop posé.")]));
+    paintPlaced();
+
+    // Ajout : devant votre personnage (1,5 m), au sol, orienté comme vous
+    const add = async (model) => {
+        if (content.props.length >= 50) return toast("50 props au maximum.", "error");
+        const p = await zoneMyPosition();
+        if (!p) return;
+        const rad = (p.h * Math.PI) / 180;
+        const r = (n) => Math.round(n * 100) / 100;
+        content.props.push({ model, x: r(p.x - Math.sin(rad) * 1.5), y: r(p.y + Math.cos(rad) * 1.5), z: r(p.z - 0.98), h: p.h });
+        paintPlaced();
+        toast(`${zonePropLabel(model)} ajouté devant vous : enregistrez l'event.`, "ok");
+    };
+
+    const search = h("input", { placeholder: "Rechercher un prop…" });
+    const library = h("div", { class: "zone-prop-library" });
+    const paintLibrary = () => {
+        const q = fold(search.value.trim());
+        library.replaceChildren(...ZONE_PROPS.flatMap(([group, list]) => {
+            const rows = list.filter(([model, label]) => !q || fold(label).includes(q) || model.includes(q));
+            return rows.length ? [h("div", { class: "crew-sub" }, group), h("div", { class: "zone-prop-grid" }, rows.map(([model, label]) =>
+                h("button", { class: "zone-prop-cell", title: `${model} : ajouter devant vous`, onclick: () => add(model) }, icon("i-box"), h("span", null, label))))] : [];
+        }));
+    };
+    search.addEventListener("input", paintLibrary);
+    paintLibrary();
+
+    const custom = h("input", { class: "input mono", maxlength: "50", placeholder: "autre modèle (ex. prop_flag_france)" });
+    return h("div", { class: "zone-form" },
+        h("p", { class: "hint-line" }, "Visibles autour de la zone tant que l'event est chargé, retirés au déchargement. Placez-vous en jeu : le prop est posé 1,5 m devant vous, puis ajustez x, y, z et l'orientation."),
+        h("div", { class: "crew-sub" }, `Props posés (${content.props.length}/50)`),
+        placed,
+        h("div", { class: "crew-sub" }, "Bibliothèque de props"),
+        h("label", { class: "search" }, icon("i-search"), search),
+        library,
+        h("div", { class: "zone-custom-prop" }, custom, h("button", { class: "btn small ghost", onclick: () => {
+            const model = custom.value.trim().toLowerCase();
+            if (!/^[a-z0-9_]+$/.test(model)) return toast("Nom de modèle invalide.", "error");
+            add(model);
+        } }, icon("i-plus"), "Ajouter ce modèle")));
+}
+
+// ---------- Communication : affiche façon Weazel News, créneaux de diffusion ----------
+
+function eventPosterNode(p, preview) {
+    const type = POSTER_TYPES.find((t) => t[0] === p.type) || POSTER_TYPES[2];
+    const head = h("div", { class: "poster-head" }, h("span", { class: "poster-brand" }, "WEAZEL"), h("span", { class: "poster-tag" }, type[1].toUpperCase()));
+    head.style.background = type[2];
+    return h("div", { class: `event-poster${preview ? " preview" : ""}` },
+        head,
+        p.image ? h("img", { class: "poster-media", src: p.image, alt: "", onerror: (e) => { e.target.style.display = "none"; } }) : h("div", { class: "poster-media empty" }, icon("i-image"), "Aucun média"),
+        h("div", { class: "poster-body" }, h("b", null, p.title || "Titre de l'event"), p.text ? h("p", null, p.text) : null),
+        p.gps ? h("div", { class: "poster-foot" }, h("kbd", null, "Y"), "Itinéraire vers l'event") : null);
+}
+
+function zoneCommunicationTab(d) {
+    if (!d.content.communication) d.content.communication = emptyPoster();
+    const com = d.content.communication;
+    const preview = h("div", { class: "zone-poster-preview" });
+    const paintPreview = () => preview.replaceChildren(h("div", { class: "crew-sub" }, "Aperçu"), eventPosterNode({ ...com, title: com.title || d.label }, true));
+    paintPreview();
+
+    const typeSeg = h("div", { class: "segmented block zone-poster-types" });
+    const paintTypes = () => typeSeg.replaceChildren(...segmentedButtons(POSTER_TYPES.map(([value, label]) => ({ value, label })), com.type, (v) => { com.type = v; paintTypes(); paintPreview(); }));
+    paintTypes();
+
+    const title = h("input", { class: "input", maxlength: "60", placeholder: d.label, value: com.title });
+    title.addEventListener("input", () => { com.title = title.value; paintPreview(); });
+    const text = h("textarea", { class: "input textarea", maxlength: "300", placeholder: "Programme, horaires, récompenses…" });
+    text.value = com.text;
+    text.addEventListener("input", () => { com.text = text.value; paintPreview(); });
+    const image = h("input", { class: "input mono", maxlength: "255", placeholder: "https://…/affiche.png", value: com.image });
+    image.addEventListener("change", () => { com.image = image.value.trim(); paintPreview(); });
+
+    const slots = h("div", { class: "zone-slots" });
+    const slotInput = h("input", { class: "input mono", type: "time" });
+    const paintSlots = () => slots.replaceChildren(...(com.slots.length ? com.slots.map((slot, index) => h("span", { class: "zone-slot" }, slot,
+        h("button", { class: "btn small ghost sq-btn", title: "Retirer", onclick: () => { com.slots.splice(index, 1); paintSlots(); } }, icon("i-x")))) : [h("span", { class: "hint-line", style: "margin:0" }, "Aucun créneau : diffusion à la demande seulement.")]));
+    paintSlots();
+
+    const enabled = draftToggle(com, "enabled", "Diffuser aux créneaux", "Affiche et annonce au tchat envoyées à tous les joueurs aux heures choisies (heure du serveur).");
+    const gps = draftToggle(com, "gps", "Itinéraire avec [Y]", "Le joueur qui appuie sur Y pendant l'affichage reçoit un point GPS vers la zone.");
+    gps.addEventListener("click", paintPreview);
+    const event = selectedZone();
+
+    return h("div", { class: "zone-com" },
+        h("div", { class: "zone-form" },
+            fieldRow("Type d'annonce", typeSeg),
+            fieldRow("Titre", title),
+            fieldRow("Texte", text),
+            fieldRow("Image (URL)", image),
+            h("div", { class: "mode-list zone-rules" }, enabled, gps),
+            h("div", { class: "crew-sub" }, `Créneaux de diffusion (${com.slots.length}/5)`),
+            slots,
+            h("div", { class: "zone-custom-prop" }, slotInput, h("button", { class: "btn small ghost", onclick: () => {
+                const v = slotInput.value;
+                if (!/^\d\d:\d\d$/.test(v)) return toast("Choisissez une heure.", "error");
+                if (com.slots.includes(v)) return toast("Ce créneau existe déjà.", "error");
+                if (com.slots.length >= 5) return toast("5 créneaux au maximum.", "error");
+                com.slots.push(v);
+                com.slots.sort();
+                paintSlots();
+            } }, icon("i-plus"), "Ajouter")),
+            h("button", { class: "btn small warn", style: "justify-self:start", disabled: !event, title: event ? null : "Enregistrez d'abord l'event", onclick: () => {
+                if (isUnsaved("events")) return toast("Enregistrez d'abord vos modifications.", "error");
+                act("eventZones.broadcast", { id: event.id }, "Affiche diffusée à tous les joueurs.");
+            } }, icon("i-sparkle"), "Diffuser maintenant")),
+        preview);
+}
+
 async function saveZone() {
     const d = zoneState.draft;
     if (!d) return;
@@ -441,6 +582,21 @@ async function saveZone() {
     zoneState.loadedAt = 0;
     await loadEventZones();
 }
+
+// Affiche d'un event diffusée à tous (en haut à droite, quelques secondes)
+let posterTimer = null;
+window.addEventListener("message", (event) => {
+    const msg = event.data;
+    if (!msg || msg.action !== "eventPoster") return;
+    const old = document.getElementById("eventPoster");
+    if (old) old.remove();
+    clearTimeout(posterTimer);
+    if (!msg.poster) return;
+    const node = eventPosterNode(msg.poster, false);
+    node.id = "eventPoster";
+    document.body.append(node);
+    posterTimer = setTimeout(() => node.remove(), Number(msg.duration) || 15000);
+});
 
 // Musique d'ambiance de l'event où se trouve le joueur (envoyée par le jeu)
 const eventAudio = new Audio();

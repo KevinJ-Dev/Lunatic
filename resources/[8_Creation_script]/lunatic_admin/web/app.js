@@ -1768,7 +1768,9 @@ async function demoNui(name, data) {
             rules: { noKO: true, godmode: false, vehicleGodmode: true, policeCalls: false, respawn: true, noNeeds: true }, hour: 21, audio: "", volume: 40, loaded: true, loadedAt: Math.floor(Date.now() / 1000) - 900, players: 7, createdBy: "Ramiro Lotus",
             content: { items: [{ item: "water", count: 2 }, { item: "bread", count: 1 }], outfits: { male: { components: [{ component_id: 11, drawable: 15, texture: 0 }, { component_id: 4, drawable: 21, texture: 0 }], props: [{ prop_id: 0, drawable: -1, texture: -1 }] }, female: null },
                 tp: [{ label: "Vers la ligne de départ", from: { x: -1250.1, y: -1520.4, z: 4.4 }, to: { x: -1190.5, y: -1590.2, z: 4.3, h: 125.0 } }],
-                vehicles: [{ model: "sultan", type: "automobile", x: -1201.3, y: -1580.9, z: 4.2, h: 125.0 }, { model: "sultan", type: "automobile", x: -1204.8, y: -1584.1, z: 4.2, h: 125.0 }] } },
+                vehicles: [{ model: "sultan", type: "automobile", x: -1201.3, y: -1580.9, z: 4.2, h: 125.0 }, { model: "sultan", type: "automobile", x: -1204.8, y: -1584.1, z: 4.2, h: 125.0 }],
+                props: [{ model: "prop_tri_start_banner", x: -1195.2, y: -1586.4, z: 3.3, h: 125.0 }, { model: "prop_mp_barrier_02b", x: -1199.0, y: -1590.1, z: 3.3, h: 35.0 }],
+                communication: { enabled: true, type: "news", title: "Grande course de Vespucci", text: "Rendez-vous sur le front de mer : véhicules fournis, 5 000 $ pour le vainqueur !", image: "", gps: true, slots: ["20:30", "21:00"] } } },
         { id: 2, label: "Paintball au port", description: "", maxPlayers: 0, duration: 60, x: null, y: null, z: null, radius: 120,
             rules: { noKO: false, godmode: false, vehicleGodmode: false, policeCalls: false, respawn: true, noNeeds: false }, hour: null, audio: "", volume: 50, loaded: false, loadedAt: null, players: 0, createdBy: "Alex Moreau" },
     ] };

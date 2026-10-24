@@ -207,6 +207,117 @@ CreateThread(function()
 end)
 
 ---------------------------------------------------------------------
+-- Props des events chargés : objets locaux, posés quand le joueur approche (250 m), retirés ensuite
+---------------------------------------------------------------------
+
+local props = {}       -- clé "event:index" -> objet
+local propsSignature = nil
+local PROP_RANGE = 250.0
+
+local function deleteProps(keep)
+    for key, object in pairs(props) do
+        if not (keep and keep[key]) then
+            if DoesEntityExist(object) then
+                DeleteObject(object)
+            end
+
+            props[key] = nil
+        end
+    end
+end
+
+local function spawnProp(entry)
+    local model = joaat(entry.model)
+
+    if not IsModelInCdimage(model) then
+        return nil
+    end
+
+    RequestModel(model)
+    local timeout = GetGameTimer() + 3000
+
+    while not HasModelLoaded(model) and GetGameTimer() < timeout do
+        Wait(0)
+    end
+
+    if not HasModelLoaded(model) then
+        return nil
+    end
+
+    local object = CreateObjectNoOffset(model, entry.x + 0.0, entry.y + 0.0, entry.z + 0.0, false, false, false)
+    SetEntityHeading(object, (entry.h or 0.0) + 0.0)
+    FreezeEntityPosition(object, true)
+    SetModelAsNoLongerNeeded(model)
+    return object
+end
+
+CreateThread(function()
+    while true do
+        local zones = GlobalState.lunaticEventZones
+        local signature = json.encode(zones or {})
+
+        -- Event chargé, modifié ou déchargé : tout est reposé
+        if signature ~= propsSignature then
+            propsSignature = signature
+            deleteProps(nil)
+        end
+
+        local coords = GetEntityCoords(PlayerPedId())
+        local wanted = {}
+
+        for _, zone in ipairs(type(zones) == 'table' and zones or {}) do
+            for index, entry in ipairs(type(zone.props) == 'table' and zone.props or {}) do
+                if #(vector2(coords.x, coords.y) - vector2(entry.x, entry.y)) < PROP_RANGE then
+                    local key = ('%s:%s'):format(zone.id, index)
+                    wanted[key] = true
+
+                    if not props[key] then
+                        props[key] = spawnProp(entry) or -1
+                    end
+                end
+            end
+        end
+
+        deleteProps(wanted)
+        Wait(2000)
+    end
+end)
+
+---------------------------------------------------------------------
+-- Affiche de l'event (diffusée par le serveur) : [Y] trace l'itinéraire vers la zone
+---------------------------------------------------------------------
+
+local POSTER_DURATION = 15000
+
+RegisterNetEvent('lunatic_admin:eventPoster', function(poster)
+    if type(poster) ~= 'table' then
+        return
+    end
+
+    SendNUIMessage({ action = 'eventPoster', poster = poster, duration = POSTER_DURATION })
+
+    if not poster.gps or not poster.x then
+        return
+    end
+
+    CreateThread(function()
+        local untilAt = GetGameTimer() + POSTER_DURATION
+
+        while GetGameTimer() < untilAt do
+            -- Y (INPUT_MP_TEXT_CHAT_TEAM)
+            if IsControlJustReleased(0, 246) then
+                SetNewWaypoint(poster.x + 0.0, poster.y + 0.0)
+                ESX.ShowNotification(('Itinéraire tracé vers « %s ».'):format(poster.title or "l'event"), 'info')
+                SendNUIMessage({ action = 'eventPoster' })
+                return
+            end
+
+            Wait(0)
+        end
+    end)
+end)
+
+---------------------------------------------------------------------
 -- Points de TP : marqueur au départ, [E] pour être téléporté (le serveur vérifie la position)
 ---------------------------------------------------------------------
 
@@ -296,5 +407,6 @@ AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
         clearZoneBlips()
         releaseVehicle()
+        deleteProps(nil)
     end
 end)
