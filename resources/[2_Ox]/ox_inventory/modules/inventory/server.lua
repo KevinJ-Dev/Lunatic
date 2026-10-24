@@ -171,6 +171,17 @@ local function loadInventoryData(data, player, ignoreSecurityChecks)
 
 			local model, class = lib.callback.await('ox_inventory:getVehicleData', source, data.netid)
 			local storage = Vehicles[data.type].models[model] or Vehicles[data.type][class]
+
+			-- Lunatic : multiplicateurs du panel staff (tuile Fonctionnalites, onglet Poids), appliques aux coffres charges ensuite
+			local features = GlobalState.lunaticFeatures
+			local trunks = features and features.trunks
+
+			if storage and trunks then
+				local slotsMultiplier = data.type == 'trunk' and trunks.trunkSlots or trunks.gloveSlots
+				local weightMultiplier = data.type == 'trunk' and trunks.trunkWeight or trunks.gloveWeight
+				storage = { math.max(1, math.floor(storage[1] * (tonumber(slotsMultiplier) or 1))), math.floor(storage[2] * (tonumber(weightMultiplier) or 1)) }
+			end
+
             local dbId
 
             if server.getOwnedVehicleId then
