@@ -309,15 +309,23 @@ local function leave(src)
     return entry
 end
 
+-- Sortie : la porte de la maison ; le joueur y est téléporté encore dans le monde de la maison, puis demande à en
+-- sortir (burglaryLeave). Changer de monde avant d'avoir quitté l'intérieur faisait planter le jeu.
 lib.callback.register('lunatic_illegal:burglaryExit', function(src)
-    local entry = leave(src)
+    local entry = inside[src]
     local house = entry and houseList()[entry.house]
 
     if not house then
+        leave(src)
         return fail("Vous n'êtes dans aucune maison.")
     end
 
     return { ok = true, x = house.x, y = house.y, z = house.z, h = house.h }
+end)
+
+lib.callback.register('lunatic_illegal:burglaryLeave', function(src)
+    leave(src)
+    return true
 end)
 
 -- Sorti autrement (mort, téléporté) : retour dans le monde normal

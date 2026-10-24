@@ -60,12 +60,12 @@ function holdupsPage() {
                 const res = await holdupAct("holdups.seed", {}, null);
                 if (res) toast(res.created ? `${res.created} magasin(s) ajouté(s).` : "Tous les magasins de la carte sont déjà là.", "ok");
             } }, icon("i-sparkle"), "Magasins de la carte"),
+            h("button", { class: "btn small primary", onclick: () => newHoldup(null) }, icon("i-plus"), type && type.house ? "Ajouter une maison" : "Ajouter un braquage"),
         ],
         side: [holdupTypesBlock(d, filter)],
         center: h("div", null,
             type && type.soon ? h("p", { class: "ready-hint" }, icon("i-warn"), h("span", null, `${type.label} : pas encore disponible en jeu. Les points peuvent déjà être placés.`)) : null,
-            h("div", { class: "zone-list" }, rows.length ? rows : h("p", { class: "hint-line" }, "Aucun point pour ce type.")),
-            h("button", { class: "btn small primary", style: "margin-top:12px", onclick: () => newHoldup(null) }, icon("i-plus"), "Ajouter un braquage")),
+            h("div", { class: "zone-list" }, rows.length ? rows : h("p", { class: "hint-line" }, "Aucun point pour ce type."))),
         layout: "holdup-layout",
         editor: holdupEditor(d.points.find((p) => p.id === sel)),
         mounted: () => drawHoldups(),

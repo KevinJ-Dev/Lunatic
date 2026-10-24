@@ -46,13 +46,16 @@ local function hasTool()
 end
 
 -- Téléportation avec fondu ; hauteur inconnue (porte placée sur la carte) : recherche du sol
-local function teleport(x, y, z, h)
+-- whileBlack : appelé écran noir, une fois arrivé (ex. retour dans le monde normal après la sortie)
+local function teleport(x, y, z, h, whileBlack)
     local ped = PlayerPedId()
     DoScreenFadeOut(300)
 
     while not IsScreenFadedOut() do
         Wait(0)
     end
+
+    FreezeEntityPosition(ped, true)
 
     if z < -150.0 then
         z = 200.0
@@ -79,6 +82,11 @@ local function teleport(x, y, z, h)
         Wait(0)
     end
 
+    if whileBlack then
+        whileBlack()
+    end
+
+    FreezeEntityPosition(ped, false)
     DoScreenFadeIn(300)
 end
 
@@ -151,8 +159,14 @@ local function leaveHouse()
 
     local door = res and res.ok and res or house
 
+    -- D'abord dehors (encore dans le monde de la maison), puis seulement retour dans le monde normal, écran noir
     if door then
-        teleport(door.x, door.y, door.z, (door.h or 0.0) + 180.0)
+        teleport(door.x, door.y, door.z, ((door.h or 0.0) + 180.0) % 360.0, function()
+            lib.callback.await('lunatic_illegal:burglaryLeave', false)
+            Wait(500)
+        end)
+    else
+        lib.callback.await('lunatic_illegal:burglaryLeave', false)
     end
 
     busy = false
