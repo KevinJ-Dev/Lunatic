@@ -609,15 +609,55 @@ Panel.actions['holdups.delete'] = function(src, actor, data)
     return { ok = true, silent = true }
 end
 
--- Remet les magasins de la carte de base qui manquent
-Panel.actions['holdups.seed'] = function(src, actor)
+-- Remet les points par défaut qui manquent : ceux du type affiché, ou de tous les types
+Panel.actions['holdups.seed'] = function(src, actor, data)
     if not guard(actor) then
         return denied()
     end
 
-    local created = seed()
+    local only = TYPES[data and data.type] and { [data.type] = true } or nil
+    local created = seed(only)
     load()
-    Logs.add(src, 'holdups.save', nil, { label = ('%d magasin(s) de la carte'):format(created), operation = 'add' })
+    Logs.add(src, 'holdups.save', nil, { label = ('%d point(s) par défaut'):format(created), operation = 'add' })
 
     return { ok = true, silent = true, created = created }
 end
+
+-- Vue staff : tous les points en jeu (blips et repères au sol), pour ce membre du staff seulement
+local staffViewers = {}
+
+local function staffPoints()
+    local list = {}
+
+    for _, point in ipairs(points) do
+        list[#list + 1] = { id = point.id, type = point.type, short = TYPES[point.type].short, label = point.label, x = point.x, y = point.y, z = point.z, active = point.active }
+    end
+
+    return list
+end
+
+Panel.actions['holdups.staffView'] = function(src, actor, data)
+    if not guard(actor) then
+        return denied()
+    end
+
+    staffViewers[src] = data.enabled == true or nil
+    TriggerClientEvent('lunatic_admin:holdupStaffView', src, staffViewers[src] and staffPoints() or nil)
+
+    return { ok = true, silent = true }
+end
+
+-- Points changés : la vue staff se met à jour
+AddEventHandler('lunatic_admin:holdupsChanged', function()
+    for src in pairs(staffViewers) do
+        if GetPlayerPing(src) > 0 then
+            TriggerClientEvent('lunatic_admin:holdupStaffView', src, staffPoints())
+        else
+            staffViewers[src] = nil
+        end
+    end
+end)
+
+AddEventHandler('playerDropped', function()
+    staffViewers[source] = nil
+end)

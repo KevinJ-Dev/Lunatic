@@ -168,7 +168,7 @@ lib.callback.register('lunatic_illegal:gofastStart', function(src, startId, vari
     Entity(vehicle).state:set('lunaticGoFast', src, true)
 
     lastRun[src] = now
-    local run = { variant = v, vehicle = vehicle, drop = drop, deadline = now + a.duration * 60, tracked = math.random(100) <= a.alert, nextTrack = now + 20 }
+    local run = { variant = v, vehicle = vehicle, drop = drop, startedAt = now, deadline = now + a.duration * 60, tracked = math.random(100) <= a.alert, nextTrack = now + 20 }
     runs[src] = run
 
     return {
@@ -186,7 +186,12 @@ CreateThread(function()
         for src, run in pairs(runs) do
             local m = MissionSettings(run.variant.mission)
 
-            if not DoesEntityExist(run.vehicle) or GetEntityHealth(run.vehicle) <= 0 then
+            -- Détruit = moteur explosé, une fois qu'un joueur contrôle le véhicule (avant, son état n'est pas encore
+            -- synchronisé ; GetEntityHealth d'un véhicule vaut 0 côté serveur et le faisait croire détruit tout de suite)
+            local wrecked = DoesEntityExist(run.vehicle) and now - run.startedAt > 5 and NetworkGetEntityOwner(run.vehicle) ~= -1
+                and GetVehicleEngineHealth(run.vehicle) <= -3900.0
+
+            if not DoesEntityExist(run.vehicle) or wrecked then
                 stop(src, ('%s est détruit : GoFast raté.'):format(run.variant.noun == 'le bateau' and 'Le bateau' or 'La voiture'), 0)
             elseif now > run.deadline then
                 stop(src, 'Trop tard : le client ne vous attend plus. GoFast raté.', 30000)

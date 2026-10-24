@@ -7,7 +7,7 @@
 //  « Cibles détectées » garde l'ancien écran (coffres, vitrines, Fleeca, lieux braqués récemment).
 // ====================================================================
 
-const holdupState = { data: null, map: null, fitted: false, focused: null };
+const holdupState = { data: null, map: null, fitted: false, focused: null, staffView: false };
 
 async function loadHoldups() {
     const res = await nui("action", { action: "holdups.list", payload: {} }).catch(() => null);
@@ -59,10 +59,17 @@ function holdupsPage() {
             type && type.spot ? h("button", { class: "btn small", title: "Véhicule, temps, distance, police, délai", onclick: () => illegalSwitch(() => { illegalState.tab = "missions"; illegalState.missionSel = type.id === "yacht" ? "heist_yacht" : type.id.startsWith("gofast_sea") ? "gofast_sea" : "gofast"; }) }, icon("i-tool"), type.id === "yacht" ? "Réglages du yacht" : "Réglages du GoFast") : null,
             type && !type.house && !type.spot ? h("button", { class: "btn small", title: "Arme exigée, durée, délai, alarme, résistance du vendeur, butin", onclick: () => openHoldupSettings(type.id) },
                 icon("i-tool"), `Réglages ${type.label}`, h("span", { class: "badge muted", style: "margin-left:4px" }, WEAPON_RULES[type.settings ? type.settings.weapon : "any"])) : null,
-            h("button", { class: "btn small", title: "Remet les magasins de la carte de base qui manquent", onclick: async () => {
-                const res = await holdupAct("holdups.seed", {}, null);
-                if (res) toast(res.created ? `${res.created} magasin(s) ajouté(s).` : "Tous les magasins de la carte sont déjà là.", "ok");
-            } }, icon("i-sparkle"), "Magasins de la carte"),
+            h("button", { class: `btn small${holdupState.staffView ? " primary" : ""}`, title: "Affiche en jeu, pour vous seul, tous les points (blips sur la carte, repères au sol)", onclick: async () => {
+                const enabled = !holdupState.staffView;
+                const res = await act("holdups.staffView", { enabled }, enabled ? "Points affichés en jeu." : null);
+                if (!res) return;
+                holdupState.staffView = enabled;
+                paintIllegal();
+            } }, icon("i-eye"), holdupState.staffView ? "Masquer les points en jeu" : "Voir les points en jeu"),
+            h("button", { class: "btn small", title: type ? `Remet les points par défaut « ${type.label} » qui manquent` : "Remet tous les points par défaut qui manquent", onclick: async () => {
+                const res = await holdupAct("holdups.seed", { type: type ? type.id : null }, null);
+                if (res) toast(res.created ? `${res.created} point(s) ajouté(s).` : "Tous les points par défaut sont déjà là.", "ok");
+            } }, icon("i-sparkle"), "Points par défaut"),
             h("button", { class: "btn small primary", onclick: () => newHoldup(null) }, icon("i-plus"), type && type.house ? "Ajouter une maison" : type && type.spot ? "Ajouter un point" : "Ajouter un braquage"),
         ],
         side: [holdupTypesBlock(d, filter)],
