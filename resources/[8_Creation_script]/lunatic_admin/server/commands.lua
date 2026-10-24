@@ -82,6 +82,21 @@ end
 -- Type de garage ESX selon le type de véhicule détecté par le client
 local GARAGE_TYPES = { boat = 'boat', submarine = 'boat', heli = 'aircraft', plane = 'aircraft' }
 
+-- Boutique des joueurs (lunatic_store) : véhicule ajouté au garage ; renvoie la plaque (nil si aucune plaque libre)
+exports('giveOwnedVehicle', function(identifier, hash, vehicleType)
+    local plate = newPlate()
+
+    if not plate or type(identifier) ~= 'string' or not tonumber(hash) then
+        return nil
+    end
+
+    MySQL.insert.await('INSERT INTO `owned_vehicles` (`owner`, `plate`, `vehicle`, `type`, `stored`) VALUES (?, ?, ?, ?, 1)', {
+        identifier, plate, json.encode({ model = tonumber(hash), plate = plate, fuelLevel = 100.0 }), GARAGE_TYPES[vehicleType] or 'car',
+    })
+
+    return plate
+end)
+
 Panel.actions['vehicle.give'] = function(src, actor, data)
     if not Ranks.hasPermission(actor, 'vehicles.give') then
         return denied()

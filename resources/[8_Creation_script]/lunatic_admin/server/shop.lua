@@ -209,6 +209,11 @@ function Shop.record(src, category, product, amount)
     })
 end
 
+-- Boutique des joueurs (lunatic_store)
+exports('recordStorePurchase', function(src, category, product, amount)
+    Shop.record(tonumber(src), category, product, amount)
+end)
+
 ---------------------------------------------------------------------
 -- Actions du panel
 ---------------------------------------------------------------------

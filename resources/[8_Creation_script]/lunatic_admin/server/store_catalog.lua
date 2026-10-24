@@ -134,6 +134,22 @@ function StoreCatalog.product(id)
     return { id = tonumber(row.id), kind = row.kind, label = row.label, image = row.image, price = tonumber(row.price), active = tonumber(row.active) == 1 or row.active == true, data = decode(row.data) }
 end
 
+-- Boutique des joueurs (lunatic_store) : produits en vente seulement
+exports('getStoreCatalog', function(kind)
+    return KINDS[kind] and StoreCatalog.list(kind, true) or {}
+end)
+
+exports('getStoreProduct', function(id)
+    local product = StoreCatalog.product(id)
+
+    if product then
+        local category = MySQL.single.await('SELECT `type` FROM `lunatic_store_categories` c JOIN `lunatic_store_products` p ON p.`category_id` = c.`id` WHERE p.`id` = ?', { product.id })
+        product.categoryType = category and category.type or ''
+    end
+
+    return product
+end)
+
 ---------------------------------------------------------------------
 -- Contenu des produits
 ---------------------------------------------------------------------

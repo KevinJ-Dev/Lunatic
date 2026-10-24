@@ -1,0 +1,109 @@
+:root {
+    --bg: #0d0a14; --raise: #15111f; --surface: #1b1628; --surface-2: #241d35; --line: #ffffff14; --line-strong: #ffffff26;
+    --ink: #f3f0fa; --muted: #a59fb8; --accent: #9650ff; --ok: #5fd3a0; --bad: #ff8a84; --gold: #f2c26b;
+    --font: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; color: var(--ink); font: 400 14px/1.45 var(--font); user-select: none; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.hidden { display: none !important; }
+.muted { color: var(--muted); }
+
+.store { position: fixed; inset: 0; display: grid; place-items: center; background: #00000080; animation: fade .2s ease; }
+.window { display: flex; flex-direction: column; width: min(1280px, 94vw); height: min(820px, 90vh); overflow: hidden; border: 1px solid var(--line-strong); border-radius: 22px; background: var(--bg); box-shadow: 0 40px 120px -20px #000; animation: pop .25s ease; }
+
+.head { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 12px; flex: 1; }
+.brand .logo { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, var(--accent), #5b2bb5); font-weight: 900; font-size: 20px; }
+.brand div { display: grid; line-height: 1.2; }
+.brand b { font-size: 18px; }
+.brand span { color: var(--muted); font-size: 12px; }
+.balance { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--raise); }
+.balance .price { font-size: 16px; }
+.balance small { color: var(--muted); }
+.close { width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.close:hover { border-color: var(--bad); color: var(--bad); }
+
+.price { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--gold); }
+.price img { width: 18px; height: 18px; object-fit: contain; }
+.coin { font-size: 13px; }
+
+.banners { display: flex; gap: 10px; padding: 12px 20px 0; overflow-x: auto; }
+.banners.empty { display: none; }
+.banner { display: flex; align-items: center; gap: 10px; flex: none; padding: 8px 16px; border-radius: 12px; background: color-mix(in srgb, var(--c) 22%, transparent); border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); color: var(--c); font-weight: 700; }
+.banner img { height: 26px; border-radius: 6px; }
+
+.body { display: grid; grid-template-columns: 220px minmax(0, 1fr); flex: 1; min-height: 0; }
+.nav { display: grid; gap: 4px; align-content: start; padding: 16px 12px; border-right: 1px solid var(--line); }
+.nav button { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 14px; border: 1px solid transparent; border-radius: 12px; background: none; color: var(--muted); font-weight: 600; text-align: left; }
+.nav button i { width: 20px; font-style: normal; text-align: center; }
+.nav button:hover { background: var(--surface); color: var(--ink); }
+.nav button.on { border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: color-mix(in srgb, var(--accent) 18%, transparent); color: #fff; }
+.main { min-height: 0; overflow-y: auto; padding: 18px 22px 24px; }
+.section h2 { margin: 0 0 4px; font-size: 20px; }
+.empty { display: grid; place-items: center; height: 100%; color: var(--muted); }
+
+.cats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.cats button { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-weight: 600; font-size: 13px; }
+.cats button small { color: var(--muted); }
+.cats button.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, transparent); }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.card { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.card:hover { border-color: var(--line-strong); }
+.card .pic { display: grid; place-items: center; height: 120px; overflow: hidden; border-radius: 12px; background: radial-gradient(circle at 50% 70%, #ffffff12, transparent 70%), var(--raise); }
+.card .pic img { max-width: 100%; max-height: 120px; object-fit: contain; }
+.card b { font-size: 15px; }
+.card-foot, .pack-foot, .tier-foot { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.card-foot .buy, .pack-foot .buy, .tier-foot .buy { margin-left: auto; }
+
+.buy { height: 36px; padding: 0 18px; border: 0; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 700; }
+.buy:hover { filter: brightness(1.1); }
+.buy:disabled { opacity: .45; cursor: default; filter: none; }
+.ghost { height: 36px; padding: 0 16px; border: 1px solid var(--line-strong); border-radius: 10px; background: none; }
+
+.packs { display: grid; gap: 10px; }
+.pack { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.pack > img { width: 72px; height: 72px; border-radius: 12px; object-fit: cover; }
+.pack-main b { font-size: 16px; }
+.pack ul, .tier ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+.pack-foot { flex-direction: column; align-items: flex-end; }
+.pack-foot .buy { margin-left: 0; }
+
+.tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-top: 14px; }
+.tier { display: grid; gap: 8px; padding: 18px; border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); border-radius: 18px; background: linear-gradient(160deg, color-mix(in srgb, var(--c) 16%, transparent), var(--surface) 55%); }
+.tier.mine { box-shadow: 0 0 0 2px var(--c); }
+.tier-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.tier-head b { color: var(--c); font-size: 22px; }
+.tag { padding: 3px 10px; border-radius: 999px; background: color-mix(in srgb, var(--c) 25%, transparent); font-size: 11.5px; font-weight: 700; }
+
+.credits { display: grid; justify-items: center; gap: 6px; padding-top: 40px; text-align: center; }
+.big-coin { display: grid; place-items: center; width: 90px; height: 90px; border-radius: 50%; background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold); font-size: 40px; }
+.big-coin img { width: 56px; height: 56px; object-fit: contain; }
+
+.modal { position: fixed; inset: 0; display: grid; place-items: center; background: #000000a0; }
+.modal-card { display: grid; gap: 12px; width: min(440px, 90vw); padding: 22px; border: 1px solid var(--line-strong); border-radius: 18px; background: var(--raise); animation: pop .2s ease; }
+.modal-card h3 { margin: 0; font-size: 18px; }
+.modal-card p { margin: 0; font-size: 13px; }
+.modal-rows { display: grid; gap: 8px; padding: 12px; border-radius: 12px; background: var(--surface); }
+.modal-rows div { display: flex; justify-content: space-between; }
+.modal-rows .bad { color: var(--bad); }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+.toast { position: fixed; bottom: 40px; left: 50%; transform: translate(-50%, 20px); padding: 12px 18px; border-radius: 12px; background: var(--surface-2); opacity: 0; pointer-events: none; transition: .2s; font-weight: 600; }
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+.toast.ok { border-left: 4px solid var(--ok); }
+.toast.error { border-left: 4px solid var(--bad); }
+
+/* Notification de la boutique (en jeu, panel fermé) */
+.notif { position: fixed; top: 24px; right: 24px; display: flex; gap: 12px; align-items: center; width: 360px; padding: 14px 16px; border-radius: 16px; background: var(--c); color: #1a1306; box-shadow: 0 20px 50px -10px #000; animation: slide .35s ease; }
+.notif img { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; }
+.notif div { display: grid; gap: 2px; }
+.notif b { font-size: 15px; text-transform: uppercase; letter-spacing: .03em; }
+.notif span { font-size: 13px; }
+.notif small { margin-top: 4px; font-size: 11.5px; font-weight: 700; opacity: .75; }
+
+@keyframes fade { from { opacity: 0; } }
+@keyframes pop { from { opacity: 0; transform: scale(.97); } }
+@keyframes slide { from { opacity: 0; transform: translateX(30px); } }

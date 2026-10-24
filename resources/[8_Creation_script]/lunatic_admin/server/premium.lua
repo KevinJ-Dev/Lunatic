@@ -275,7 +275,8 @@ local function changeCredits(license, amount, reason, staffName)
     return after, balance
 end
 
--- Pour la future boutique : exports.lunatic_admin:removeCredits(source, montant, raison) -> true si le solde suffisait
+-- Boutique (lunatic_store) : exports.lunatic_admin:removeCredits(source, montant, raison) -> true si le solde suffisait.
+-- Débit en une seule requête (solde vérifié par la base) : deux achats simultanés ne peuvent pas passer sous zéro.
 exports('removeCredits', function(src, amount, reason)
     local license = GetPlayerIdentifierByType(tonumber(src), 'license')
     amount = tonumber(amount)
@@ -284,7 +285,63 @@ exports('removeCredits', function(src, amount, reason)
         return false
     end
 
-    return changeCredits(license, -math.floor(amount), tostring(reason or 'Achat boutique'), 'Boutique') ~= nil
+    amount = math.floor(amount)
+    local affected = MySQL.update.await('UPDATE `lunatic_admin_credits` SET `balance` = `balance` - ? WHERE `license` = ? AND `balance` >= ?', { amount, license, amount })
+
+    if affected ~= 1 then
+        return false
+    end
+
+    MySQL.insert.await('INSERT INTO `lunatic_admin_credit_log` (`license`, `amount`, `balance_after`, `reason`, `staff_name`, `created_at`) VALUES (?, ?, ?, ?, ?, ?)', {
+        license, -amount, Panel.creditsOf(license), tostring(reason or 'Achat boutique'), 'Boutique', now(),
+    })
+
+    return true
+end)
+
+-- Remboursement d'un achat qui n'a pas pu être livré
+exports('addCredits', function(src, amount, reason)
+    local license = GetPlayerIdentifierByType(tonumber(src), 'license')
+    amount = tonumber(amount)
+
+    if not license or not amount or amount <= 0 then
+        return false
+    end
+
+    return changeCredits(license, math.floor(amount), tostring(reason or 'Remboursement boutique'), 'Boutique') ~= nil
+end)
+
+-- Abonnement acheté en boutique : les jours s'ajoutent si le même abonnement est actif
+---@return boolean ok, string|nil error
+exports('grantPremium', function(src, tier, days)
+    local license = GetPlayerIdentifierByType(tonumber(src), 'license')
+    days = tonumber(days)
+
+    if not license or not Config.PremiumTiers[tier] or not days or days < 1 then
+        return false, 'Abonnement invalide.'
+    end
+
+    local current = premiums[license]
+
+    if current and not isExpired(current) and current.tier ~= tier and current.tier == 'premium_plus' then
+        return false, 'Vous avez déjà Premium+ : attendez sa fin pour prendre Premium.'
+    end
+
+    if current and not isExpired(current) and current.tier == tier and not current.expires then
+        return false, ('Vous êtes déjà %s à vie.'):format(Config.PremiumTiers[tier].label)
+    end
+
+    local base = (current and current.tier == tier and current.expires and current.expires > now()) and current.expires or now()
+    local expires = base + math.floor(days) * 86400
+
+    premiums[license] = { tier = tier, expires = expires }
+    MySQL.query.await([[
+        INSERT INTO `lunatic_admin_premium` (`license`, `tier`, `expires_at`, `granted_by`, `granted_at`) VALUES (?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE `tier` = VALUES(`tier`), `expires_at` = VALUES(`expires_at`), `granted_by` = VALUES(`granted_by`), `granted_at` = VALUES(`granted_at`)
+    ]], { license, tier, expires, 'Boutique', now() })
+
+    publish(license)
+    return true, nil, expires
 end)
 
 Panel.actions['credits.change'] = function(src, actor, data)
