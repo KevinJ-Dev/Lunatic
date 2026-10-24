@@ -13,3 +13,23 @@ Config.DeathKeepItems = { 'phone', 'id_card' } -- objets gardés quand l'inventa
 Config.ReviveDistance = 3.0     -- distance maximale pour réanimer quelqu'un (/reanimer)
 Config.MedicCallCooldown = 60   -- secondes entre deux appels aux secours d'un même joueur
 Config.MedicTypes = { medic = true } -- types de services publics (tuile Services publics) qui peuvent réanimer
+
+-- Carburant : stations-service (le plein se fait près d'une pompe, à moins de Config.FuelStationRadius du centre)
+Config.FuelStationRadius = 35.0
+Config.FuelPumpModels = { 'prop_gas_pump_1a', 'prop_gas_pump_1b', 'prop_gas_pump_1c', 'prop_gas_pump_1d', 'prop_gas_pump_old2', 'prop_gas_pump_old3', 'prop_vintage_pump' }
+Config.FuelPumpDistance = 3.0     -- distance à la pompe pour [E]
+Config.FuelVehicleDistance = 6.0  -- le véhicule doit être garé à côté de la pompe
+Config.FuelStations = {
+    vector3(49.4, 2778.8, 58.0), vector3(263.9, 2606.5, 44.9), vector3(1039.9, 2671.1, 39.5), vector3(1207.3, 2660.2, 37.9),
+    vector3(2539.7, 2594.2, 37.9), vector3(2679.9, 3263.9, 55.2), vector3(2005.1, 3773.9, 32.4), vector3(1687.2, 4929.4, 42.1),
+    vector3(1701.3, 6416.0, 32.8), vector3(179.9, 6602.8, 31.9), vector3(-94.5, 6419.6, 31.5), vector3(-2554.9, 2334.4, 33.1),
+    vector3(-1800.4, 803.7, 138.7), vector3(-1437.6, -276.7, 46.2), vector3(-2096.2, -320.3, 13.2), vector3(-724.6, -935.2, 19.2),
+    vector3(-526.0, -1211.0, 18.2), vector3(-70.2, -1761.8, 29.5), vector3(265.6, -1261.3, 29.3), vector3(819.7, -1028.8, 26.4),
+    vector3(1208.9, -1402.6, 35.2), vector3(1181.4, -330.8, 69.3), vector3(620.8, 269.1, 103.1), vector3(2581.3, 362.0, 108.5),
+    vector3(176.6, -1562.0, 29.3), vector3(-319.3, -1471.7, 30.5),
+}
+-- Consommation par classe de véhicule (GetVehicleClass) : multiplicateur de la consommation de base
+Config.FuelClassUsage = {
+    [0] = 1.0, [1] = 1.0, [2] = 1.2, [3] = 1.0, [4] = 1.1, [5] = 1.2, [6] = 1.3, [7] = 1.5, [8] = 0.7, [9] = 1.2,
+    [10] = 1.6, [11] = 1.4, [12] = 1.2, [13] = 0.0, [14] = 0.8, [15] = 1.5, [16] = 1.5, [17] = 1.0, [18] = 1.0, [19] = 1.4, [20] = 1.5, [21] = 0.0,
+}

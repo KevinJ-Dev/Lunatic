@@ -12,7 +12,7 @@ const ftState = { data: null, tab: "features", section: null, draft: null, saved
 // Onglets : sections affichées (une liste à gauche s'il y en a plusieurs)
 const FEATURE_TABS = [
     { id: "features", label: "Fonctionnalités", icon: "i-tool", sections: ["toggles"] },
-    { id: "gameplay", label: "Gameplay", icon: "i-pulse", sections: ["needs", "inventory", "death", "population", "time"] },
+    { id: "gameplay", label: "Gameplay", icon: "i-pulse", sections: ["needs", "inventory", "death", "fuel", "population", "time"] },
     { id: "newPlayers", label: "Nouveaux joueurs", icon: "i-user-plus", sections: ["newPlayers"] },
     { id: "discord", label: "Discord", icon: "i-users", sections: ["discord"] },
 ];
@@ -56,6 +56,15 @@ const FEATURE_SECTIONS = {
             keepCash: { label: "Garder le liquide", hint: "Quand l'inventaire est vidé" },
             callMedic: { label: "Appel des secours", hint: "[G] pendant l'inconscience : alerte et GPS pour les médecins en ligne" },
             medicRevive: { label: "Réanimation par les médecins", hint: "/reanimer, réservé aux services publics de type Médecins" },
+        },
+    },
+    fuel: {
+        label: "Carburant", icon: "i-car",
+        fields: {
+            enabled: { label: "Consommation de carburant", hint: "Désactivé : les véhicules ne consomment rien" },
+            consumption: { label: "Multiplicateur de consommation", hint: "1 = environ 12 % par minute à fond, 1,5 % au ralenti (selon la classe)", unit: "×" },
+            startLevel: { label: "Niveau de départ", hint: "Réservoir d'un véhicule jamais utilisé", unit: "%" },
+            price: { label: "Prix du litre", hint: "Aux pompes des stations-service (liquide, sinon banque)", money: true },
         },
     },
     population: {

@@ -16,11 +16,13 @@ shared_scripts {
 server_scripts {
     'server/common.lua',
     'server/death.lua',
+    'server/fuel.lua',
 }
 
 client_scripts {
     'client/common.lua',
     'client/death.lua',
+    'client/fuel.lua',
 }
 
 dependencies {
