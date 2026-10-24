@@ -43,9 +43,24 @@ end)
 
 RegisterNetEvent('lunatic_illegal:gofastConfigChanged', loadConfig)
 
+-- GPS du jeu (point de passage) vers la livraison, réglé en montant dans le véhicule
+local function setGps()
+    SetNewWaypoint(run.drop.x + 0.0, run.drop.y + 0.0)
+    run.gps = true
+end
+
 local function clearRun()
     if run and run.blip and DoesBlipExist(run.blip) then
         RemoveBlip(run.blip)
+    end
+
+    -- Retire le point GPS s'il visait encore la livraison
+    if run and run.gps and IsWaypointActive() then
+        local waypoint = GetBlipInfoIdCoord(GetFirstBlipInfoId(8))
+
+        if #(vector2(waypoint.x, waypoint.y) - vector2(run.drop.x, run.drop.y)) < 5.0 then
+            SetWaypointOff()
+        end
     end
 
     run = nil
@@ -65,12 +80,10 @@ local function start(point)
         return
     end
 
-    -- Itinéraire jusqu'à la livraison
+    -- Livraison sur la carte ; le GPS du jeu s'active en montant dans le véhicule
     local blip = AddBlipForCoord(res.drop.x, res.drop.y, res.drop.z)
     SetBlipSprite(blip, 501)
     SetBlipColour(blip, 5)
-    SetBlipRoute(blip, true)
-    SetBlipRouteColour(blip, 5)
     BeginTextCommandSetBlipName('STRING')
     AddTextComponentSubstringPlayerName('Livraison GoFast')
     EndTextCommandSetBlipName(blip)
@@ -116,6 +129,12 @@ CreateThread(function()
                 local left = math.max(0, math.ceil((run.endsAt - GetGameTimer()) / 1000))
                 local vehicle = NetworkDoesEntityExistWithNetworkId(run.netId) and NetToVeh(run.netId) or 0
                 local inCar = vehicle ~= 0 and GetVehiclePedIsIn(ped, false) == vehicle
+
+                -- En montant dans le véhicule : GPS vers la livraison (et de nouveau si le point a été retiré,
+                -- sauf tout près de la livraison où le jeu le retire de lui-même)
+                if inCar and (not run.gps or not IsWaypointActive()) and #(coords.xy - vector2(run.drop.x, run.drop.y)) > 60.0 then
+                    setGps()
+                end
 
                 if #(coords.xy - vector2(run.drop.x, run.drop.y)) < run.radius and inCar then
                     prompt = ('[E] Livrer %s'):format(run.noun)

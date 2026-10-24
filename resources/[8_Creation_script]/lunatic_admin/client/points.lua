@@ -63,8 +63,9 @@ CreateThread(function()
 
                 if distance < 40.0 then
                     wait = 0
-                    DrawMarker(1, point.x, point.y, z - 0.98, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.6, 255, 160, 60, 140, false, false, 2, false, nil, nil, false)
-                    drawText3D(point.x, point.y, z + 0.4, ('%s · %s #%d%s'):format(point.short, point.label, point.id, point.active and '' or ' (inactif)'))
+                    -- Les positions sont à hauteur des pieds (« Définir ») : repère posé au sol, texte au-dessus
+                    DrawMarker(1, point.x, point.y, z - 0.05, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.6, 255, 160, 60, 140, false, false, 2, false, nil, nil, false)
+                    drawText3D(point.x, point.y, z + 1.2, ('%s · %s #%d%s'):format(point.short, point.label, point.id, point.active and '' or ' (inactif)'))
                 end
             end
         end

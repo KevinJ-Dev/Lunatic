@@ -89,17 +89,20 @@ local function noclipLoop()
         while modes.noclip do
             entity = controlledEntity()
 
-            -- Contrôles de déplacement réservés au noclip
-            DisableControlAction(0, 30, true) -- gauche / droite
-            DisableControlAction(0, 31, true) -- avant / arrière
-            DisableControlAction(0, 21, true) -- Maj
-            DisableControlAction(0, 36, true) -- Ctrl
-            DisableControlAction(0, 44, true) -- Q
-            DisableControlAction(0, 38, true) -- E
-            DisableControlAction(0, 14, true) -- molette (armes)
-            DisableControlAction(0, 15, true)
-            DisableControlAction(0, 16, true)
-            DisableControlAction(0, 17, true)
+            -- Contrôles de déplacement réservés au noclip (pas pendant la carte ou le menu pause : sinon
+            -- impossible de déplacer la carte vers la gauche ou la droite)
+            if not IsPauseMenuActive() then
+                DisableControlAction(0, 30, true) -- gauche / droite
+                DisableControlAction(0, 31, true) -- avant / arrière
+                DisableControlAction(0, 21, true) -- Maj
+                DisableControlAction(0, 36, true) -- Ctrl
+                DisableControlAction(0, 44, true) -- Q
+                DisableControlAction(0, 38, true) -- E
+                DisableControlAction(0, 14, true) -- molette (armes)
+                DisableControlAction(0, 15, true)
+                DisableControlAction(0, 16, true)
+                DisableControlAction(0, 17, true)
+            end
 
             if IsDisabledControlJustPressed(0, 15) then
                 noclipSpeed = math.min(noclipSpeed * 1.25, 120.0)
