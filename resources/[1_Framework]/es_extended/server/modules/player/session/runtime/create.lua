@@ -1,6 +1,25 @@
 -- SPDX-License-Identifier: GPL-3.0-only
 -- Copyright (C) 2022-2026 ESX Framework
 
+-- Lunatic : argent de départ réglé dans le panel staff (lunatic_admin, GlobalState.lunaticFeatures.newPlayers)
+function Core.StartingAccountMoney()
+    local accounts = {}
+
+    for account, money in pairs(Config.StartingAccountMoney) do
+        accounts[account] = money
+    end
+
+    local features = GlobalState.lunaticFeatures
+    local newPlayers = features and features.newPlayers
+
+    if newPlayers then
+        accounts.bank = tonumber(newPlayers.bank) or accounts.bank
+        accounts.money = tonumber(newPlayers.money) or accounts.money
+    end
+
+    return accounts
+end
+
 function Core.PlayerSession.CreateESXPlayer(identifier, playerId, data, loading)
     if not Core.PlayerSession.IsPlayerLoadActive(playerId, loading) then
         return
@@ -8,7 +27,7 @@ function Core.PlayerSession.CreateESXPlayer(identifier, playerId, data, loading)
 
     local accounts = {}
 
-    for account, money in pairs(Config.StartingAccountMoney) do
+    for account, money in pairs(Core.StartingAccountMoney()) do
         accounts[account] = money
     end
 

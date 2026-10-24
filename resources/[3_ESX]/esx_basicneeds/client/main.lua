@@ -31,10 +31,32 @@ AddEventHandler('esx:onPlayerSpawn', function()
 end)
 
 AddEventHandler('esx_status:loaded', function()
+    -- Lunatic : perte réglée dans le panel staff (tuile Fonctionnalités : faim et soif, sprint, pause)
+    local function rateOf(name, removalRate)
+        local features = GlobalState.lunaticFeatures
+
+        if not features then
+            return removalRate
+        end
+
+        if features.toggles and features.toggles.needs == false then
+            return 0
+        end
+
+        local needs = features.needs or {}
+        local rate = tonumber(needs[name]) or removalRate
+
+        if IsPedSprinting(PlayerPedId()) then
+            rate = rate * (tonumber(needs.sprint) or 1.0)
+        end
+
+        return rate
+    end
+
     local function registerStatus(name, color, removalRate)
         TriggerEvent('esx_status:registerStatus', name, 1000000, color, 
             function() return Config.Visible end,
-            function(status) status.remove(removalRate) end
+            function(status) status.remove(rateOf(name, removalRate)) end
         )
     end
 

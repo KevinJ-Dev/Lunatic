@@ -54,6 +54,7 @@ Permissions.List = {
     -- Lot E1 : entreprises et services publics
     { id = 'companies.manage', family = 'structures', label = 'Entreprises : créer et gérer les entreprises (fiche, grades, membres)' },
     { id = 'items.manage', family = 'manage', label = 'Items : créer, modifier, dupliquer, supprimer et donner les objets (appliqués au prochain redémarrage)' },
+    { id = 'features.manage', family = 'manage', label = 'Fonctionnalités : PvP, HUD, faim et soif, inventaire, population, temps, nouveaux joueurs, Discord (appliqués tout de suite)' },
     { id = 'interactions.manage', family = 'manage', label = 'Interactions : emplacements des magasins, location, grossistes et recelleur (PNJ, rayon, blip)' },
     { id = 'images.manage', family = 'manage', label = 'Images : logos, bannières, images des menus et mugshots des personnages (appliqués tout de suite)' },
     { id = 'economy.manage', family = 'manage', label = "Économie : salaires, aide de l'État, banque, fourrière, devise et paie (appliqués tout de suite)" },
@@ -132,7 +133,7 @@ local SHORT = {
     ['players.recreate'] = 'Recréer le personnage', ['players.licenses'] = 'Give un permis', ['players.copy_appearance'] = "Récupérer l'apparence",
     ['players.wipe'] = 'Wipe un joueur', ['players.offline'] = 'Gérer les joueurs offline', ['players.kick'] = 'Kick', ['players.crash'] = 'Crash Player',
     ['server.manage'] = 'Gestion Global', ['dev.manage'] = 'Gestion Développeur', ['events.manage'] = 'Gestion des events', ['poles.manage'] = 'Pôle emploi',
-    ['illegal.manage'] = 'Illégal', ['crews.manage'] = 'Crews', ['companies.manage'] = 'Entreprises', ['items.manage'] = 'Items', ['blips.manage'] = 'Blips', ['economy.manage'] = 'Économie', ['images.manage'] = 'Images', ['interactions.manage'] = 'Interactions',
+    ['illegal.manage'] = 'Illégal', ['crews.manage'] = 'Crews', ['companies.manage'] = 'Entreprises', ['items.manage'] = 'Items', ['blips.manage'] = 'Blips', ['economy.manage'] = 'Économie', ['images.manage'] = 'Images', ['interactions.manage'] = 'Interactions', ['features.manage'] = 'Fonctionnalités',
     ['catalogs.manage'] = 'Catalogues', ['publics.manage'] = 'Services publics', ['premium.manage'] = 'Premium', ['shop.manage'] = 'Gestion Boutique',
     ['world.weather'] = 'Météo', ['world.time'] = 'Heure',
     ['economy.money'] = 'Argent (liquide, banque)', ['economy.black_money'] = 'Argent sale', ['economy.job'] = 'Changer de métier',

@@ -1121,3 +1121,30 @@ body.hidden.minimized .mini-pill { display: flex; }
 .it-range input { flex: 1; accent-color: var(--accent); }
 .it-radius { min-width: 46px; color: var(--ink-2); font-size: 12px; text-align: right; }
 @media (max-width: 1500px) { .it-page { grid-template-columns: 200px minmax(0, 1fr) 310px; } }
+
+/* Tuile Fonctionnalités */
+#view-features.on { display: flex; }
+.img-tab svg.i { width: 14px; height: 14px; }
+.ft-body { display: grid; grid-template-columns: 230px minmax(0, 1fr); flex: 1; min-height: 0; }
+.ft-body.single { grid-template-columns: minmax(0, 1fr); }
+.ft-body > * { min-height: 0; }
+.ft-main { border-left: 0; }
+.ft-main .crew-col-head .btn { font-weight: 600; }
+.ft-columns { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; align-items: start; }
+.ft-column { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: #ffffff05; }
+.ft-list { display: grid; gap: 8px; max-width: 900px; }
+.ft-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 1.2fr); gap: 14px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.ft-label { display: grid; gap: 2px; }
+.ft-label b { font-size: 13px; }
+.ft-label small { color: var(--muted); font-size: 11px; }
+.ft-value { display: flex; align-items: center; gap: 10px; }
+.ft-value input[type=range] { flex: 1; accent-color: var(--accent); }
+.ft-value .eco-amount { flex: 0 0 140px; }
+.ft-preview { margin-top: 14px; max-width: 360px; }
+.ft-discord { overflow: hidden; border-radius: 12px; background: #232428; }
+.ft-discord-banner { height: 56px; background: linear-gradient(120deg, #5865f2, #9650ff); }
+.ft-discord-body { display: grid; gap: 6px; padding: 12px 14px 14px; }
+.ft-discord-body small { color: #b5bac1; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; }
+.ft-discord-game { display: flex; gap: 10px; align-items: center; }
+.ft-discord-game > span:last-child { display: grid; gap: 1px; font-size: 12px; }
+.ft-discord-asset { display: grid; place-items: center; width: 52px; height: 52px; flex: none; border-radius: 10px; background: #5865f2; color: #fff; font-weight: 700; }

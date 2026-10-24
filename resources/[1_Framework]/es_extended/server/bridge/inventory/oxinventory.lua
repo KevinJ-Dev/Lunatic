@@ -32,7 +32,7 @@ function setPlayerInventory(playerId, xPlayer, inventory, isNew)
 
         for i = 1, #shared do
             local name = shared[i]
-            local account = Config.StartingAccountMoney[name]
+            local account = Core.StartingAccountMoney()[name]
             if account then
                 exports.ox_inventory:AddItem(playerId, name, account)
             end

@@ -61,7 +61,7 @@ local function loadPlayer(identifier, playerId, isNew, loading)
 
         userData.accounts[index] = {
             name = account,
-            money = accounts[account] or Config.StartingAccountMoney[account] or 0,
+            money = accounts[account] or Core.StartingAccountMoney()[account] or 0,
             label = data.label,
             round = data.round,
             index = index,

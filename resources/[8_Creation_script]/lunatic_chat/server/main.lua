@@ -164,6 +164,14 @@ local function allowed(src)
         return true
     end
 
+    -- Tuile Fonctionnalités du panel : chat textuel désactivé (sauf pour le staff)
+    local features = GlobalState.lunaticFeatures
+
+    if features and features.toggles and features.toggles.chat == false and not rankOf(src) then
+        system(src, 'Le chat textuel est désactivé sur le serveur.', 'error')
+        return false
+    end
+
     local now = GetGameTimer()
     local entry = usage[src]
 

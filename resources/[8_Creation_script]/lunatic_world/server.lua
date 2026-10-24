@@ -54,7 +54,10 @@ CreateThread(function()
     local sinceSave = 0
 
     while true do
-        Wait(Config.MinuteDuration)
+        -- Durée d'une minute de jeu : tuile Fonctionnalités du panel (lunatic_admin), sinon la config
+        local features = GlobalState.lunaticFeatures
+        local minuteDuration = features and features.time and tonumber(features.time.minute) or Config.MinuteDuration
+        Wait(minuteDuration)
 
         if not state.frozen then
             state.minute = state.minute + 1
@@ -68,7 +71,7 @@ CreateThread(function()
         end
 
         -- Sauvegarde environ toutes les 5 minutes réelles
-        sinceSave = sinceSave + Config.MinuteDuration
+        sinceSave = sinceSave + minuteDuration
 
         if sinceSave >= 5 * 60 * 1000 then
             sinceSave = 0

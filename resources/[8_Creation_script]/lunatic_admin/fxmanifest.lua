@@ -41,6 +41,7 @@ server_scripts {
     'server/economy_settings.lua',
     'server/images.lua',
     'server/interactions.lua',
+    'server/features.lua',
     'server/crews.lua',
     'server/crew_points.lua',
     'server/fence.lua',
@@ -71,6 +72,7 @@ client_scripts {
     'client/blips.lua',
     'client/mugshots.lua',
     'client/interactions.lua',
+    'client/features.lua',
 }
 
 ui_page 'web/index.html'
@@ -109,6 +111,7 @@ files {
     'web/economy_page.js',
     'web/images_page.js',
     'web/interactions_page.js',
+    'web/features_page.js',
     'web/items.js',
     'web/events.js',
     'web/dev.js',

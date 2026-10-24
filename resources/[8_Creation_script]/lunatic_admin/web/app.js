@@ -224,6 +224,7 @@ const NAV = [
     { id: "economy", label: "Économie", icon: "i-coins", show: () => can("economy.manage") },
     { id: "images", label: "Images", icon: "i-image", show: () => can("images.manage") },
     { id: "interactions", label: "Interactions", icon: "i-crosshair", show: () => can("interactions.manage") },
+    { id: "features", label: "Fonctionnalités", icon: "i-tool", show: () => can("features.manage") },
     { id: "poles", label: "Pôle emploi", icon: "i-briefcase", show: () => can("poles.manage") },
     { id: "events", label: "Events", icon: "i-calendar", show: () => can("events.manage") },
     { id: "world", label: "Météo", icon: "i-sun", show: () => hasWorld() },
@@ -577,7 +578,7 @@ function render() {
 
     renderMe();
 
-    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "illegal", "crews", "catalogs", "items", "blips", "economy", "images", "interactions", "poles", "events", "dev", "ranks", "members"]) {
+    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "illegal", "crews", "catalogs", "items", "blips", "economy", "images", "interactions", "features", "poles", "events", "dev", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
     }
 
@@ -597,6 +598,7 @@ function render() {
     if (view === "economy") renderEconomy();
     if (view === "images") renderImages();
     if (view === "interactions") renderInteractions();
+    if (view === "features") renderFeatures();
     if (view === "crews") renderCrews();
     if (view === "illegal") renderIllegal();
     if (view === "publics") renderStructures("public");
@@ -1898,6 +1900,21 @@ async function demoNui(name, data) {
                 { id: "door", label: "Porte du coffre", duration: 15, tool: "hack_device", toolLabel: "Boîtier de piratage", breakChance: 25, alert: 100, models: ["v_ilev_gb_vauldr"], loot: [], points: [] },
                 { id: "locker", label: "Casier", duration: 30, tool: "drill", toolLabel: "Perceuse", breakChance: 10, alert: 0, count: 4, models: [], loot: [{ item: "marked_bills", label: "Billets marqués", min: 15, max: 30, chance: 100 }, { item: "gold_bar", label: "Lingot d'or", min: 1, max: 1, chance: 15 }] }] },
         ] };
+    if (name === "action" && data && data.action === "features.get") {
+        const b = (d) => ({ type: "bool", default: d }), n = (d, min, max, step) => ({ type: "number", default: d, min, max, step }), t = (d, max) => ({ type: "string", default: d, maxLength: max });
+        const schema = {
+            toggles: { pvp: b(true), needs: b(true), chat: b(true), hud: b(true), minimap: b(true), speedometer: b(true) },
+            needs: { hunger: n(100, 0, 2000, 1), thirst: n(75, 0, 2000, 1), sprint: n(1.5, 1, 5, 0.1) },
+            inventory: { weight: n(30000, 5000, 500000, 1000), slots: n(50, 10, 120, 1) },
+            population: { peds: n(1, 0, 1, 0.05), vehicles: n(1, 0, 1, 0.05), parked: n(1, 0, 1, 0.05), scenario: n(1, 0, 1, 0.05) },
+            time: { minute: n(2000, 250, 60000, 250) },
+            newPlayers: { bank: n(50000, 0, 10000000, 100), money: n(0, 0, 10000000, 100), offDuty: n(0.5, 0, 1, 0.05) },
+            discord: { enabled: b(false), appId: t("", 25), asset: t("", 40), assetText: t("", 80), presence: t("{player_rp_name} · {server_players}/{server_maxplayers} joueurs", 120) },
+        };
+        const settings = {};
+        for (const [s, fields] of Object.entries(schema)) { settings[s] = {}; for (const [k, f] of Object.entries(fields)) settings[s][k] = f.default; }
+        return { ok: true, schema, settings };
+    }
     if (name === "action" && data && data.action === "interactions.list") return { ok: true, defaultPed: "mp_m_shopkeep_01", fenceDefaultPed: "s_m_y_dealer_01", radius: { min: 1, max: 4, default: 1.5 },
         groups: [{ id: "shops", label: "Magasins" }, { id: "vehicles", label: "Véhicules" }, { id: "wholesale", label: "Grossistes" }, { id: "illegal", label: "Illégal" }, { id: "jobs", label: "Jobs Farm", soon: true }, { id: "misc", label: "Divers", soon: true }],
         shops: [{ id: 1, label: "LTD", category: "ltd" }, { id: 2, label: "Barber", category: "barber" }, { id: 3, label: "Location", category: "rental" }],

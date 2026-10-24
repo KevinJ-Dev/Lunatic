@@ -99,7 +99,9 @@ local function payPlayer(xPlayer, societyAccounts, bankTitle, receivedPaycheck)
     local jobLabel = xPlayer.job.label
     local job = xPlayer.job.grade_name
     local onDuty = xPlayer.job.onDuty
-    local salary = (job == "unemployed" or onDuty) and xPlayer.job.grade_salary or ESX.Math.Round(xPlayer.job.grade_salary * Config.OffDutyPaycheckMultiplier)
+    local features = GlobalState.lunaticFeatures
+    local offDuty = features and features.newPlayers and tonumber(features.newPlayers.offDuty) or Config.OffDutyPaycheckMultiplier
+    local salary = (job == "unemployed" or onDuty) and xPlayer.job.grade_salary or ESX.Math.Round(xPlayer.job.grade_salary * offDuty)
 
     if not xPlayer.paycheckEnabled or salary <= 0 then
         return
