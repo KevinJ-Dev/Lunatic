@@ -26,6 +26,7 @@ server_scripts {
     'server/tools.lua',
     'server/economy.lua',
     'server/history.lua',
+    'server/gamelogs.lua',
     'server/jail.lua',
     'server/world.lua',
     'server/profile.lua',

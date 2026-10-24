@@ -6,6 +6,11 @@ function FeaturesOf(section)
     return features and features[section] or {}
 end
 
+-- Journal du panel staff (tuile Logs) ; sans effet si lunatic_admin est arrêté
+function GameLog(category, level, src, action, target, details)
+    pcall(function() exports.lunatic_admin:log(category, level, src, action, target, details) end)
+end
+
 function Notify(target, message, kind)
     TriggerClientEvent('esx:showNotification', target, message, kind or 'info')
 end

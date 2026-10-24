@@ -166,6 +166,11 @@ end)
 -- Contrôles communs
 ---------------------------------------------------------------------
 
+-- Journal du panel staff (tuile Logs) ; sans effet si lunatic_admin est arrêté
+function GameLog(category, level, src, action, target, details)
+    pcall(function() exports.lunatic_admin:log(category, level, src, action, target, details) end)
+end
+
 local function distanceTo(src, point)
     local ped = GetPlayerPed(src)
 
@@ -344,6 +349,7 @@ lib.callback.register('lunatic_business:setGrade', function(src, pointId, identi
         notify(target.source, ('Votre grade a changé : %s.'):format(ESX.GetJobs()[point.job].grades[tostring(grade)].label), 'info')
     end
 
+    GameLog('companies', 'info', src, 'company.grade', jobLabel(point.job), { identifier = identifier, grade = ESX.GetJobs()[point.job].grades[tostring(grade)].label })
     return { ok = true }
 end)
 
@@ -374,6 +380,7 @@ lib.callback.register('lunatic_business:fire', function(src, pointId, identifier
         notify(target.source, ('Vous avez été renvoyé de %s.'):format(jobLabel(point.job)), 'error')
     end
 
+    GameLog('companies', 'warn', src, 'company.fire', jobLabel(point.job), { identifier = identifier })
     return { ok = true }
 end)
 
@@ -401,6 +408,7 @@ lib.callback.register('lunatic_business:recruit', function(src, pointId, targetI
     local grades = sortedGrades(point.job)
     target.setJob(point.job, grades[1] and grades[1].grade or 0)
     notify(target.source, ('Vous avez été recruté chez %s.'):format(jobLabel(point.job)), 'success')
+    GameLog('companies', 'success', src, 'company.recruit', jobLabel(point.job), { name = target.getName() })
 
     return { ok = true, name = target.getName() }
 end)
@@ -438,6 +446,7 @@ lib.callback.register('lunatic_business:account', function(src, pointId, operati
         return fail('Opération inconnue.')
     end
 
+    GameLog('companies', 'info', src, operation == 'deposit' and 'company.deposit' or 'company.withdraw', jobLabel(point.job), { amount = amount })
     return { ok = true, balance = Account.balance(point.job) }
 end)
 
@@ -994,6 +1003,7 @@ lib.callback.register('lunatic_business:rent', function(src, slug, index, vehicl
     TaskWarpPedIntoVehicle(GetPlayerPed(src), vehicle, -1)
 
     rentals[src] = { vehicle = vehicle, plate = plate, label = offer.label, location = location, expiresAt = os.time() + offer.duration * 60, warned = {} }
+    GameLog('vehicles', 'info', src, 'vehicle.rent', offer.label, { plate = plate, price = offer.price, duration = offer.duration })
     return { ok = true, label = offer.label, plate = plate, duration = offer.duration, price = offer.price, account = account }
 end)
 
@@ -1019,6 +1029,7 @@ lib.callback.register('lunatic_business:rentReturn', function(src, slug, index)
     end
 
     rentals[src] = nil
+    GameLog('vehicles', 'info', src, 'vehicle.rent_return', rental.label, { plate = rental.plate })
     return { ok = true, label = rental.label }
 end)
 
@@ -1177,6 +1188,7 @@ lib.callback.register('lunatic_business:garageTake', function(src, pointId, vehi
     TaskWarpPedIntoVehicle(GetPlayerPed(src), vehicle, -1)
 
     serviceVehicles[src] = { vehicle = vehicle, label = offer.label, job = point.job }
+    GameLog('vehicles', 'info', src, 'vehicle.service_out', offer.label, { plate = plate, job = point.job })
     return { ok = true, label = offer.label, plate = plate }
 end)
 
@@ -1198,6 +1210,7 @@ lib.callback.register('lunatic_business:garageStore', function(src, pointId)
 
     DeleteEntity(entry.vehicle)
     serviceVehicles[src] = nil
+    GameLog('vehicles', 'info', src, 'vehicle.service_in', entry.label, { job = entry.job })
     return { ok = true, label = entry.label }
 end)
 

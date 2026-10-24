@@ -193,6 +193,8 @@ Config.EconomyReasonMin = 3
 Config.LogRetentionDays = 90              -- les actions du staff plus anciennes sont supprimées
 Config.DashboardSampleMinutes = 5         -- relevé du nombre de joueurs pour la courbe des 24 h
 Config.LogsPageSize = 50
+Config.LogMoneyMin = 1000                 -- mouvements d'argent journalisés à partir de ce montant (tuile Logs, Économie)
+Config.LogMoneyAlert = 100000             -- au-delà : niveau Avertissement
 
 -- Anti-spam : nombre maximal d'actions du panel par joueur et par fenêtre de temps
 Config.RateLimit = { max = 15, windowMs = 5000 }

@@ -86,6 +86,7 @@ lib.callback.register('lunatic_gameplay:respawn', function(src)
     local hospital = nearestHospital(death.coords)
     local c = hospital.coords
 
+    GameLog('players', 'info', src, 'player.respawn', hospital.label, { fee = fee, cleared = settings.clearInventory == true })
     return { ok = true, x = c.x, y = c.y, z = c.z, h = c.w, label = hospital.label, fee = fee }
 end)
 
@@ -161,6 +162,7 @@ lib.callback.register('lunatic_gameplay:revive', function(src, targetId)
 
     deaths[targetId] = nil
     TriggerClientEvent('lunatic_gameplay:revived', targetId)
+    GameLog('players', 'success', src, 'player.revive', GetPlayerName(targetId), { target = targetId })
     Notify(targetId, 'Vous avez été réanimé.', 'success')
     return { ok = true }
 end)

@@ -1148,3 +1148,30 @@ body.hidden.minimized .mini-pill { display: flex; }
 .ft-discord-game { display: flex; gap: 10px; align-items: center; }
 .ft-discord-game > span:last-child { display: grid; gap: 1px; font-size: 12px; }
 .ft-discord-asset { display: grid; place-items: center; width: 52px; height: 52px; flex: none; border-radius: 10px; background: #5865f2; color: #fff; font-weight: 700; }
+/* Tuile Logs : recherche, niveaux, catégories, liste, détail */
+#view-logs.on { display: flex; }
+.logs-top { display: grid; gap: 10px; padding: 16px 18px 10px; border-bottom: 1px solid var(--line); }
+.logs-search { width: 100%; }
+.logs-search input { width: 100%; }
+.log-levels { display: flex; flex-wrap: wrap; gap: 6px; }
+.log-level { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink-2); font-size: 12px; font-weight: 600; }
+.log-level.on { border-color: rgba(var(--accent-rgb), .8); background: rgba(var(--accent-rgb), .16); color: #fff; }
+.log-level .cnt { min-width: 20px; height: 18px; padding: 0 6px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--muted); font: 500 10.5px/18px var(--mono); text-align: center; }
+.log-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--muted-2); }
+.logs-grid { flex: 1; min-height: 0; grid-template-columns: 220px minmax(0, 1fr) 340px; }
+.logs-grid.chat { grid-template-columns: 220px minmax(0, 1fr); }
+.log-list { display: grid; gap: 5px; }
+.log-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); text-align: left; }
+.log-item:hover { background: var(--surface-2); }
+.log-item.on { border-color: rgba(var(--accent-rgb), .7); background: rgba(var(--accent-rgb), .12); }
+.log-main { display: grid; flex: 1; gap: 2px; min-width: 0; }
+.log-who { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12.5px; }
+.log-who .muted { font-size: 11px; }
+.log-badge { padding: 1px 7px; border-radius: 6px; background: var(--surface-2); color: var(--ink-2); font-size: 10.5px; font-weight: 600; }
+.log-badge.warn { background: #f2a33c26; color: #f2c26b; }
+.log-line { overflow: hidden; color: var(--muted); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
+.log-when { display: grid; flex: none; justify-items: end; color: var(--muted); font-size: 11.5px; }
+.log-when small { font-size: 10px; opacity: .8; }
+.logs-detail-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.logs-detail-head > span:last-child { display: grid; gap: 4px; justify-items: start; }
+@media (max-width: 1500px) { .logs-grid { grid-template-columns: 200px minmax(0, 1fr) 300px; } }

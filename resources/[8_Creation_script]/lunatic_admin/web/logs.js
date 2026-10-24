@@ -140,6 +140,30 @@ const ACTION_LABELS = {
     "world.blackout": "a réglé la panne de courant",
     "world.time": "a changé l'heure",
     "world.freeze": "a figé / relancé l'heure",
+    "player.connect": "s'est connecté",
+    "player.disconnect": "s'est déconnecté",
+    "player.loaded": "a chargé son personnage",
+    "player.respawn": "s'est réveillé à l'hôpital",
+    "player.revive": "a réanimé",
+    "money.add": "a reçu de l'argent",
+    "money.remove": "a dépensé de l'argent",
+    "money.set": "a eu son argent fixé",
+    "job.change": "a changé de poste :",
+    "item.give": "a donné un objet à",
+    "item.drop": "a jeté un objet",
+    "item.pickup": "a ramassé un objet",
+    "company.grade": "a changé un grade chez",
+    "company.fire": "a renvoyé un membre de",
+    "company.recruit": "a recruté chez",
+    "company.deposit": "a déposé sur le compte de",
+    "company.withdraw": "a retiré du compte de",
+    "vehicle.rent": "a loué",
+    "vehicle.rent_return": "a rendu",
+    "vehicle.service_out": "a sorti",
+    "vehicle.service_in": "a rangé",
+    "illegal.mission": "a terminé une mission illégale :",
+    "illegal.drug_sell": "a vendu",
+    "illegal.fence_sell": "a revendu au recelleur :",
 };
 
 const ACCOUNT_LABELS = { money: "liquide", bank: "banque", black_money: "argent sale" };
@@ -149,29 +173,6 @@ const DETAIL_LABELS = {
     removed: "Objets supprimés", permissions: "Permissions", level: "Niveau", rank: "Rang", from: "De", to: "Vers",
     type: "Type", color: "Couleur", name: "Nom",
 };
-const LOG_CATEGORIES = [
-    { value: "", label: "Toutes les catégories" },
-    { value: "staff", label: "Rangs et staff" },
-    { value: "players", label: "Joueurs" },
-    { value: "sanctions", label: "Sanctions" },
-    { value: "tools", label: "Outils" },
-    { value: "economy", label: "Économie" },
-];
-const LOG_PERIODS = [
-    { value: "today", label: "Aujourd'hui" },
-    { value: "week", label: "7 jours" },
-    { value: "month", label: "30 jours" },
-    { value: "all", label: "Tout" },
-];
-const CHAT_CHANNELS = [
-    { value: "", label: "Tous les canaux" },
-    { value: "hrp", label: "HRP" },
-    { value: "me", label: "/me" },
-    { value: "do", label: "/do" },
-    { value: "staff", label: "Tchat staff" },
-    { value: "announce", label: "Annonces" },
-];
-
 // Phrase lisible pour une action du staff : { verb, summary }
 function describeLog(log) {
     const d = log.details && typeof log.details === "object" ? log.details : {};
@@ -393,6 +394,39 @@ function describeLog(log) {
         case "economy.clearInventory":
             summary = `${Array.isArray(d.removed) ? d.removed.length : 0} emplacement(s) · ${d.reason || ""}`;
             break;
+        case "money.add":
+        case "money.remove":
+        case "money.set":
+            summary = [`${money(d.amount)} ${ACCOUNT_LABELS[d.account] || d.account || ""}`, d.reason].filter(Boolean).join(" · ");
+            break;
+        case "item.give":
+        case "item.drop":
+        case "item.pickup":
+            summary = `${d.count || 1} × ${d.label || d.item || "?"}`;
+            break;
+        case "job.change":
+            summary = `${d.from || "?"} → ${d.to || "?"}`;
+            break;
+        case "company.deposit":
+        case "company.withdraw":
+            summary = money(d.amount);
+            break;
+        case "vehicle.rent":
+        case "vehicle.rent_return":
+        case "vehicle.service_out":
+        case "vehicle.service_in":
+            summary = d.plate ? `plaque ${d.plate}` : "";
+            break;
+        case "illegal.mission":
+            summary = d.reward ? money(d.reward) : "";
+            break;
+        case "illegal.drug_sell":
+        case "illegal.fence_sell":
+            summary = `${d.quantity} pour ${money(d.total)}${d.territory ? ` · ${d.territory}` : ""}`;
+            break;
+        case "player.respawn":
+            summary = d.fee ? `frais ${money(d.fee)}` : "";
+            break;
         default:
             summary = d.reason || "";
     }
@@ -400,48 +434,56 @@ function describeLog(log) {
     return { verb, summary };
 }
 
-// ---------- Page Logs ----------
+// ---------- Page Logs (comme Vision : recherche, niveaux, catégories, liste, détail) ----------
+
+const LOG_CATEGORY_LIST = [
+    { value: "all", label: "Tous", icon: "i-list" },
+    { value: "players", label: "Joueurs", icon: "i-player" },
+    { value: "economy", label: "Économie", icon: "i-coins" },
+    { value: "inventory", label: "Inventaire", icon: "i-box" },
+    { value: "vehicles", label: "Véhicules", icon: "i-car" },
+    { value: "staff", label: "Staff", icon: "i-shield" },
+    { value: "companies", label: "Sociétés", icon: "i-store" },
+    { value: "illegal", label: "Illégal", icon: "i-mask" },
+    { value: "chat", label: "Chat", icon: "i-edit" },
+    { value: "anticheat", label: "Anti-Cheat", icon: "i-lock" },
+];
+const LOG_LEVELS = [
+    { value: "all", label: "Tous" },
+    { value: "info", label: "Info", color: "#5b9cff" },
+    { value: "warn", label: "Avertissement", color: "#f2a33c" },
+    { value: "error", label: "Erreur", color: "#ef5b5b" },
+    { value: "success", label: "Succès", color: "#3ecf8e" },
+];
+const LOG_PERIODS = [
+    { value: "today", label: "Aujourd'hui" },
+    { value: "week", label: "7 jours" },
+    { value: "month", label: "30 jours" },
+    { value: "all", label: "Tout" },
+];
+const CHAT_CHANNELS = [
+    { value: "", label: "Tous les canaux" },
+    { value: "hrp", label: "HRP" },
+    { value: "me", label: "/me" },
+    { value: "do", label: "/do" },
+    { value: "staff", label: "Tchat staff" },
+    { value: "announce", label: "Annonces" },
+];
+const CHANNEL_BADGES = { hrp: "HRP", me: "/me", do: "/do", staff: "Staff", announce: "Annonce", clear: "Vidage" };
 
 const logsView = {
-    tab: "actions",
-    category: "", staff: "", period: "week", search: "",
-    channel: "", chatPeriod: "today", chatSearch: "",
-    logs: null, more: false, staffList: [],
-    messages: null, chatMore: false,
+    category: "all", level: "all", period: "week", search: "", staff: "", channel: "",
+    logs: null, more: false, staffList: [], levels: {}, categories: {}, messages: null, chatMore: false, sel: null,
 };
-let logsDom = null;
 let logsTimer = null;
 let logsRequest = 0; // une réponse arrivée après un changement de filtre est ignorée
 
 function renderLogs() {
-    const root = $("view-logs");
-    const tabs = [];
-    if (can("logs.view")) tabs.push({ value: "actions", label: "Actions du staff" });
-    if (can("logs.chat")) tabs.push({ value: "chat", label: "Tchat" });
-    if (!tabs.some((t) => t.value === logsView.tab)) logsView.tab = tabs.length ? tabs[0].value : "actions";
-
-    // Structure gardée entre deux rafraîchissements (recherche conservée)
-    if (!logsDom || !root.contains(logsDom.body)) {
-        logsDom = {
-            tabs: h("div", { class: "segmented" }),
-            filters: h("div", { class: "filters" }),
-            body: h("div", { class: "table" }),
-            footer: h("div", { class: "logs-footer" }),
-        };
-        root.replaceChildren(h("div", { class: "content" },
-            h("div", { class: "page-head" }, h("div", { class: "grow" },
-                h("h1", { class: "page-title" }, "Logs"),
-                h("div", { class: "page-sub" }, "Historique des actions du staff et du tchat")
-            ), logsDom.tabs),
-            h("div", { class: "toolbar logs-toolbar" }, logsDom.filters),
-            h("div", { class: "scroll" }, logsDom.body, logsDom.footer)
-        ));
-        paintLogsFilters(tabs);
+    if (!can("logs.view") && logsView.category !== "chat") logsView.category = "chat";
+    if (!$("view-logs").childElementCount || (logsView.logs === null && logsView.messages === null)) {
+        paintLogs();
         fetchLogs(false);
-        return;
     }
-
-    logsDom.tabs.replaceChildren(...segmentedButtons(tabs, logsView.tab, (value) => { logsView.tab = value; paintLogsFilters(tabs); fetchLogs(false); }));
 }
 
 function selectInput(options, current, onChange) {
@@ -450,41 +492,14 @@ function selectInput(options, current, onChange) {
     return el;
 }
 
-function searchBox(placeholder, value, onChange) {
-    const input = h("input", { placeholder, value });
-    input.addEventListener("input", () => {
-        clearTimeout(logsTimer);
-        logsTimer = setTimeout(() => onChange(input.value), 300);
-    });
-    return h("label", { class: "search" }, icon("i-search"), input);
-}
-
-function paintLogsFilters(tabs) {
-    const v = logsView;
-    logsDom.tabs.replaceChildren(...segmentedButtons(tabs, v.tab, (value) => { v.tab = value; paintLogsFilters(tabs); fetchLogs(false); }));
-
-    if (v.tab === "actions") {
-        logsDom.staffSelect = selectInput([{ value: "", label: "Tous les membres" }, ...v.staffList.map((m) => ({ value: m.license, label: m.name }))], v.staff, (value) => { v.staff = value; fetchLogs(false); });
-        logsDom.filters.replaceChildren(
-            selectInput(LOG_CATEGORIES, v.category, (value) => { v.category = value; fetchLogs(false); }),
-            logsDom.staffSelect,
-            h("div", { class: "segmented" }, ...segmentedButtons(LOG_PERIODS, v.period, (value) => { v.period = value; paintLogsFilters(tabs); fetchLogs(false); })),
-            h("span", { class: "grow" }),
-            searchBox("Joueur, membre, raison…", v.search, (value) => { v.search = value; fetchLogs(false); })
-        );
-    } else {
-        logsDom.filters.replaceChildren(
-            selectInput(CHAT_CHANNELS, v.channel, (value) => { v.channel = value; fetchLogs(false); }),
-            h("div", { class: "segmented" }, ...segmentedButtons(LOG_PERIODS, v.chatPeriod, (value) => { v.chatPeriod = value; paintLogsFilters(tabs); fetchLogs(false); })),
-            h("span", { class: "grow" }),
-            searchBox("Joueur ou texte du message", v.chatSearch, (value) => { v.chatSearch = value; fetchLogs(false); })
-        );
-    }
+function logsGo(changes) {
+    Object.assign(logsView, changes, { sel: null });
+    fetchLogs(false);
 }
 
 async function fetchLogs(append) {
     const v = logsView;
-    const chat = v.tab === "chat";
+    const chat = v.category === "chat";
     const list = chat ? v.messages : v.logs;
     const before = append && list && list.length ? list[list.length - 1].id : undefined;
 
@@ -494,8 +509,8 @@ async function fetchLogs(append) {
     }
 
     const payload = chat
-        ? { channel: v.channel, period: v.chatPeriod, search: v.chatSearch, before }
-        : { category: v.category, staff: v.staff, period: v.period, search: v.search, before };
+        ? { channel: v.channel, period: v.period, search: v.search, before }
+        : { category: v.category, level: v.level, staff: v.category === "staff" ? v.staff : "", period: v.period, search: v.search, before };
 
     const request = ++logsRequest;
     let res;
@@ -520,60 +535,48 @@ async function fetchLogs(append) {
         const rows = Array.isArray(res.logs) ? res.logs : [];
         v.logs = append ? [...(v.logs || []), ...rows] : rows;
         v.more = !!res.more;
-        const staffList = Array.isArray(res.staff) ? res.staff : [];
-        if (JSON.stringify(staffList) !== JSON.stringify(v.staffList)) {
-            v.staffList = staffList;
-            const tabs = [];
-            if (can("logs.view")) tabs.push({ value: "actions", label: "Actions du staff" });
-            if (can("logs.chat")) tabs.push({ value: "chat", label: "Tchat" });
-            paintLogsFilters(tabs);
+        v.staffList = Array.isArray(res.staff) ? res.staff : v.staffList;
+        if (!append) {
+            v.levels = res.levels || {};
+            v.categories = res.categories || {};
         }
     }
     paintLogs();
 }
 
+const logIdentifier = (log) => (log.actorLicense ? String(log.actorLicense).replace(/^license:/, "") : null);
+const levelOf = (value) => LOG_LEVELS.find((l) => l.value === value) || LOG_LEVELS[1];
+const categoryOf = (value) => LOG_CATEGORY_LIST.find((c) => c.value === value) || { label: value, icon: "i-list" };
+
+function logTime(created) {
+    const date = new Date(created * 1000);
+    return [date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }), date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })];
+}
+
 function logRow(log) {
     const { verb, summary } = describeLog(log);
-    const row = h("button", { class: "log-row" },
-        h("span", { class: "log-date" }, fmtDate(log.created)),
-        h("span", { class: "log-text" },
-            h("b", null, log.actor || "?"), ` ${verb} `,
-            log.target ? h("b", null, log.target) : null,
-            summary ? h("span", { class: "log-summary" }, summary) : null
-        ),
-        icon("i-search")
-    );
-    row.addEventListener("click", () => openLogDetail(log));
-    return row;
+    const level = levelOf(log.level);
+    const [day, time] = logTime(log.created);
+    const dot = h("span", { class: "log-dot" });
+    dot.style.background = level.color;
+    return h("button", { class: `log-item${logsView.sel === log.id ? " on" : ""}`, onclick: () => { logsView.sel = log.id; paintLogs(); } },
+        mugshotImg(logIdentifier(log), "mug-row"),
+        dot,
+        h("span", { class: "log-main" },
+            h("span", { class: "log-who" }, h("b", null, log.actor || "Console"), log.serverId ? h("span", { class: "muted mono" }, ` ${log.serverId}`) : null,
+                h("span", { class: "log-badge" }, categoryOf(log.category).label)),
+            h("span", { class: "log-line" }, `${verb}${log.target ? ` ${log.target}` : ""}${summary ? ` · ${summary}` : ""}`)),
+        h("span", { class: "log-when mono" }, h("small", null, day), time));
 }
-
-const CHANNEL_BADGES = { hrp: "HRP", me: "/me", do: "/do", staff: "Staff", announce: "Annonce", clear: "Vidage" };
 
 function chatRow(m) {
-    return h("div", { class: "log-row chat" },
-        h("span", { class: "log-date" }, fmtDate(m.created)),
-        h("span", { class: `badge ${m.channel === "staff" || m.channel === "announce" ? "warn" : "muted"}` }, CHANNEL_BADGES[m.channel] || m.channel),
-        h("span", { class: "log-text" }, h("b", null, m.name), " ", m.message || (m.channel === "clear" ? "a vidé le tchat" : ""))
-    );
-}
-
-function paintLogs() {
-    const v = logsView;
-    const chat = v.tab === "chat";
-    const list = chat ? v.messages : v.logs;
-
-    if (!list) {
-        logsDom.body.replaceChildren(h("div", { class: "empty" }, "Chargement…"));
-        logsDom.footer.replaceChildren();
-        return;
-    }
-
-    logsDom.body.replaceChildren(...(list.length
-        ? list.map(chat ? chatRow : logRow)
-        : [h("div", { class: "empty" }, icon("i-list"), chat ? "Aucun message ne correspond." : "Aucune action ne correspond.")]));
-
-    const more = chat ? v.chatMore : v.more;
-    logsDom.footer.replaceChildren(more ? h("button", { class: "btn", onclick: () => fetchLogs(true) }, "Charger plus") : h("span"));
+    const [day, time] = logTime(m.created);
+    return h("div", { class: "log-item chat" },
+        h("span", { class: "mugshot mug-row" }, icon("i-edit")),
+        h("span", { class: "log-main" },
+            h("span", { class: "log-who" }, h("b", null, m.name), h("span", { class: `log-badge${m.channel === "staff" || m.channel === "announce" ? " warn" : ""}` }, CHANNEL_BADGES[m.channel] || m.channel)),
+            h("span", { class: "log-line" }, m.message || (m.channel === "clear" ? "a vidé le tchat" : ""))),
+        h("span", { class: "log-when mono" }, h("small", null, day), time));
 }
 
 function detailValue(value) {
@@ -582,21 +585,90 @@ function detailValue(value) {
     return String(value);
 }
 
-function openLogDetail(log) {
+function logDetail() {
+    const log = (logsView.logs || []).find((l) => l.id === logsView.sel);
+    if (!log) return h("aside", { class: "crew-col logs-detail" }, h("div", { class: "crew-col-head" }, icon("i-search"), "Détail"), h("div", { class: "empty" }, icon("i-list"), "Cliquez sur un log pour voir le détail."));
     const { verb, summary } = describeLog(log);
     const d = log.details && typeof log.details === "object" ? log.details : {};
+    const level = levelOf(log.level);
+    const date = new Date(log.created * 1000);
     const rows = [
-        ["Date", fmtDate(log.created)],
-        ["Auteur", log.actor],
+        ["Joueur", `${log.actor || "Console"}${log.serverId ? ` (ID ${log.serverId})` : ""}`],
+        ["Catégorie", categoryOf(log.category).label],
+        ["Niveau", level.label],
         ["Action", `${verb} (${log.action})`],
         ["Cible", log.target],
-        ...Object.keys(d).map((key) => [DETAIL_LABELS[key] || key, d[key]]),
+        ["Détails", summary],
+        ["Raison", d.reason],
+        ["Horodatage", `${date.toLocaleDateString("fr-FR")} à ${date.toLocaleTimeString("fr-FR")}`],
+        ...Object.keys(d).filter((k) => k !== "reason").map((key) => [DETAIL_LABELS[key] || key, d[key]]),
     ];
+    return h("aside", { class: "crew-col logs-detail" },
+        h("div", { class: "crew-col-head" }, icon("i-search"), "Détail"),
+        h("div", { class: "crew-scroll crew-col-body" },
+            h("div", { class: "logs-detail-head" }, mugshotImg(logIdentifier(log), "mug-head"), h("span", null, h("b", null, log.actor || "Console"), h("span", { class: "log-badge" }, categoryOf(log.category).label))),
+            h("div", { class: "detail-list" }, rows.filter(([, value]) => value !== undefined && value !== null && value !== "").map(([label, value]) =>
+                h("div", { class: "detail-row" }, h("span", null, label), h("div", null, detailValue(value)))))));
+}
 
-    openModal((close) => [
-        h("header", null, h("h3", null, `${log.actor || "?"} ${verb}${log.target ? ` ${log.target}` : ""}`), summary ? h("p", null, summary) : null),
-        h("div", { class: "body" }, h("div", { class: "detail-list" }, rows.map(([label, value]) =>
-            h("div", { class: "detail-row" }, h("span", null, label), h("div", null, detailValue(value)))))),
-        h("footer", null, h("button", { class: "btn", onclick: () => close() }, "Fermer")),
-    ]);
+function paintLogs() {
+    const root = $("view-logs");
+    const v = logsView;
+    const chat = v.category === "chat";
+    const list = chat ? v.messages : v.logs;
+
+    const search = h("input", { placeholder: chat ? "Joueur ou texte du message…" : "Rechercher un joueur, une action, un ID…", value: v.search });
+    search.addEventListener("input", () => {
+        clearTimeout(logsTimer);
+        logsTimer = setTimeout(() => logsGo({ search: search.value }), 300);
+    });
+
+    const totalLevels = Object.values(v.levels).reduce((a, b) => a + b, 0);
+    const chips = chat ? null : h("div", { class: "log-levels" }, LOG_LEVELS.map((l) => {
+        const dot = h("span", { class: "log-dot" });
+        if (l.color) dot.style.background = l.color;
+        return h("button", { class: `log-level${v.level === l.value ? " on" : ""}`, onclick: () => v.level !== l.value && logsGo({ level: l.value }) },
+            l.color ? dot : null, l.label, h("span", { class: "cnt" }, String(l.value === "all" ? totalLevels : v.levels[l.value] || 0)));
+    }));
+
+    const totalCategories = Object.values(v.categories).reduce((a, b) => a + b, 0);
+    const categories = LOG_CATEGORY_LIST.filter((c) => (c.value === "chat" ? can("logs.chat") : can("logs.view")));
+    const nav = h("aside", { class: "sidebar crew-nav crew-scroll" },
+        h("div", { class: "crew-block" },
+            h("div", { class: "crew-block-head" }, icon("i-layers"), "Catégories"),
+            categories.map((c) => h("button", { class: `list-row${v.category === c.value ? " active" : ""}`, onclick: () => v.category !== c.value && logsGo({ category: c.value }) },
+                icon(c.icon), h("span", { class: "name" }, c.label),
+                c.value === "chat" ? null : h("span", { class: "cnt" }, String(c.value === "all" ? totalCategories : v.categories[c.value] || 0))))));
+
+    let body;
+    if (!list) body = h("div", { class: "empty" }, "Chargement…");
+    else if (!list.length) body = h("div", { class: "empty" }, icon("i-list"), chat ? "Aucun message ne correspond." : "Aucun log ne correspond.");
+    else {
+        if (!chat) loadMugshots(list.map(logIdentifier)).then((found) => found && paintLogs());
+        body = h("div", { class: "log-list" }, list.map(chat ? chatRow : logRow));
+    }
+    const more = chat ? v.chatMore : v.more;
+    const category = categoryOf(v.category);
+
+    const main = h("section", { class: "crew-col" },
+        h("div", { class: "crew-col-head" }, icon(category.icon), v.category === "all" ? "Tous les logs" : category.label, h("span", { class: "cnt" }, String(list ? list.length : 0))),
+        h("div", { class: "crew-scroll crew-col-body" }, body,
+            more ? h("div", { class: "btn-row", style: "justify-content:center;margin-top:10px" }, h("button", { class: "btn small ghost", onclick: () => fetchLogs(true) }, "Charger plus")) : null),
+        h("div", { class: "it-actions" },
+            h("div", { class: "segmented" }, ...segmentedButtons(LOG_PERIODS, v.period, (value) => logsGo({ period: value }))),
+            v.category === "staff" ? selectInput([{ value: "", label: "Tous les membres" }, ...v.staffList.map((m) => ({ value: m.license, label: m.name }))], v.staff, (value) => logsGo({ staff: value })) : null,
+            chat ? selectInput(CHAT_CHANNELS, v.channel, (value) => logsGo({ channel: value })) : null,
+            h("button", { class: "btn small ok-btn", style: "margin-left:auto", onclick: () => fetchLogs(false) }, icon("i-undo"), "Rafraîchir")));
+
+    const keep = [...root.querySelectorAll(".crew-scroll")].map((el) => el.scrollTop);
+    const focused = document.activeElement && document.activeElement.closest && document.activeElement.closest(".logs-search");
+    root.replaceChildren(h("div", { class: "img-page logs-page" },
+        h("div", { class: "logs-top" }, h("label", { class: "search logs-search" }, icon("i-search"), search), chips),
+        h("div", { class: `crew-page logs-grid${chat ? " chat" : ""}` }, nav, main, chat ? null : logDetail())));
+    root.querySelectorAll(".crew-scroll").forEach((el, index) => { if (keep[index]) el.scrollTop = keep[index]; });
+    if (focused) {
+        const again = root.querySelector(".logs-search input");
+        again.focus();
+        again.setSelectionRange(again.value.length, again.value.length);
+    }
 }

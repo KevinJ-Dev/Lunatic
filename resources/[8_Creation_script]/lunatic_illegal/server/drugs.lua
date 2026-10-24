@@ -237,5 +237,6 @@ lib.callback.register('lunatic_illegal:sell', function(src, drugId, pedCoords)
         end
     end
 
+    GameLog('illegal', 'info', src, 'illegal.drug_sell', itemLabel(drug.item), { quantity = quantity, total = total, territory = held and territory.label or nil })
     return { ok = true, quantity = quantity, total = total, label = itemLabel(drug.item), territory = held and territory.label or nil }
 end)

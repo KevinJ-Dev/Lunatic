@@ -146,6 +146,11 @@ function MoneyText(amount)
 end
 
 -- Mission réussie : gain (60 à 140 % du gain réglé) sur le compte donné, butin, XP et influence si le joueur a un crew
+-- Journal du panel staff (tuile Logs) ; sans effet si lunatic_admin est arrêté
+function GameLog(category, level, src, action, target, details)
+    pcall(function() exports.lunatic_admin:log(category, level, src, action, target, details) end)
+end
+
 function MissionPayout(src, m, coords, origin, account)
     local ox = exports.ox_inventory
     local reward = math.floor((m.reward or 0) * math.random(60, 140) / 100)
@@ -180,6 +185,7 @@ function MissionPayout(src, m, coords, origin, account)
         end
     end
 
+    GameLog('illegal', 'warn', src, 'illegal.mission', origin, { reward = reward, account = account, loot = #loot })
     return reward, loot
 end
 

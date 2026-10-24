@@ -1,12 +1,5 @@
 -- Lot 6 : consultation des logs (actions du staff, tchat) et chiffres du tableau de bord.
 
-local CATEGORIES = {
-    staff = { 'rank.%', 'staff.%' },
-    players = { 'player.%' },
-    sanctions = { 'sanction.%' },
-    tools = { 'tool.%', 'vehicle.%' },
-    economy = { 'economy.%' },
-}
 local PERIODS = { today = 1, week = 7, month = 30 }
 local CHAT_CHANNELS = { hrp = true, me = true, ['do'] = true, staff = true, announce = true, clear = true }
 
@@ -55,8 +48,11 @@ end)
 local function publicLog(row)
     return {
         id = row.id,
+        category = row.category,
+        level = row.level,
         actor = row.actor_name,
         actorLicense = row.actor_license,
+        serverId = tonumber(row.server_id),
         action = row.action,
         target = row.target,
         details = decodeDetails(row.details),
@@ -64,25 +60,20 @@ local function publicLog(row)
     }
 end
 
-local LOG_COLUMNS = 'SELECT `id`, `actor_license`, `actor_name`, `action`, `target`, `details`, UNIX_TIMESTAMP(`created_at`) AS `created` FROM `lunatic_admin_logs`'
+local LOG_COLUMNS = 'SELECT `id`, `category`, `level`, `actor_license`, `actor_name`, `server_id`, `action`, `target`, `details`, UNIX_TIMESTAMP(`created_at`) AS `created` FROM `lunatic_admin_logs`'
 
-Panel.actions['logs.list'] = function(_, actor, data)
-    if not Ranks.hasPermission(actor, 'logs.view') then
-        return denied()
+-- Filtres communs (catégorie, niveau, membre, période, recherche) ; sans le niveau pour les compteurs
+local function filters(data, withLevel, withCategory)
+    local where, params = {}, {}
+
+    if withCategory and Logs.CATEGORIES[data.category] then
+        where[#where + 1] = '`category` = ?'
+        params[#params + 1] = data.category
     end
 
-    local where, params = {}, {}
-    local patterns = CATEGORIES[data.category]
-
-    if patterns then
-        local parts = {}
-
-        for _, pattern in ipairs(patterns) do
-            parts[#parts + 1] = '`action` LIKE ?'
-            params[#params + 1] = pattern
-        end
-
-        where[#where + 1] = '(' .. table.concat(parts, ' OR ') .. ')'
+    if withLevel and Logs.LEVELS[data.level] then
+        where[#where + 1] = '`level` = ?'
+        params[#params + 1] = data.level
     end
 
     if type(data.staff) == 'string' and data.staff ~= '' then
@@ -101,12 +92,27 @@ Panel.actions['logs.list'] = function(_, actor, data)
 
     if search ~= '' then
         local pattern = likePattern(search)
-        where[#where + 1] = '(`target` LIKE ? OR `actor_name` LIKE ? OR `details` LIKE ?)'
+        where[#where + 1] = '(`target` LIKE ? OR `actor_name` LIKE ? OR `action` LIKE ? OR `details` LIKE ? OR `server_id` = ?)'
         params[#params + 1] = pattern
         params[#params + 1] = pattern
         params[#params + 1] = pattern
+        params[#params + 1] = pattern
+        params[#params + 1] = tonumber(search) or -1
     end
 
+    return where, params
+end
+
+local function whereSql(where)
+    return #where > 0 and (' WHERE ' .. table.concat(where, ' AND ')) or ''
+end
+
+Panel.actions['logs.list'] = function(_, actor, data)
+    if not Ranks.hasPermission(actor, 'logs.view') then
+        return denied()
+    end
+
+    local where, params = filters(data, true, true)
     local before = tonumber(data.before)
 
     if before then
@@ -114,14 +120,29 @@ Panel.actions['logs.list'] = function(_, actor, data)
         params[#params + 1] = before
     end
 
-    local query = LOG_COLUMNS .. (#where > 0 and (' WHERE ' .. table.concat(where, ' AND ')) or '') .. ' ORDER BY `id` DESC LIMIT ?'
     params[#params + 1] = Config.LogsPageSize
-
-    local rows = MySQL.query.await(query, params) or {}
+    local rows = MySQL.query.await(LOG_COLUMNS .. whereSql(where) .. ' ORDER BY `id` DESC LIMIT ?', params) or {}
     local list = {}
 
     for _, row in ipairs(rows) do
         list[#list + 1] = publicLog(row)
+    end
+
+    -- Compteurs : par niveau (catégorie choisie) et par catégorie (niveau choisi), sur la même période et recherche
+    local levels, categories = {}, {}
+
+    if not before then
+        local w1, p1 = filters(data, false, true)
+
+        for _, row in ipairs(MySQL.query.await('SELECT `level`, COUNT(*) AS `n` FROM `lunatic_admin_logs`' .. whereSql(w1) .. ' GROUP BY `level`', p1) or {}) do
+            levels[row.level] = tonumber(row.n)
+        end
+
+        local w2, p2 = filters(data, true, false)
+
+        for _, row in ipairs(MySQL.query.await('SELECT `category`, COUNT(*) AS `n` FROM `lunatic_admin_logs`' .. whereSql(w2) .. ' GROUP BY `category`', p2) or {}) do
+            categories[row.category] = tonumber(row.n)
+        end
     end
 
     -- Membres du staff pour le filtre « par membre »
@@ -133,7 +154,7 @@ Panel.actions['logs.list'] = function(_, actor, data)
 
     table.sort(staff, function(a, b) return a.name < b.name end)
 
-    return { ok = true, silent = true, logs = list, staff = staff, more = #rows == Config.LogsPageSize }
+    return { ok = true, silent = true, logs = list, staff = staff, more = #rows == Config.LogsPageSize, levels = levels, categories = categories }
 end
 
 ---------------------------------------------------------------------
@@ -232,7 +253,7 @@ local function cachedStats()
     cache.warns24h = MySQL.scalar.await("SELECT COUNT(*) FROM `lunatic_admin_sanctions` WHERE `type` = 'warn' AND `revoked_at` IS NULL AND `created_at` >= ?", { since }) or 0
     cache.bans24h = MySQL.scalar.await("SELECT COUNT(*) FROM `lunatic_admin_sanctions` WHERE `type` = 'ban' AND `created_at` >= ?", { since }) or 0
 
-    local rows = MySQL.query.await(LOG_COLUMNS .. ' ORDER BY `id` DESC LIMIT 8') or {}
+    local rows = MySQL.query.await(LOG_COLUMNS .. " WHERE `category` = 'staff' ORDER BY `id` DESC LIMIT 8") or {}
     cache.recent = {}
 
     for _, row in ipairs(rows) do

@@ -1863,7 +1863,21 @@ function demoState() {
 async function demoNui(name, data) {
     if (name === "action" && data && data.action === "economy.jobs") return { ok: true, jobs: [{ name: "unemployed", label: "Sans emploi", grades: [{ grade: 0, label: "Chômeur" }] }, { name: "mechanic", label: "Mécanicien", grades: [{ grade: 0, label: "Recrue" }, { grade: 1, label: "Employé" }, { grade: 2, label: "Patron" }] }] };
     if (name === "action" && data && data.action === "economy.inventory") return { ok: true, weight: 4300, maxWeight: 24000, items: [{ name: "bread", label: "Pain", count: 3 }, { name: "water", label: "Eau", count: 2 }, { name: "phone", label: "Téléphone", count: 1 }] };
-    if (name === "action" && data && data.action === "logs.list") return { ok: true, more: true, staff: [{ license: "license:a", name: "Alex Moreau" }, { license: "license:b", name: "Ramiro Lotus" }], logs: demoState().dashboard.recent };
+    if (name === "action" && data && data.action === "logs.list") {
+        const now = Math.floor(Date.now() / 1000);
+        const game = [
+            { id: 900, category: "players", level: "success", actor: "Jean Dupont", actorLicense: "license:aa11223344", serverId: 2, action: "player.loaded", details: { job: "Burger Shot" }, created: now - 120 },
+            { id: 899, category: "economy", level: "warn", actor: "Lina Petit", actorLicense: "license:cc33445566", serverId: 7, action: "money.add", details: { account: "bank", amount: 150000, reason: "Paycheck" }, created: now - 300 },
+            { id: 898, category: "inventory", level: "info", actor: "Jean Dupont", actorLicense: "license:aa11223344", serverId: 2, action: "item.give", target: "[7] Lina Petit", details: { item: "water", label: "Eau", count: 2 }, created: now - 600 },
+            { id: 897, category: "illegal", level: "warn", actor: "Marco Rossi", actorLicense: "license:dd", serverId: 12, action: "illegal.drug_sell", target: "Pochon de weed", details: { quantity: 3, total: 270, territory: "Grove Street" }, created: now - 900 },
+            { id: 896, category: "vehicles", level: "info", actor: "Officier Blake", actorLicense: "license:ee", serverId: 4, action: "vehicle.service_out", target: "Interceptor", details: { plate: "LSPD0421" }, created: now - 1500 },
+            { id: 895, category: "players", level: "info", actor: "Kenny West", actorLicense: "license:ff", serverId: 9, action: "player.disconnect", details: { reason: "Exiting" }, created: now - 2400 },
+        ];
+        const staff = demoState().dashboard.recent.map((l) => ({ ...l, category: "staff", level: "info" }));
+        const all = [...game, ...staff].filter((l) => (data.payload.category === "all" || l.category === data.payload.category) && (data.payload.level === "all" || l.level === data.payload.level));
+        return { ok: true, more: false, staff: [{ license: "license:a", name: "Alex Moreau" }, { license: "license:b", name: "Ramiro Lotus" }], logs: all,
+            levels: { info: 9, warn: 2, success: 1 }, categories: { players: 2, economy: 1, inventory: 1, illegal: 1, vehicles: 1, staff: staff.length } };
+    }
     if (name === "action" && data && data.action === "logs.chat") return { ok: true, messages: [
         { id: 9, name: "[12] Jean Dupont", channel: "hrp", message: "Quelqu'un sait où est le garage ?", created: Math.floor(Date.now() / 1000) - 120 },
         { id: 8, name: "[4] Léa Martin", channel: "me", message: "sort son téléphone", created: Math.floor(Date.now() / 1000) - 400 },

@@ -49,6 +49,15 @@ function DB.init()
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ]])
 
+    -- Tuile Logs : catégorie, niveau et ID en jeu du joueur concerné (les anciennes lignes sont des actions du staff)
+    MySQL.query.await([[
+        ALTER TABLE `lunatic_admin_logs`
+            ADD COLUMN IF NOT EXISTS `category` VARCHAR(16) NOT NULL DEFAULT 'staff',
+            ADD COLUMN IF NOT EXISTS `level` VARCHAR(10) NOT NULL DEFAULT 'info',
+            ADD COLUMN IF NOT EXISTS `server_id` INT NULL DEFAULT NULL,
+            ADD INDEX IF NOT EXISTS `idx_lunatic_admin_logs_category` (`category`, `id`)
+    ]])
+
     -- Lot 3 : avertissements et bans. Dates en secondes Unix (os.time) pour éviter les écarts de fuseau horaire.
     MySQL.query.await([[
         CREATE TABLE IF NOT EXISTS `lunatic_admin_sanctions` (

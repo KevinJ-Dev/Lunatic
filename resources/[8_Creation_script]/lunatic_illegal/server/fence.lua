@@ -121,5 +121,6 @@ lib.callback.register('lunatic_illegal:fenceSell', function(src, locationId, ite
     end
 
     local item = ox:Items(entry.item)
+    GameLog('illegal', 'info', src, 'illegal.fence_sell', item and item.label or entry.item, { quantity = quantity, total = total })
     return { ok = true, total = total, quantity = quantity, label = item and item.label or entry.item }
 end)
