@@ -13,9 +13,12 @@ local TYPES = {
     heliwave = { label = 'Heliwave', short = 'HELI', ped = 's_m_y_airworker', soon = true },
     -- Cambriolage : la porte d'une maison (pas de PNJ), avec l'intérieur où l'on entre (lunatic_illegal, Config.BurglaryInteriors)
     house = { label = 'Maison', short = 'MAISON', ped = '', house = true },
+    -- GoFast : simples positions (pas de PNJ) ; le véhicule apparaît au départ, tourné comme le staff à « Définir »
+    gofast_start = { label = 'GoFast : départ', short = 'GF DÉP', ped = '', spot = true },
+    gofast_drop = { label = 'GoFast : livraison', short = 'GF LIV', ped = '', spot = true },
     company = { label = 'Entreprise', short = 'ENTR', ped = 'a_m_y_business_02' },
 }
-local ORDER = { 'store', 'barber', 'binco', 'ammunation', 'tattoo', 'company', 'house', 'heliwave' }
+local ORDER = { 'store', 'barber', 'binco', 'ammunation', 'tattoo', 'company', 'house', 'gofast_start', 'gofast_drop', 'heliwave' }
 local INTERIORS = { low = 'Petit appartement', mid = 'Appartement moyen' }
 
 -- Réglages par type, selon la difficulté : arme en main exigée (any = blanche ou à feu, jamais les poings),
@@ -30,11 +33,23 @@ local DEFAULT_SETTINGS = {
     company = { weapon = 'firearm', duration = 35, cooldown = 60, alert = 80, resist = 20, loot = {} },
     heliwave = { weapon = 'firearm', duration = 40, cooldown = 90, alert = 80, resist = 20, loot = {} },
     house = { weapon = 'any', duration = 0, cooldown = 0, alert = 0, resist = 0, loot = {} }, -- réglages : page Missions → Cambriolage
+    gofast_start = { weapon = 'any', duration = 0, cooldown = 0, alert = 0, resist = 0, loot = {} }, -- réglages : page Missions → GoFast
+    gofast_drop = { weapon = 'any', duration = 0, cooldown = 0, alert = 0, resist = 0, loot = {} },
 }
 local WEAPONS = { any = true, melee = true, firearm = true }
 
 -- Magasins de la carte de base : position du vendeur derrière le comptoir (à vérifier en jeu avec le TP)
 local DEFAULT_POINTS = {
+    -- GoFast : garages de départ (le véhicule apparaît là, dans l'axe) et points de livraison loin les uns des autres
+    gofast_start = {
+        { 'Garage La Mesa', 726.2, -1071.6, 28.3, 90.0 }, { 'Hangar du port', 1182.0, -3180.0, 6.0, 90.0 },
+        { 'Aérodrome de Sandy Shores', 1735.6, 3296.9, 41.2, 195.0 },
+    },
+    gofast_drop = {
+        { 'Paleto Bay', 108.8, 6611.8, 31.9, 225.0 }, { 'Grapeseed', 2135.0, 4778.0, 40.9, 25.0 },
+        { 'Chumash', -3168.0, 1104.0, 20.8, 250.0 }, { 'Harmony', 1198.0, 2645.0, 37.8, 0.0 },
+        { 'Vinewood Hills', -1530.0, 857.0, 181.0, 300.0 }, { 'Jetée de Del Perro', -1830.0, -1220.0, 13.0, 50.0 },
+    },
     -- Maisons : position devant la porte, tourné vers elle ; 6e valeur : intérieur
     house = {
         { 'Maison Forum Drive', -14.3, -1441.0, 31.1, 0.0, 'low' }, { 'Maison Grove Street', 126.7, -1930.1, 21.4, 210.0, 'low' },
@@ -176,8 +191,8 @@ local function findPoint(id)
     end
 end
 
--- Ajoute les points par défaut absents (même type et même nom), d'un seul type si demandé ; renvoie le nombre ajouté
-local function seed(onlyType)
+-- Ajoute les points par défaut absents (même type et même nom), de certains types seulement si demandé ; renvoie le nombre ajouté
+local function seed(onlyTypes)
     local known, created = {}, 0
 
     for _, point in ipairs(points) do
@@ -186,7 +201,7 @@ local function seed(onlyType)
 
     for typeId, list in pairs(DEFAULT_POINTS) do
         for _, entry in ipairs(list) do
-            if (not onlyType or typeId == onlyType) and not known[typeId .. ':' .. entry[1]] then
+            if (not onlyTypes or onlyTypes[typeId]) and not known[typeId .. ':' .. entry[1]] then
                 MySQL.insert.await('INSERT INTO `lunatic_holdups` (`type`, `label`, `ped`, `x`, `y`, `z`, `h`, `interior`, `active`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)', {
                     typeId, entry[1], TYPES[typeId].ped, entry[2], entry[3], entry[4], entry[5], entry[6] or '',
                 })
@@ -231,15 +246,25 @@ table.insert(Panel.readyHooks, function()
     load()
 
     -- Premier démarrage : les magasins de la carte sont placés d'office ; les maisons (ajoutées plus tard) une fois aussi
+    -- Types ajoutés plus tard : placés une fois chacun (sans remettre les magasins supprimés à la main)
+    local LATER = { { kvp = 'holdups_houses_seeded', types = { house = true } }, { kvp = 'holdups_gofast_seeded', types = { gofast_start = true, gofast_drop = true } } }
     local created = 0
 
     if not GetResourceKvpString('holdups_seeded') then
         SetResourceKvp('holdups_seeded', '1')
-        SetResourceKvp('holdups_houses_seeded', '1')
+
+        for _, later in ipairs(LATER) do
+            SetResourceKvp(later.kvp, '1')
+        end
+
         created = seed()
-    elseif not GetResourceKvpString('holdups_houses_seeded') then
-        SetResourceKvp('holdups_houses_seeded', '1')
-        created = seed('house')
+    else
+        for _, later in ipairs(LATER) do
+            if not GetResourceKvpString(later.kvp) then
+                SetResourceKvp(later.kvp, '1')
+                created = created + seed(later.types)
+            end
+        end
     end
 
     if created > 0 then
@@ -330,7 +355,7 @@ Panel.actions['holdups.list'] = function(_, actor)
             loot.label, loot.missing = item and item.label or loot.item, not item
         end
 
-        types[#types + 1] = { id = id, label = entry.label, short = entry.short, ped = entry.ped, soon = entry.soon == true, house = entry.house == true, settings = s }
+        types[#types + 1] = { id = id, label = entry.label, short = entry.short, ped = entry.ped, soon = entry.soon == true, house = entry.house == true, spot = entry.spot == true, settings = s }
     end
 
     local interiors = {}
@@ -371,6 +396,8 @@ Panel.actions['holdups.save'] = function(src, actor, data)
         if not interior then
             return Panel.fail("Choisissez l'intérieur de la maison.")
         end
+    elseif TYPES[typeId].spot then
+        ped = ''
     elseif not ped or not ped:match('^[%w_]+$') then
         return Panel.fail('Modèle du PNJ : lettres, chiffres et _ uniquement (ex. mp_m_shopkeep_01).')
     end
@@ -531,7 +558,7 @@ Panel.actions['holdups.tp'] = function(src, actor, data)
     local heading = math.rad(point.h or 0.0)
     local x, y = point.x - math.sin(heading) * 1.5, point.y + math.cos(heading) * 1.5
 
-    if TYPES[point.type] and TYPES[point.type].house then
+    if TYPES[point.type] and (TYPES[point.type].house or TYPES[point.type].spot) then
         x, y = point.x, point.y
     end
 

@@ -66,16 +66,17 @@ function gtaMap(options = {}) {
             return dot;
         },
         // Centre la carte sur une position du jeu
-        // (taille remesurée d'abord : la carte vient souvent d'être remise dans la page)
+        // (taille remesurée d'abord : la carte vient souvent d'être remise dans la page ; sans animation, car une
+        // animation interrompue par un nouvel affichage laissait les repères agrandis)
         focus: (x, y, zoom) => {
             map.invalidateSize(false);
-            map.setView([y, x], zoom ?? Math.max(map.getZoom(), 4));
+            map.setView([y, x], zoom ?? Math.max(map.getZoom(), 4), { animate: false });
         },
         // Cadre l'ensemble de ce qui est dessiné
         fit: () => {
             map.invalidateSize(false);
             const bounds = layer.getBounds();
-            if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 4 });
+            if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 4, animate: false });
         },
     };
 }

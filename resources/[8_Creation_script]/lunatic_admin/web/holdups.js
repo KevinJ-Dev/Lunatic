@@ -49,18 +49,21 @@ function holdupsPage() {
     const type = filter ? holdupType(filter) : null;
     return {
         title: type ? `Braquages · ${type.label}` : "Braquages",
-        sub: type && type.house
+        sub: type && type.spot
+            ? "GoFast : garages de départ (le véhicule apparaît là, dans votre direction à « Définir ») et points de livraison, tirés au hasard loin du départ."
+            : type && type.house
             ? "Maisons à cambrioler : « Définir » devant la porte, tourné vers elle. Outil, horaire, fouille et butin : page Missions → Cambriolage."
             : "Un PNJ au comptoir de chaque point, à menacer avec l'arme demandée. Statut, policiers, gain, XP et limite par jour : page Missions.",
         actions: [
             type && type.house ? h("button", { class: "btn small", title: "Outil, horaire, fouille, réveil du propriétaire, délai, butin", onclick: () => illegalSwitch(() => { illegalState.tab = "missions"; illegalState.missionSel = "burglary"; }) }, icon("i-tool"), "Réglages du cambriolage") : null,
-            type && !type.house ? h("button", { class: "btn small", title: "Arme exigée, durée, délai, alarme, résistance du vendeur, butin", onclick: () => openHoldupSettings(type.id) },
+            type && type.spot ? h("button", { class: "btn small", title: "Véhicule, temps, distance, police, délai", onclick: () => illegalSwitch(() => { illegalState.tab = "missions"; illegalState.missionSel = "gofast"; }) }, icon("i-tool"), "Réglages du GoFast") : null,
+            type && !type.house && !type.spot ? h("button", { class: "btn small", title: "Arme exigée, durée, délai, alarme, résistance du vendeur, butin", onclick: () => openHoldupSettings(type.id) },
                 icon("i-tool"), `Réglages ${type.label}`, h("span", { class: "badge muted", style: "margin-left:4px" }, WEAPON_RULES[type.settings ? type.settings.weapon : "any"])) : null,
             h("button", { class: "btn small", title: "Remet les magasins de la carte de base qui manquent", onclick: async () => {
                 const res = await holdupAct("holdups.seed", {}, null);
                 if (res) toast(res.created ? `${res.created} magasin(s) ajouté(s).` : "Tous les magasins de la carte sont déjà là.", "ok");
             } }, icon("i-sparkle"), "Magasins de la carte"),
-            h("button", { class: "btn small primary", onclick: () => newHoldup(null) }, icon("i-plus"), type && type.house ? "Ajouter une maison" : "Ajouter un braquage"),
+            h("button", { class: "btn small primary", onclick: () => newHoldup(null) }, icon("i-plus"), type && type.house ? "Ajouter une maison" : type && type.spot ? "Ajouter un point" : "Ajouter un braquage"),
         ],
         side: [holdupTypesBlock(d, filter)],
         center: h("div", null,
@@ -115,6 +118,7 @@ function holdupEditor(p) {
         data.companies.map((c) => h("option", { value: c.job, selected: c.job === d.company }, c.label)));
     company.addEventListener("change", () => { d.company = company.value; });
     const isHouse = holdupType(d.type).house;
+    const isSpot = holdupType(d.type).spot;
     const interior = h("select", { class: "input" }, (data.interiors || []).map((i) => h("option", { value: i.id, selected: i.id === d.interior }, i.label)));
     interior.addEventListener("change", () => { d.interior = interior.value; });
 
@@ -129,12 +133,12 @@ function holdupEditor(p) {
             fieldRow("Label", draftText(d, "label", { placeholder: "Ex. LTD Grove Street" })),
             fieldRow("Type", type),
             d.type === "company" ? fieldRow("Entreprise", company) : null,
-            isHouse ? fieldRow("Intérieur", interior) : fieldRow("Modèle PED", draftText(d, "ped", { class: "input mono", maxlength: "40", placeholder: "mp_m_shopkeep_01" })),
-            fieldRow(isHouse ? "Porte" : "Position PED", h("div", { class: "btn-row" },
-                p ? h("button", { class: "btn small primary", title: isHouse ? "Place la porte là où vous êtes, tourné vers elle" : "Place le PNJ là où vous êtes, tourné dans votre direction", onclick: () => holdupAct("holdups.move", { id: p.id }, isHouse ? "Porte placée à votre position." : "PNJ placé à votre position.") }, icon("i-crosshair"), "Définir") : null,
+            isHouse ? fieldRow("Intérieur", interior) : isSpot ? null : fieldRow("Modèle PED", draftText(d, "ped", { class: "input mono", maxlength: "40", placeholder: "mp_m_shopkeep_01" })),
+            fieldRow(isHouse ? "Porte" : isSpot ? "Position" : "Position PED", h("div", { class: "btn-row" },
+                p ? h("button", { class: "btn small primary", title: isHouse ? "Place la porte là où vous êtes, tourné vers elle" : isSpot ? "Place le point là où vous êtes (le véhicule de départ prend votre direction)" : "Place le PNJ là où vous êtes, tourné dans votre direction", onclick: () => holdupAct("holdups.move", { id: p.id }, isHouse ? "Porte placée à votre position." : isSpot ? "Point placé à votre position." : "PNJ placé à votre position.") }, icon("i-crosshair"), "Définir") : null,
                 p ? h("button", { class: "btn small", onclick: () => act("holdups.tp", { id: p.id }, null) }, icon("i-goto"), "TP") : null)),
             h("p", { class: "hint-line", style: "margin:0" }, where, d.x != null ? " · placée sur la carte, pensez à « Définir » sur place pour la hauteur et l'orientation" : ""),
-            h("div", { class: "mode-list" }, draftToggle(d, "active", "Actif", d.type === "company" ? "Désactivé : cette entreprise ne peut pas être braquée." : isHouse ? "Désactivé : cette maison ne peut pas être cambriolée." : "Désactivé : pas de PNJ ni de braquage ici.")),
+            h("div", { class: "mode-list" }, draftToggle(d, "active", "Actif", d.type === "company" ? "Désactivé : cette entreprise ne peut pas être braquée." : isHouse ? "Désactivé : cette maison ne peut pas être cambriolée." : isSpot ? "Désactivé : point non utilisé par le GoFast." : "Désactivé : pas de PNJ ni de braquage ici.")),
             h("div", { class: "item-actions", style: "padding:0;border:0" },
                 saveButton(saveHoldup, !p),
                 p ? deleteButton(async () => {

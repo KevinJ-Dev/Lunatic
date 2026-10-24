@@ -1,0 +1,159 @@
+-- GoFast côté client : au garage de départ, [E] lance le GoFast ; itinéraire vers la livraison, temps restant à
+-- l'écran, [E] au point de livraison avec la voiture. Le serveur revérifie tout.
+
+local cfg = { enabled = false, starts = {} }
+local busy = false
+local promptText = nil
+local run = nil -- { netId, drop, endsAt, blip }
+
+local function notify(message, kind)
+    ESX.ShowNotification(message, kind or 'info')
+end
+
+local function showPrompt(text)
+    if promptText ~= text then
+        promptText = text
+        lib.showTextUI(text)
+    end
+end
+
+local function hidePrompt()
+    if promptText then
+        promptText = nil
+        lib.hideTextUI()
+    end
+end
+
+local function loadConfig()
+    local result = lib.callback.await('lunatic_illegal:gofastConfig', false)
+
+    if type(result) == 'table' then
+        cfg = result
+    end
+end
+
+CreateThread(function()
+    Wait(3000)
+
+    while true do
+        loadConfig()
+        Wait(60000)
+    end
+end)
+
+RegisterNetEvent('lunatic_illegal:gofastConfigChanged', loadConfig)
+
+local function clearRun()
+    if run and run.blip and DoesBlipExist(run.blip) then
+        RemoveBlip(run.blip)
+    end
+
+    run = nil
+    hidePrompt()
+end
+
+local function start(point)
+    busy = true
+    hidePrompt()
+
+    local res = lib.callback.await('lunatic_illegal:gofastStart', false, point.id)
+
+    if not res or not res.ok then
+        notify(res and res.error or 'Impossible pour le moment.', 'error')
+        Wait(1000)
+        busy = false
+        return
+    end
+
+    -- Itinéraire jusqu'à la livraison
+    local blip = AddBlipForCoord(res.drop.x, res.drop.y, res.drop.z)
+    SetBlipSprite(blip, 501)
+    SetBlipColour(blip, 5)
+    SetBlipRoute(blip, true)
+    SetBlipRouteColour(blip, 5)
+    BeginTextCommandSetBlipName('STRING')
+    AddTextComponentSubstringPlayerName('Livraison GoFast')
+    EndTextCommandSetBlipName(blip)
+
+    run = { netId = res.netId, drop = res.drop, endsAt = GetGameTimer() + res.minutes * 60000, blip = blip }
+    notify(("GoFast : la voiture est prête. Livrez-la à %s en moins de %d min, sans l'abîmer."):format(res.drop.label, res.minutes), 'success')
+    busy = false
+end
+
+local function finish()
+    busy = true
+    hidePrompt()
+
+    local res = lib.callback.await('lunatic_illegal:gofastFinish', false)
+
+    if res and res.ok then
+        clearRun()
+        notify(('GoFast livré : %s en argent sale%s.'):format(res.reward, res.damaged and ' (voiture abîmée : gain réduit)' or ''), 'success')
+    else
+        notify(res and res.error or 'Livraison impossible.', 'error')
+    end
+
+    Wait(1000)
+    busy = false
+end
+
+RegisterNetEvent('lunatic_illegal:gofastEnded', function(message)
+    clearRun()
+    notify(message, 'error')
+end)
+
+CreateThread(function()
+    while true do
+        local wait = 500
+        local prompt = nil
+
+        if not busy then
+            local ped = PlayerPedId()
+            local coords = GetEntityCoords(ped)
+
+            if run then
+                wait = 0
+                local left = math.max(0, math.ceil((run.endsAt - GetGameTimer()) / 1000))
+                local vehicle = NetworkDoesEntityExistWithNetworkId(run.netId) and NetToVeh(run.netId) or 0
+                local inCar = vehicle ~= 0 and GetVehiclePedIsIn(ped, false) == vehicle
+
+                if #(coords.xy - vector2(run.drop.x, run.drop.y)) < 12.0 and inCar then
+                    prompt = '[E] Livrer la voiture'
+
+                    if IsControlJustPressed(0, 38) then
+                        finish()
+                    end
+                else
+                    prompt = ('GoFast · %s · %d:%02d'):format(run.drop.label, left // 60, left % 60)
+                end
+            elseif cfg.enabled and not IsPedInAnyVehicle(ped, false) then
+                for _, point in ipairs(cfg.starts or {}) do
+                    if #(coords.xy - vector2(point.x, point.y)) < 2.5 and math.abs(coords.z - point.z) < 3.0 then
+                        wait = 0
+                        prompt = '[E] Lancer un GoFast'
+
+                        if IsControlJustPressed(0, 38) then
+                            start(point)
+                        end
+
+                        break
+                    end
+                end
+            end
+        end
+
+        if prompt then
+            showPrompt(prompt)
+        else
+            hidePrompt()
+        end
+
+        Wait(wait)
+    end
+end)
+
+AddEventHandler('onResourceStop', function(resource)
+    if resource == GetCurrentResourceName() then
+        clearRun()
+    end
+end)

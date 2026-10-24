@@ -43,7 +43,16 @@ local CATALOG = {
     { id = 'contract_delivery', label = 'Livraison', category = 'contract', description = 'Récupérer un colis scellé et le livrer à temps.', link = { 'contract', 'delivery' }, reward = true },
     { id = 'contract_theft', label = 'Vol sur commande', category = 'contract', description = "Voler un modèle précis et l'amener au garage.", link = { 'contract', 'theft' }, reward = true },
     { id = 'contract_cargo', label = 'Cargaison gardée', category = 'contract', description = 'Éliminer les gardes et ouvrir la caisse.', link = { 'contract', 'cargo' }, reward = true },
-    { id = 'gofast', label = 'GoFast', category = 'traffic', description = 'Livraison de drogue terrestre.', reward = true },
+    { id = 'gofast', label = 'GoFast', category = 'traffic', description = "Prendre une voiture rapide chargée au garage de départ (page Braquages → GoFast) et la livrer loin, à temps, avec la police aux trousses.", ready = true, reward = true, points = 'gofast_start',
+        advanced = {
+            { key = 'vehicle', label = 'Véhicule', default = 'sultan', options = { { 'sultan', 'Sultan' }, { 'kuruma', 'Kuruma' }, { 'jester', 'Jester' }, { 'buffalo2', 'Buffalo S' }, { 'elegy2', 'Elegy RH8' }, { 'comet2', 'Comet' } } },
+            { key = 'duration', label = 'Temps pour livrer (min)', min = 2, max = 30, default = 8 },
+            { key = 'minDistance', label = 'Distance minimum de livraison (m)', min = 300, max = 8000, default = 1500 },
+            { key = 'alert', label = 'La police est sur le coup (%)', min = 0, max = 100, default = 70 },
+            { key = 'track', label = 'Position envoyée à la police toutes les (s)', min = 10, max = 300, default = 30 },
+            { key = 'cooldown', label = 'Délai entre deux GoFast, par joueur (min)', min = 0, max = 1440, default = 30 },
+        },
+        loot = {} },
     { id = 'gofast_sea', label = 'GoFast Maritime', category = 'traffic', description = 'Livraison de drogue maritime.', reward = true },
     { id = 'burglary', label = 'Cambriolage', category = 'street', description = "Crocheter la porte d'une maison (page Braquages, type Maison), fouiller l'intérieur avant que le propriétaire se réveille, ressortir.", ready = true, reward = true, points = 'house',
         advanced = {
@@ -98,6 +107,7 @@ local READY_START = {
     racket = { kvp = 'missions_racket_ready', values = { reward = 400, xp = 3, influence = 2, police = 0, levelRequired = false } },
     heist_atm = { kvp = 'missions_atm_ready', values = { reward = 2000, xp = 5, influence = 2, police = 1, levelRequired = false } },
     burglary = { kvp = 'missions_burglary_ready', values = { reward = 1500, xp = 8, influence = 3, police = 1, levelRequired = false } },
+    gofast = { kvp = 'missions_gofast_ready', values = { reward = 8000, xp = 30, influence = 5, police = 2, levelRequired = true, minLevel = 1 } },
 }
 
 local LIMITS = { xp = 10000, influence = 1000, police = 20, reward = 1000000, daily = 500, loot = 8 }
