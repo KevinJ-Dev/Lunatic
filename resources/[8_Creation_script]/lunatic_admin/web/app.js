@@ -219,6 +219,7 @@ const NAV = [
     { id: "crews", label: "Crews", icon: "i-flag", show: () => can("crews.manage") },
     { id: "catalogs", label: "Catalogues", icon: "i-book", show: () => can("catalogs.manage") },
     { id: "items", label: "Items", icon: "i-box", show: () => can("items.manage") },
+    { id: "blips", label: "Blips", icon: "i-pin", show: () => can("blips.manage") },
     { id: "poles", label: "Pôle emploi", icon: "i-briefcase", show: () => can("poles.manage") },
     { id: "events", label: "Events", icon: "i-calendar", show: () => can("events.manage") },
     { id: "world", label: "Météo", icon: "i-sun", show: () => hasWorld() },
@@ -572,7 +573,7 @@ function render() {
 
     renderMe();
 
-    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "illegal", "crews", "catalogs", "items", "poles", "events", "dev", "ranks", "members"]) {
+    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "illegal", "crews", "catalogs", "items", "blips", "poles", "events", "dev", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
     }
 
@@ -588,6 +589,7 @@ function render() {
     if (view === "companies") renderStructures("company");
     if (view === "catalogs") renderShops();
     if (view === "items") renderItems();
+    if (view === "blips") renderBlips();
     if (view === "crews") renderCrews();
     if (view === "illegal") renderIllegal();
     if (view === "publics") renderStructures("public");
@@ -1875,6 +1877,17 @@ async function demoNui(name, data) {
                 { id: "door", label: "Porte du coffre", duration: 15, tool: "hack_device", toolLabel: "Boîtier de piratage", breakChance: 25, alert: 100, models: ["v_ilev_gb_vauldr"], loot: [], points: [] },
                 { id: "locker", label: "Casier", duration: 30, tool: "drill", toolLabel: "Perceuse", breakChance: 10, alert: 0, count: 4, models: [], loot: [{ item: "marked_bills", label: "Billets marqués", min: 15, max: 30, chance: 100 }, { item: "gold_bar", label: "Lingot d'or", min: 1, max: 1, chance: 15 }] }] },
         ] };
+    if (name === "action" && data && data.action === "blips.list") return { ok: true, canShops: true,
+        blips: [
+            { id: 1, label: "Commissariat de Mission Row", sprite: 60, color: 29, scale: 0.8, x: 425.1, y: -979.5, z: 30.7, short: true, active: true },
+            { id: 8, label: "Hôpital Pillbox Hill", sprite: 61, color: 1, scale: 0.8, x: 298.6, y: -584.6, z: 43.3, short: true, active: true },
+            { id: 15, label: "Banque Fleeca", sprite: 108, color: 2, scale: 0.8, x: 149.9, y: -1040.5, z: 29.4, short: true, active: true },
+            { id: 23, label: "Station-service", sprite: 361, color: 4, scale: 0.8, x: 265.6, y: -1261.3, z: 29.3, short: true, active: true },
+            { id: 70, label: "Coiffeur", sprite: 71, color: 0, scale: 0.5, x: 136.78, y: -1708.4, z: 29.29, short: true, active: true },
+            { id: 75, label: "Magasin de vêtements", sprite: 366, color: 47, scale: 0.5, x: 75.39, y: -1398.28, z: 29.38, short: true, active: false },
+        ],
+        shops: [{ id: 1, label: "LTD", blip: { sprite: 52, color: 2, scale: 0.8, label: "24/7" }, locations: [{ x: 24.5, y: -1346.6, z: 29.5 }, { x: -46.7, y: -1757.9, z: 29.4 }] },
+            { id: 2, label: "Ammunation", blip: { sprite: 110, color: 1, scale: 0.8, label: "AmmuNation" }, locations: [{ x: 22.1, y: -1107.3, z: 29.8 }] }] };
     if (name === "action" && data && data.action === "holdups.list") return { ok: true,
         types: [{ id: "store", label: "Supérette", short: "SUP", ped: "mp_m_shopkeep_01" }, { id: "barber", label: "Barber", short: "BARBER", ped: "s_f_m_fembarber" }, { id: "binco", label: "Binco", short: "BINCO", ped: "s_f_y_shop_low" },
             { id: "ammunation", label: "Ammunation", short: "AMMU", ped: "s_m_y_ammucity_01" }, { id: "tattoo", label: "Tattoo", short: "TATTOO", ped: "u_m_y_tattoo_01" }, { id: "company", label: "Entreprise", short: "ENTR", ped: "a_m_y_business_02" },

@@ -88,6 +88,7 @@ const ACTION_LABELS = {
     "heists.reset": "a rendu un lieu de braquage disponible",
     "missions.save": "a modifié les réglages d'une mission",
     "holdups.save": "a modifié un point de braquage",
+    "blips.save": "a modifié un blip",
     "items.save": "a modifié un objet",
     "items.delete": "a supprimé ou réinitialisé un objet",
     "items.give": "a donné un objet",
@@ -271,6 +272,7 @@ function describeLog(log) {
         case "heists.reset":
         case "missions.save":
         case "holdups.save":
+        case "blips.save":
             summary = [d.label, d.item, d.operation].filter(Boolean).join(" · ");
             break;
         case "items.save":

@@ -671,4 +671,38 @@ Panel.actions['shops.setSpawn'] = function(src, actor, data)
     return { ok = true, silent = true }
 end
 
+-- Page Blips : blips des magasins (affichés avec les autres) et modification de leur nom, icône, couleur et taille
+function Shops.blipList()
+    local list = {}
+
+    for _, shop in pairs(shops) do
+        local locations = {}
+
+        for _, location in ipairs(shop.locations) do
+            locations[#locations + 1] = { x = location.x, y = location.y, z = location.z }
+        end
+
+        list[#list + 1] = { id = shop.id, label = shop.label, blip = shop.blip, locations = locations }
+    end
+
+    table.sort(list, function(a, b) return a.label < b.label end)
+    return list
+end
+
+function Shops.setBlip(id, blip)
+    local shop = shops[tonumber(id) or -1]
+
+    if not shop then
+        return false
+    end
+
+    MySQL.update.await('UPDATE `lunatic_shops` SET `blip_sprite` = ?, `blip_color` = ?, `blip_scale` = ?, `blip_label` = ? WHERE `id` = ?', {
+        blip.sprite, blip.color, blip.scale, blip.label, shop.id,
+    })
+
+    shop.blip = { sprite = blip.sprite, color = blip.color, scale = blip.scale, label = blip.label }
+    publish()
+    return true
+end
+
 print('[lunatic_admin] Module Magasins chargé.')

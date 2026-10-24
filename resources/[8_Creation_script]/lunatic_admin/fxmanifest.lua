@@ -37,6 +37,7 @@ server_scripts {
     'server/structure_points.lua',
     'server/catalogs.lua',
     'server/shops.lua',
+    'server/blips.lua',
     'server/crews.lua',
     'server/fence.lua',
     'server/drugs.lua',
@@ -63,6 +64,7 @@ client_scripts {
     'client/events.lua',
     'client/dev.lua',
     'client/context.lua',
+    'client/blips.lua',
 }
 
 ui_page 'web/index.html'
@@ -96,6 +98,8 @@ files {
     'web/heists.js',
     'web/missions.js',
     'web/holdups.js',
+    'web/blipdata.js',
+    'web/blips.js',
     'web/items.js',
     'web/events.js',
     'web/dev.js',

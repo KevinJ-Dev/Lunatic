@@ -98,22 +98,23 @@ Config.DisableProps = {
 Config.Aces = {} -- list of ace permissions used for blacklisting
 
 Config.Blips = {
+    -- Lunatic : blips repris dans la tuile Blips du panel (lunatic_admin), coupés ici
     ["clothing"] = {
-        Show = true,
+        Show = false,
         Sprite = 366,
         Color = 47,
         Scale = 0.5,
         Name = "Magasin de vêtements",
     },
     ["barber"] = {
-        Show = true,
+        Show = false,
         Sprite = 71,
         Color = 0,
         Scale = 0.5,
         Name = "Coiffeuse",
     },
     ["tattoo"] = {
-        Show = true,
+        Show = false,
         Sprite = 75,
         Color = 4,
         Scale = 0.5,
@@ -180,7 +181,7 @@ Config.Stores = {
         size = vector3(4, 4, 4),
         rotation = 45,
         usePoly = false, -- false => uses the size + rotation to create the zone | true => uses points to create the zone
-        showBlip = true, -- overrides the blip visibilty configured above for the group
+        showBlip = false, -- overrides the blip visibilty configured above for the group (Lunatic : blip géré dans le panel)
         --targetModel = "s_m_m_doctor_01", -- overrides the target ped configured for the group
         --targetScenario = "" -- overrides the target scenario configure for the group
         points = {

@@ -65,6 +65,17 @@ function gtaMap(options = {}) {
             if (onSelect) dot.on("click", (e) => { L.DomEvent.stopPropagation(e); onSelect(); });
             return dot;
         },
+        // Icône HTML (ex. blip GTA recoloré), centrée sur la position
+        icon: (x, y, element, style = {}, onSelect) => {
+            const size = parseInt(element.style.width, 10) || 22;
+            const wrap = document.createElement("div");
+            wrap.className = `gta-map-icon${style.selected ? " selected" : ""}${style.faded ? " faded" : ""}`;
+            wrap.append(element);
+            const marker = L.marker([y, x], { icon: L.divIcon({ html: wrap, className: "", iconSize: [size, size], iconAnchor: [size / 2, size / 2] }), zIndexOffset: style.selected ? 1000 : 0 }).addTo(layer);
+            if (style.label) marker.bindTooltip(style.label, { direction: "top", offset: [0, -size / 2], className: "gta-map-tip" });
+            if (onSelect) marker.on("click", (e) => { L.DomEvent.stopPropagation(e); onSelect(); });
+            return marker;
+        },
         // Centre la carte sur une position du jeu
         // (taille remesurée d'abord : la carte vient souvent d'être remise dans la page ; sans animation, car une
         // animation interrompue par un nouvel affichage laissait les repères agrandis)
