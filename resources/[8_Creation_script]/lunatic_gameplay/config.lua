@@ -43,3 +43,17 @@ Config.Effects = {
     fentanyl = { items = { 'fentanyl' }, timecycle = 'drug_wobbly', postfx = 'DrugsDrivingIn', walk = 'move_m@drunk@verydrunk', label = 'Vous prenez du fentanyl…' },
     alcohol = { items = { 'beer', 'wine', 'vodka', 'whisky', 'tequila', 'champagne' }, timecycle = 'Drunk', walk = 'move_m@drunk@moderatedrunk', shake = 'DRUNK_SHAKE', anim = { dict = 'mp_player_intdrink', clip = 'loop_bottle' }, label = 'Vous buvez…' },
 }
+
+-- Arme dans le dos : groupes d'armes concernés (GetWeapontypeGroup) et position sur le dos
+Config.BackWeaponGroups = {
+    [`GROUP_RIFLE`] = true, [`GROUP_SHOTGUN`] = true, [`GROUP_SMG`] = true, [`GROUP_SNIPER`] = true, [`GROUP_MG`] = true,
+}
+Config.BackWeaponOffset = { bone = 24818, pos = vector3(0.08, -0.17, -0.02), rot = vector3(0.0, 165.0, 0.0) }
+
+-- Zones sécurisées : pas de tir ni de coups à l'intérieur
+Config.SafeZones = {
+    { label = 'Hôpital Pillbox Hill', coords = vector3(307.0, -590.0, 43.3), radius = 45.0 },
+    { label = 'Commissariat de Mission Row', coords = vector3(440.0, -982.0, 30.7), radius = 40.0 },
+    { label = 'Hôpital de Sandy Shores', coords = vector3(1839.6, 3672.9, 34.3), radius = 30.0 },
+    { label = 'Hôpital de Paleto Bay', coords = vector3(-247.7, 6331.2, 32.4), radius = 30.0 },
+}

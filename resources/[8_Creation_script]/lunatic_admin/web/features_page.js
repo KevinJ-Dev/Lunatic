@@ -12,7 +12,7 @@ const ftState = { data: null, tab: "features", section: null, draft: null, saved
 // Onglets : sections affichées (une liste à gauche s'il y en a plusieurs)
 const FEATURE_TABS = [
     { id: "features", label: "Fonctionnalités", icon: "i-tool", sections: ["toggles"] },
-    { id: "gameplay", label: "Gameplay", icon: "i-pulse", sections: ["needs", "inventory", "death", "fuel", "population", "time"] },
+    { id: "gameplay", label: "Gameplay", icon: "i-pulse", sections: ["needs", "inventory", "death", "fuel", "misc", "population", "time"] },
     { id: "effects", label: "Effets", icon: "i-sparkle", sections: ["effects_cocaine", "effects_fentanyl", "effects_cannabis", "effects_meth", "effects_alcohol"] },
     { id: "weights", label: "Poids", icon: "i-box", sections: ["trunks"] },
     { id: "newPlayers", label: "Nouveaux joueurs", icon: "i-user-plus", sections: ["newPlayers"] },
@@ -131,6 +131,16 @@ const FEATURE_SECTIONS = {
             consumption: { label: "Multiplicateur de consommation", hint: "1 = environ 12 % par minute à fond, 1,5 % au ralenti (selon la classe)", unit: "×" },
             startLevel: { label: "Niveau de départ", hint: "Réservoir d'un véhicule jamais utilisé", unit: "%" },
             price: { label: "Prix du litre", hint: "Aux pompes des stations-service (liquide, sinon banque)", money: true },
+        },
+    },
+    misc: {
+        label: "Confort & sécurité", icon: "i-shield",
+        fields: {
+            weaponBack: { label: "Arme dans le dos", hint: "Fusils, pompes, SMG visibles sur le dos quand ils ne sont pas en main" },
+            safeZones: { label: "Zones sécurisées", hint: "Hôpitaux et commissariat : pas de tir ni de coups (config lunatic_gameplay)" },
+            afk: { label: "Anti-AFK", hint: "Expulse les joueurs inactifs (jamais le staff)" },
+            afkMinutes: { label: "Délai d'inactivité", hint: "Avertissement une minute avant", unit: "min" },
+            afkOffDutyOnly: { label: "Seulement hors service", hint: "Les joueurs en service ne sont pas expulsés" },
         },
     },
     population: {

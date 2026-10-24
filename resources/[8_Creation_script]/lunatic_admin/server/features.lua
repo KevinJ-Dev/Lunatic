@@ -41,6 +41,9 @@ local SCHEMA = {
     effects_meth = { enabled = bool(true), duration = num(120, 10, 900, 10), speed = num(1.15, 1, 1.49, 0.01), shake = num(0.5, 0, 3, 0.1), blur = bool(true), visual = bool(true), walk = bool(false) },
     effects_fentanyl = { enabled = bool(true), duration = num(150, 10, 900, 10), speed = num(1.0, 1, 1.49, 0.01), shake = num(1.0, 0, 3, 0.1), blur = bool(true), visual = bool(true), walk = bool(true) },
     effects_alcohol = { enabled = bool(true), duration = num(180, 10, 900, 10), speed = num(1.0, 1, 1.49, 0.01), shake = num(1.0, 0, 3, 0.1), blur = bool(false), visual = bool(true), walk = bool(true) },
+    misc = {
+        weaponBack = bool(true), safeZones = bool(true), afk = bool(false), afkMinutes = num(20, 5, 120, 5), afkOffDutyOnly = bool(true),
+    },
     trunks = {
         trunkWeight = num(1.0, 0.25, 4, 0.05), trunkSlots = num(1.0, 0.25, 4, 0.05),
         gloveWeight = num(1.0, 0.25, 4, 0.05), gloveSlots = num(1.0, 0.25, 4, 0.05),

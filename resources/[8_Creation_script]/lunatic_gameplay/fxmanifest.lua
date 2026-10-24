@@ -18,6 +18,7 @@ server_scripts {
     'server/death.lua',
     'server/fuel.lua',
     'server/effects.lua',
+    'server/misc.lua',
 }
 
 client_scripts {
@@ -25,6 +26,7 @@ client_scripts {
     'client/death.lua',
     'client/fuel.lua',
     'client/effects.lua',
+    'client/misc.lua',
 }
 
 dependencies {
