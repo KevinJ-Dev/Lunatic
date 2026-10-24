@@ -1,10 +1,10 @@
--- GoFast côté client : au garage de départ, [E] lance le GoFast ; itinéraire vers la livraison, temps restant à
--- l'écran, [E] au point de livraison avec la voiture. Le serveur revérifie tout.
+-- GoFast et GoFast maritime côté client : au départ (garage ou quai), [E] lance le GoFast ; itinéraire vers la
+-- livraison, temps restant à l'écran, [E] au point de livraison avec le véhicule. Le serveur revérifie tout.
 
 local cfg = { enabled = false, starts = {} }
 local busy = false
 local promptText = nil
-local run = nil -- { netId, drop, endsAt, blip }
+local run = nil -- { netId, drop, endsAt, blip, noun, radius }
 
 local function notify(message, kind)
     ESX.ShowNotification(message, kind or 'info')
@@ -56,7 +56,7 @@ local function start(point)
     busy = true
     hidePrompt()
 
-    local res = lib.callback.await('lunatic_illegal:gofastStart', false, point.id)
+    local res = lib.callback.await('lunatic_illegal:gofastStart', false, point.id, point.variant)
 
     if not res or not res.ok then
         notify(res and res.error or 'Impossible pour le moment.', 'error')
@@ -75,8 +75,8 @@ local function start(point)
     AddTextComponentSubstringPlayerName('Livraison GoFast')
     EndTextCommandSetBlipName(blip)
 
-    run = { netId = res.netId, drop = res.drop, endsAt = GetGameTimer() + res.minutes * 60000, blip = blip }
-    notify(("GoFast : la voiture est prête. Livrez-la à %s en moins de %d min, sans l'abîmer."):format(res.drop.label, res.minutes), 'success')
+    run = { netId = res.netId, drop = res.drop, endsAt = GetGameTimer() + res.minutes * 60000, blip = blip, noun = res.noun or 'la voiture', radius = res.radius or 12.0 }
+    notify(("GoFast : %s est prêt%s. Livrez à %s en moins de %d min, sans l'abîmer."):format(run.noun, run.noun == 'la voiture' and 'e' or '', res.drop.label, res.minutes), 'success')
     busy = false
 end
 
@@ -88,7 +88,7 @@ local function finish()
 
     if res and res.ok then
         clearRun()
-        notify(('GoFast livré : %s en argent sale%s.'):format(res.reward, res.damaged and ' (voiture abîmée : gain réduit)' or ''), 'success')
+        notify(('GoFast livré : %s en argent sale%s.'):format(res.reward, res.damaged and ' (véhicule abîmé : gain réduit)' or ''), 'success')
     else
         notify(res and res.error or 'Livraison impossible.', 'error')
     end
@@ -117,8 +117,8 @@ CreateThread(function()
                 local vehicle = NetworkDoesEntityExistWithNetworkId(run.netId) and NetToVeh(run.netId) or 0
                 local inCar = vehicle ~= 0 and GetVehiclePedIsIn(ped, false) == vehicle
 
-                if #(coords.xy - vector2(run.drop.x, run.drop.y)) < 12.0 and inCar then
-                    prompt = '[E] Livrer la voiture'
+                if #(coords.xy - vector2(run.drop.x, run.drop.y)) < run.radius and inCar then
+                    prompt = ('[E] Livrer %s'):format(run.noun)
 
                     if IsControlJustPressed(0, 38) then
                         finish()
@@ -128,9 +128,9 @@ CreateThread(function()
                 end
             elseif cfg.enabled and not IsPedInAnyVehicle(ped, false) then
                 for _, point in ipairs(cfg.starts or {}) do
-                    if #(coords.xy - vector2(point.x, point.y)) < 2.5 and math.abs(coords.z - point.z) < 3.0 then
+                    if #(coords.xy - vector2(point.x, point.y)) < 2.5 and math.abs(coords.z - point.z) < 5.0 then
                         wait = 0
-                        prompt = '[E] Lancer un GoFast'
+                        prompt = point.variant == 'gofast_sea' and '[E] Lancer un GoFast maritime' or '[E] Lancer un GoFast'
 
                         if IsControlJustPressed(0, 38) then
                             start(point)

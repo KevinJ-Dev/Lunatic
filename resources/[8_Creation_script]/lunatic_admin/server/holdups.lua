@@ -16,9 +16,11 @@ local TYPES = {
     -- GoFast : simples positions (pas de PNJ) ; le véhicule apparaît au départ, tourné comme le staff à « Définir »
     gofast_start = { label = 'GoFast : départ', short = 'GF DÉP', ped = '', spot = true },
     gofast_drop = { label = 'GoFast : livraison', short = 'GF LIV', ped = '', spot = true },
+    gofast_sea_start = { label = 'GoFast maritime : quai', short = 'GFM QUAI', ped = '', spot = true },
+    gofast_sea_drop = { label = 'GoFast maritime : crique', short = 'GFM CRIQ', ped = '', spot = true },
     company = { label = 'Entreprise', short = 'ENTR', ped = 'a_m_y_business_02' },
 }
-local ORDER = { 'store', 'barber', 'binco', 'ammunation', 'tattoo', 'company', 'house', 'gofast_start', 'gofast_drop', 'heliwave' }
+local ORDER = { 'store', 'barber', 'binco', 'ammunation', 'tattoo', 'company', 'house', 'gofast_start', 'gofast_drop', 'gofast_sea_start', 'gofast_sea_drop', 'heliwave' }
 local INTERIORS = { low = 'Petit appartement', mid = 'Appartement moyen' }
 
 -- Réglages par type, selon la difficulté : arme en main exigée (any = blanche ou à feu, jamais les poings),
@@ -35,12 +37,23 @@ local DEFAULT_SETTINGS = {
     house = { weapon = 'any', duration = 0, cooldown = 0, alert = 0, resist = 0, loot = {} }, -- réglages : page Missions → Cambriolage
     gofast_start = { weapon = 'any', duration = 0, cooldown = 0, alert = 0, resist = 0, loot = {} }, -- réglages : page Missions → GoFast
     gofast_drop = { weapon = 'any', duration = 0, cooldown = 0, alert = 0, resist = 0, loot = {} },
+    gofast_sea_start = { weapon = 'any', duration = 0, cooldown = 0, alert = 0, resist = 0, loot = {} },
+    gofast_sea_drop = { weapon = 'any', duration = 0, cooldown = 0, alert = 0, resist = 0, loot = {} },
 }
 local WEAPONS = { any = true, melee = true, firearm = true }
 
 -- Magasins de la carte de base : position du vendeur derrière le comptoir (à vérifier en jeu avec le TP)
 local DEFAULT_POINTS = {
     -- GoFast : garages de départ (le véhicule apparaît là, dans l'axe) et points de livraison loin les uns des autres
+    -- GoFast maritime : quais de départ (le bateau apparaît sur l'eau, dans l'axe) et criques le long des côtes
+    gofast_sea_start = {
+        { 'Marina de Puerto del Sol', -800.5, -1513.0, 0.3, 110.0 }, { 'Quai de Paleto Bay', -275.0, 6635.0, 0.5, 45.0 },
+    },
+    gofast_sea_drop = {
+        { 'Crique de Chumash', -3420.0, 970.0, 0.5, 0.0 }, { 'Crique du mont Gordo', 3370.0, 5180.0, 0.5, 0.0 },
+        { 'Embouchure du Zancudo', -2650.0, 2600.0, 0.5, 0.0 }, { 'Port de Los Santos', 500.0, -3360.0, 0.5, 0.0 },
+        { 'Crique de Paleto', -1600.0, 5250.0, 0.5, 0.0 },
+    },
     gofast_start = {
         { 'Garage La Mesa', 726.2, -1071.6, 28.3, 90.0 }, { 'Hangar du port', 1182.0, -3180.0, 6.0, 90.0 },
         { 'Aérodrome de Sandy Shores', 1735.6, 3296.9, 41.2, 195.0 },
@@ -247,7 +260,11 @@ table.insert(Panel.readyHooks, function()
 
     -- Premier démarrage : les magasins de la carte sont placés d'office ; les maisons (ajoutées plus tard) une fois aussi
     -- Types ajoutés plus tard : placés une fois chacun (sans remettre les magasins supprimés à la main)
-    local LATER = { { kvp = 'holdups_houses_seeded', types = { house = true } }, { kvp = 'holdups_gofast_seeded', types = { gofast_start = true, gofast_drop = true } } }
+    local LATER = {
+        { kvp = 'holdups_houses_seeded', types = { house = true } },
+        { kvp = 'holdups_gofast_seeded', types = { gofast_start = true, gofast_drop = true } },
+        { kvp = 'holdups_gofast_sea_seeded', types = { gofast_sea_start = true, gofast_sea_drop = true } },
+    }
     local created = 0
 
     if not GetResourceKvpString('holdups_seeded') then

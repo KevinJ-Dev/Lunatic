@@ -56,7 +56,7 @@ function holdupsPage() {
             : "Un PNJ au comptoir de chaque point, à menacer avec l'arme demandée. Statut, policiers, gain, XP et limite par jour : page Missions.",
         actions: [
             type && type.house ? h("button", { class: "btn small", title: "Outil, horaire, fouille, réveil du propriétaire, délai, butin", onclick: () => illegalSwitch(() => { illegalState.tab = "missions"; illegalState.missionSel = "burglary"; }) }, icon("i-tool"), "Réglages du cambriolage") : null,
-            type && type.spot ? h("button", { class: "btn small", title: "Véhicule, temps, distance, police, délai", onclick: () => illegalSwitch(() => { illegalState.tab = "missions"; illegalState.missionSel = "gofast"; }) }, icon("i-tool"), "Réglages du GoFast") : null,
+            type && type.spot ? h("button", { class: "btn small", title: "Véhicule, temps, distance, police, délai", onclick: () => illegalSwitch(() => { illegalState.tab = "missions"; illegalState.missionSel = type.id.startsWith("gofast_sea") ? "gofast_sea" : "gofast"; }) }, icon("i-tool"), "Réglages du GoFast") : null,
             type && !type.house && !type.spot ? h("button", { class: "btn small", title: "Arme exigée, durée, délai, alarme, résistance du vendeur, butin", onclick: () => openHoldupSettings(type.id) },
                 icon("i-tool"), `Réglages ${type.label}`, h("span", { class: "badge muted", style: "margin-left:4px" }, WEAPON_RULES[type.settings ? type.settings.weapon : "any"])) : null,
             h("button", { class: "btn small", title: "Remet les magasins de la carte de base qui manquent", onclick: async () => {

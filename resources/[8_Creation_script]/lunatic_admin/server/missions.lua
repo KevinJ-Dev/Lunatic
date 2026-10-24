@@ -53,7 +53,16 @@ local CATALOG = {
             { key = 'cooldown', label = 'Délai entre deux GoFast, par joueur (min)', min = 0, max = 1440, default = 30 },
         },
         loot = {} },
-    { id = 'gofast_sea', label = 'GoFast Maritime', category = 'traffic', description = 'Livraison de drogue maritime.', reward = true },
+    { id = 'gofast_sea', label = 'GoFast Maritime', category = 'traffic', description = "Prendre un bateau chargé au quai de départ (page Braquages → GoFast maritime) et le livrer dans une crique, à temps, garde-côtes aux trousses.", ready = true, reward = true, points = 'gofast_sea_start',
+        advanced = {
+            { key = 'vehicle', label = 'Bateau', default = 'jetmax', options = { { 'jetmax', 'Jetmax' }, { 'speeder', 'Speeder' }, { 'squalo', 'Squalo' }, { 'tropic', 'Tropic' }, { 'suntrap', 'Suntrap' } } },
+            { key = 'duration', label = 'Temps pour livrer (min)', min = 2, max = 30, default = 10 },
+            { key = 'minDistance', label = 'Distance minimum de livraison (m)', min = 300, max = 10000, default = 2500 },
+            { key = 'alert', label = 'La police est sur le coup (%)', min = 0, max = 100, default = 60 },
+            { key = 'track', label = 'Position envoyée à la police toutes les (s)', min = 10, max = 300, default = 40 },
+            { key = 'cooldown', label = 'Délai entre deux GoFast, par joueur (min)', min = 0, max = 1440, default = 30 },
+        },
+        loot = {} },
     { id = 'burglary', label = 'Cambriolage', category = 'street', description = "Crocheter la porte d'une maison (page Braquages, type Maison), fouiller l'intérieur avant que le propriétaire se réveille, ressortir.", ready = true, reward = true, points = 'house',
         advanced = {
             { key = 'tool', label = 'Outil nécessaire (objet)', default = 'lockpick', item = true },
@@ -108,6 +117,7 @@ local READY_START = {
     heist_atm = { kvp = 'missions_atm_ready', values = { reward = 2000, xp = 5, influence = 2, police = 1, levelRequired = false } },
     burglary = { kvp = 'missions_burglary_ready', values = { reward = 1500, xp = 8, influence = 3, police = 1, levelRequired = false } },
     gofast = { kvp = 'missions_gofast_ready', values = { reward = 8000, xp = 30, influence = 5, police = 2, levelRequired = true, minLevel = 1 } },
+    gofast_sea = { kvp = 'missions_gofast_sea_ready', values = { reward = 12000, xp = 40, influence = 6, police = 2, levelRequired = true, minLevel = 2 } },
 }
 
 local LIMITS = { xp = 10000, influence = 1000, police = 20, reward = 1000000, daily = 500, loot = 8 }
