@@ -252,6 +252,7 @@ function structPointsColumn(kind, info) {
     const activeCatalogs = (info.catalogs || []).length;
 
     const groups = types.map((t) => {
+        if (t.fleet) return structFleetGroup(kind, info, t, doAct);
         const list = points.filter((p) => p.type === t.id);
         const open = st.openGroups.has(t.id);
         const toggle = () => {
@@ -265,10 +266,12 @@ function structPointsColumn(kind, info) {
                 h("span", { class: "cnt" }, String(list.length)), h("span", { class: "crew-chevron" }, "▸")),
             open ? [
                 ...list.map((p) => structPointCard(p, t, doAct)),
-                h("button", { class: "btn small ok-btn wide", onclick: () => {
-                    st.openGroups.add(t.id);
-                    doAct("structures.addPoint", { job: info.name, type: t.id, label: "" }, "Point ajouté à votre position.");
-                } }, icon("i-plus"), `Ajouter : ${t.label.toLowerCase()}`),
+                ...(t.id === "garage" ? (info.vehicleCategories || []).map((c) => [c.id, GARAGE_KINDS[c.id] || c.label]) : [[null, t.label.toLowerCase()]]).map(([variant, what]) =>
+                    h("button", { class: "btn small ok-btn wide", onclick: () => {
+                        st.openGroups.add(t.id);
+                        doAct("structures.addPoint", { job: info.name, type: t.id, label: "", data: variant ? { vehicle: variant } : null }, "Point ajouté à votre position.");
+                    } }, icon("i-plus"), `Ajouter : ${what}`)),
+                t.id === "garage" ? h("p", { class: "hint-line" }, "Le véhicule sort à 4 m devant vous : placez le point en regardant l'emplacement de sortie (piste, hélipad, ponton).") : null,
                 t.ready ? null : h("p", { class: "hint-line" }, "Plaçable dès maintenant, utilisable en jeu quand son système sera prêt."),
             ] : null);
     });
@@ -281,6 +284,72 @@ function structPointsColumn(kind, info) {
         h("div", { class: "crew-scroll crew-col-body" }, h("div", { class: "crew-list" }, groups),
             h("p", { class: "hint-line" }, "Les points se placent à votre position en jeu. « Définir » les déplace, « TP » vous y emmène.")));
 }
+
+const GARAGE_KINDS = { car: "garage", air: "héliport", sea: "port" };
+
+// Réglages propres au type : catégorie du garage, icône et couleur du blip
+function structPointSettings(p, doAct) {
+    const data = { ...(p.data || {}) };
+    const save = () => doAct("structures.pointData", { id: p.id, data }, null);
+    if (p.type === "garage") {
+        const info = structOf(p.kind || "company").info || structOf("public").info || {};
+        const select = h("select", { class: "input" }, (info.vehicleCategories || [{ id: "car", label: "Véhicules" }, { id: "air", label: "Aérien" }, { id: "sea", label: "Marin" }])
+            .map((c) => h("option", { value: c.id, selected: c.id === (data.vehicle || "car") }, `Sort : ${c.label}`)));
+        select.addEventListener("change", () => { data.vehicle = select.value; save(); });
+        return h("div", { class: "crew-point-row" }, select);
+    }
+    if (p.type === "blips") {
+        const d = { sprite: data.sprite ?? 60, color: data.color ?? 0 };
+        const scale = h("input", { class: "input mono", type: "number", min: "0.1", max: "3", step: "0.1", value: String(data.scale ?? 0.8), title: "Taille" });
+        scale.addEventListener("change", () => { data.scale = Number(scale.value); save(); });
+        const done = () => { data.sprite = d.sprite; data.color = d.color; save(); };
+        return h("div", { class: "struct-blip" },
+            h("div", { class: "crew-point-row" }, blipIcon(d.sprite, d.color, 26), h("span", { class: "muted" }, `Sprite #${d.sprite} · ${blipColorName(d.color)}`), scale),
+            h("details", { class: "blip-fold" }, h("summary", null, icon("i-pin"), "Sprite"), spritePicker(d, done)),
+            h("details", { class: "blip-fold" }, h("summary", null, icon("i-sparkle"), "Couleur"), colorPicker(d, done)));
+    }
+    return null;
+}
+
+// Parc de véhicules : par catégorie, modèle, nom, type et grade minimum
+function structFleetGroup(kind, info, t, doAct) {
+    const st = structOf(kind);
+    const fleet = info.vehicles || [];
+    const open = st.openGroups.has(t.id);
+    const toggle = () => {
+        if (open) st.openGroups.delete(t.id);
+        else st.openGroups.add(t.id);
+        paintStructures(kind);
+    };
+    const grades = info.grades || [];
+    const gradeSelect = (value) => h("select", { class: "input" }, grades.map((g) => h("option", { value: String(g.grade), selected: g.grade === value }, `Dès ${g.label}`)));
+    const typeSelect = (value) => h("select", { class: "input" }, (info.vehicleTypes || ["automobile"]).map((id) => h("option", { value: id, selected: id === value }, VEHICLE_TYPE_LABELS[id] || id)));
+
+    const row = (v, category) => {
+        const model = h("input", { class: "input mono", maxlength: "40", placeholder: "modèle (ex. police3)", value: v ? v.model : "" });
+        const label = h("input", { class: "input", maxlength: "60", placeholder: "Nom affiché", value: v ? v.label : "" });
+        const vtype = typeSelect(v ? v.vtype : (category === "air" ? "heli" : category === "sea" ? "boat" : "automobile"));
+        const grade = gradeSelect(v ? v.minGrade : (grades[0] || {}).grade || 0);
+        const payload = () => ({ job: info.name, id: v ? v.id : null, category, model: model.value.trim(), label: label.value.trim(), vtype: vtype.value, minGrade: Number(grade.value) });
+        if (v) for (const el of [model, label, vtype, grade]) el.addEventListener("change", () => doAct("structures.vehicleSave", payload(), "Véhicule enregistré."));
+        return h("div", { class: `struct-vehicle${v ? "" : " new"}` }, model, label, vtype, grade,
+            v ? h("button", { class: "btn small ghost sq-btn", title: "Retirer du parc", onclick: () => doAct("structures.vehicleDelete", { id: v.id }, "Véhicule retiré.") }, icon("i-trash"))
+              : h("button", { class: "btn small ok-btn sq-btn", title: "Ajouter au parc", onclick: () => model.value.trim() && doAct("structures.vehicleSave", payload(), "Véhicule ajouté.") }, icon("i-plus")));
+    };
+
+    return h("div", { class: `crew-point-group${open ? " open" : ""}` },
+        h("button", { class: "crew-point-title", onclick: toggle },
+            h("span", null, t.label), h("span", { class: "cnt" }, String(fleet.length)), h("span", { class: "crew-chevron" }, "▸")),
+        open ? [
+            ...(info.vehicleCategories || []).map((c) => h("div", { class: "struct-fleet" },
+                h("div", { class: "crew-sub", style: "text-align:left;margin:8px 2px 4px" }, c.label),
+                ...fleet.filter((v) => v.category === c.id).map((v) => row(v, c.id)),
+                row(null, c.id))),
+            h("p", { class: "hint-line" }, "Les membres les sortent aux points Garages de la bonne catégorie, selon leur grade. Un véhicule à la fois par membre."),
+        ] : null);
+}
+
+const VEHICLE_TYPE_LABELS = { automobile: "Voiture", bike: "Moto", heli: "Hélicoptère", plane: "Avion", boat: "Bateau" };
 
 function structPointCard(p, type, doAct) {
     const label = h("input", { class: "input", maxlength: "60", value: p.label });
@@ -296,7 +365,8 @@ function structPointCard(p, type, doAct) {
         h("div", { class: "crew-point-row" },
             h("span", { class: "crew-coords mono" }, `${p.x.toFixed(0)}  ${p.y.toFixed(0)}  ${p.z.toFixed(0)}`),
             h("button", { class: "btn small ghost", title: "Le point passe à votre position", onclick: () => doAct("structures.movePoint", { id: p.id }, "Point replacé à votre position.") }, icon("i-crosshair"), "Définir"),
-            h("button", { class: "btn small ghost", onclick: () => act("structures.tpPoint", { id: p.id }, null) }, icon("i-goto"), "TP")));
+            h("button", { class: "btn small ghost", onclick: () => act("structures.tpPoint", { id: p.id }, null) }, icon("i-goto"), "TP")),
+        structPointSettings(p, doAct));
 }
 
 // Catalogues : l'éditeur de la structure en grand, avec retour à la fiche

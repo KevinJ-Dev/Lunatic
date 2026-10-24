@@ -1083,4 +1083,132 @@ CreateThread(function()
     registerShops(GlobalState.lunaticShops)
 end)
 
+---------------------------------------------------------------------
+-- Garages : véhicules de service de la structure (parc réglé dans le panel)
+---------------------------------------------------------------------
+
+local serviceVehicles = {} -- joueur -> { vehicle, label, job }
+
+local function fleetFor(xPlayer, point)
+    local found, list = pcall(function() return exports.lunatic_admin:getStructureVehicles(point.job) end)
+    local category = point.data and point.data.vehicle or 'car'
+    local grade = tonumber(xPlayer.getJob().grade) or 0
+    local allowed = {}
+
+    for _, vehicle in ipairs(found and list or {}) do
+        if vehicle.category == category and vehicle.minGrade <= grade then
+            allowed[#allowed + 1] = vehicle
+        end
+    end
+
+    return allowed
+end
+
+local function serviceVehicleOf(src)
+    local entry = serviceVehicles[src]
+
+    if entry and not DoesEntityExist(entry.vehicle) then
+        serviceVehicles[src] = nil
+        return nil
+    end
+
+    return entry
+end
+
+lib.callback.register('lunatic_business:garage', function(src, pointId)
+    local xPlayer, point, err = check(src, pointId, 'garage')
+
+    if not xPlayer then
+        return fail(err)
+    end
+
+    local out = serviceVehicleOf(src)
+    return { ok = true, label = jobLabel(point.job), vehicles = fleetFor(xPlayer, point), out = out and out.label or nil }
+end)
+
+lib.callback.register('lunatic_business:garageTake', function(src, pointId, vehicleId)
+    local xPlayer, point, err = check(src, pointId, 'garage')
+
+    if not xPlayer then
+        return fail(err)
+    end
+
+    if serviceVehicleOf(src) then
+        return fail("Vous avez déjà un véhicule de service : rangez-le d'abord.")
+    end
+
+    local offer
+
+    for _, vehicle in ipairs(fleetFor(xPlayer, point)) do
+        if vehicle.id == tonumber(vehicleId) then
+            offer = vehicle
+        end
+    end
+
+    if not offer then
+        return fail('Véhicule indisponible pour votre grade.')
+    end
+
+    local spawn = spawnOf(point)
+    local spawnCoords = vector3(spawn.x, spawn.y, spawn.z)
+
+    for _, vehicle in ipairs(GetAllVehicles()) do
+        if #(GetEntityCoords(vehicle) - spawnCoords) < 3.0 then
+            return fail('La sortie est encombrée : dégagez-la puis réessayez.')
+        end
+    end
+
+    local vehicle = CreateVehicleServerSetter(joaat(offer.model), offer.vtype or 'automobile', spawn.x, spawn.y, spawn.z, spawn.h or 0.0)
+    local timeout = GetGameTimer() + 3000
+
+    while (not vehicle or vehicle == 0 or not DoesEntityExist(vehicle)) and GetGameTimer() < timeout do
+        Wait(0)
+    end
+
+    if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then
+        return fail(("Le véhicule n'a pas pu sortir (modèle %s introuvable ?)."):format(offer.model))
+    end
+
+    -- Plaque de la structure : 4 premières lettres du métier et un numéro
+    local prefix = point.job:upper():gsub('[^%w]', ''):sub(1, 4)
+    local plate = ('%s%04d'):format(prefix, math.random(0, 9999))
+    SetEntityRoutingBucket(vehicle, GetPlayerRoutingBucket(src))
+    SetVehicleNumberPlateText(vehicle, plate)
+    TaskWarpPedIntoVehicle(GetPlayerPed(src), vehicle, -1)
+
+    serviceVehicles[src] = { vehicle = vehicle, label = offer.label, job = point.job }
+    return { ok = true, label = offer.label, plate = plate }
+end)
+
+lib.callback.register('lunatic_business:garageStore', function(src, pointId)
+    local point = points[tonumber(pointId) or -1]
+    local entry = serviceVehicleOf(src)
+
+    if not point or point.type ~= 'garage' then
+        return fail('Garage introuvable.')
+    end
+
+    if not entry then
+        return fail("Vous n'avez pas de véhicule de service sorti.")
+    end
+
+    if #(GetEntityCoords(entry.vehicle) - vector3(point.x, point.y, point.z)) > Config.GarageReturnDistance then
+        return fail('Ramenez le véhicule près du garage pour le ranger.')
+    end
+
+    DeleteEntity(entry.vehicle)
+    serviceVehicles[src] = nil
+    return { ok = true, label = entry.label }
+end)
+
+-- Déconnexion : le véhicule de service est repris
+AddEventHandler('playerDropped', function()
+    local entry = serviceVehicles[source]
+    serviceVehicles[source] = nil
+
+    if entry and DoesEntityExist(entry.vehicle) then
+        DeleteEntity(entry.vehicle)
+    end
+end)
+
 print('[lunatic_business] Démarré.')

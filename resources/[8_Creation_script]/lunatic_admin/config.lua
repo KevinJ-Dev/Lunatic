@@ -131,10 +131,10 @@ Config.StructurePointTypes = {
     { id = 'custom', label = 'Custom', kinds = 'both', ready = true },
     { id = 'catalog', label = 'Catalogue', kinds = 'both', ready = true },
     { id = 'craft', label = 'Craft', kinds = 'both', ready = true },
-    { id = 'garage', label = 'Garages', kinds = 'both' },
-    { id = 'vehicles', label = 'Véhicules', kinds = 'both' },
+    { id = 'garage', label = 'Garages', kinds = 'both', ready = true },      -- sortie et rangement des véhicules de service
+    { id = 'vehicles', label = 'Véhicules', kinds = 'both', ready = true, fleet = true }, -- parc de véhicules (pas un point)
     { id = 'dj', label = 'DJ', kinds = 'both' },
-    { id = 'blips', label = 'Blips', kinds = 'public' },
+    { id = 'blips', label = 'Blips', kinds = 'both', ready = true }, -- icônes sur la carte, visibles par les membres
     { id = 'weapon_analysis', label = 'Analyse armes', kinds = 'public' },
     { id = 'bracelet', label = 'Bracelet', kinds = 'public' },
     { id = 'armory', label = 'Armurerie', kinds = 'public', ready = true },
@@ -143,6 +143,15 @@ Config.StructurePointTypes = {
     { id = 'properties', label = 'Propriétés', kinds = 'public' },
 }
 Config.StructureAccountMaxAction = 10000000
+
+-- Véhicules de service (tuiles Entreprises et Services publics, groupe Véhicules et points Garages)
+Config.StructureVehicleCategories = {
+    { id = 'car', label = 'Véhicules' },
+    { id = 'air', label = 'Aérien' },
+    { id = 'sea', label = 'Marin' },
+}
+Config.StructureVehicleTypes = { 'automobile', 'bike', 'heli', 'plane', 'boat' } -- type de création (CreateVehicleServerSetter)
+Config.StructureVehiclesMax = 60 -- modèles maximum par structure
 
 -- Magasins automatiques (tuile Catalogues, lot C1) : kind = items (magasin ox_inventory), clothing / barber / tattoo (apparence, lot C2), rental (location, lot C3)
 Config.ShopCategories = {

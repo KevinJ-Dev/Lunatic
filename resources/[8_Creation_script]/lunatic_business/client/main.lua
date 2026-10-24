@@ -5,8 +5,14 @@ local points = {}
 local playerJob
 local onJobChanged -- défini plus bas : les magasins réservés à un métier apparaissent ou disparaissent
 
+local refreshStructureBlips -- défini plus bas : blips de la structure du joueur
+
 local function loadPoints(list)
     points = type(list) == 'table' and list or {}
+
+    if refreshStructureBlips then
+        refreshStructureBlips()
+    end
 end
 
 AddStateBagChangeHandler('lunaticStructurePoints', 'global', function(_, _, value)
@@ -15,6 +21,10 @@ end)
 
 RegisterNetEvent('esx:playerLoaded', function(data)
     playerJob = data and data.job
+
+    if refreshStructureBlips then
+        refreshStructureBlips()
+    end
 end)
 
 RegisterNetEvent('esx:setJob', function(job)
@@ -30,6 +40,7 @@ CreateThread(function()
 
     if ESX.IsPlayerLoaded() then
         playerJob = ESX.GetPlayerData().job
+        refreshStructureBlips()
     end
 end)
 
@@ -517,10 +528,82 @@ local handlers = {
     end,
 }
 
+local function storeVehicle(point)
+    local result = lib.callback.await('lunatic_business:garageStore', false, point.id)
+
+    if not failed(result) then
+        notify(('%s rangé.'):format(result.label), 'success')
+    end
+end
+
+handlers.garage = function(point)
+    if IsPedInAnyVehicle(PlayerPedId(), false) then
+        return storeVehicle(point)
+    end
+
+    local data = lib.callback.await('lunatic_business:garage', false, point.id)
+
+    if failed(data) then
+        return
+    end
+
+    local options = {}
+
+    if data.out then
+        options[#options + 1] = { title = ('Ranger : %s'):format(data.out), description = 'Le véhicule doit être près du garage.', icon = 'warehouse', onSelect = function() storeVehicle(point) end }
+    end
+
+    for _, vehicle in ipairs(data.vehicles) do
+        options[#options + 1] = {
+            title = vehicle.label, description = vehicle.model, icon = 'car', disabled = data.out ~= nil,
+            onSelect = function()
+                local result = lib.callback.await('lunatic_business:garageTake', false, point.id, vehicle.id)
+
+                if not failed(result) then
+                    notify(('%s sorti (plaque %s).'):format(result.label, result.plate), 'success')
+                end
+            end,
+        }
+    end
+
+    if #options == 0 then
+        options[1] = { title = 'Aucun véhicule', description = 'Rien pour votre grade dans ce garage (parc réglé par le staff).', disabled = true }
+    end
+
+    lib.registerContext({ id = 'lb_garage', title = ('%s · %s'):format(point.label, data.label), options = options })
+    lib.showContext('lb_garage')
+end
+
 RegisterNetEvent('lunatic_business:ringed', function(data)
     notify(('%s sonne à %s (%s). Point GPS ajouté.'):format(data.name, data.job, data.label), 'info')
     SetNewWaypoint(data.x + 0.0, data.y + 0.0)
 end)
+
+local structureBlips = {}
+
+refreshStructureBlips = function()
+    for _, blip in ipairs(structureBlips) do
+        RemoveBlip(blip)
+    end
+
+    structureBlips = {}
+
+    for _, point in ipairs(points) do
+        if point.type == 'blips' and playerJob and playerJob.name == point.job then
+            local data = point.data or {}
+            local blip = AddBlipForCoord(point.x, point.y, point.z)
+            SetBlipSprite(blip, tonumber(data.sprite) or 60)
+            SetBlipColour(blip, tonumber(data.color) or 0)
+            SetBlipScale(blip, tonumber(data.scale) or 0.8)
+            SetBlipDisplay(blip, 4)
+            SetBlipAsShortRange(blip, true)
+            BeginTextCommandSetBlipName('STRING')
+            AddTextComponentSubstringPlayerName(point.label)
+            EndTextCommandSetBlipName(blip)
+            structureBlips[#structureBlips + 1] = blip
+        end
+    end
+end
 
 -- Sonnette : visible par tous ; le reste par les membres
 local function visible(point)
@@ -582,7 +665,10 @@ AddStateBagChangeHandler('lunaticShops', 'global', function(_, _, value)
     refreshShops()
 end)
 
-onJobChanged = refreshShops
+onJobChanged = function()
+    refreshShops()
+    refreshStructureBlips()
+end
 
 CreateThread(function()
     shops = GlobalState.lunaticShops or {}
@@ -775,15 +861,19 @@ CreateThread(function()
             end
         end
 
+        local driving = IsPedInAnyVehicle(PlayerPedId(), false)
+
         for _, point in ipairs(points) do
-            if visible(point) then
+            if point.type ~= 'blips' and visible(point) then
                 local distance = #(coords - vector3(point.x, point.y, point.z))
 
                 if distance < Config.MarkerDistance then
                     sleep = 0
                     DrawMarker(25, point.x, point.y, point.z + 0.02, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.1, 1.1, 1.0, color[1], color[2], color[3], color[4], false, false, 2, false, nil, nil, false)
 
-                    if distance < Config.InteractDistance and (not closestDistance or distance < closestDistance) then
+                    local reach = driving and (point.type == 'garage' and Config.GarageStoreDistance or 0.0) or Config.InteractDistance
+
+                    if distance < reach and (not closestDistance or distance < closestDistance) then
                         closest, closestDistance = point, distance
                     end
                 end
@@ -793,10 +883,10 @@ CreateThread(function()
         if closest then
             if shown ~= closest.id then
                 shown = closest.id
-                lib.showTextUI(('[E] %s'):format(closest.type == 'doorbell' and 'Sonner' or closest.label))
+                lib.showTextUI(('[E] %s'):format(closest.type == 'doorbell' and 'Sonner' or (closest.type == 'garage' and IsPedInAnyVehicle(PlayerPedId(), false)) and 'Ranger le véhicule' or closest.label))
             end
 
-            if IsControlJustReleased(0, 38) and not IsPedInAnyVehicle(PlayerPedId(), false) then
+            if IsControlJustReleased(0, 38) and (closest.type == 'garage' or not IsPedInAnyVehicle(PlayerPedId(), false)) then
                 local handler = handlers[closest.type]
 
                 if closest.type == 'shop' then
@@ -821,6 +911,10 @@ AddEventHandler('onResourceStop', function(resource)
         lib.hideTextUI()
 
         for _, blip in ipairs(shopBlips) do
+            RemoveBlip(blip)
+        end
+
+        for _, blip in ipairs(structureBlips) do
             RemoveBlip(blip)
         end
     end

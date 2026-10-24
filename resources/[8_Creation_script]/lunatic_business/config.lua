@@ -27,5 +27,9 @@ Config.BuybackMax = 500              -- quantité maximale par revente
 Config.RentalGrace = 120              -- après la fin : véhicule repris dès qu'il est vide, ou de force après ce délai (secondes)
 Config.RentalReturnDistance = 30.0    -- distance maximale entre le véhicule et le comptoir pour le rendre
 
+-- Véhicules de service (parc et garages placés dans le panel, fiche de la structure)
+Config.GarageStoreDistance = 8.0     -- au volant, distance au point Garages pour [E] Ranger
+Config.GarageReturnDistance = 20.0   -- distance maximale entre le véhicule et le point pour le ranger (vérifiée par le serveur)
+
 -- Sonnette
 Config.DoorbellCooldown = 30       -- secondes entre deux sonneries d'un même joueur
