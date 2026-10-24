@@ -22,7 +22,10 @@ local function load()
     end
 
     for _, row in ipairs(MySQL.query.await('SELECT * FROM `lunatic_fence_locations` ORDER BY `id`') or {}) do
-        locations[#locations + 1] = { id = tonumber(row.id), x = tonumber(row.x), y = tonumber(row.y), z = tonumber(row.z), h = tonumber(row.h), ped = row.ped }
+        locations[#locations + 1] = {
+            id = tonumber(row.id), x = tonumber(row.x), y = tonumber(row.y), z = tonumber(row.z), h = tonumber(row.h), ped = row.ped,
+            radius = tonumber(row.radius) or Config.FenceDistance or 2.0, showBlip = tonumber(row.show_blip) == 1,
+        }
     end
 
     publish()
@@ -54,6 +57,13 @@ table.insert(Panel.readyHooks, function()
             `ped` VARCHAR(40) NOT NULL,
             PRIMARY KEY (`id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ]])
+
+    -- Interactions : rayon du [E] et blip (caché par défaut : le recelleur est discret)
+    MySQL.query.await([[
+        ALTER TABLE `lunatic_fence_locations`
+            ADD COLUMN IF NOT EXISTS `radius` DOUBLE NOT NULL DEFAULT 2.0,
+            ADD COLUMN IF NOT EXISTS `show_blip` TINYINT NOT NULL DEFAULT 0
     ]])
 
     load()
@@ -93,9 +103,9 @@ local function positionOf(src)
     return { x = coords.x, y = coords.y, z = coords.z - 0.98, h = GetEntityHeading(ped) } -- PNJ posé au sol
 end
 
--- Le serveur ne connaît pas les modèles : le jeu du staff vérifie que c'est bien un PNJ
+-- Le serveur ne connaît pas les modèles : le jeu du staff vérifie que c'est bien un PNJ (aussi pour les magasins)
 ---@return string|nil model, table|nil error
-local function checkPed(src, model)
+function Panel.checkPed(src, model)
     model = type(model) == 'string' and model:lower():gsub('%s', '') or ''
 
     if not model:match('^[%w_]+$') or #model > 40 then
@@ -113,6 +123,13 @@ local function checkPed(src, model)
     end
 
     return model
+end
+
+local checkPed = Panel.checkPed
+
+-- Emplacements : onglet Recelleur ou tuile Interactions
+local function canPlace(actor)
+    return allowed(actor) or Ranks.hasPermission(actor, 'interactions.manage')
 end
 
 local function locationById(id)
@@ -207,7 +224,7 @@ Panel.actions['fence.deleteItem'] = function(src, actor, data)
 end
 
 Panel.actions['fence.addLocation'] = function(src, actor, data)
-    if not allowed(actor) then
+    if not canPlace(actor) then
         return denied()
     end
 
@@ -231,7 +248,7 @@ Panel.actions['fence.addLocation'] = function(src, actor, data)
 end
 
 Panel.actions['fence.moveLocation'] = function(src, actor, data)
-    if not allowed(actor) then
+    if not canPlace(actor) then
         return denied()
     end
 
@@ -250,7 +267,7 @@ Panel.actions['fence.moveLocation'] = function(src, actor, data)
 end
 
 Panel.actions['fence.setPed'] = function(src, actor, data)
-    if not allowed(actor) then
+    if not canPlace(actor) then
         return denied()
     end
 
@@ -273,7 +290,7 @@ Panel.actions['fence.setPed'] = function(src, actor, data)
 end
 
 Panel.actions['fence.deleteLocation'] = function(src, actor, data)
-    if not allowed(actor) then
+    if not canPlace(actor) then
         return denied()
     end
 
@@ -285,7 +302,7 @@ Panel.actions['fence.deleteLocation'] = function(src, actor, data)
 end
 
 Panel.actions['fence.tpLocation'] = function(src, actor, data)
-    if not allowed(actor) then
+    if not canPlace(actor) then
         return denied()
     end
 
@@ -299,6 +316,33 @@ Panel.actions['fence.tpLocation'] = function(src, actor, data)
     local heading = math.rad(location.h or 0.0)
     TriggerClientEvent('lunatic_admin:teleport', src, vector3(location.x - math.sin(heading) * 1.5, location.y + math.cos(heading) * 1.5, location.z + 1.0))
     return { ok = true, silent = true }
+end
+
+-- Réglages d'interaction : rayon du [E], blip affiché (le modèle se change par fence.setPed)
+Panel.actions['fence.locationSettings'] = function(src, actor, data)
+    if not canPlace(actor) then
+        return denied()
+    end
+
+    local location = locationById(data.id)
+    local radius = tonumber(data.radius)
+
+    if not location then
+        return Panel.fail('Emplacement introuvable.')
+    end
+
+    if not radius or radius < Config.InteractionRadius.min or radius > Config.InteractionRadius.max then
+        return Panel.fail(('Rayon : de %.1f à %.1f m.'):format(Config.InteractionRadius.min, Config.InteractionRadius.max))
+    end
+
+    MySQL.update.await('UPDATE `lunatic_fence_locations` SET `radius` = ?, `show_blip` = ? WHERE `id` = ?', { math.floor(radius * 10 + 0.5) / 10, data.showBlip == true and 1 or 0, location.id })
+    load()
+
+    return { ok = true, silent = true }
+end
+
+function Fence.locations()
+    return locations
 end
 
 print('[lunatic_admin] Module Recelleur chargé.')

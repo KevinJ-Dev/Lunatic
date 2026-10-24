@@ -1093,3 +1093,31 @@ body.hidden.minimized .mini-pill { display: flex; }
 .struct-vehicle > :nth-child(4) { grid-column: 2; grid-row: 2; }
 .struct-vehicle > :nth-child(5) { grid-column: 3; grid-row: 1 / span 2; align-self: center; }
 .struct-vehicle.new { border-style: dashed; background: none; }
+
+/* Tuile Interactions : catégories, grille, aperçu */
+#view-interactions.on { display: flex; }
+.it-page { grid-template-columns: 230px minmax(0, 1fr) 330px; }
+.it-search { width: 100%; margin-top: 8px; }
+.it-search input { width: 100%; }
+.it-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.it-card { display: grid; justify-items: center; gap: 6px; min-width: 0; padding: 14px 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); text-align: center; }
+.it-card:hover { background: var(--surface-2); }
+.it-card.on { border-color: rgba(var(--accent-rgb), .8); background: rgba(var(--accent-rgb), .14); }
+.it-card b { max-width: 100%; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.it-card > span:last-child { color: var(--muted); font-size: 11px; }
+.it-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #0000003d; }
+.it-icon.big { width: 52px; height: 52px; }
+.it-actions { display: flex; align-items: center; gap: 8px; padding: 10px 14px 14px; border-top: 1px solid var(--line); }
+.it-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.it-head > span:last-child { display: grid; gap: 4px; justify-items: start; }
+.it-coords { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 8px; }
+.it-coords span { padding: 5px 8px; border-radius: 8px; background: var(--surface); color: var(--muted); font-size: 11.5px; text-align: center; }
+.it-map { display: flex; height: 170px; margin-bottom: 8px; }
+.it-map .gta-map { flex: 1; }
+.it-buttons { gap: 6px; }
+.it-buttons .btn { flex: 1; justify-content: center; }
+.it-ped { justify-content: center; margin-top: 4px; }
+.it-range { display: flex; align-items: center; gap: 10px; }
+.it-range input { flex: 1; accent-color: var(--accent); }
+.it-radius { min-width: 46px; color: var(--ink-2); font-size: 12px; text-align: right; }
+@media (max-width: 1500px) { .it-page { grid-template-columns: 200px minmax(0, 1fr) 310px; } }

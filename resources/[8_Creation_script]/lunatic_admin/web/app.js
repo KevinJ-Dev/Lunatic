@@ -223,6 +223,7 @@ const NAV = [
     { id: "blips", label: "Blips", icon: "i-pin", show: () => can("blips.manage") },
     { id: "economy", label: "Économie", icon: "i-coins", show: () => can("economy.manage") },
     { id: "images", label: "Images", icon: "i-image", show: () => can("images.manage") },
+    { id: "interactions", label: "Interactions", icon: "i-crosshair", show: () => can("interactions.manage") },
     { id: "poles", label: "Pôle emploi", icon: "i-briefcase", show: () => can("poles.manage") },
     { id: "events", label: "Events", icon: "i-calendar", show: () => can("events.manage") },
     { id: "world", label: "Météo", icon: "i-sun", show: () => hasWorld() },
@@ -576,7 +577,7 @@ function render() {
 
     renderMe();
 
-    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "illegal", "crews", "catalogs", "items", "blips", "economy", "images", "poles", "events", "dev", "ranks", "members"]) {
+    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "illegal", "crews", "catalogs", "items", "blips", "economy", "images", "interactions", "poles", "events", "dev", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
     }
 
@@ -595,6 +596,7 @@ function render() {
     if (view === "blips") renderBlips();
     if (view === "economy") renderEconomy();
     if (view === "images") renderImages();
+    if (view === "interactions") renderInteractions();
     if (view === "crews") renderCrews();
     if (view === "illegal") renderIllegal();
     if (view === "publics") renderStructures("public");
@@ -1895,6 +1897,16 @@ async function demoNui(name, data) {
             { id: "fleeca", label: "Banques Fleeca", settings: { enabled: true, police: 4, cooldown: 180, crewOnly: true, minLevel: 3 }, actions: [
                 { id: "door", label: "Porte du coffre", duration: 15, tool: "hack_device", toolLabel: "Boîtier de piratage", breakChance: 25, alert: 100, models: ["v_ilev_gb_vauldr"], loot: [], points: [] },
                 { id: "locker", label: "Casier", duration: 30, tool: "drill", toolLabel: "Perceuse", breakChance: 10, alert: 0, count: 4, models: [], loot: [{ item: "marked_bills", label: "Billets marqués", min: 15, max: 30, chance: 100 }, { item: "gold_bar", label: "Lingot d'or", min: 1, max: 1, chance: 15 }] }] },
+        ] };
+    if (name === "action" && data && data.action === "interactions.list") return { ok: true, defaultPed: "mp_m_shopkeep_01", fenceDefaultPed: "s_m_y_dealer_01", radius: { min: 1, max: 4, default: 1.5 },
+        groups: [{ id: "shops", label: "Magasins" }, { id: "vehicles", label: "Véhicules" }, { id: "wholesale", label: "Grossistes" }, { id: "illegal", label: "Illégal" }, { id: "jobs", label: "Jobs Farm", soon: true }, { id: "misc", label: "Divers", soon: true }],
+        shops: [{ id: 1, label: "LTD", category: "ltd" }, { id: 2, label: "Barber", category: "barber" }, { id: 3, label: "Location", category: "rental" }],
+        interactions: [
+            { key: "shop:1", source: "shop", id: 1, shopId: 1, index: 1, group: "shops", label: "LTD", x: 24.5, y: -1346.6, z: 29.5, h: 270, ped: "mp_m_shopkeep_01", pedPos: { x: 24.4, y: -1347.6, z: 29.5, h: 270 }, radius: 1.5, showBlip: true, blip: { sprite: 52, color: 2 } },
+            { key: "shop:2", source: "shop", id: 2, shopId: 1, index: 2, group: "shops", label: "LTD", x: -46.7, y: -1757.9, z: 29.4, h: 50, ped: "", radius: 1.5, showBlip: true, blip: { sprite: 52, color: 2 } },
+            { key: "shop:3", source: "shop", id: 3, shopId: 2, index: 1, group: "shops", label: "Barber", x: -814.3, y: -183.8, z: 37.6, h: 120, ped: "", radius: 2, showBlip: true, blip: { sprite: 71, color: 51 } },
+            { key: "shop:4", source: "shop", id: 4, shopId: 3, index: 1, group: "vehicles", label: "Location", x: -1034.2, y: -2732.6, z: 20.1, h: 240, ped: "a_m_y_business_02", radius: 2.5, showBlip: true, blip: { sprite: 225, color: 3 } },
+            { key: "fence:1", source: "fence", id: 1, group: "illegal", label: "Recelleur", x: 1240.1, y: -3168.4, z: 7.1, h: 90, ped: "s_m_y_dealer_01", radius: 2, showBlip: false, blip: { sprite: 500, color: 1 } },
         ] };
     if (name === "action" && data && data.action === "images.list") return { ok: true, mugshots: 2,
         categories: [{ id: "logo", label: "Logo" }, { id: "banner", label: "Bannière" }, { id: "header", label: "Headers" }, { id: "notification", label: "Notifications" }, { id: "character", label: "Création perso" }, { id: "other", label: "Autres" }],

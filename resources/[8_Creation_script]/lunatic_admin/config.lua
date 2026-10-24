@@ -168,6 +168,10 @@ Config.ShopCategories = {
     { id = 'wholesale', label = 'Grossistes', kind = 'buyback', blip = { sprite = 478, color = 66 } }, -- points de revente des récoltes
 } -- montant maximum d'une opération staff sur un compte de société
 
+-- Interactions (tuile Interactions : PNJ, rayon et blip de chaque emplacement)
+Config.InteractionDefaultPed = 'mp_m_shopkeep_01' -- PNJ posé par « Placer un ped » sans modèle choisi
+Config.InteractionRadius = { min = 1.0, max = 4.0, default = 1.5 } -- distance du [E] (le serveur vérifie à 5 m)
+
 -- Pôle emploi (lot I)
 Config.PolesMaxGrades = 20           -- grades maximum par métier
 Config.PolesMaxSalary = 100000       -- salaire maximum d'un grade (par paie ESX)

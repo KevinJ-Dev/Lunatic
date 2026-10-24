@@ -644,21 +644,113 @@ local function refreshShops()
     for _, shop in ipairs(shops) do
         if shopAllowed(shop) then
             for index, location in ipairs(shop.locations or {}) do
-                shopTargets[#shopTargets + 1] = { x = location.x, y = location.y, z = location.z, label = shop.label, shop = shop, index = index }
+                -- Réglages de la tuile Interactions : PNJ, rayon du [E], blip affiché ou non
+                shopTargets[#shopTargets + 1] = {
+                    x = location.x, y = location.y, z = location.z, label = shop.label, shop = shop, index = index,
+                    radius = tonumber(location.radius) or Config.InteractDistance, ped = location.ped, pedPos = location.pedPos, id = location.id,
+                }
 
-                local blip = AddBlipForCoord(location.x, location.y, location.z)
-                SetBlipSprite(blip, shop.blip.sprite or 52)
-                SetBlipColour(blip, shop.blip.color or 2)
-                SetBlipScale(blip, (shop.blip.scale or 0.8) + 0.0)
-                SetBlipAsShortRange(blip, true)
-                BeginTextCommandSetBlipName('STRING')
-                AddTextComponentSubstringPlayerName(shop.blip.label ~= '' and shop.blip.label or shop.label)
-                EndTextCommandSetBlipName(blip)
-                shopBlips[#shopBlips + 1] = blip
+                if location.showBlip ~= false then
+                    local blip = AddBlipForCoord(location.x, location.y, location.z)
+                    SetBlipSprite(blip, shop.blip.sprite or 52)
+                    SetBlipColour(blip, shop.blip.color or 2)
+                    SetBlipScale(blip, (shop.blip.scale or 0.8) + 0.0)
+                    SetBlipAsShortRange(blip, true)
+                    BeginTextCommandSetBlipName('STRING')
+                    AddTextComponentSubstringPlayerName(shop.blip.label ~= '' and shop.blip.label or shop.label)
+                    EndTextCommandSetBlipName(blip)
+                    shopBlips[#shopBlips + 1] = blip
+                end
             end
         end
     end
 end
+
+-- PNJ des emplacements (tuile Interactions) : locaux, immobiles, invulnérables ; seulement à proximité
+local shopPeds = {} -- id d'emplacement -> { ped, key }
+
+local function deleteShopPed(id)
+    local entry = shopPeds[id]
+
+    if entry and DoesEntityExist(entry.ped) then
+        DeleteEntity(entry.ped)
+    end
+
+    shopPeds[id] = nil
+end
+
+local function createShopPed(target, key)
+    local model = joaat(target.ped)
+
+    if not IsModelInCdimage(model) or not IsModelAPed(model) then
+        return
+    end
+
+    RequestModel(model)
+    local timeout = GetGameTimer() + 5000
+
+    while not HasModelLoaded(model) and GetGameTimer() < timeout do
+        Wait(50)
+    end
+
+    if not HasModelLoaded(model) then
+        return
+    end
+
+    local position = target.pedPos or { x = target.x, y = target.y, z = target.z, h = 0.0 }
+    local ped = CreatePed(4, model, position.x, position.y, position.z, position.h or 0.0, false, false)
+    SetModelAsNoLongerNeeded(model)
+
+    if not ped or ped == 0 then
+        return
+    end
+
+    SetEntityAsMissionEntity(ped, true, true)
+    SetEntityHeading(ped, position.h or 0.0)
+    SetEntityInvincible(ped, true)
+    SetBlockingOfNonTemporaryEvents(ped, true)
+    SetPedCanRagdoll(ped, false)
+    SetPedFleeAttributes(ped, 0, false)
+    FreezeEntityPosition(ped, true)
+    shopPeds[target.id] = { ped = ped, key = key }
+end
+
+CreateThread(function()
+    while true do
+        local coords = GetEntityCoords(PlayerPedId())
+        local wanted = {}
+
+        for _, target in ipairs(shopTargets) do
+            if target.ped and target.id then
+                local position = target.pedPos or target
+                -- Clé : modèle et position ; un changement dans le panel recrée le PNJ
+                local key = ('%s:%.2f:%.2f:%.2f:%.1f'):format(target.ped, position.x, position.y, position.z, position.h or 0.0)
+
+                if #(coords - vector3(position.x, position.y, position.z)) < 80.0 then
+                    wanted[target.id] = true
+                    local entry = shopPeds[target.id]
+
+                    if entry and (entry.key ~= key or not DoesEntityExist(entry.ped)) then
+                        deleteShopPed(target.id)
+                        entry = nil
+                    end
+
+                    if not entry then
+                        createShopPed(target, key)
+                    end
+                end
+            end
+        end
+
+        for id in pairs(shopPeds) do
+            if not wanted[id] then
+                deleteShopPed(id)
+            end
+        end
+
+        Wait(2000)
+    end
+end)
 
 AddStateBagChangeHandler('lunaticShops', 'global', function(_, _, value)
     shops = type(value) == 'table' and value or {}
@@ -853,9 +945,12 @@ CreateThread(function()
 
             if distance < Config.MarkerDistance then
                 sleep = 0
-                DrawMarker(25, target.x, target.y, target.z + 0.02, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.1, 1.1, 1.0, color[1], color[2], color[3], color[4], false, false, 2, false, nil, nil, false)
 
-                if distance < Config.InteractDistance and (not closestDistance or distance < closestDistance) then
+                if not target.ped then
+                    DrawMarker(25, target.x, target.y, target.z + 0.02, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.1, 1.1, 1.0, color[1], color[2], color[3], color[4], false, false, 2, false, nil, nil, false)
+                end
+
+                if distance < (target.radius or Config.InteractDistance) and (not closestDistance or distance < closestDistance) then
                     closest, closestDistance = { id = ('shop_%s_%d'):format(target.shop.slug, target.index), type = 'shop', label = target.label, target = target }, distance
                 end
             end
@@ -916,6 +1011,10 @@ AddEventHandler('onResourceStop', function(resource)
 
         for _, blip in ipairs(structureBlips) do
             RemoveBlip(blip)
+        end
+
+        for id in pairs(shopPeds) do
+            deleteShopPed(id)
         end
     end
 end)

@@ -40,6 +40,7 @@ server_scripts {
     'server/blips.lua',
     'server/economy_settings.lua',
     'server/images.lua',
+    'server/interactions.lua',
     'server/crews.lua',
     'server/crew_points.lua',
     'server/fence.lua',
@@ -69,6 +70,7 @@ client_scripts {
     'client/context.lua',
     'client/blips.lua',
     'client/mugshots.lua',
+    'client/interactions.lua',
 }
 
 ui_page 'web/index.html'
@@ -106,6 +108,7 @@ files {
     'web/blips.js',
     'web/economy_page.js',
     'web/images_page.js',
+    'web/interactions_page.js',
     'web/items.js',
     'web/events.js',
     'web/dev.js',

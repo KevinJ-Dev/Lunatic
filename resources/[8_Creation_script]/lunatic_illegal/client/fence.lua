@@ -1,4 +1,5 @@
--- Recelleur côté jeu : PNJ posés aux emplacements du panel, [E] pour revendre (pas de blip).
+-- Recelleur côté jeu : PNJ posés aux emplacements du panel, [E] pour revendre.
+-- Rayon du [E] et blip (caché par défaut) réglés par emplacement dans la tuile Interactions.
 
 local fence = { items = {}, locations = {} }
 local peds = {}
@@ -69,8 +70,33 @@ local function createPed(location)
     peds[location.id] = ped
 end
 
+local blips = {}
+
+local function refreshBlips()
+    for _, blip in ipairs(blips) do
+        RemoveBlip(blip)
+    end
+
+    blips = {}
+
+    for _, location in ipairs(fence.locations or {}) do
+        if location.showBlip then
+            local blip = AddBlipForCoord(location.x, location.y, location.z)
+            SetBlipSprite(blip, 500)
+            SetBlipColour(blip, 1)
+            SetBlipScale(blip, 0.7)
+            SetBlipAsShortRange(blip, true)
+            BeginTextCommandSetBlipName('STRING')
+            AddTextComponentSubstringPlayerName('Recelleur')
+            EndTextCommandSetBlipName(blip)
+            blips[#blips + 1] = blip
+        end
+    end
+end
+
 local function load(value)
     fence = type(value) == 'table' and value or { items = {}, locations = {} }
+    refreshBlips()
     -- Les PNJ sont recréés (position ou modèle peut-être changés) par la boucle ci-dessous
     clearPeds()
     print(('[lunatic_illegal] Recelleur : %d emplacement(s), %d objet(s) au catalogue.'):format(#(fence.locations or {}), #(fence.items or {})))
@@ -189,7 +215,7 @@ CreateThread(function()
             if distance < 10.0 then
                 sleep = 0
 
-                if distance < Config.FenceDistance then
+                if distance < (tonumber(location.radius) or Config.FenceDistance) then
                     near = location
                 end
             end
@@ -217,5 +243,9 @@ AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
         clearPeds()
         lib.hideTextUI()
+
+        for _, blip in ipairs(blips) do
+            RemoveBlip(blip)
+        end
     end
 end)

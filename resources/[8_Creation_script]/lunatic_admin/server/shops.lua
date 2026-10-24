@@ -68,6 +68,11 @@ local function load()
                 id = tonumber(row.id), x = tonumber(row.x), y = tonumber(row.y), z = tonumber(row.z), h = tonumber(row.h),
                 -- Location : sortie des véhicules (sinon devant l'emplacement)
                 spawn = row.sx and { x = tonumber(row.sx), y = tonumber(row.sy), z = tonumber(row.sz), h = tonumber(row.sh) } or nil,
+                -- Tuile Interactions : PNJ (modèle et position), rayon du [E], blip affiché ou non
+                ped = row.ped ~= '' and row.ped or nil,
+                pedPos = row.px and { x = tonumber(row.px), y = tonumber(row.py), z = tonumber(row.pz), h = tonumber(row.ph) } or nil,
+                radius = tonumber(row.radius) or Config.InteractionRadius.default,
+                showBlip = tonumber(row.show_blip) ~= 0,
             }
         end
     end
@@ -169,6 +174,18 @@ table.insert(Panel.readyHooks, function()
             ADD COLUMN IF NOT EXISTS `sy` DOUBLE NULL DEFAULT NULL,
             ADD COLUMN IF NOT EXISTS `sz` DOUBLE NULL DEFAULT NULL,
             ADD COLUMN IF NOT EXISTS `sh` DOUBLE NULL DEFAULT NULL
+    ]])
+
+    -- Interactions : PNJ, rayon, blip par emplacement
+    MySQL.query.await([[
+        ALTER TABLE `lunatic_shop_locations`
+            ADD COLUMN IF NOT EXISTS `ped` VARCHAR(40) NOT NULL DEFAULT '',
+            ADD COLUMN IF NOT EXISTS `px` DOUBLE NULL DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS `py` DOUBLE NULL DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS `pz` DOUBLE NULL DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS `ph` DOUBLE NULL DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS `radius` DOUBLE NOT NULL DEFAULT 1.5,
+            ADD COLUMN IF NOT EXISTS `show_blip` TINYINT NOT NULL DEFAULT 1
     ]])
 
     load()
@@ -458,11 +475,20 @@ end
 -- Emplacements
 ---------------------------------------------------------------------
 
+-- Emplacements : tuile Catalogues ou tuile Interactions
+local function canPlace(actor)
+    return Ranks.hasPermission(actor, 'catalogs.manage') or Ranks.hasPermission(actor, 'interactions.manage')
+end
+
 Panel.actions['shops.addLocation'] = function(src, actor, data)
-    local shop, err = shopFor(actor, data.id)
+    if not canPlace(actor) then
+        return denied()
+    end
+
+    local shop = shops[tonumber(data.id) or -1]
 
     if not shop then
-        return err
+        return Panel.fail('Magasin introuvable.')
     end
 
     if #shop.locations >= LIMITS.locations then
@@ -483,7 +509,7 @@ Panel.actions['shops.addLocation'] = function(src, actor, data)
 end
 
 local function locationFor(actor, locationId)
-    if not Ranks.hasPermission(actor, 'catalogs.manage') then
+    if not canPlace(actor) then
         return nil, nil, denied()
     end
 
@@ -541,6 +567,86 @@ Panel.actions['shops.tpLocation'] = function(src, actor, data)
 
     TriggerClientEvent('lunatic_admin:teleport', src, vector3(location.x, location.y, location.z + 1.0))
     return { ok = true, silent = true }
+end
+
+-- Réglages d'interaction : modèle du PNJ ('' = aucun), rayon du [E], blip affiché
+Panel.actions['shops.locationSettings'] = function(src, actor, data)
+    local shop, location, err = locationFor(actor, data.locationId)
+
+    if not shop then
+        return err
+    end
+
+    local ped = ''
+
+    if type(data.ped) == 'string' and data.ped ~= '' then
+        local model, failure = Panel.checkPed(src, data.ped)
+
+        if not model then
+            return failure
+        end
+
+        ped = model
+    end
+
+    local radius = tonumber(data.radius)
+
+    if not radius or radius < Config.InteractionRadius.min or radius > Config.InteractionRadius.max then
+        return Panel.fail(('Rayon : de %.1f à %.1f m.'):format(Config.InteractionRadius.min, Config.InteractionRadius.max))
+    end
+
+    radius = math.floor(radius * 10 + 0.5) / 10
+    MySQL.update.await('UPDATE `lunatic_shop_locations` SET `ped` = ?, `radius` = ?, `show_blip` = ? WHERE `id` = ?', { ped, radius, data.showBlip == false and 0 or 1, location.id })
+    load()
+    Logs.add(src, 'shops.location', nil, { id = shop.id, label = shop.label, operation = 'interaction' })
+
+    return { ok = true, silent = true }
+end
+
+-- « Placer un ped » : le PNJ se met à la position et dans la direction du staff
+Panel.actions['shops.placePed'] = function(src, actor, data)
+    local shop, location, err = locationFor(actor, data.locationId)
+
+    if not shop then
+        return err
+    end
+
+    local position = positionOf(src)
+
+    if not position then
+        return Panel.fail("Votre personnage n'est pas encore apparu.")
+    end
+
+    local ped = location.ped or Config.InteractionDefaultPed
+    MySQL.update.await('UPDATE `lunatic_shop_locations` SET `ped` = ?, `px` = ?, `py` = ?, `pz` = ?, `ph` = ? WHERE `id` = ?', { ped, position.x, position.y, position.z, position.h, location.id })
+    load()
+    Logs.add(src, 'shops.location', nil, { id = shop.id, label = shop.label, operation = 'ped' })
+
+    return { ok = true, silent = true }
+end
+
+-- Tous les emplacements (tuile Interactions)
+function Shops.allLocations()
+    local list = {}
+
+    for _, shop in pairs(shops) do
+        for index, location in ipairs(shop.locations) do
+            list[#list + 1] = { shop = shop, location = location, index = index }
+        end
+    end
+
+    return list
+end
+
+function Shops.list()
+    local list = {}
+
+    for _, shop in pairs(shops) do
+        list[#list + 1] = { id = shop.id, label = shop.label, category = shop.category, kind = shop.kind }
+    end
+
+    table.sort(list, function(a, b) return a.label < b.label end)
+    return list
 end
 
 ---------------------------------------------------------------------
