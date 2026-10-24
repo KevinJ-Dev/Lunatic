@@ -1908,6 +1908,7 @@ async function demoNui(name, data) {
             inventory: { weight: n(30000, 5000, 500000, 1000), slots: n(50, 10, 120, 1) },
             population: { peds: n(1, 0, 1, 0.05), vehicles: n(1, 0, 1, 0.05), parked: n(1, 0, 1, 0.05), scenario: n(1, 0, 1, 0.05) },
             time: { minute: n(2000, 250, 60000, 250) },
+            death: { enabled: b(true), delay: n(300, 30, 1800, 10), fee: n(500, 0, 100000, 50), clearInventory: b(false), keepCash: b(true), callMedic: b(true), medicRevive: b(true) },
             newPlayers: { bank: n(50000, 0, 10000000, 100), money: n(0, 0, 10000000, 100), offDuty: n(0.5, 0, 1, 0.05) },
             discord: { enabled: b(false), appId: t("", 25), asset: t("", 40), assetText: t("", 80), presence: t("{player_rp_name} · {server_players}/{server_maxplayers} joueurs", 120) },
         };

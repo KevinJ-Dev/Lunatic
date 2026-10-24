@@ -31,6 +31,11 @@ local SCHEMA = {
     newPlayers = {
         bank = num(50000, 0, 10000000, 100), money = num(0, 0, 10000000, 100), offDuty = num(0.5, 0, 1, 0.05),
     },
+    -- Systèmes de lunatic_gameplay
+    death = {
+        enabled = bool(true), delay = num(300, 30, 1800, 10), fee = num(500, 0, 100000, 50),
+        clearInventory = bool(false), keepCash = bool(true), callMedic = bool(true), medicRevive = bool(true),
+    },
     discord = {
         enabled = bool(false), appId = text('', 25, '^%d*$'), asset = text('', 40, '^[%w_%-]*$'), assetText = text('', 80),
         presence = text('{player_rp_name} · {server_players}/{server_maxplayers} joueurs', 120),

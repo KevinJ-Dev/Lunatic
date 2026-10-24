@@ -12,7 +12,7 @@ const ftState = { data: null, tab: "features", section: null, draft: null, saved
 // Onglets : sections affichées (une liste à gauche s'il y en a plusieurs)
 const FEATURE_TABS = [
     { id: "features", label: "Fonctionnalités", icon: "i-tool", sections: ["toggles"] },
-    { id: "gameplay", label: "Gameplay", icon: "i-pulse", sections: ["needs", "inventory", "population", "time"] },
+    { id: "gameplay", label: "Gameplay", icon: "i-pulse", sections: ["needs", "inventory", "death", "population", "time"] },
     { id: "newPlayers", label: "Nouveaux joueurs", icon: "i-user-plus", sections: ["newPlayers"] },
     { id: "discord", label: "Discord", icon: "i-users", sections: ["discord"] },
 ];
@@ -44,6 +44,18 @@ const FEATURE_SECTIONS = {
         fields: {
             weight: { label: "Poids maximum", hint: "Inventaire des joueurs (grammes)", unit: "g" },
             slots: { label: "Emplacements", hint: "Nombre de cases de l'inventaire" },
+        },
+    },
+    death: {
+        label: "Mort & Respawn", icon: "i-heart",
+        fields: {
+            enabled: { label: "Inconscience", hint: "Désactivé : réveil automatique à l'hôpital après 10 secondes, sans frais" },
+            delay: { label: "Délai avant le réveil à l'hôpital", hint: "Temps pendant lequel on peut être réanimé", unit: "s" },
+            fee: { label: "Frais d'hôpital", hint: "Retirés de la banque au réveil (sans aller sous 0)", money: true },
+            clearInventory: { label: "Vider l'inventaire au réveil", hint: "Sauf téléphone et carte d'identité (config lunatic_gameplay)" },
+            keepCash: { label: "Garder le liquide", hint: "Quand l'inventaire est vidé" },
+            callMedic: { label: "Appel des secours", hint: "[G] pendant l'inconscience : alerte et GPS pour les médecins en ligne" },
+            medicRevive: { label: "Réanimation par les médecins", hint: "/reanimer, réservé aux services publics de type Médecins" },
         },
     },
     population: {
