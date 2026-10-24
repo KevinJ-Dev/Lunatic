@@ -301,7 +301,7 @@ Panel.actions['credits.change'] = function(src, actor, data)
     local amount = tonumber(data.amount)
 
     if not amount or amount ~= math.floor(amount) or amount == 0 or math.abs(amount) > Config.CreditsMaxAction then
-        return Panel.fail(('Montant invalide (1 à %d %s).'):format(Config.CreditsMaxAction, Config.CreditsName))
+        return Panel.fail(('Montant invalide (1 à %d %s).'):format(Config.CreditsMaxAction, Shop.creditsName()))
     end
 
     local reason = cleanReason(data.reason)
@@ -313,7 +313,7 @@ Panel.actions['credits.change'] = function(src, actor, data)
     local after, before = changeCredits(license, amount, reason, Staff.displayName(src))
 
     if not after then
-        return Panel.fail(('Solde insuffisant : le joueur n\'a que %d %s.'):format(before, Config.CreditsName))
+        return Panel.fail(('Solde insuffisant : le joueur n\'a que %d %s.'):format(before, Shop.creditsName()))
     end
 
     local target = Staff.sourceOf(license)

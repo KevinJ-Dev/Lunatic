@@ -202,6 +202,30 @@ local function payAllowance(xPlayer, bankTitle)
     local tier = Player(player).state.premium
     local amount = tier and math.floor(tonumber(economy.allowances[tier]) or 0) or 0
 
+    -- Bonus de salaire des abonnés (tuile Boutique, onglet Premium) : versé par l'État, pas par la société
+    local shop = GlobalState.lunaticShop
+    local multiplier = tier and shop and shop.tiers and shop.tiers[tier] and tonumber(shop.tiers[tier].salaryMultiplier) or 1
+
+    if multiplier > 1 and xPlayer.job.name ~= "unemployed" then
+        local features = GlobalState.lunaticFeatures
+        local offDuty = features and features.newPlayers and tonumber(features.newPlayers.offDuty) or Config.OffDutyPaycheckMultiplier
+        local salary = xPlayer.job.onDuty and xPlayer.job.grade_salary or ESX.Math.Round(xPlayer.job.grade_salary * offDuty)
+        local bonus = math.floor(salary * (multiplier - 1))
+
+        if bonus > 0 then
+            xPlayer.addAccountMoney("bank", bonus, "Bonus salaire " .. tier)
+            TriggerClientEvent(
+                "esx:showAdvancedNotification",
+                player,
+                bankTitle,
+                tier == "premium_plus" and "Bonus Premium+" or "Bonus Premium",
+                ("Bonus de salaire : %s %s"):format(bonus, GlobalState.lunaticCurrency or "$"),
+                "CHAR_BANK_MAZE",
+                9
+            )
+        end
+    end
+
     if amount <= 0 then
         return
     end

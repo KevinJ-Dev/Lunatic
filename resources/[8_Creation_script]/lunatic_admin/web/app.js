@@ -216,6 +216,7 @@ const NAV = [
     { id: "members", label: "Membres", icon: "i-users", show: () => can("staff.view"), group: "perms" },
     { id: "companies", label: "Entreprises", icon: "i-store", show: () => can("companies.manage") },
     { id: "publics", label: "Services publics", icon: "i-shield", show: () => can("publics.manage") },
+    { id: "shop", label: "Boutique", icon: "i-gem", show: () => can("shop.manage") },
     { id: "illegal", label: "Illégal", icon: "i-mask", show: () => can("illegal.manage") },
     { id: "crews", label: "Crews", icon: "i-flag", show: () => can("crews.manage") },
     { id: "catalogs", label: "Catalogues", icon: "i-book", show: () => can("catalogs.manage") },
@@ -578,7 +579,7 @@ function render() {
 
     renderMe();
 
-    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "illegal", "crews", "catalogs", "items", "blips", "economy", "images", "interactions", "features", "poles", "events", "dev", "ranks", "members"]) {
+    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "illegal", "crews", "catalogs", "items", "blips", "economy", "images", "interactions", "features", "poles", "events", "shop", "dev", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
     }
 
@@ -603,6 +604,7 @@ function render() {
     if (view === "illegal") renderIllegal();
     if (view === "publics") renderStructures("public");
     if (view === "events") renderEvents();
+    if (view === "shop") renderStore();
     if (view === "dev") renderDev();
     if (view === "ranks") renderRanks();
     if (view === "members") renderMembers();
@@ -1763,6 +1765,23 @@ async function demoNui(name, data) {
             { id: 860, category: "players", level: "info", actor: "Jean Dupont", action: "player.disconnect", details: { reason: "Exiting" }, created: now - 86400 },
         ] };
     }
+    if (name === "action" && data && data.action === "shop.info") return { ok: true,
+        stats: { credits: 48250, subscriptions: 12, vehicles: 7, weapons: 3 },
+        settings: {
+            categories: { premium: true, premium_plus: true, vehicles: true, packs: false, weapons: true, credits: true },
+            banners: [{ text: "Nouveautés", color: "#f2c26b", image: "", active: true }, { text: "-30 % sur les véhicules", color: "#ff6b6b", image: "", active: false }],
+            notification: { enabled: true, title: "Nouvelle offre", text: "Découvrez les dernières nouveautés dans la boutique !", color: "#f2c26b", image: "", hours: 2, startedAt: 0, live: true },
+            credits: { name: "LCoins", image: "" },
+            tiers: {
+                premium: { priceEuro: 10, priceCredits: 1000, includedCredits: 0, salaryMultiplier: 1.1, characters: 2, garageSlots: 5, farmMultiplier: 1, outfits: 10 },
+                premium_plus: { priceEuro: 20, priceCredits: 2000, includedCredits: 0, salaryMultiplier: 1.25, characters: 3, garageSlots: 10, farmMultiplier: 1.25, outfits: 20 },
+            },
+            allowances: { premium: 35, premium_plus: 70 },
+        },
+        transactions: [
+            { name: "Jean Dupont", category: "vehicles", product: "Sultan Classic", amount: 1500, created: Math.floor(Date.now() / 1000) - 3600 },
+            { name: "Lina Petit", category: "premium", product: "Premium (30 jours)", amount: 1000, created: Math.floor(Date.now() / 1000) - 86400 },
+        ] };
     if (name === "action" && data && data.action === "eventZones.list") return { ok: true, events: [
         { id: 1, label: "Course de Vespucci", description: "Course de rue sur le front de mer, véhicules fournis.", maxPlayers: 16, duration: 90, x: -1245.6, y: -1530.2, z: 4.3, radius: 220,
             rules: { noKO: true, godmode: false, vehicleGodmode: true, policeCalls: false, respawn: true, noNeeds: true }, hour: 21, audio: "", volume: 40, loaded: true, loadedAt: Math.floor(Date.now() / 1000) - 900, players: 7, createdBy: "Ramiro Lotus",

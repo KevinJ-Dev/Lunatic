@@ -82,6 +82,29 @@ exports('getEconomy', function()
     return copy(settings)
 end)
 
+-- Tuile Boutique (onglet Premium) : aide de l'État par abonnement, même réglage que cette tuile
+function Panel.allowances()
+    return copy(settings.allowances)
+end
+
+---@return boolean ok, string|nil error
+function Panel.setAllowances(values)
+    for tier in pairs(settings.allowances) do
+        local amount = tonumber(values[tier])
+
+        if not amount or amount ~= math.floor(amount) or amount < 0 or amount > LIMITS.allowance then
+            return false, ("Aide de l'État : un nombre entier de 0 à %d."):format(LIMITS.allowance)
+        end
+    end
+
+    for tier in pairs(settings.allowances) do
+        settings.allowances[tier] = math.floor(tonumber(values[tier]))
+    end
+
+    store()
+    return true
+end
+
 -- Symbole de la devise pour le panel (montants affichés partout)
 table.insert(Panel.stateHooks, function(state)
     state.currency = settings.currency
