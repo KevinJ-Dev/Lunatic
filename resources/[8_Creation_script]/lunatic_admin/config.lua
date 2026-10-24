@@ -77,7 +77,15 @@ Config.CrewTypes = {
     { id = 'organisation', label = 'Organisation', color = '#f76b15' },
     { id = 'gang', label = 'Gang', color = '#30a46c' },
 }
-Config.CrewRequestMessageMax = 200 -- motivation d'une demande de crew (commande /crew)
+Config.CrewRequestMessageMax = 200
+-- Infrastructure des crews (positions et planques, placées dans le panel)
+Config.CrewPointsMax = 20           -- points maximum par crew (stockages, garages, planques)
+Config.CrewStashSlots = 50          -- emplacements d'un coffre de crew
+Config.CrewStashWeight = 200000     -- poids maximum d'un coffre de crew (grammes)
+Config.CrewPropertyInteriors = {    -- intérieurs des planques (coordonnées dans lunatic_illegal, Config.BurglaryInteriors)
+    low = 'Petit appartement',
+    mid = 'Appartement moyen',
+} -- motivation d'une demande de crew (commande /crew)
 Config.CrewDefaultRanks = { 'Rang C', 'Rang B', 'Rang A', 'Rang S' } -- du plus bas au plus haut (le plus haut = chef)
 Config.CrewLevels = { 0, 1000, 2500, 5000, 10000, 20000, 35000, 55000, 80000, 120000 } -- XP nécessaire pour chaque level (level 1 à 10)
 

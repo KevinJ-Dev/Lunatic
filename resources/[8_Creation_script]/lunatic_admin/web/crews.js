@@ -444,3 +444,82 @@ function crewRequestsColumn() {
                 h("span", { class: "who" }, h("b", null, req.name), h("span", null, `${what(req)} · par ${req.handledBy || "?"} ${req.handledAt ? ago(req.handledAt) : ""}`)),
                 h("span", { class: `badge ${req.status === "accepted" ? "ok" : "muted"}` }, req.status === "accepted" ? "Acceptée" : "Refusée")))));
 }
+
+// ---------- Infrastructure : positions et propriétés (planques) ----------
+
+const CREW_POINT_KINDS = {
+    storage: { label: "Stockage", hint: "Coffre commun du crew : même contenu sur tous ses points.", add: "Ajouter un stockage" },
+    stash: { label: "Stockage séparé", hint: "Chaque point a son propre coffre.", add: "Ajouter un stockage séparé" },
+    garage: { label: "Garage", hint: "Bientôt : utilisable avec le système de garages.", add: "Ajouter un garage", soon: true },
+};
+
+async function loadCrewPoints() {
+    const id = crewState.selected;
+    const res = await nui("action", { action: "crews.points", payload: { id } }).catch(() => null);
+    if (id !== crewState.selected) return;
+    crewState.points = res && res.ok ? res.points : [];
+    crewState.interiors = res && res.ok ? res.interiors : [];
+    paintCrews();
+}
+
+async function crewPointAct(action, payload, okMessage) {
+    const res = await act(action, payload, okMessage);
+    if (res) loadCrewPoints();
+    return res;
+}
+
+// Carte d'un point : nom modifiable, coordonnées, Définir (ma position), TP, supprimer
+function crewPointCard(point, extra) {
+    const label = h("input", { class: "input", maxlength: "60", value: point.label });
+    const interior = point.kind === "property"
+        ? h("select", { class: "input" }, (crewState.interiors || []).map((i) => h("option", { value: i.id, selected: i.id === point.interior }, i.label)))
+        : null;
+    const save = () => {
+        const changed = label.value.trim() && (label.value.trim() !== point.label || (interior && interior.value !== point.interior));
+        if (changed) crewPointAct("crews.pointSave", { pointId: point.id, label: label.value.trim(), interior: interior ? interior.value : "" }, "Point enregistré.");
+    };
+    label.addEventListener("change", save);
+    if (interior) interior.addEventListener("change", save);
+    return h("div", { class: "crew-point" },
+        h("div", { class: "crew-point-head" }, h("span", { class: "crew-point-dot" }), label,
+            h("button", { class: "btn small ghost sq-btn", title: "Supprimer", onclick: async () => {
+                if (await confirmBox(`Supprimer « ${point.label} » ?`, point.kind === "garage" ? "Le point disparaît." : "Le point disparaît. Le contenu de son coffre reste en base.", "Supprimer", true)) {
+                    crewPointAct("crews.pointDelete", { pointId: point.id }, "Point supprimé.");
+                }
+            } }, icon("i-trash"))),
+        interior ? h("div", { class: "crew-point-row" }, h("span", { class: "muted" }, "Intérieur"), interior) : null,
+        h("div", { class: "crew-point-row" },
+            h("span", { class: "crew-coords mono" }, `${point.x.toFixed(0)}  ${point.y.toFixed(0)}  ${point.z.toFixed(0)}`),
+            h("button", { class: "btn small ghost", title: "Le point passe à votre position", onclick: () => crewPointAct("crews.pointMove", { pointId: point.id }, "Point déplacé à votre position.") }, icon("i-crosshair"), "Définir"),
+            h("button", { class: "btn small ghost", onclick: () => act("crews.pointTp", { pointId: point.id }, null) }, icon("i-goto"), "Téléporter")),
+        extra || null);
+}
+
+function crewInfraTab(c, tab) {
+    if (!crewState.points || crewState.pointsCrew !== c.id) {
+        if (crewState.pointsCrew !== c.id) {
+            crewState.pointsCrew = c.id;
+            crewState.points = null;
+            loadCrewPoints();
+        }
+        return h("div", { class: "empty" }, icon("i-pin"), "Chargement…");
+    }
+    const add = (kind, interior) => crewPointAct("crews.pointAdd", { id: c.id, kind, interior }, "Point ajouté à votre position.");
+
+    if (tab === "properties") {
+        const list = crewState.points.filter((p) => p.kind === "property");
+        return h("div", { class: "crew-list" },
+            list.length ? list.map((p) => crewPointCard(p)) : h("p", { class: "hint-line" }, "Aucune propriété. Une planque : une porte (à votre position), un intérieur isolé où seuls les membres entrent, avec un coffre."),
+            h("button", { class: "btn small ok-btn wide", onclick: () => add("property", (crewState.interiors[0] || {}).id) }, icon("i-plus"), "Ajouter une propriété"),
+            h("p", { class: "hint-line" }, "La porte est placée là où vous êtes en jeu : regardez vers l'extérieur en la plaçant."));
+    }
+
+    return h("div", { class: "crew-list" }, Object.entries(CREW_POINT_KINDS).map(([kind, meta]) => {
+        const list = crewState.points.filter((p) => p.kind === kind);
+        return h("div", { class: "crew-point-group" },
+            h("div", { class: "crew-point-title" }, h("span", null, meta.label), meta.soon ? h("span", { class: "badge muted" }, "bientôt") : null, h("span", { class: "cnt" }, String(list.length))),
+            list.map((p) => crewPointCard(p)),
+            h("button", { class: "btn small ok-btn wide", onclick: () => add(kind) }, icon("i-plus"), meta.add),
+            h("p", { class: "hint-line" }, meta.hint));
+    }));
+}

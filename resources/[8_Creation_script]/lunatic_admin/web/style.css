@@ -1031,3 +1031,17 @@ body.hidden.minimized .mini-pill { display: flex; }
 .crew-actions { gap: 5px; padding: 10px 10px 12px; }
 .crew-actions .btn { min-width: 0; padding: 0 6px; font-size: 11.5px; }
 @media (max-width: 1500px) { .crew-page { grid-template-columns: 200px 310px minmax(0, 1fr) 290px; } .crew-page.single { grid-template-columns: 200px minmax(0, 1fr); } }
+/* Crews : infrastructure (positions, planques) */
+.crew-point-group { display: grid; gap: 6px; margin-bottom: 10px; }
+.crew-point-title { display: flex; align-items: center; gap: 8px; padding: 4px 2px; color: var(--ink-2); font-size: 12.5px; font-weight: 700; }
+.crew-point-title .cnt { margin-left: auto; min-width: 20px; height: 18px; padding: 0 6px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--muted); font: 500 10.5px/18px var(--mono); text-align: center; }
+.crew-point { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.crew-point-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.crew-point-head .input { height: 30px; }
+.crew-point-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px #5fd3a026; }
+.crew-point-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.crew-point-row .input { flex: 1; min-width: 0; height: 30px; }
+.crew-point-row > .muted { font-size: 12px; }
+.crew-coords { flex: 1; min-width: 110px; color: var(--muted); font-size: 11.5px; }
+.btn.ok-btn { border-color: #5fd3a055; background: #5fd3a01a; color: #9ff0c8; justify-content: center; }
+.btn.ok-btn:hover { background: #5fd3a02e; }

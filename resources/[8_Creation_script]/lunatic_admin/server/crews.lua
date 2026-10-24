@@ -570,6 +570,10 @@ Panel.actions['crews.delete'] = function(src, actor, data)
 
     load()
 
+    for _, hook in ipairs(Crews.deleteHooks) do
+        hook(crew.id)
+    end
+
     for _, identifier in ipairs(former) do
         publishPlayer(identifier)
     end
@@ -787,6 +791,8 @@ end
 
 -- Fonctions appelées par le wipe (coffres des positions et des planques, partie infrastructure)
 Crews.wipeHooks = {}
+-- Fonctions appelées à la suppression d'un crew (positions et planques)
+Crews.deleteHooks = {}
 
 local function clearInfluence(crewId)
     MySQL.update.await('DELETE FROM `lunatic_crew_influence` WHERE `crew_id` = ?', { crewId })

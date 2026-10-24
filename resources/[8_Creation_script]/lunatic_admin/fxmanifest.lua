@@ -41,6 +41,7 @@ server_scripts {
     'server/economy_settings.lua',
     'server/images.lua',
     'server/crews.lua',
+    'server/crew_points.lua',
     'server/fence.lua',
     'server/drugs.lua',
     'server/territories.lua',

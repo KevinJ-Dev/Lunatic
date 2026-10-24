@@ -2018,6 +2018,11 @@ m("heist_fleeca", "Braquage Fleeca", "heist", ["heist", "fleeca"], false, true),
                 { identifier: "aa11223344", name: "Jean Dupont", online: 2, rank: 3, rankLabel: "Rang S", joined: Math.floor(Date.now() / 1000) - 86400 * 9 },
                 { identifier: "cc33445566", name: "Lina Petit", rank: 1, rankLabel: "Rang B", joined: Math.floor(Date.now() / 1000) - 86400 * 3 },
             ], createdBy: "Ramiro Lotus", createdAt: Math.floor(Date.now() / 1000) - 86400 * 10 } };
+    if (name === "action" && data && data.action === "crews.points") return { ok: true, interiors: [{ id: "mid", label: "Appartement moyen" }, { id: "low", label: "Petit appartement" }], points: [
+        { id: 1, kind: "storage", label: "Stockage", x: -40.2, y: -1455.7, z: 31.5, h: 90 },
+        { id: 2, kind: "garage", label: "Garage", x: -56.1, y: -1443.9, z: 32.1, h: 180, soon: true },
+        { id: 3, kind: "property", label: "Planque de Grove", x: -9.8, y: -1438.6, z: 31.1, h: 0, interior: "mid" },
+    ] };
     if (name === "action" && data && data.action === "crews.territories") return { ok: true, territories: [
         { label: "Grove Street", owned: true, contested: false, influence: 1840, leader: 1840, minInfluence: 500 },
         { label: "Davis", owned: false, owner: "Vagos", influence: 320, leader: 900, minInfluence: 500 },

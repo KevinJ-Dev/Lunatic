@@ -93,6 +93,7 @@ const ACTION_LABELS = {
     "economy.settings": "a modifié l'économie",
     "images.save": "a modifié une image",
     "crews.wipe": "a remis à zéro un crew",
+    "crews.point": "a modifié l'infrastructure d'un crew",
     "crews.influence": "a effacé l'influence d'un crew",
     "crews.request": "a traité la demande de crew de",
     "images.delete": "a supprimé une image",
@@ -235,6 +236,9 @@ function describeLog(log) {
             break;
         case "crews.wipe":
             summary = [d.label, d.members ? `${d.members} membre(s) retiré(s)` : null].filter(Boolean).join(" · ");
+            break;
+        case "crews.point":
+            summary = [d.crew, d.kind, d.label, d.operation].filter(Boolean).join(" · ");
             break;
         case "crews.influence":
             summary = d.label || "";

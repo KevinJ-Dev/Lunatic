@@ -16,6 +16,7 @@ shared_scripts {
 server_scripts {
     'server/common.lua',
     'server/crews.lua',
+    'server/crewpoints.lua',
     'server/fence.lua',
     'server/drugs.lua',
     'server/workshops.lua',
@@ -32,6 +33,7 @@ server_scripts {
 
 client_scripts {
     'client/crews.lua',
+    'client/crewpoints.lua',
     'client/fence.lua',
     'client/drugs.lua',
     'client/territories.lua',
