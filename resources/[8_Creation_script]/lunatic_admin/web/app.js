@@ -1765,6 +1765,29 @@ async function demoNui(name, data) {
             { id: 860, category: "players", level: "info", actor: "Jean Dupont", action: "player.disconnect", details: { reason: "Exiting" }, created: now - 86400 },
         ] };
     }
+    if (name === "action" && data && data.action === "storeCatalog.list") {
+        const kind = data.payload.kind;
+        const cat = (id, label, products, type) => ({ id, label, image: "", type: type || "", products });
+        if (kind === "packs") return { ok: true, categories: [
+            cat(1, "Starter", [
+                { id: 1, category: 1, label: "Pack Débutant", image: "", price: 500, active: true, data: { cash: 5000, bank: 0, items: [{ item: "phone", count: 1 }, { item: "id_card", count: 1 }], vehicles: [] } },
+                { id: 2, category: 1, label: "Pack Essentiel", image: "", price: 1500, active: true, data: { cash: 10000, bank: 0, items: [{ item: "phone", count: 1 }], vehicles: [{ model: "sultan", label: "Sultan Classic" }] } },
+            ]),
+            cat(2, "Véhicule", []), cat(3, "Nourriture", []), cat(4, "Illégal", []), cat(5, "Premium", []),
+        ] };
+        if (kind === "vehicles") return { ok: true, categories: [
+            cat(6, "Sportive", [
+                { id: 3, category: 6, label: "Banshee", image: "", price: 2500, active: true, data: { model: "banshee" } },
+                { id: 4, category: 6, label: "Sultan RS", image: "", price: 1800, active: true, data: { model: "sultanrs" } },
+                { id: 5, category: 6, label: "Elegy", image: "", price: 2000, active: false, data: { model: "elegy2" } },
+            ], "car"),
+            cat(7, "SUV", [], "car"), cat(8, "Berline", [], "car"), cat(9, "Moto", [], "bike"), cat(10, "Utilitaire", [], "car"),
+        ] };
+        return { ok: true, categories: [
+            cat(11, "Armes de poing", [{ id: 6, category: 11, label: "Pistolet", image: "", price: 800, active: true, data: { item: "WEAPON_PISTOL", ammo: 24 } }]),
+            cat(12, "Armes automatiques", []), cat(13, "Fusils à pompe", []), cat(14, "Armes lourdes", []), cat(15, "Armes blanches", []),
+        ] };
+    }
     if (name === "action" && data && data.action === "shop.info") return { ok: true,
         stats: { credits: 48250, subscriptions: 12, vehicles: 7, weapons: 3 },
         settings: {

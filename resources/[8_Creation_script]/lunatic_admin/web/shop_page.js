@@ -12,9 +12,9 @@ const storeState = { data: null, tab: "shop", tier: "premium", draft: null, save
 const STORE_TABS = [
     { value: "shop", label: "Boutique" },
     { value: "premium", label: "Premium" },
-    { value: "packs", label: "Packs", soon: true },
-    { value: "vehicles", label: "Véhicules", soon: true },
-    { value: "weapons", label: "Armes", soon: true },
+    { value: "packs", label: "Packs" },
+    { value: "vehicles", label: "Véhicules" },
+    { value: "weapons", label: "Armes" },
 ];
 
 const STORE_CATEGORIES = [["premium", "Premium"], ["premium_plus", "Premium+"], ["vehicles", "Véhicules"], ["packs", "Packs"], ["weapons", "Armes"], ["credits", null]];
@@ -31,7 +31,7 @@ const STORE_PERKS = [
     ["outfits", "Limite de tenues", "1", "Enregistré pour le futur vestiaire."],
 ];
 
-const storeCreditsName = () => (storeState.draft && storeState.draft.credits.name) || "Crédits";
+const storeCreditsName = () => (storeState.draft && storeState.draft.credits.name) || (storeState.data && storeState.data.settings.credits.name) || "Crédits";
 
 function renderStore() {
     const root = $("view-shop");
@@ -44,7 +44,7 @@ async function loadStore() {
     const res = await nui("action", { action: "shop.info", payload: {} }).catch(() => null);
     if (!res || !res.ok) return;
     storeState.data = res;
-    if (!isUnsaved("shop")) storeState.draft = null;
+    if (!isUnsaved("shop") && (storeState.tab === "shop" || storeState.tab === "premium")) storeState.draft = null;
     paintStore();
 }
 
@@ -81,15 +81,34 @@ async function saveStore() {
 function paintStore() {
     const root = $("view-shop");
     if (!storeState.data) return root.replaceChildren(h("div", { class: "content" }, h("div", { class: "empty" }, icon("i-gem"), "Chargement de la boutique…")));
-    const d = storeDraft();
+    // Boutique et Premium partagent le brouillon des réglages ; chaque catalogue a le sien (produit ou catégorie)
+    const settingsTab = (tab) => tab === "shop" || tab === "premium";
+    const catalog = !settingsTab(storeState.tab);
 
     const tabs = h("div", { class: "segmented shop-tabs" }, STORE_TABS.map((t) => h("button", {
-        "aria-checked": String(storeState.tab === t.value), class: t.soon ? "soon" : null, title: t.soon ? "Partie 2" : null,
-        onclick: () => { if (!t.soon) { storeState.tab = t.value; paintStore(); } },
+        "aria-checked": String(storeState.tab === t.value),
+        onclick: () => {
+            if (t.value === storeState.tab) return;
+            const go = () => { storeState.tab = t.value; paintStore(); };
+            if (settingsTab(t.value) && settingsTab(storeState.tab)) return go();
+            guardUnsaved("shop", () => {
+                untrackUnsaved("shop");
+                storeState.draft = null;
+                storeCat.draft = null;
+                storeCat.sel = null;
+                storeCat.cat = null;
+                storeCat.newCategory = false;
+                go();
+            });
+        },
     }, t.label)));
 
+    let body;
+    if (catalog) body = storeCatalogTab(storeState.tab);
+    else body = storeState.tab === "premium" ? storePremiumTab(storeDraft()) : storeMainTab(storeDraft());
+
     root.replaceChildren(h("div", { class: "shop-page" }, h("div", { class: "shop-top" }, tabs),
-        h("div", { class: "shop-body crew-scroll" }, storeState.tab === "premium" ? storePremiumTab(d) : storeMainTab(d))));
+        catalog ? body : h("div", { class: "shop-body crew-scroll" }, body)));
 }
 
 // ---------- Onglet Boutique ----------
