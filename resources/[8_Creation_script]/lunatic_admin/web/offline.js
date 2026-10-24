@@ -68,7 +68,6 @@ async function loadOfflineInfo() {
     const res = await nui("action", { action: "offline.info", payload: { identifier } });
     if (identifier !== offlineSelected) return;
     offlineInfo = res && res.ok ? res.info : false;
-    if (offlineInfo) rememberRecent({ type: "offline", id: identifier, label: offlineInfo.name, sub: "Fiche en base" });
     if (offlineInfo) {
         offlineInfo.licenses = Array.isArray(offlineInfo.licenses) ? offlineInfo.licenses : [];
         if (can("sanctions.view")) loadPlayerHistory(offlineInfo.license);

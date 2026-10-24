@@ -633,14 +633,6 @@ body.hidden.minimized .mini-pill { display: flex; }
 .perm-empty { padding: 18px 0; text-align: center; font-size: 13px; }
 
 /* Accueil : récents */
-.recents { margin: 0; }
-.recent-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.recent { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); text-align: left; }
-.recent:hover { background: var(--surface-2); }
-.recent > svg.i { flex: none; color: var(--muted); }
-.recent .who { display: grid; min-width: 0; }
-.recent .who b { overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.recent .who span { overflow: hidden; color: var(--muted); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Butin des contrats : objet, min, max, chance */
 .ingredient-row.loot-row { grid-template-columns: minmax(0, 1fr) 72px 72px 72px auto; }

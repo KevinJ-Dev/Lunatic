@@ -109,7 +109,6 @@ async function loadStructureInfo(kind) {
     const res = await nui("action", { action: "structures.info", payload: { job } }).catch(() => null);
     if (job !== st.selected) return;
     st.info = res && res.ok ? res.job : false;
-    if (st.info) rememberRecent({ type: kind, id: job, label: st.info.label || job, sub: job });
     if (res && res.types) st.types = res.types;
     paintStructureFiche(kind);
 }

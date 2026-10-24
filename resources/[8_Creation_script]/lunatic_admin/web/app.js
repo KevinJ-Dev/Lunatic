@@ -624,10 +624,17 @@ function homeKpis() {
     return kpis;
 }
 
+// L'état du jeu arrive toutes les quelques secondes et reconstruit la page : on garde la position de défilement
+function replaceKeepingScroll(root, node) {
+    const old = root.querySelector(".home");
+    const top = old ? old.scrollTop : 0;
+    root.replaceChildren(node);
+    if (top) node.scrollTop = top;
+}
+
 function renderHome() {
-    $("view-home").replaceChildren(h("div", { class: "home menu" },
+    replaceKeepingScroll($("view-home"), h("div", { class: "home menu" },
         h("div", { class: "kpis menu-kpis" }, homeKpis()),
-        recentsSection(),
         h("div", { class: "tiles" }, tiles().map((t) =>
             h("button", { class: "tile", onclick: () => go(t.target) }, icon(t.icon), h("span", null, t.label))))
     ));
@@ -691,7 +698,7 @@ function renderDashboard() {
             : h("span", { class: "muted" }, "Aucune action enregistrée.")
     ) : null;
 
-    $("view-dashboard").replaceChildren(h("div", { class: "home" },
+    replaceKeepingScroll($("view-dashboard"), h("div", { class: "home" },
         h("div", { class: "kpis", style: "margin-top:0" }, kpis),
         h("div", { class: `dash-grid${showStaff ? "" : " single"}` }, chartCard, staffCard),
         recentCard
@@ -832,7 +839,6 @@ async function loadPlayerInfo() {
         const res = await nui("action", { action: "player.info", payload: { serverId: id } });
         if (id !== selectedPlayerId) return;
         playerInfo = res && res.ok ? res.info : false;
-        if (playerInfo) rememberRecent({ type: "player", id: playerInfo.serverId, identifier: String(playerInfo.license || "").replace(/^license:/, ""), label: playerInfo.name, sub: `En ligne · ID ${playerInfo.serverId}` });
     } catch (e) {
         return;
     }

@@ -82,7 +82,6 @@ async function loadCrewInfo() {
     const res = await nui("action", { action: "crews.info", payload: { id } }).catch(() => null);
     if (id !== crewState.selected) return;
     crewState.info = res && res.ok ? res.crew : false;
-    if (crewState.info) rememberRecent({ type: "crew", id, label: crewState.info.label, sub: crewState.info.typeLabel });
     if (res && res.types) crewState.types = res.types;
     paintCrewFiche();
 }

@@ -98,7 +98,6 @@ async function doSelectShop(id) {
     if (id !== shopState.selected) return;
     if (!res || !res.ok) return toast((res && res.error) || "Magasin introuvable.", "error");
     shopState.draft = JSON.parse(JSON.stringify(res.shop));
-    rememberRecent({ type: "shop", id, category: shopState.category.id, label: res.shop.label, sub: shopState.category.label });
     shopState.saved = shopSnapshot(shopState.draft);
     trackUnsaved("catalogs", {
         label: `Magasin ${res.shop.label}`,
