@@ -4,14 +4,21 @@
 -- dans l'état du joueur (Player(src).state.lunaticEvent), lu par les scripts du jeu : invincibilité, pas de coma,
 -- respawn, faim et soif, heure, musique. Le serveur revérifie la position des participants : sortir de la zone,
 -- ou décharger l'event, retire tout.
+-- Contenu (partie 2) : objets temporaires donnés à l'entrée et repris à la sortie (marqués metadata.event, ni donnés
+-- ni jetés), tenues homme / femme appliquées dans la zone, points de TP, véhicules posés au chargement.
 
 EventZones = {}
 
-local LIMITS = { label = 60, description = 300, players = 500, duration = 1440, radiusMin = 10, radiusMax = 1000, audio = 255 }
+local LIMITS = { label = 60, description = 300, players = 500, duration = 1440, radiusMin = 10, radiusMax = 1000, audio = 255, items = 20, tp = 10, vehicles = 20 }
 local RULES = { 'noKO', 'godmode', 'vehicleGodmode', 'policeCalls', 'respawn', 'noNeeds' }
+local VEHICLE_TYPES = { automobile = true, bike = true, boat = true, heli = true, plane = true, submarine = true, trailer = true }
+
+local ox = exports.ox_inventory
 
 ---@type table<number, table> events par id
 local events = {}
+---@type table<number, number[]> véhicules posés par event (entités)
+local spawned = {}
 ---@type table<number, table<number, boolean>> participants par event
 local participants = {}
 ---@type table<number, number> joueur -> event
@@ -54,8 +61,16 @@ end
 local function fromRow(row)
     local ok, rules = pcall(json.decode, row.rules or '{}')
     rules = ok and type(rules) == 'table' and rules or {}
+    local okContent, content = pcall(json.decode, row.content or '{}')
+    content = okContent and type(content) == 'table' and content or {}
 
     return {
+        content = {
+            items = type(content.items) == 'table' and content.items or {},
+            outfits = type(content.outfits) == 'table' and content.outfits or {},
+            tp = type(content.tp) == 'table' and content.tp or {},
+            vehicles = type(content.vehicles) == 'table' and content.vehicles or {},
+        },
         id = tonumber(row.id),
         label = row.label,
         description = row.description or '',
@@ -92,7 +107,70 @@ local function stateOf(event)
         noKO = rules.noKO == true, godmode = rules.godmode == true, vehicleGodmode = rules.vehicleGodmode == true,
         noPolice = rules.policeCalls == false, respawn = rules.respawn == true, noNeeds = rules.noNeeds == true,
         hour = event.hour, audio = event.audio ~= '' and event.audio or nil, volume = event.volume,
+        outfits = event.content.outfits, tp = event.content.tp,
     }
+end
+
+---------------------------------------------------------------------
+-- Objets temporaires et véhicules
+---------------------------------------------------------------------
+
+-- Retire les objets d'event du joueur (d'un event précis, ou tous)
+local function purgeItems(src, eventId)
+    for _, slot in pairs(ox:GetInventoryItems(src) or {}) do
+        local meta = slot.metadata
+
+        if type(meta) == 'table' and meta.event and (not eventId or meta.event == eventId) then
+            ox:RemoveItem(src, slot.name, slot.count, nil, slot.slot)
+        end
+    end
+end
+
+local function giveItems(src, event)
+    for _, entry in ipairs(event.content.items) do
+        local item = ox:Items(entry.item)
+
+        if item then
+            ox:AddItem(src, entry.item, entry.count, {
+                event = event.id,
+                label = ('[Event] %s'):format(item.label or entry.item),
+                description = ("Objet de l'event « %s » : repris à la sortie de la zone."):format(event.label),
+            })
+        end
+    end
+end
+
+local function despawnVehicles(id)
+    for _, vehicle in ipairs(spawned[id] or {}) do
+        if DoesEntityExist(vehicle) then
+            DeleteEntity(vehicle)
+        end
+    end
+
+    spawned[id] = nil
+end
+
+local function spawnVehicles(event)
+    despawnVehicles(event.id)
+    spawned[event.id] = {}
+
+    for _, entry in ipairs(event.content.vehicles) do
+        local vehicle = CreateVehicleServerSetter(joaat(entry.model), entry.type, entry.x + 0.0, entry.y + 0.0, entry.z + 0.0, (entry.h or 0.0) + 0.0)
+        local timeout = GetGameTimer() + 2000
+
+        while vehicle ~= 0 and not DoesEntityExist(vehicle) and GetGameTimer() < timeout do
+            Wait(0)
+        end
+
+        if vehicle ~= 0 and DoesEntityExist(vehicle) then
+            SetVehicleNumberPlateText(vehicle, 'EVENT')
+            Entity(vehicle).state:set('fuel', 100.0, true)
+            Entity(vehicle).state:set('eventVehicle', event.id, true)
+            spawned[event.id][#spawned[event.id] + 1] = vehicle
+        else
+            print(('[lunatic_admin] Event « %s » : véhicule %s impossible à créer (modèle inconnu ?).'):format(event.label, entry.model))
+        end
+    end
 end
 
 -- Zones des events chargés : les clients détectent l'entrée et préviennent le serveur
@@ -123,6 +201,7 @@ local function leave(src, silent)
 
     if GetPlayerPing(src) > 0 then
         Player(src).state:set('lunaticEvent', nil, true)
+        purgeItems(src, id)
 
         if not silent then
             TriggerClientEvent('esx:showNotification', src, ('Vous quittez la zone de « %s ».'):format(events[id] and events[id].label or "l'event"), 'info')
@@ -136,6 +215,7 @@ local function join(src, event)
     playerEvent[src] = event.id
     fullNotified[src] = nil
     Player(src).state:set('lunaticEvent', stateOf(event), true)
+    giveItems(src, event)
     TriggerClientEvent('esx:showNotification', src, ('Vous entrez dans la zone de « %s ».'):format(event.label), 'success')
 end
 
@@ -146,6 +226,7 @@ local function unload(event)
     end
 
     participants[event.id] = nil
+    despawnVehicles(event.id)
     event.loadedAt = nil
     MySQL.update.await('UPDATE `lunatic_event_zones` SET `loaded_at` = NULL WHERE `id` = ?', { event.id })
     publish()
@@ -193,12 +274,78 @@ table.insert(Panel.readyHooks, function()
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ]])
 
+    MySQL.query.await('ALTER TABLE `lunatic_event_zones` ADD COLUMN IF NOT EXISTS `content` TEXT NULL')
+
     load()
 
-    -- Redémarrage de la ressource : les joueurs déjà dans une zone se réinscrivent d'eux-mêmes (le client renvoie l'entrée)
+    -- Redémarrage de la ressource : les joueurs déjà dans une zone se réinscrivent d'eux-mêmes (le client renvoie
+    -- l'entrée) ; leurs objets d'event sont repris puis redonnés à l'entrée
     for _, id in ipairs(GetPlayers()) do
         Player(tonumber(id)).state:set('lunaticEvent', nil, true)
+        purgeItems(tonumber(id))
     end
+
+    for _, event in pairs(events) do
+        if event.loadedAt then
+            spawnVehicles(event)
+        end
+    end
+end)
+
+AddEventHandler('onResourceStop', function(resource)
+    if resource == GetCurrentResourceName() then
+        for id in pairs(spawned) do
+            despawnVehicles(id)
+        end
+    end
+end)
+
+-- Objets d'event restés dans l'inventaire (déconnexion dans la zone) : repris au chargement du personnage
+AddEventHandler('esx:playerLoaded', function(src)
+    -- ox_inventory charge l'inventaire sur le même événement : on attend qu'il soit prêt
+    SetTimeout(5000, function()
+        if not playerEvent[src] and GetPlayerPing(src) > 0 then
+            purgeItems(src)
+        end
+    end)
+end)
+
+-- Objets d'event : ni donnés, ni jetés, ni rangés ailleurs que dans l'inventaire du joueur
+CreateThread(function()
+    while GetResourceState('ox_inventory') ~= 'started' do
+        Wait(1000)
+    end
+
+    ox:registerHook('swapItems', function(payload)
+        local item = type(payload.fromSlot) == 'table' and payload.fromSlot or {}
+
+        if type(item.metadata) == 'table' and item.metadata.event and payload.fromInventory ~= payload.toInventory then
+            TriggerClientEvent('esx:showNotification', payload.source, "Objet d'event : il reste dans votre inventaire.", 'error')
+            return false
+        end
+
+        return true
+    end, {})
+end)
+
+-- Points de TP : le serveur vérifie que le joueur est dans l'event et au point de départ
+RegisterNetEvent('lunatic_admin:eventTp', function(index)
+    local src = source
+    local id = playerEvent[src]
+    local event = id and events[id]
+    local point = event and event.content.tp[tonumber(index) or -1]
+
+    if not point then
+        return
+    end
+
+    local ped = GetPlayerPed(src)
+
+    if ped == 0 or #(GetEntityCoords(ped) - vector3(point.from.x, point.from.y, point.from.z)) > 4.0 then
+        return
+    end
+
+    TriggerClientEvent('lunatic_admin:teleport', src, vector3(point.to.x, point.to.y, point.to.z))
 end)
 
 AddEventHandler('playerDropped', function()
@@ -313,7 +460,8 @@ local function view(event)
         id = event.id, label = event.label, description = event.description, maxPlayers = event.maxPlayers, duration = event.duration,
         x = event.x, y = event.y, z = event.z, radius = event.radius, rules = event.rules, hour = event.hour,
         audio = event.audio, volume = event.volume, loaded = event.loadedAt ~= nil, loadedAt = event.loadedAt,
-        players = countOf(event.id), createdBy = event.createdBy,
+        players = countOf(event.id), createdBy = event.createdBy, content = event.content,
+        spawned = #(spawned[event.id] or {}),
     }
 end
 
@@ -341,6 +489,145 @@ local function cleanAudio(value)
     end
 
     return url:match('^https://[%w%-%.]+%.%a+/.*') and url or nil
+end
+
+local function position(value, heading)
+    if type(value) ~= 'table' then
+        return nil
+    end
+
+    local x, y, z, h = tonumber(value.x), tonumber(value.y), tonumber(value.z), tonumber(value.h) or 0.0
+
+    if not x or not y or not z or x < -5000 or x > 5000 or y < -5000 or y > 9000 or z < -300 or z > 3000 then
+        return nil
+    end
+
+    local point = { x = math.floor(x * 100 + 0.5) / 100, y = math.floor(y * 100 + 0.5) / 100, z = math.floor(z * 100 + 0.5) / 100 }
+
+    if heading then
+        point.h = math.floor((h % 360) * 10 + 0.5) / 10
+    end
+
+    return point
+end
+
+-- Tenue capturée sur le personnage du staff (illenium-appearance) : vêtements et accessoires seulement
+local function readOutfit(value)
+    if value == nil then
+        return nil, true
+    end
+
+    if type(value) ~= 'table' or type(value.components) ~= 'table' or type(value.props) ~= 'table' or #value.components > 12 or #value.props > 8 then
+        return nil, false
+    end
+
+    local outfit = { components = {}, props = {} }
+
+    for _, c in ipairs(value.components) do
+        local id, drawable, texture = whole(c.component_id, 0, 11), whole(c.drawable, -1, 5000), whole(c.texture, 0, 255)
+
+        if not id or not drawable or not texture then
+            return nil, false
+        end
+
+        outfit.components[#outfit.components + 1] = { component_id = id, drawable = drawable, texture = texture }
+    end
+
+    for _, p in ipairs(value.props) do
+        local id, drawable, texture = whole(p.prop_id, 0, 7), whole(p.drawable, -1, 5000), whole(p.texture, -1, 255)
+
+        if not id or not drawable or not texture then
+            return nil, false
+        end
+
+        outfit.props[#outfit.props + 1] = { prop_id = id, drawable = drawable, texture = texture }
+    end
+
+    return outfit, true
+end
+
+-- Contenu de l'event : objets, tenues, points de TP, véhicules
+---@return table|nil content, string|nil error
+local function readContent(data)
+    local content = { items = {}, outfits = {}, tp = {}, vehicles = {} }
+
+    local items = type(data.items) == 'table' and data.items or {}
+
+    if #items > LIMITS.items then
+        return nil, ('%d objets au maximum.'):format(LIMITS.items)
+    end
+
+    for _, entry in ipairs(items) do
+        local count = whole(entry.count, 1, 1000)
+
+        if type(entry.item) ~= 'string' or not ox:Items(entry.item) then
+            return nil, ('Objet inconnu : %s.'):format(tostring(entry.item))
+        end
+
+        if not count then
+            return nil, ('Quantité de %s : entre 1 et 1000.'):format(entry.item)
+        end
+
+        content.items[#content.items + 1] = { item = entry.item, count = count }
+    end
+
+    for _, sex in ipairs({ 'male', 'female' }) do
+        local outfit, valid = readOutfit(type(data.outfits) == 'table' and data.outfits[sex] or nil)
+
+        if not valid then
+            return nil, 'Tenue invalide : capturez-la de nouveau.'
+        end
+
+        content.outfits[sex] = outfit
+    end
+
+    local tp = type(data.tp) == 'table' and data.tp or {}
+
+    if #tp > LIMITS.tp then
+        return nil, ('%d points de TP au maximum.'):format(LIMITS.tp)
+    end
+
+    for index, entry in ipairs(tp) do
+        local label = cleanText(entry.label, 1, 40)
+        local from, to = position(entry.from, false), position(entry.to, true)
+
+        if not label then
+            return nil, ('Point de TP n°%d : un nom de 1 à 40 caractères.'):format(index)
+        end
+
+        if not from or not to then
+            return nil, ("Point de TP « %s » : définissez le départ et l'arrivée."):format(label)
+        end
+
+        content.tp[#content.tp + 1] = { label = label, from = from, to = to }
+    end
+
+    local vehicles = type(data.vehicles) == 'table' and data.vehicles or {}
+
+    if #vehicles > LIMITS.vehicles then
+        return nil, ('%d véhicules au maximum.'):format(LIMITS.vehicles)
+    end
+
+    for index, entry in ipairs(vehicles) do
+        local model = type(entry.model) == 'string' and entry.model:lower():match('^[%w_]+$')
+        local spot = position(entry, true)
+
+        if not model or #model > 30 then
+            return nil, ('Véhicule n°%d : nom de modèle invalide (ex. adder).'):format(index)
+        end
+
+        if VEHICLE_TYPES[entry.type] ~= true then
+            return nil, ('Véhicule %s : type invalide.'):format(model)
+        end
+
+        if not spot then
+            return nil, ('Véhicule %s : définissez sa position.'):format(model)
+        end
+
+        content.vehicles[#content.vehicles + 1] = { model = model, type = entry.type, x = spot.x, y = spot.y, z = spot.z, h = spot.h }
+    end
+
+    return content
 end
 
 ---@return table|nil fields, table|nil error
@@ -410,9 +697,15 @@ local function readFields(data)
         rules[key] = type(data.rules) == 'table' and data.rules[key] == true
     end
 
+    local content, contentError = readContent(type(data.content) == 'table' and data.content or {})
+
+    if not content then
+        return nil, Panel.fail(contentError)
+    end
+
     return {
         label = label, description = description, maxPlayers = maxPlayers, duration = duration, radius = radius,
-        volume = volume, hour = hour, audio = audio, x = x, y = y, z = z, rules = rules,
+        volume = volume, hour = hour, audio = audio, x = x, y = y, z = z, rules = rules, content = content,
     }
 end
 
@@ -469,10 +762,18 @@ Panel.actions['eventZones.save'] = function(src, actor, data)
         MySQL.update.await('UPDATE `lunatic_event_zones` SET `x` = ?, `y` = ?, `z` = ? WHERE `id` = ?', { fields.x, fields.y, fields.z or -200.0, id })
     end
 
+    MySQL.update.await('UPDATE `lunatic_event_zones` SET `content` = ? WHERE `id` = ?', { json.encode(fields.content), id })
+
     local row = MySQL.single.await('SELECT * FROM `lunatic_event_zones` WHERE `id` = ?', { id })
+    local wasLoaded = event and event.loadedAt
     events[id] = fromRow(row)
     refreshParticipants(events[id])
     publish()
+
+    -- Event chargé : les véhicules sont reposés tels qu'enregistrés (les objets valent pour les prochaines entrées)
+    if wasLoaded then
+        spawnVehicles(events[id])
+    end
 
     Logs.add(src, event and 'eventZones.update' or 'eventZones.create', fields.label, { id = id })
     return { ok = true, silent = true, id = id }
@@ -502,6 +803,7 @@ Panel.actions['eventZones.duplicate'] = function(src, actor, data)
         MySQL.update.await('UPDATE `lunatic_event_zones` SET `x` = ?, `y` = ?, `z` = ? WHERE `id` = ?', { event.x, event.y, event.z or -200.0, id })
     end
 
+    MySQL.update.await('UPDATE `lunatic_event_zones` SET `content` = ? WHERE `id` = ?', { json.encode(event.content), id })
     events[id] = fromRow(MySQL.single.await('SELECT * FROM `lunatic_event_zones` WHERE `id` = ?', { id }))
     Logs.add(src, 'eventZones.duplicate', label, { id = id, from = event.id })
     return { ok = true, silent = true, id = id }
@@ -546,6 +848,7 @@ Panel.actions['eventZones.load'] = function(src, actor, data)
     event.loadedAt = now()
     MySQL.update.await('UPDATE `lunatic_event_zones` SET `loaded_at` = ? WHERE `id` = ?', { event.loadedAt, event.id })
     publish()
+    spawnVehicles(event)
 
     Logs.add(src, 'eventZones.load', event.label, { id = event.id, duration = event.duration })
     return { ok = true, silent = true, loaded = true }

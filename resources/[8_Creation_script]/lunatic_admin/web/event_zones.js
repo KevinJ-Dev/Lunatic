@@ -21,11 +21,22 @@ const ZONE_RULES = [
 const ZONE_TABS = [
     { value: "info", label: "Informations" },
     { value: "communication", label: "Communication", soon: true },
-    { value: "items", label: "Items", soon: true },
-    { value: "tp", label: "Points de TP", soon: true },
+    { value: "items", label: "Items" },
+    { value: "tp", label: "Points de TP" },
     { value: "props", label: "Props", soon: true },
-    { value: "outfits", label: "Tenues", soon: true },
+    { value: "outfits", label: "Tenues" },
+    { value: "vehicles", label: "Véhicules" },
 ];
+
+const ZONE_VEHICLE_TYPES = [["automobile", "Voiture"], ["bike", "Moto / vélo"], ["boat", "Bateau"], ["heli", "Hélicoptère"], ["plane", "Avion"], ["submarine", "Sous-marin"], ["trailer", "Remorque"]];
+
+const emptyZoneContent = () => ({ items: [], outfits: { male: null, female: null }, tp: [], vehicles: [] });
+
+// Copie modifiable du contenu enregistré (objets, tenues, points de TP, véhicules)
+function zoneContentDraft(content) {
+    const c = content ? JSON.parse(JSON.stringify(content)) : emptyZoneContent();
+    return { items: c.items || [], outfits: { male: (c.outfits && c.outfits.male) || null, female: (c.outfits && c.outfits.female) || null }, tp: c.tp || [], vehicles: c.vehicles || [] };
+}
 
 function zoneDuration(minutes) {
     if (!minutes) return "Illimitée";
@@ -126,8 +137,8 @@ function zoneDraft(event) {
     for (const r of ZONE_RULES) rules[r.key] = event ? !!(event.rules && event.rules[r.key]) : false;
     const base = event
         ? { key: event.id, label: event.label, description: event.description, maxPlayers: event.maxPlayers, duration: event.duration, radius: event.radius,
-            hour: event.hour ?? null, audio: event.audio || "", volume: event.volume, x: event.x ?? null, y: event.y ?? null, z: event.z ?? null, rules }
-        : { key: "new", label: "Nouvel événement", description: "", maxPlayers: 0, duration: 60, radius: 100, hour: null, audio: "", volume: 50, x: null, y: null, z: null, rules };
+            hour: event.hour ?? null, audio: event.audio || "", volume: event.volume, x: event.x ?? null, y: event.y ?? null, z: event.z ?? null, rules, content: zoneContentDraft(event.content) }
+        : { key: "new", label: "Nouvel événement", description: "", maxPlayers: 0, duration: 60, radius: 100, hour: null, audio: "", volume: 50, x: null, y: null, z: null, rules, content: emptyZoneContent() };
     zoneState.draft = base;
     zoneState.saved = JSON.stringify(base);
     trackUnsaved("events", {
@@ -151,7 +162,8 @@ function zoneFiche() {
     const paintSummary = () => summary.replaceChildren(
         h("div", { class: "info-row" }, h("span", null, "Durée"), h("b", null, zoneDuration(d.duration))),
         ...ZONE_RULES.map((r) => h("div", { class: "info-row" }, h("span", null, r.short), h("b", { class: d.rules[r.key] ? "on" : "off" }, d.rules[r.key] ? "Oui" : "Non"))),
-        h("div", { class: "info-row" }, h("span", null, "Jour / nuit"), h("b", null, d.hour === null ? "Auto" : `${String(d.hour).padStart(2, "0")}h00`)));
+        h("div", { class: "info-row" }, h("span", null, "Jour / nuit"), h("b", null, d.hour === null ? "Auto" : `${String(d.hour).padStart(2, "0")}h00`)),
+        h("div", { class: "info-row" }, h("span", null, "Contenu"), h("b", null, `${d.content.items.length} obj. · ${d.content.tp.length} TP · ${d.content.vehicles.length} véh. · ${(d.content.outfits.male ? 1 : 0) + (d.content.outfits.female ? 1 : 0)} tenue(s)`)));
     paintSummary();
 
     // Zone : carte (clic pour placer), position en jeu, TP
@@ -228,7 +240,7 @@ function zoneFiche() {
         h("div", { class: "zone-body" },
             leftCol,
             h("section", { class: "zone-right" }, tabs,
-                h("div", { class: "crew-scroll zone-pane" }, zoneInfoTab(d, () => { paintSummary(); drawZone(); })),
+                h("div", { class: "crew-scroll zone-pane" }, zonePane(d, () => { paintSummary(); drawZone(); })),
                 actions)));
 }
 
@@ -277,11 +289,148 @@ function zoneInfoTab(d, changed) {
         h("p", { class: "hint-line" }, "Les règles s'appliquent aux joueurs qui entrent dans la zone quand l'event est chargé, et sont retirées à la sortie ou au déchargement. Durée 0 : l'event reste chargé jusqu'à ce que vous le déchargiez."));
 }
 
+function zonePane(d, changed) {
+    if (zoneState.tab === "items") return zoneItemsTab(d.content);
+    if (zoneState.tab === "tp") return zoneTpTab(d.content);
+    if (zoneState.tab === "outfits") return zoneOutfitsTab(d.content);
+    if (zoneState.tab === "vehicles") return zoneVehiclesTab(d.content);
+    return zoneInfoTab(d, changed);
+}
+
+// Position du staff en jeu (x, y, z, cap)
+async function zoneMyPosition() {
+    const c = await nui("getCoords").catch(() => null);
+    if (!c || typeof c.x !== "number") {
+        toast("Position indisponible.", "error");
+        return null;
+    }
+    const r = (n, f = 100) => Math.round(n * f) / f;
+    return { x: r(c.x), y: r(c.y), z: r(c.z), h: r(c.h || 0, 10) };
+}
+
+const zoneCoords = (p) => (p ? `${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)}` : "non défini");
+
+// ---------- Items : donnés à l'entrée dans la zone, repris à la sortie ----------
+
+function zoneItemsTab(content) {
+    if (!catalogItems) {
+        loadCatalogItems().then(() => repaintZones());
+        return h("div", { class: "empty small" }, "Chargement des objets…");
+    }
+    const list = h("div", { class: "zone-list" });
+    const paint = () => list.replaceChildren(...(content.items.length ? content.items.map((entry, index) => {
+        const name = itemPicker(catalogItems, entry.item);
+        const count = h("input", { class: "input mono", type: "number", min: "1", max: "1000", value: String(entry.count) });
+        const pic = h("span", { class: "zone-item-pic" }, itemImage(entry.item));
+        name.addEventListener("input", () => { entry.item = name.value.trim(); });
+        name.addEventListener("change", () => pic.replaceChildren(itemImage(entry.item)));
+        count.addEventListener("input", () => { entry.count = Number(count.value || 1); });
+        return h("div", { class: "zone-item-row" }, pic, name, count,
+            h("button", { class: "btn small ghost sq-btn", title: "Retirer", onclick: () => { content.items.splice(index, 1); paint(); } }, icon("i-trash")));
+    }) : [h("p", { class: "hint-line" }, "Aucun objet : les participants gardent seulement leur inventaire.")]));
+    paint();
+    return h("div", { class: "zone-form" },
+        h("p", { class: "hint-line" }, "Donnés à chaque joueur qui entre dans la zone, repris à la sortie ou à la fin de l'event. Marqués « [Event] » dans l'inventaire : ils ne peuvent être ni donnés, ni jetés, ni rangés."),
+        list,
+        h("button", { class: "btn small ghost", style: "justify-self:start", onclick: () => {
+            if (content.items.length >= 20) return toast("20 objets au maximum.", "error");
+            content.items.push({ item: "", count: 1 });
+            paint();
+        } }, icon("i-plus"), "Ajouter un objet"));
+}
+
+// ---------- Points de TP : départ (marqueur, [E]) vers arrivée ----------
+
+function zoneTpTab(content) {
+    const list = h("div", { class: "zone-list" });
+    const paint = () => list.replaceChildren(...(content.tp.length ? content.tp.map((point, index) => {
+        const label = h("input", { class: "input", maxlength: "40", value: point.label });
+        label.addEventListener("input", () => { point.label = label.value; });
+        const spot = (key, text) => h("div", { class: "zone-tp-spot" },
+            h("span", { class: "muted" }, text), h("b", { class: "mono" }, zoneCoords(point[key])),
+            h("button", { class: "btn small ghost", onclick: async () => {
+                const p = await zoneMyPosition();
+                if (!p) return;
+                point[key] = key === "from" ? { x: p.x, y: p.y, z: p.z } : p;
+                paint();
+            } }, icon("i-player"), "Ma position"));
+        return h("div", { class: "card zone-tp" },
+            h("div", { class: "zone-tp-head" }, label, h("button", { class: "btn small ghost sq-btn", title: "Retirer", onclick: () => { content.tp.splice(index, 1); paint(); } }, icon("i-trash"))),
+            spot("from", "Départ"), spot("to", "Arrivée"));
+    }) : [h("p", { class: "hint-line" }, "Aucun point de TP.")]));
+    paint();
+    return h("div", { class: "zone-form" },
+        h("p", { class: "hint-line" }, "Un marqueur apparaît au départ pour les participants : [E] les téléporte à l'arrivée. Placez-vous en jeu puis « Ma position »."),
+        list,
+        h("button", { class: "btn small ghost", style: "justify-self:start", onclick: () => {
+            if (content.tp.length >= 10) return toast("10 points de TP au maximum.", "error");
+            content.tp.push({ label: `Point ${content.tp.length + 1}`, from: null, to: null });
+            paint();
+        } }, icon("i-plus"), "Ajouter un point"));
+}
+
+// ---------- Tenues : capturées sur votre personnage ----------
+
+function zoneOutfitsTab(content) {
+    const box = h("div", { class: "zone-outfits" });
+    const card = (sex, label) => {
+        const outfit = content.outfits[sex];
+        const worn = outfit ? outfit.components.filter((c) => c.component_id !== 0 && c.component_id !== 2).length + outfit.props.filter((p) => p.drawable >= 0).length : 0;
+        return h("div", { class: `card zone-outfit${outfit ? " on" : ""}` },
+            h("div", { class: "zone-outfit-icon" }, icon("i-shirt")),
+            h("b", null, label),
+            h("span", { class: "muted" }, outfit ? `Définie · ${worn} vêtement(s) et accessoire(s)` : "Aucune tenue : le joueur garde la sienne"),
+            outfit ? h("button", { class: "btn small ghost", onclick: () => { content.outfits[sex] = null; paint(); } }, icon("i-trash"), "Retirer") : null);
+    };
+    const paint = () => box.replaceChildren(card("male", "Homme"), card("female", "Femme"));
+    paint();
+    return h("div", { class: "zone-form" },
+        h("p", { class: "hint-line" }, "Appliquée à chaque joueur qui entre dans la zone (selon son personnage, homme ou femme), et rendue à la sortie. Habillez votre personnage en jeu, puis capturez."),
+        box,
+        h("button", { class: "btn small primary", style: "justify-self:start", onclick: async () => {
+            const res = await nui("captureOutfit").catch(() => null);
+            if (!res || !res.ok) return toast((res && res.error) || "Capture impossible.", "error");
+            content.outfits[res.sex] = { components: res.components, props: res.props };
+            paint();
+            toast(`Tenue ${res.sex === "male" ? "homme" : "femme"} capturée : enregistrez l'event.`, "ok");
+        } }, icon("i-shirt"), "Capturer ma tenue actuelle"));
+}
+
+// ---------- Véhicules : posés au chargement, supprimés au déchargement ----------
+
+function zoneVehiclesTab(content) {
+    const list = h("div", { class: "zone-list" });
+    const paint = () => list.replaceChildren(...(content.vehicles.length ? content.vehicles.map((v, index) => {
+        const model = h("input", { class: "input mono", maxlength: "30", placeholder: "modèle (ex. adder)", value: v.model });
+        model.addEventListener("input", () => { v.model = model.value.trim().toLowerCase(); });
+        const type = h("select", { class: "input" }, ZONE_VEHICLE_TYPES.map(([value, label]) => h("option", { value, selected: v.type === value }, label)));
+        type.addEventListener("change", () => { v.type = type.value; });
+        return h("div", { class: "zone-vehicle-row" }, icon("i-car"), model, type,
+            h("span", { class: "mono muted" }, v.x != null ? `${zoneCoords(v)} · ${Math.round(v.h || 0)}°` : "position non définie"),
+            h("button", { class: "btn small ghost", title: "Position et orientation de votre personnage (ou de votre véhicule)", onclick: async () => {
+                const p = await zoneMyPosition();
+                if (!p) return;
+                Object.assign(v, p);
+                paint();
+            } }, icon("i-player"), "Ma position"),
+            h("button", { class: "btn small ghost sq-btn", title: "Retirer", onclick: () => { content.vehicles.splice(index, 1); paint(); } }, icon("i-trash")));
+    }) : [h("p", { class: "hint-line" }, "Aucun véhicule.")]));
+    paint();
+    return h("div", { class: "zone-form" },
+        h("p", { class: "hint-line" }, "Posés quand l'event est chargé (plaque EVENT, plein fait), supprimés quand il est déchargé. Enregistrer un event chargé les repose."),
+        list,
+        h("button", { class: "btn small ghost", style: "justify-self:start", onclick: () => {
+            if (content.vehicles.length >= 20) return toast("20 véhicules au maximum.", "error");
+            content.vehicles.push({ model: "", type: "automobile", x: null, y: null, z: null, h: 0 });
+            paint();
+        } }, icon("i-plus"), "Ajouter un véhicule"));
+}
+
 async function saveZone() {
     const d = zoneState.draft;
     if (!d) return;
     const payload = { id: d.key === "new" ? null : d.key, label: d.label.trim(), description: d.description.trim(), maxPlayers: d.maxPlayers, duration: d.duration,
-        radius: d.radius, rules: d.rules, hour: d.hour, audio: d.audio, volume: d.volume };
+        radius: d.radius, rules: d.rules, hour: d.hour, audio: d.audio, volume: d.volume, content: d.content };
     if (d.x != null) Object.assign(payload, { x: d.x, y: d.y, z: d.z });
     const res = await act("eventZones.save", payload, d.key === "new" ? "Event créé." : "Event enregistré.");
     if (!res) return;

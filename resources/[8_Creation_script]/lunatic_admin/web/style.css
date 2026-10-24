@@ -1287,3 +1287,22 @@ body.hidden.minimized .mini-pill { display: flex; }
 .zone-rules { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 6px; }
 .zone-actions { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); }
 .zone-actions .grow { flex: 1; }
+
+/* Events à zone, partie 2 : objets, points de TP, tenues, véhicules */
+.zone-list { display: grid; gap: 6px; }
+.zone-item-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) 90px auto; gap: 8px; align-items: center; }
+.zone-item-pic { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; background: var(--surface-2); }
+.zone-item-pic .item-img { max-width: 28px; max-height: 28px; }
+.zone-tp { display: grid; gap: 6px; padding: 10px 12px; }
+.zone-tp-head { display: flex; gap: 8px; align-items: center; }
+.zone-tp-head .input { flex: 1; }
+.zone-tp-spot { display: grid; grid-template-columns: 70px minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 12.5px; }
+.zone-outfits { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.zone-outfit { display: grid; gap: 6px; justify-items: center; padding: 16px; text-align: center; }
+.zone-outfit.on { border-color: rgba(var(--accent-rgb), .55); }
+.zone-outfit-icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 14px; background: var(--surface-2); color: var(--muted); }
+.zone-outfit.on .zone-outfit-icon { background: rgba(var(--accent-rgb), .2); color: #fff; }
+.zone-outfit-icon svg.i { width: 26px; height: 26px; }
+.zone-outfit .muted { font-size: 12px; }
+.zone-vehicle-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) 140px minmax(0, 1.2fr) auto auto; gap: 8px; align-items: center; font-size: 12px; }
+.zone-vehicle-row svg.i { width: 16px; height: 16px; color: var(--muted); }

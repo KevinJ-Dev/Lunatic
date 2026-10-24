@@ -1765,10 +1765,14 @@ async function demoNui(name, data) {
     }
     if (name === "action" && data && data.action === "eventZones.list") return { ok: true, events: [
         { id: 1, label: "Course de Vespucci", description: "Course de rue sur le front de mer, véhicules fournis.", maxPlayers: 16, duration: 90, x: -1245.6, y: -1530.2, z: 4.3, radius: 220,
-            rules: { noKO: true, godmode: false, vehicleGodmode: true, policeCalls: false, respawn: true, noNeeds: true }, hour: 21, audio: "", volume: 40, loaded: true, loadedAt: Math.floor(Date.now() / 1000) - 900, players: 7, createdBy: "Ramiro Lotus" },
+            rules: { noKO: true, godmode: false, vehicleGodmode: true, policeCalls: false, respawn: true, noNeeds: true }, hour: 21, audio: "", volume: 40, loaded: true, loadedAt: Math.floor(Date.now() / 1000) - 900, players: 7, createdBy: "Ramiro Lotus",
+            content: { items: [{ item: "water", count: 2 }, { item: "bread", count: 1 }], outfits: { male: { components: [{ component_id: 11, drawable: 15, texture: 0 }, { component_id: 4, drawable: 21, texture: 0 }], props: [{ prop_id: 0, drawable: -1, texture: -1 }] }, female: null },
+                tp: [{ label: "Vers la ligne de départ", from: { x: -1250.1, y: -1520.4, z: 4.4 }, to: { x: -1190.5, y: -1590.2, z: 4.3, h: 125.0 } }],
+                vehicles: [{ model: "sultan", type: "automobile", x: -1201.3, y: -1580.9, z: 4.2, h: 125.0 }, { model: "sultan", type: "automobile", x: -1204.8, y: -1584.1, z: 4.2, h: 125.0 }] } },
         { id: 2, label: "Paintball au port", description: "", maxPlayers: 0, duration: 60, x: null, y: null, z: null, radius: 120,
             rules: { noKO: false, godmode: false, vehicleGodmode: false, policeCalls: false, respawn: true, noNeeds: false }, hour: null, audio: "", volume: 50, loaded: false, loadedAt: null, players: 0, createdBy: "Alex Moreau" },
     ] };
+    if (name === "captureOutfit") return { ok: true, sex: "male", components: [{ component_id: 11, drawable: 4, texture: 1 }, { component_id: 4, drawable: 10, texture: 0 }, { component_id: 6, drawable: 7, texture: 0 }], props: [{ prop_id: 0, drawable: 12, texture: 0 }] };
     if (name === "action" && data && data.action === "eventZones.save") return { ok: true, id: data.payload.id || 3 };
     if (name === "action" && data && data.action === "players.banned") return { ok: true, players: [
         { license: "license:9f1e22aa00bb11", identifier: "9f1e22aa00bb11", name: "Tony Vega", reason: "Cheat", expires: null },
