@@ -208,7 +208,7 @@ local function search(index, spot)
             current.searched[index] = true
             local found = {}
 
-            if res.cash and res.cash ~= '0 $' then
+            if res.cash then
                 found[#found + 1] = res.cash
             end
 

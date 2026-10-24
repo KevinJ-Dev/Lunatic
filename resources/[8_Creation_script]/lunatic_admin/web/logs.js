@@ -89,6 +89,8 @@ const ACTION_LABELS = {
     "missions.save": "a modifié les réglages d'une mission",
     "holdups.save": "a modifié un point de braquage",
     "blips.save": "a modifié un blip",
+    "economy.salaries": "a modifié des salaires",
+    "economy.settings": "a modifié l'économie",
     "items.save": "a modifié un objet",
     "items.delete": "a supprimé ou réinitialisé un objet",
     "items.give": "a donné un objet",
@@ -225,6 +227,14 @@ function describeLog(log) {
         case "poles.delete":
             summary = `${d.label} (${d.job})`;
             break;
+        case "economy.salaries":
+            summary = [d.label || d.job, ...(d.changes || []).map((c) => `${c.label} ${c.before} → ${c.after}`)].join(" · ");
+            break;
+        case "economy.settings":
+            summary = { aid: "Aide de l'État", bank: "Plafonds de banque", impound: "Fourrière", currency: "Devise", paycheck: "Intervalle de paie" }[d.section] || d.section;
+            if (d.section === "currency" && d.after) summary += ` · ${(d.before || {}).currency} → ${d.after.currency}`;
+            if (d.section === "paycheck" && d.after) summary += ` · ${(d.before || {}).paycheckMinutes} → ${d.after.paycheckMinutes} min`;
+            break;
         case "poles.grade":
             summary = `${d.job} · ${d.label} · salaire ${d.before} → ${d.after}`;
             break;
@@ -249,12 +259,12 @@ function describeLog(log) {
             summary = [d.label, d.type, d.operation].filter(Boolean).join(" · ");
             break;
         case "fence.item":
-            summary = [d.item, d.price !== undefined ? `${d.price} $` : null, d.category, d.operation].filter(Boolean).join(" · ");
+            summary = [d.item, d.price !== undefined ? `${d.price} ${currencySymbol()}` : null, d.category, d.operation].filter(Boolean).join(" · ");
             break;
         case "drugs.save":
         case "drugs.delete":
         case "drugs.lab":
-            summary = [d.item, d.crewType, d.price !== undefined ? `${d.price} $` : null, d.operation].filter(Boolean).join(" · ");
+            summary = [d.item, d.crewType, d.price !== undefined ? `${d.price} ${currencySymbol()}` : null, d.operation].filter(Boolean).join(" · ");
             break;
         case "territories.save":
         case "territories.reset":

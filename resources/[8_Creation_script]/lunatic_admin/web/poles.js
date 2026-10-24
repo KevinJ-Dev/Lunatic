@@ -169,7 +169,7 @@ function gradesCard(job, doAct = poleAct) {
         return h("div", { class: "row grade-row" },
             h("span", { class: "pid mono" }, String(g.grade)),
             label,
-            h("label", { class: "salary" }, salary, h("span", { class: "muted" }, "$")),
+            h("label", { class: "salary" }, salary, h("span", { class: "muted" }, currencySymbol())),
             h("span", { class: "muted" }, job.membersHidden ? (g === top && !job.protected ? "Patron" : "") : `${g.members} membre${g.members > 1 ? "s" : ""}${g === top && !job.protected ? " · Patron" : ""}`),
             save
         );
@@ -289,7 +289,7 @@ function newPoleForm() {
         return h("div", { class: "row grade-row" },
             h("span", { class: "pid mono" }, String(index)),
             gLabel,
-            h("label", { class: "salary" }, gSalary, h("span", { class: "muted" }, "$")),
+            h("label", { class: "salary" }, gSalary, h("span", { class: "muted" }, currencySymbol())),
             h("span", { class: "muted" }, index === grades.length - 1 ? "Patron" : index === 0 ? "Embauche" : ""),
             h("button", { class: "btn small ghost", disabled: grades.length <= 1, title: "Retirer ce grade", onclick: () => { grades.splice(index, 1); paintGrades(); } }, icon("i-trash"))
         );

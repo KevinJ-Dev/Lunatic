@@ -422,7 +422,7 @@ function newStructureForm(kind) {
         return h("div", { class: "row grade-row" },
             h("span", { class: "pid mono" }, String(index)),
             gLabel,
-            h("label", { class: "salary" }, gSalary, h("span", { class: "muted" }, "$")),
+            h("label", { class: "salary" }, gSalary, h("span", { class: "muted" }, currencySymbol())),
             h("span", { class: "muted" }, index === grades.length - 1 ? "Patron" : index === 0 ? "Embauche" : ""),
             h("button", { class: "btn small ghost", disabled: grades.length <= 1, title: "Retirer ce grade", onclick: () => { grades.splice(index, 1); gradesTouched = true; paintGrades(); } }, icon("i-trash"))
         );

@@ -220,6 +220,7 @@ const NAV = [
     { id: "catalogs", label: "Catalogues", icon: "i-book", show: () => can("catalogs.manage") },
     { id: "items", label: "Items", icon: "i-box", show: () => can("items.manage") },
     { id: "blips", label: "Blips", icon: "i-pin", show: () => can("blips.manage") },
+    { id: "economy", label: "Économie", icon: "i-coins", show: () => can("economy.manage") },
     { id: "poles", label: "Pôle emploi", icon: "i-briefcase", show: () => can("poles.manage") },
     { id: "events", label: "Events", icon: "i-calendar", show: () => can("events.manage") },
     { id: "world", label: "Météo", icon: "i-sun", show: () => hasWorld() },
@@ -573,7 +574,7 @@ function render() {
 
     renderMe();
 
-    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "illegal", "crews", "catalogs", "items", "blips", "poles", "events", "dev", "ranks", "members"]) {
+    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "illegal", "crews", "catalogs", "items", "blips", "economy", "poles", "events", "dev", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
     }
 
@@ -590,6 +591,7 @@ function render() {
     if (view === "catalogs") renderShops();
     if (view === "items") renderItems();
     if (view === "blips") renderBlips();
+    if (view === "economy") renderEconomy();
     if (view === "crews") renderCrews();
     if (view === "illegal") renderIllegal();
     if (view === "publics") renderStructures("public");
@@ -753,7 +755,9 @@ let playerInfo = null; // fiche chargée depuis le serveur, false = joueur intro
 const playerFilter = { text: "" };
 let playersDom = null;
 
-const money = (n) => (typeof n === "number" ? `${new Intl.NumberFormat("fr-FR").format(n)} $` : "—");
+// Symbole choisi dans la tuile Économie (envoyé avec l'état du panel)
+const currencySymbol = () => (state && state.currency) || "$";
+const money = (n) => (typeof n === "number" ? `${new Intl.NumberFormat("fr-FR").format(n)} ${currencySymbol()}` : "—");
 const players = () => state.players || [];
 
 function renderPlayers() {
@@ -1883,6 +1887,19 @@ async function demoNui(name, data) {
                 { id: "door", label: "Porte du coffre", duration: 15, tool: "hack_device", toolLabel: "Boîtier de piratage", breakChance: 25, alert: 100, models: ["v_ilev_gb_vauldr"], loot: [], points: [] },
                 { id: "locker", label: "Casier", duration: 30, tool: "drill", toolLabel: "Perceuse", breakChance: 10, alert: 0, count: 4, models: [], loot: [{ item: "marked_bills", label: "Billets marqués", min: 15, max: 30, chance: 100 }, { item: "gold_bar", label: "Lingot d'or", min: 1, max: 1, chance: 15 }] }] },
         ] };
+    if (name === "action" && data && data.action === "economy.overview") return { ok: true, unemployed: 20, defaultUnemployed: 20,
+        settings: { paycheckMinutes: 15, allowances: { premium: 35, premium_plus: 70 }, bank: { standard: 2000, premium: 4000, premium_plus: 6000 }, impound: { car: 300, bike: 300, truck: 300, boat: 300, heli: 300, plane: 300 }, currency: "$" },
+        defaults: { paycheckMinutes: 15, allowances: { premium: 35, premium_plus: 70 }, bank: { standard: 2000, premium: 4000, premium_plus: 6000 }, impound: { car: 300, bike: 300, truck: 300, boat: 300, heli: 300, plane: 300 }, currency: "$" },
+        limits: { salary: 100000, allowance: 100000, bank: 100000000, impound: 1000000, paycheckMin: 1, paycheckMax: 240 },
+        jobs: {
+            company: [
+                { job: "burgershot", label: "Burger Shot", typeLabel: "Restaurant", logo: "", color: "#d63b3b", grades: [{ grade: 0, label: "Novice", salary: 75 }, { grade: 1, label: "Employé expérimenté", salary: 110 }, { grade: 2, label: "DRH", salary: 175 }, { grade: 3, label: "Co Patron", salary: 210 }, { grade: 4, label: "Patron", salary: 250 }] },
+                { job: "bennys", label: "Benny's", typeLabel: "Mécanique", logo: "", color: "#9650ff", grades: [{ grade: 0, label: "Apprenti", salary: 80 }, { grade: 1, label: "Patron", salary: 220 }] },
+                { job: "ltd", label: "LTD Grove", typeLabel: "Entreprise", logo: "", color: "#3ecf8e", grades: [{ grade: 0, label: "Vendeur", salary: 70 }] },
+            ],
+            public: [{ job: "police", label: "LSPD", typeLabel: "Police", logo: "", color: "#3b6fd6", grades: [{ grade: 0, label: "Cadet", salary: 120 }, { grade: 1, label: "Officier", salary: 160 }, { grade: 2, label: "Capitaine", salary: 260 }] }],
+            interim: [{ job: "miner", label: "Mineur", typeLabel: "Pôle emploi", logo: "", color: "#9650ff", grades: [{ grade: 0, label: "Ouvrier", salary: 50 }] }],
+        } };
     if (name === "action" && data && data.action === "blips.list") return { ok: true, canShops: true,
         blips: [
             { id: 1, label: "Commissariat de Mission Row", sprite: 60, color: 29, scale: 0.8, x: 425.1, y: -979.5, z: 30.7, short: true, active: true },

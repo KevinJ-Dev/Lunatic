@@ -180,33 +180,80 @@ local function payPlayer(xPlayer, societyAccounts, bankTitle, receivedPaycheck)
     logPaycheck("Paycheck - Generic", xPlayer, salary)
 end
 
+-- Lunatic : intervalle et allocations Premium réglés dans le panel staff (tuile Économie, lunatic_admin),
+-- lus dans GlobalState.lunaticEconomy à chaque tour : aucun redémarrage. Sans lunatic_admin, la config ESX s'applique.
+local function getPaycheckInterval()
+    local economy = GlobalState.lunaticEconomy
+    local minutes = economy and tonumber(economy.paycheckMinutes)
+
+    return minutes and minutes >= 1 and minutes * 60000 or Config.PaycheckInterval
+end
+
+local function payAllowance(xPlayer, bankTitle)
+    local economy = GlobalState.lunaticEconomy
+    local player = xPlayer.source
+
+    if not economy or type(economy.allowances) ~= "table" or not xPlayer.paycheckEnabled or ESX.GetPlayerFromId(player) ~= xPlayer then
+        return
+    end
+
+    local tier = Player(player).state.premium
+    local amount = tier and math.floor(tonumber(economy.allowances[tier]) or 0) or 0
+
+    if amount <= 0 then
+        return
+    end
+
+    xPlayer.addAccountMoney("bank", amount, "Allocation " .. tier)
+    TriggerClientEvent(
+        "esx:showAdvancedNotification",
+        player,
+        bankTitle,
+        tier == "premium_plus" and "Allocation Premium+" or "Allocation Premium",
+        ("Vous avez reçu %s %s"):format(amount, GlobalState.lunaticCurrency or "$"),
+        "CHAR_BANK_MAZE",
+        9
+    )
+end
+
+local function runPaycheck()
+    local jitter = getPaycheckJitter()
+    if jitter > 0 then
+        Wait(math.random(jitter))
+    end
+
+    local xPlayers = ESX.GetExtendedPlayers()
+    local societyAccounts = resolveSocietyAccounts(xPlayers)
+    local batchSize = getPaycheckBatchSize()
+    local batchDelay = getPaycheckBatchDelay()
+    local bankTitle = TranslateCap("bank")
+    local receivedPaycheck = TranslateCap("received_paycheck")
+
+    for i = 1, #xPlayers do
+        payPlayer(xPlayers[i], societyAccounts, bankTitle, receivedPaycheck)
+        payAllowance(xPlayers[i], bankTitle)
+
+        if i % batchSize == 0 then
+            flushSocietyDebits(societyAccounts)
+            Wait(batchDelay)
+        end
+    end
+
+    flushSocietyDebits(societyAccounts)
+end
+
 function StartPayCheck()
     CreateThread(function()
+        local lastRun = GetGameTimer()
+
         while true do
-            Wait(Config.PaycheckInterval)
+            -- Petites attentes : un nouvel intervalle réglé dans le panel compte tout de suite
+            Wait(1000)
 
-            local jitter = getPaycheckJitter()
-            if jitter > 0 then
-                Wait(math.random(jitter))
+            if GetGameTimer() - lastRun >= getPaycheckInterval() then
+                lastRun = GetGameTimer()
+                runPaycheck()
             end
-
-            local xPlayers = ESX.GetExtendedPlayers()
-            local societyAccounts = resolveSocietyAccounts(xPlayers)
-            local batchSize = getPaycheckBatchSize()
-            local batchDelay = getPaycheckBatchDelay()
-            local bankTitle = TranslateCap("bank")
-            local receivedPaycheck = TranslateCap("received_paycheck")
-
-            for i = 1, #xPlayers do
-                payPlayer(xPlayers[i], societyAccounts, bankTitle, receivedPaycheck)
-
-                if i % batchSize == 0 then
-                    flushSocietyDebits(societyAccounts)
-                    Wait(batchDelay)
-                end
-            end
-
-            flushSocietyDebits(societyAccounts)
         end
     end)
 end

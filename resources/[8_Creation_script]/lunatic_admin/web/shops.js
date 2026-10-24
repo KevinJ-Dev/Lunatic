@@ -231,7 +231,7 @@ function shopForm() {
             itemImage(entry.item),
             h("div", { class: "who" }, h("b", null, entry.item, entry.missing ? h("span", { class: "badge ban", style: "margin-left:6px" }, "objet inconnu") : null), h("span", null, entry.label)),
             license,
-            h("label", { class: "salary" }, price, h("span", { class: "muted" }, "$")),
+            h("label", { class: "salary" }, price, h("span", { class: "muted" }, currencySymbol())),
             h("button", { class: "btn small ghost", title: "Retirer", onclick: () => { d.items.splice(i, 1); paintShopCategory(); } }, icon("i-x")));
     });
 

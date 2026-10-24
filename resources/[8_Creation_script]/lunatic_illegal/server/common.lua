@@ -142,7 +142,7 @@ function MissionProblem(src, m)
 end
 
 function MoneyText(amount)
-    return ('%s $'):format(tostring(math.floor(amount or 0)):reverse():gsub('(%d%d%d)', '%1 '):reverse():gsub('^ ', ''))
+    return ('%s %s'):format(tostring(math.floor(amount or 0)):reverse():gsub('(%d%d%d)', '%1 '):reverse():gsub('^ ', ''), GlobalState.lunaticCurrency or '$')
 end
 
 -- Mission réussie : gain (60 à 140 % du gain réglé) sur le compte donné, butin, XP et influence si le joueur a un crew

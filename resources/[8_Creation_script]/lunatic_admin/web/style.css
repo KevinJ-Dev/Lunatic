@@ -857,3 +857,57 @@ body.hidden.minimized .mini-pill { display: flex; }
 .color-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(22px, 1fr)); gap: 5px; padding: 0 10px 10px; }
 .color-cell { height: 22px; padding: 0; border: 2px solid transparent; border-radius: 6px; }
 .color-cell.on { border-color: #fff; }
+
+/* Tuile Économie : catégories, grille des métiers, sélection, cartes de montants, devise */
+#view-economy.on { display: flex; }
+.eco-page { display: grid; grid-template-columns: 250px minmax(0, 1fr); flex: 1; min-width: 0; min-height: 0; }
+.eco-page > * { min-height: 0; }
+.eco-page .sidebar { width: auto; min-width: 0; }
+.eco-side .side-head svg.i { width: 16px; height: 16px; color: var(--muted); }
+.eco-jobs { display: grid; grid-template-columns: minmax(0, 1fr) 360px; min-width: 0; min-height: 0; }
+.eco-main { min-width: 0; min-height: 0; overflow-y: auto; padding: 18px 20px 90px; }
+.eco-wide { display: grid; gap: 14px; align-content: start; }
+.eco-title { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 15px; font-weight: 700; }
+.eco-wide .eco-title { margin-bottom: 0; }
+.eco-title svg.i { width: 16px; height: 16px; color: var(--muted); }
+.eco-title .muted { font-size: 12.5px; font-weight: 500; }
+.eco-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; }
+.eco-job { display: grid; justify-items: center; gap: 6px; min-width: 0; padding: 16px 8px 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); text-align: center; transition: background-color .15s, border-color .15s; }
+.eco-job:hover { background: var(--surface-2); }
+.eco-job.on { border-color: rgba(var(--accent-rgb), .8); background: rgba(var(--accent-rgb), .14); }
+.eco-job b { max-width: 100%; overflow: hidden; font-size: 12px; text-transform: uppercase; text-overflow: ellipsis; white-space: nowrap; }
+.eco-job span:last-child { color: var(--muted); font-size: 11px; }
+.eco-logo { display: grid; flex: none; place-items: center; overflow: hidden; border-radius: 12px; background: var(--surface-2); color: #fff; font-size: 20px; font-weight: 700; }
+.eco-logo img { width: 100%; height: 100%; object-fit: cover; }
+.eco-selection .item-head .pic { width: 76px; height: 76px; }
+.eco-sub { color: var(--muted); font-size: 12px; text-align: center; }
+.eco-grade { display: grid; grid-template-columns: 26px minmax(0, 1fr) 128px; gap: 8px; align-items: center; padding: 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.eco-rank { display: grid; place-items: center; height: 26px; border-radius: 7px; background: var(--surface-2); color: var(--muted); font-size: 11.5px; }
+.eco-grade-name { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.eco-amount { display: flex; align-items: center; gap: 6px; }
+.eco-amount .input { flex: 1; min-width: 0; height: 32px; text-align: right; }
+.eco-amount > span { min-width: 14px; font-size: 12px; }
+.eco-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); }
+.eco-tab { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ink-2); text-align: left; }
+.eco-tab + .eco-tab { border-left: 1px solid var(--line); }
+.eco-tab:hover { background: var(--surface-2); }
+.eco-tab.on { border-bottom-color: var(--tab); background: #ffffff0a; color: #fff; }
+.eco-tab > span:last-child { display: grid; gap: 1px; }
+.eco-tab b { font-size: 13px; }
+.eco-tab small { color: var(--muted); font-size: 11px; }
+.eco-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--tab); }
+.eco-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.eco-card { display: grid; gap: 8px; align-content: start; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.eco-card .hint-line { margin: -4px 0 0; }
+.eco-card-label { font-size: 13px; font-weight: 600; }
+.eco-row { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.eco-preview { display: flex; align-items: center; gap: 16px; padding: 16px 18px; border: 1px solid #f2c26b55; border-radius: 14px; background: #f2c26b12; }
+.eco-preview > span:last-child { display: grid; gap: 3px; }
+.eco-preview small { color: var(--muted); font-size: 12px; }
+.eco-big { display: grid; place-items: center; min-width: 56px; height: 56px; padding: 0 8px; border-radius: 12px; background: #0000003d; color: #f2c26b; font-size: 26px; font-weight: 700; }
+.eco-currencies { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.eco-currency { display: grid; justify-items: center; gap: 8px; padding: 16px 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink-2); font-size: 13px; }
+.eco-currency:hover { background: var(--surface-2); }
+.eco-currency.on { border-color: #f2c26b99; background: #f2c26b1a; color: #fff; }
+.eco-currency .eco-big { min-width: 46px; height: 46px; font-size: 22px; }
+.eco-symbol { width: 90px; color: #f2c26b; font-size: 18px; font-weight: 700; text-align: center; }

@@ -92,7 +92,7 @@ end
 
 local function formatMoney(amount)
     local text = tostring(math.floor(amount)):reverse():gsub('(%d%d%d)', '%1 '):reverse():gsub('^ ', '')
-    return text .. ' $'
+    return text .. ' ' .. (GlobalState.lunaticCurrency or '$')
 end
 
 ---------------------------------------------------------------------

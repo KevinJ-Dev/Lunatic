@@ -291,7 +291,7 @@ lib.callback.register('lunatic_illegal:burglarySearch', function(src, index)
         TriggerClientEvent('lunatic_illegal:burglarySearched', target, index)
     end
 
-    return { ok = true, cash = MoneyText(cash), loot = loot }
+    return { ok = true, cash = cash > 0 and MoneyText(cash) or nil, loot = loot }
 end)
 
 ---------------------------------------------------------------------

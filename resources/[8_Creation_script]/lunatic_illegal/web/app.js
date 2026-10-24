@@ -47,7 +47,8 @@ function icon(name) {
     return svg;
 }
 
-const money = (n) => `${new Intl.NumberFormat("fr-FR").format(Math.floor(n || 0))} $`;
+let currency = "$"; // symbole de la tuile Économie du panel, reçu à l'ouverture
+const money = (n) => `${new Intl.NumberFormat("fr-FR").format(Math.floor(n || 0))} ${currency}`;
 const minutes = (s) => (s < 60 ? `${Math.max(1, Math.round(s))} s` : `${Math.round(s / 60)} min`);
 const itemImage = (name) => h("img", { src: `nui://ox_inventory/web/images/${name}.png`, alt: "", onerror: (e) => { e.target.style.visibility = "hidden"; } });
 
@@ -305,7 +306,10 @@ window.addEventListener("keydown", (e) => {
 window.addEventListener("message", (event) => {
     const msg = event.data;
     if (!msg || typeof msg !== "object") return;
-    if (msg.action === "openTablet") open();
+    if (msg.action === "openTablet") {
+        if (typeof msg.currency === "string" && msg.currency) currency = msg.currency;
+        open();
+    }
     else if (msg.action === "closeTablet") document.body.classList.add("hidden");
     else if (msg.action === "refresh" && !document.body.classList.contains("hidden")) load();
 });

@@ -70,7 +70,7 @@ exports('openTablet', function(_, slot)
 
     open = true
     SetNuiFocus(true, true)
-    SendNUIMessage({ action = 'openTablet' })
+    SendNUIMessage({ action = 'openTablet', currency = GlobalState.lunaticCurrency or '$' })
 end)
 
 AddEventHandler('onResourceStop', function(resource)
