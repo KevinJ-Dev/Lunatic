@@ -50,8 +50,10 @@ local function setGps()
 end
 
 local function clearRun()
-    if run and run.blip and DoesBlipExist(run.blip) then
-        RemoveBlip(run.blip)
+    for _, blip in ipairs(run and { run.blip, run.area } or {}) do
+        if blip and DoesBlipExist(blip) then
+            RemoveBlip(blip)
+        end
     end
 
     -- Retire le point GPS s'il visait encore la livraison
@@ -121,15 +123,23 @@ local function start(point)
         return
     end
 
-    -- Livraison sur la carte ; le GPS du jeu s'active en montant dans le véhicule
-    local blip = AddBlipForCoord(res.drop.x, res.drop.y, res.drop.z)
-    SetBlipSprite(blip, 501)
+    -- Livraison sur la carte : point jaune exactement sur la livraison, entouré de la zone où l'on peut livrer ;
+    -- le GPS du jeu s'active en montant dans le véhicule
+    local radius = res.radius or 12.0
+    local blip = AddBlipForCoord(res.drop.x + 0.0, res.drop.y + 0.0, res.drop.z + 0.0)
+    SetBlipSprite(blip, 1)
     SetBlipColour(blip, 5)
+    SetBlipScale(blip, 1.0)
+    SetBlipAsShortRange(blip, false)
     BeginTextCommandSetBlipName('STRING')
-    AddTextComponentSubstringPlayerName('Livraison GoFast')
+    AddTextComponentSubstringPlayerName(('Livraison GoFast : %s'):format(res.drop.label))
     EndTextCommandSetBlipName(blip)
 
-    run = { netId = netId, drop = res.drop, endsAt = GetGameTimer() + res.minutes * 60000, blip = blip, noun = res.noun or 'la voiture', radius = res.radius or 12.0 }
+    local area = AddBlipForRadius(res.drop.x + 0.0, res.drop.y + 0.0, res.drop.z + 0.0, radius)
+    SetBlipColour(area, 5)
+    SetBlipAlpha(area, 120)
+
+    run = { netId = netId, drop = res.drop, endsAt = GetGameTimer() + res.minutes * 60000, blip = blip, area = area, noun = res.noun or 'la voiture', radius = radius }
     notify(("GoFast : %s est prêt%s. Livrez à %s en moins de %d min, sans l'abîmer."):format(run.noun, run.noun == 'la voiture' and 'e' or '', res.drop.label, res.minutes), 'success')
     busy = false
 end
@@ -138,11 +148,33 @@ local function finish()
     busy = true
     hidePrompt()
 
+    local vehicle = run and NetworkDoesEntityExistWithNetworkId(run.netId) and NetToVeh(run.netId) or 0
     local res = lib.callback.await('lunatic_illegal:gofastFinish', false)
 
     if res and res.ok then
         clearRun()
-        notify(('GoFast livré : %s en argent sale%s.'):format(res.reward, res.damaged and ' (véhicule abîmé : gain réduit)' or ''), 'success')
+        notify(('GoFast livré : %s en argent sale%s. Le client récupère le véhicule.'):format(res.reward, res.damaged and ' (véhicule abîmé : gain réduit)' or ''), 'success')
+
+        -- Le véhicule est laissé au client : on descend, il est verrouillé puis retiré
+        if vehicle ~= 0 and DoesEntityExist(vehicle) then
+            local ped = PlayerPedId()
+            TaskLeaveVehicle(ped, vehicle, 0)
+            local timeout = GetGameTimer() + 5000
+
+            while GetVehiclePedIsIn(ped, false) == vehicle and GetGameTimer() < timeout do
+                Wait(100)
+            end
+
+            SetVehicleDoorsLocked(vehicle, 2)
+
+            SetTimeout(4000, function()
+                if DoesEntityExist(vehicle) then
+                    NetworkRequestControlOfEntity(vehicle)
+                    SetEntityAsMissionEntity(vehicle, true, true)
+                    DeleteEntity(vehicle)
+                end
+            end)
+        end
     else
         notify(res and res.error or 'Livraison impossible.', 'error')
     end
@@ -177,7 +209,14 @@ CreateThread(function()
                     setGps()
                 end
 
-                if #(coords.xy - vector2(run.drop.x, run.drop.y)) < run.radius and inCar then
+                -- Zone de livraison au sol, visible en approchant
+                local toDrop = #(coords.xy - vector2(run.drop.x, run.drop.y))
+
+                if toDrop < 150.0 and run.drop.z > -100.0 then
+                    DrawMarker(1, run.drop.x, run.drop.y, run.drop.z - 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, run.radius * 2.0, run.radius * 2.0, 1.2, 242, 194, 107, 70, false, false, 2, false, nil, nil, false)
+                end
+
+                if toDrop < run.radius and inCar then
                     prompt = ('[E] Livrer %s'):format(run.noun)
 
                     if IsControlJustPressed(0, 38) then
