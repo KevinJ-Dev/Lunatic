@@ -75,6 +75,7 @@ function holdupsPage() {
         side: [holdupTypesBlock(d, filter)],
         center: h("div", null,
             type && type.soon ? h("p", { class: "ready-hint" }, icon("i-warn"), h("span", null, `${type.label} : pas encore disponible en jeu. Les points peuvent déjà être placés.`)) : null,
+            type ? missionOffHint(type.id) : null,
             h("div", { class: "zone-list" }, rows.length ? rows : h("p", { class: "hint-line" }, "Aucun point pour ce type."))),
         layout: "holdup-layout",
         editor: holdupEditor(d.points.find((p) => p.id === sel)),
@@ -89,6 +90,23 @@ function holdupTypesBlock(d, filter) {
     rows.push(h("button", { class: `list-row${filter === "detected" ? " active" : ""}`, onclick: () => filter !== "detected" && illegalSwitch(() => { illegalState.holdupType = "detected"; illegalState.holdupSel = null; }) },
         h("span", { class: "name" }, "Cibles détectées"), icon("i-eye")));
     return sideBlock("Type de braquage", null, rows);
+}
+
+// Mission de la page Missions qui utilise ces points
+const POINT_MISSION = { house: "burglary", gofast_start: "gofast", gofast_drop: "gofast", gofast_sea_start: "gofast_sea", gofast_sea_drop: "gofast_sea", yacht: "heist_yacht" };
+
+// Mission désactivée : rien n'apparaît en jeu (pas de [E], pas de vendeur) tant qu'elle n'est pas activée
+function missionOffHint(typeId) {
+    if (!missionState.data) {
+        loadMissions();
+        return null;
+    }
+    const id = POINT_MISSION[typeId] || `heist_${typeId}`;
+    const m = missionState.data.missions.find((entry) => entry.id === id);
+    if (!m || m.settings.enabled) return null;
+    return h("p", { class: "ready-hint" }, icon("i-warn"),
+        h("span", null, `La mission « ${m.label} » est désactivée : rien n'apparaît en jeu pour ces points. `),
+        h("button", { class: "btn small", onclick: () => illegalSwitch(() => { illegalState.tab = "missions"; illegalState.missionSel = id; }) }, "L'activer"));
 }
 
 function selectHoldup(id) {

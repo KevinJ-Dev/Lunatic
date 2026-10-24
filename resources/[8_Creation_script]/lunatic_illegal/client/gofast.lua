@@ -80,6 +80,47 @@ local function start(point)
         return
     end
 
+    -- Le véhicule est créé ici (en réseau), le joueur mis au volant, puis le serveur le vérifie
+    local model = joaat(res.model)
+    local vehicle = 0
+
+    if IsModelInCdimage(model) and pcall(lib.requestModel, model, 10000) then
+        vehicle = CreateVehicle(model, res.x + 0.0, res.y + 0.0, res.z + 0.0, res.h + 0.0, true, false)
+        SetModelAsNoLongerNeeded(model)
+    end
+
+    local netId = nil
+
+    if vehicle ~= 0 and DoesEntityExist(vehicle) then
+        local timeout = GetGameTimer() + 3000
+
+        while not NetworkGetEntityIsNetworked(vehicle) and GetGameTimer() < timeout do
+            NetworkRegisterEntityAsNetworked(vehicle)
+            Wait(0)
+        end
+
+        SetEntityAsMissionEntity(vehicle, true, true)
+        SetVehicleNumberPlateText(vehicle, res.plate)
+
+        if not IsThisModelABoat(model) then
+            SetVehicleOnGroundProperly(vehicle)
+        end
+
+        netId = NetworkGetNetworkIdFromEntity(vehicle)
+        SetNetworkIdCanMigrate(netId, true)
+        TaskWarpPedIntoVehicle(PlayerPedId(), vehicle, -1)
+    end
+
+    if not netId or not lib.callback.await('lunatic_illegal:gofastVehicle', false, netId) then
+        if vehicle ~= 0 and DoesEntityExist(vehicle) then
+            DeleteEntity(vehicle)
+        end
+
+        TriggerServerEvent('lunatic_illegal:gofastSpawnFailed')
+        busy = false
+        return
+    end
+
     -- Livraison sur la carte ; le GPS du jeu s'active en montant dans le véhicule
     local blip = AddBlipForCoord(res.drop.x, res.drop.y, res.drop.z)
     SetBlipSprite(blip, 501)
@@ -88,7 +129,7 @@ local function start(point)
     AddTextComponentSubstringPlayerName('Livraison GoFast')
     EndTextCommandSetBlipName(blip)
 
-    run = { netId = res.netId, drop = res.drop, endsAt = GetGameTimer() + res.minutes * 60000, blip = blip, noun = res.noun or 'la voiture', radius = res.radius or 12.0 }
+    run = { netId = netId, drop = res.drop, endsAt = GetGameTimer() + res.minutes * 60000, blip = blip, noun = res.noun or 'la voiture', radius = res.radius or 12.0 }
     notify(("GoFast : %s est prêt%s. Livrez à %s en moins de %d min, sans l'abîmer."):format(run.noun, run.noun == 'la voiture' and 'e' or '', res.drop.label, res.minutes), 'success')
     busy = false
 end

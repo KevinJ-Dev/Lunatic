@@ -15,7 +15,8 @@ async function loadMissions() {
     const res = await nui("action", { action: "missions.list", payload: {} }).catch(() => null);
     if (!res || !res.ok) return;
     missionState.data = res;
-    if (illegalState.tab === "missions") paintIllegal();
+    // La page Braquages s'en sert aussi (avertissement « mission désactivée »)
+    if (illegalState.tab === "missions" || illegalState.tab === "heists") paintIllegal();
 }
 
 function missionsPage() {

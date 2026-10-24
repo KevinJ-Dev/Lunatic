@@ -153,31 +153,37 @@ lib.callback.register('lunatic_illegal:gofastStart', function(src, startId, vari
         x, y, z = start.x - math.sin(heading) * 6.0, start.y + math.cos(heading) * 6.0, 0.5
     end
 
-    local vehicle = CreateVehicleServerSetter(joaat(a.vehicle), v.kind, x, y, z, start.h or 0.0)
-    local timeout = GetGameTimer() + 5000
-
-    while not DoesEntityExist(vehicle) and GetGameTimer() < timeout do
-        Wait(50)
-    end
-
-    if not DoesEntityExist(vehicle) then
-        return fail("Le véhicule n'a pas pu apparaître.")
-    end
-
-    SetVehicleNumberPlateText(vehicle, ('GF%04d'):format(math.random(0, 9999)))
-    Entity(vehicle).state:set('lunaticGoFast', src, true)
-
-    -- Le joueur est mis directement au volant : plus de véhicule « introuvable » (apparu sur lui ou derrière un mur)
-    SetPedIntoVehicle(ped, vehicle, -1)
-
+    -- Le véhicule est créé par le jeu du joueur (le véhicule créé par le serveur n'arrivait pas toujours chez lui),
+    -- puis déclaré ici et vérifié (lunatic_illegal:gofastVehicle) ; sans véhicule au bout de 20 s, le GoFast est annulé
     lastRun[src] = now
-    local run = { variant = v, vehicle = vehicle, drop = drop, startedAt = now, deadline = now + a.duration * 60, tracked = math.random(100) <= a.alert, nextTrack = now + 20 }
-    runs[src] = run
+    local plate = ('GF%04d'):format(math.random(0, 9999))
+    runs[src] = {
+        variant = v, vehicle = nil, model = joaat(a.vehicle), spawn = vector3(x, y, z), plate = plate, drop = drop, startedAt = now,
+        deadline = now + a.duration * 60, tracked = math.random(100) <= a.alert, nextTrack = now + 20,
+    }
 
     return {
-        ok = true, netId = NetworkGetNetworkIdFromEntity(vehicle), minutes = a.duration, noun = v.noun, radius = v.radius,
+        ok = true, model = a.vehicle, plate = plate, x = x, y = y, z = z, h = start.h or 0.0, minutes = a.duration, noun = v.noun, radius = v.radius,
         drop = { x = drop.x, y = drop.y, z = drop.z, label = drop.label },
     }
+end)
+
+-- Le joueur a créé le véhicule : bon modèle, au bon endroit, encore jamais déclaré
+lib.callback.register('lunatic_illegal:gofastVehicle', function(src, netId)
+    local run = runs[src]
+    local vehicle = NetworkGetEntityFromNetworkId(tonumber(netId) or 0)
+
+    if not run or run.vehicle then
+        return false
+    end
+
+    if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) or GetEntityModel(vehicle) ~= run.model or #(GetEntityCoords(vehicle) - run.spawn) > 25.0 then
+        return false
+    end
+
+    run.vehicle = vehicle
+    Entity(vehicle).state:set('lunaticGoFast', src, true)
+    return true
 end)
 
 -- Temps écoulé, voiture détruite, et position envoyée à la police si elle est sur le coup
@@ -191,10 +197,16 @@ CreateThread(function()
 
             -- Détruit = moteur explosé, une fois qu'un joueur contrôle le véhicule (avant, son état n'est pas encore
             -- synchronisé ; GetEntityHealth d'un véhicule vaut 0 côté serveur et le faisait croire détruit tout de suite)
-            local wrecked = DoesEntityExist(run.vehicle) and now - run.startedAt > 5 and NetworkGetEntityOwner(run.vehicle) ~= -1
+            local wrecked = run.vehicle and DoesEntityExist(run.vehicle) and now - run.startedAt > 5 and NetworkGetEntityOwner(run.vehicle) ~= -1
                 and GetVehicleEngineHealth(run.vehicle) <= -3900.0
 
-            if not DoesEntityExist(run.vehicle) or wrecked then
+            if not run.vehicle then
+                -- Véhicule pas encore déclaré par le joueur
+                if now - run.startedAt > 20 then
+                    lastRun[src] = nil -- pas de délai : rien n'a commencé
+                    stop(src, "Le véhicule n'est pas apparu : GoFast annulé, réessayez.", 0)
+                end
+            elseif not DoesEntityExist(run.vehicle) or wrecked then
                 stop(src, ('%s est détruit : GoFast raté.'):format(run.variant.noun == 'le bateau' and 'Le bateau' or 'La voiture'), 0)
             elseif now > run.deadline then
                 stop(src, 'Trop tard : le client ne vous attend plus. GoFast raté.', 30000)
@@ -247,6 +259,16 @@ RegisterNetEvent('lunatic_illegal:gofastAbandon', function()
     stop(source, 'GoFast abandonné.', 10000)
 end)
 
+-- Le véhicule n'a pas pu être créé chez le joueur : annulé sans délai
+RegisterNetEvent('lunatic_illegal:gofastSpawnFailed', function()
+    local run = runs[source]
+
+    if run and not run.vehicle then
+        lastRun[source] = nil
+        stop(source, "Le véhicule n'a pas pu apparaître : GoFast annulé, réessayez.", 0)
+    end
+end)
+
 AddEventHandler('playerDropped', function()
     local run = runs[source]
     runs[source] = nil
@@ -260,7 +282,7 @@ AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
         -- Directement : un SetTimeout ne tournerait plus, la resource s'arrête
         for _, run in pairs(runs) do
-            if DoesEntityExist(run.vehicle) then
+            if run.vehicle and DoesEntityExist(run.vehicle) then
                 DeleteEntity(run.vehicle)
             end
         end
