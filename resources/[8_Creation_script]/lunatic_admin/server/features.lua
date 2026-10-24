@@ -36,6 +36,10 @@ local SCHEMA = {
         enabled = bool(true), delay = num(300, 30, 1800, 10), fee = num(500, 0, 100000, 50),
         clearInventory = bool(false), keepCash = bool(true), callMedic = bool(true), medicRevive = bool(true),
     },
+    trunks = {
+        trunkWeight = num(1.0, 0.25, 4, 0.05), trunkSlots = num(1.0, 0.25, 4, 0.05),
+        gloveWeight = num(1.0, 0.25, 4, 0.05), gloveSlots = num(1.0, 0.25, 4, 0.05),
+    },
     fuel = {
         enabled = bool(true), consumption = num(1.0, 0.1, 5, 0.1), startLevel = num(60, 0, 100, 5), price = num(3, 0, 50, 0.5),
     },

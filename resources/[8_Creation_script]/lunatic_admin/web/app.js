@@ -1908,6 +1908,7 @@ async function demoNui(name, data) {
             inventory: { weight: n(30000, 5000, 500000, 1000), slots: n(50, 10, 120, 1) },
             population: { peds: n(1, 0, 1, 0.05), vehicles: n(1, 0, 1, 0.05), parked: n(1, 0, 1, 0.05), scenario: n(1, 0, 1, 0.05) },
             time: { minute: n(2000, 250, 60000, 250) },
+            trunks: { trunkWeight: n(1, 0.25, 4, 0.05), trunkSlots: n(1, 0.25, 4, 0.05), gloveWeight: n(1, 0.25, 4, 0.05), gloveSlots: n(1, 0.25, 4, 0.05) },
             fuel: { enabled: b(true), consumption: n(1, 0.1, 5, 0.1), startLevel: n(60, 0, 100, 5), price: n(3, 0, 50, 0.5) },
             death: { enabled: b(true), delay: n(300, 30, 1800, 10), fee: n(500, 0, 100000, 50), clearInventory: b(false), keepCash: b(true), callMedic: b(true), medicRevive: b(true) },
             newPlayers: { bank: n(50000, 0, 10000000, 100), money: n(0, 0, 10000000, 100), offDuty: n(0.5, 0, 1, 0.05) },

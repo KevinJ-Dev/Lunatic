@@ -13,6 +13,7 @@ const ftState = { data: null, tab: "features", section: null, draft: null, saved
 const FEATURE_TABS = [
     { id: "features", label: "Fonctionnalités", icon: "i-tool", sections: ["toggles"] },
     { id: "gameplay", label: "Gameplay", icon: "i-pulse", sections: ["needs", "inventory", "death", "fuel", "population", "time"] },
+    { id: "weights", label: "Poids", icon: "i-box", sections: ["trunks"] },
     { id: "newPlayers", label: "Nouveaux joueurs", icon: "i-user-plus", sections: ["newPlayers"] },
     { id: "discord", label: "Discord", icon: "i-users", sections: ["discord"] },
 ];
@@ -56,6 +57,15 @@ const FEATURE_SECTIONS = {
             keepCash: { label: "Garder le liquide", hint: "Quand l'inventaire est vidé" },
             callMedic: { label: "Appel des secours", hint: "[G] pendant l'inconscience : alerte et GPS pour les médecins en ligne" },
             medicRevive: { label: "Réanimation par les médecins", hint: "/reanimer, réservé aux services publics de type Médecins" },
+        },
+    },
+    trunks: {
+        label: "Coffres des véhicules", icon: "i-car",
+        fields: {
+            trunkWeight: { label: "Poids des coffres", hint: "Multiplie le poids maximum de chaque classe (ox_inventory, data/vehicles.lua)", unit: "×" },
+            trunkSlots: { label: "Emplacements des coffres", hint: "Multiplie le nombre de cases", unit: "×" },
+            gloveWeight: { label: "Poids des boîtes à gants", hint: "Multiplie le poids maximum", unit: "×" },
+            gloveSlots: { label: "Emplacements des boîtes à gants", hint: "Multiplie le nombre de cases. S'applique aux coffres ouverts ensuite (après un redémarrage d'ox_inventory pour ceux déjà chargés).", unit: "×" },
         },
     },
     fuel: {
