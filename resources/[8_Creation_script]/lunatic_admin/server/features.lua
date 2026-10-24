@@ -36,6 +36,11 @@ local SCHEMA = {
         enabled = bool(true), delay = num(300, 30, 1800, 10), fee = num(500, 0, 100000, 50),
         clearInventory = bool(false), keepCash = bool(true), callMedic = bool(true), medicRevive = bool(true),
     },
+    effects_cannabis = { enabled = bool(true), duration = num(120, 10, 900, 10), speed = num(1.0, 1, 1.49, 0.01), shake = num(0.3, 0, 3, 0.1), blur = bool(false), visual = bool(true), walk = bool(true) },
+    effects_cocaine = { enabled = bool(true), duration = num(90, 10, 900, 10), speed = num(1.25, 1, 1.49, 0.01), shake = num(0.2, 0, 3, 0.1), blur = bool(true), visual = bool(true), walk = bool(false) },
+    effects_meth = { enabled = bool(true), duration = num(120, 10, 900, 10), speed = num(1.15, 1, 1.49, 0.01), shake = num(0.5, 0, 3, 0.1), blur = bool(true), visual = bool(true), walk = bool(false) },
+    effects_fentanyl = { enabled = bool(true), duration = num(150, 10, 900, 10), speed = num(1.0, 1, 1.49, 0.01), shake = num(1.0, 0, 3, 0.1), blur = bool(true), visual = bool(true), walk = bool(true) },
+    effects_alcohol = { enabled = bool(true), duration = num(180, 10, 900, 10), speed = num(1.0, 1, 1.49, 0.01), shake = num(1.0, 0, 3, 0.1), blur = bool(false), visual = bool(true), walk = bool(true) },
     trunks = {
         trunkWeight = num(1.0, 0.25, 4, 0.05), trunkSlots = num(1.0, 0.25, 4, 0.05),
         gloveWeight = num(1.0, 0.25, 4, 0.05), gloveSlots = num(1.0, 0.25, 4, 0.05),

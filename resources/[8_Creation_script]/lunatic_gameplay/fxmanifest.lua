@@ -17,12 +17,14 @@ server_scripts {
     'server/common.lua',
     'server/death.lua',
     'server/fuel.lua',
+    'server/effects.lua',
 }
 
 client_scripts {
     'client/common.lua',
     'client/death.lua',
     'client/fuel.lua',
+    'client/effects.lua',
 }
 
 dependencies {

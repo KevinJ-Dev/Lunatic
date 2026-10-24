@@ -13,6 +13,7 @@ const ftState = { data: null, tab: "features", section: null, draft: null, saved
 const FEATURE_TABS = [
     { id: "features", label: "Fonctionnalités", icon: "i-tool", sections: ["toggles"] },
     { id: "gameplay", label: "Gameplay", icon: "i-pulse", sections: ["needs", "inventory", "death", "fuel", "population", "time"] },
+    { id: "effects", label: "Effets", icon: "i-sparkle", sections: ["effects_cocaine", "effects_fentanyl", "effects_cannabis", "effects_meth", "effects_alcohol"] },
     { id: "weights", label: "Poids", icon: "i-box", sections: ["trunks"] },
     { id: "newPlayers", label: "Nouveaux joueurs", icon: "i-user-plus", sections: ["newPlayers"] },
     { id: "discord", label: "Discord", icon: "i-users", sections: ["discord"] },
@@ -59,6 +60,61 @@ const FEATURE_SECTIONS = {
             medicRevive: { label: "Réanimation par les médecins", hint: "/reanimer, réservé aux services publics de type Médecins" },
         },
     },
+    effects_cocaine: { label: "Cocaïne", icon: "i-sparkle", ...{
+        fields: {
+            enabled: { label: "Effet actif", hint: "Désactivé : la cocaïne se consomme sans effet" },
+            duration: { label: "Durée de l'effet", hint: "Une nouvelle prise prolonge l'effet", unit: "s" },
+            speed: { label: "Boost sprint", hint: "1 = normal, 1,49 au maximum", unit: "×" },
+            shake: { label: "Tremblement de caméra", hint: "0 = aucun" },
+            blur: { label: "Flou de mouvement", hint: "Pendant l'effet" },
+            visual: { label: "Filtre visuel", hint: "Couleurs et animation à l'écran" },
+            walk: { label: "Démarche", hint: "Démarche titubante (si prévue pour cette substance)" },
+        },
+    } },
+    effects_fentanyl: { label: "Fentanyl", icon: "i-sparkle", ...{
+        fields: {
+            enabled: { label: "Effet actif", hint: "Désactivé : le fentanyl se consomme sans effet" },
+            duration: { label: "Durée de l'effet", hint: "Une nouvelle prise prolonge l'effet", unit: "s" },
+            speed: { label: "Boost sprint", hint: "1 = normal, 1,49 au maximum", unit: "×" },
+            shake: { label: "Tremblement de caméra", hint: "0 = aucun" },
+            blur: { label: "Flou de mouvement", hint: "Pendant l'effet" },
+            visual: { label: "Filtre visuel", hint: "Couleurs et animation à l'écran" },
+            walk: { label: "Démarche", hint: "Démarche titubante (si prévue pour cette substance)" },
+        },
+    } },
+    effects_cannabis: { label: "Cannabis", icon: "i-sparkle", ...{
+        fields: {
+            enabled: { label: "Effet actif", hint: "Désactivé : joints et blunts se fument sans effet" },
+            duration: { label: "Durée de l'effet", hint: "Une nouvelle prise prolonge l'effet", unit: "s" },
+            speed: { label: "Boost sprint", hint: "1 = normal, 1,49 au maximum", unit: "×" },
+            shake: { label: "Tremblement de caméra", hint: "0 = aucun" },
+            blur: { label: "Flou de mouvement", hint: "Pendant l'effet" },
+            visual: { label: "Filtre visuel", hint: "Couleurs et animation à l'écran" },
+            walk: { label: "Démarche", hint: "Démarche titubante (si prévue pour cette substance)" },
+        },
+    } },
+    effects_meth: { label: "Méthamphétamine", icon: "i-sparkle", ...{
+        fields: {
+            enabled: { label: "Effet actif", hint: "Désactivé : la meth se consomme sans effet" },
+            duration: { label: "Durée de l'effet", hint: "Une nouvelle prise prolonge l'effet", unit: "s" },
+            speed: { label: "Boost sprint", hint: "1 = normal, 1,49 au maximum", unit: "×" },
+            shake: { label: "Tremblement de caméra", hint: "0 = aucun" },
+            blur: { label: "Flou de mouvement", hint: "Pendant l'effet" },
+            visual: { label: "Filtre visuel", hint: "Couleurs et animation à l'écran" },
+            walk: { label: "Démarche", hint: "Démarche titubante (si prévue pour cette substance)" },
+        },
+    } },
+    effects_alcohol: { label: "Alcool", icon: "i-food", ...{
+        fields: {
+            enabled: { label: "Effet actif", hint: "Désactivé : l'alcool se boit sans effet" },
+            duration: { label: "Durée de l'effet", hint: "Une nouvelle prise prolonge l'effet", unit: "s" },
+            speed: { label: "Boost sprint", hint: "1 = normal, 1,49 au maximum", unit: "×" },
+            shake: { label: "Tremblement de caméra", hint: "0 = aucun" },
+            blur: { label: "Flou de mouvement", hint: "Pendant l'effet" },
+            visual: { label: "Filtre visuel", hint: "Couleurs et animation à l'écran" },
+            walk: { label: "Démarche", hint: "Démarche titubante (si prévue pour cette substance)" },
+        },
+    } },
     trunks: {
         label: "Coffres des véhicules", icon: "i-car",
         fields: {

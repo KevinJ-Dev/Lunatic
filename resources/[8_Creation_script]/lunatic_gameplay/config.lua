@@ -33,3 +33,13 @@ Config.FuelClassUsage = {
     [0] = 1.0, [1] = 1.0, [2] = 1.2, [3] = 1.0, [4] = 1.1, [5] = 1.2, [6] = 1.3, [7] = 1.5, [8] = 0.7, [9] = 1.2,
     [10] = 1.6, [11] = 1.4, [12] = 1.2, [13] = 0.0, [14] = 0.8, [15] = 1.5, [16] = 1.5, [17] = 1.0, [18] = 1.0, [19] = 1.4, [20] = 1.5, [21] = 0.0,
 }
+
+-- Effets (réglages de durée, vitesse, tremblement, flou et filtre : tuile Fonctionnalités → Effets)
+-- items : objets qui déclenchent l'effet (consommés à l'usage ; ignorés s'ils n'existent pas dans ox_inventory)
+Config.Effects = {
+    cannabis = { items = { 'joint', 'blunt' }, timecycle = 'spectator6', postfx = 'ChopVision', walk = 'move_m@drunk@slightlydrunk', anim = { dict = 'amb@world_human_smoking_pot@male@base', clip = 'base' }, label = 'Vous fumez…' },
+    cocaine = { items = { 'cocaine' }, timecycle = 'drug_flying_base', postfx = 'DrugsMichaelAliensFight', label = 'Vous prenez de la cocaïne…' },
+    meth = { items = { 'meth' }, timecycle = 'drug_drive_blend01', postfx = 'DrugsTrevorClownsFight', label = 'Vous prenez de la meth…' },
+    fentanyl = { items = { 'fentanyl' }, timecycle = 'drug_wobbly', postfx = 'DrugsDrivingIn', walk = 'move_m@drunk@verydrunk', label = 'Vous prenez du fentanyl…' },
+    alcohol = { items = { 'beer', 'wine', 'vodka', 'whisky', 'tequila', 'champagne' }, timecycle = 'Drunk', walk = 'move_m@drunk@moderatedrunk', shake = 'DRUNK_SHAKE', anim = { dict = 'mp_player_intdrink', clip = 'loop_bottle' }, label = 'Vous buvez…' },
+}
