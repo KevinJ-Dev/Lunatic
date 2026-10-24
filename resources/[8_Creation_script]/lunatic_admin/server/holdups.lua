@@ -626,11 +626,27 @@ end
 -- Vue staff : tous les points en jeu (blips et repères au sol), pour ce membre du staff seulement
 local staffViewers = {}
 
+-- Rôle de chaque type de point en jeu, et mission de la page Missions dont il dépend
+local STAFF_ROLES = {
+    house = { mission = 'burglary', hint = 'Porte : [E] crocheter (outil, la nuit si réglé)' },
+    gofast_start = { mission = 'gofast', hint = 'Départ : [E] Lancer un GoFast' },
+    gofast_drop = { mission = 'gofast', hint = 'Livraison : seulement pendant un GoFast (tirée au hasard)' },
+    gofast_sea_start = { mission = 'gofast_sea', hint = 'Quai : [E] Lancer un GoFast maritime' },
+    gofast_sea_drop = { mission = 'gofast_sea', hint = 'Crique : seulement pendant un GoFast maritime' },
+    yacht = { mission = 'heist_yacht', hint = 'Coffre : [E] une fois les gardes à terre' },
+}
+
 local function staffPoints()
     local list = {}
 
     for _, point in ipairs(points) do
-        list[#list + 1] = { id = point.id, type = point.type, short = TYPES[point.type].short, label = point.label, x = point.x, y = point.y, z = point.z, active = point.active }
+        local role = STAFF_ROLES[point.type] or { mission = 'heist_' .. point.type, hint = 'Vendeur au comptoir : le menacer avec une arme' }
+        local mission = Missions.get(role.mission)
+
+        list[#list + 1] = {
+            id = point.id, type = point.type, short = TYPES[point.type].short, label = point.label, x = point.x, y = point.y, z = point.z, active = point.active,
+            hint = role.hint, missionOff = not (mission and mission.enabled),
+        }
     end
 
     return list

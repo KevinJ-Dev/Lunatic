@@ -503,18 +503,19 @@ RegisterNetEvent('lunatic_admin:holdupStaffView', function(list)
     end
 end)
 
-local function drawText3D(x, y, z, text)
+local function drawText3D(x, y, z, text, color, scale)
     local visible, sx, sy = World3dToScreen2d(x, y, z)
 
     if not visible then
         return
     end
 
-    SetTextScale(0.32, 0.32)
+    color = color or { 255, 255, 255 }
+    SetTextScale(scale or 0.32, scale or 0.32)
     SetTextFont(4)
     SetTextCentre(true)
     SetTextOutline()
-    SetTextColour(255, 255, 255, 230)
+    SetTextColour(color[1], color[2], color[3], 230)
     BeginTextCommandDisplayText('STRING')
     AddTextComponentSubstringPlayerName(text)
     EndTextCommandDisplayText(sx, sy)
@@ -535,7 +536,16 @@ CreateThread(function()
                     wait = 0
                     -- Les positions sont à hauteur des pieds (« Définir ») : repère posé au sol, texte au-dessus
                     DrawMarker(1, point.x, point.y, z - 0.05, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.6, 255, 160, 60, 140, false, false, 2, false, nil, nil, false)
-                    drawText3D(point.x, point.y, z + 1.2, ('%s · %s #%d%s'):format(point.short, point.label, point.id, point.active and '' or ' (inactif)'))
+                    drawText3D(point.x, point.y, z + 1.3, ('%s · %s #%d%s'):format(point.short, point.label, point.id, point.active and '' or ' (inactif)'))
+
+                    -- Ce que fait le point en jeu, et pourquoi il ne fait rien si sa mission est désactivée
+                    if distance < 15.0 then
+                        drawText3D(point.x, point.y, z + 1.05, point.hint or '', { 200, 200, 200 }, 0.28)
+
+                        if point.missionOff then
+                            drawText3D(point.x, point.y, z + 0.8, 'Mission désactivée (page Missions) : rien ne se passe ici', { 255, 110, 100 }, 0.28)
+                        end
+                    end
                 end
             end
         end
