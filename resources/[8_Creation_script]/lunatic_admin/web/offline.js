@@ -149,7 +149,7 @@ function paintOfflineFiche() {
     }
 
     fiche.replaceChildren(
-        h("div", { class: "page-head" }, h("div", { class: "grow" },
+        h("div", { class: "page-head" }, mugshotImg(info.identifier, "mug-head"), h("div", { class: "grow" },
             h("h1", { class: "page-title" }, info.name, info.rank ? rankPill(info.rank) : null,
                 h("span", { class: `badge ${info.online ? "ok" : "muted"}` }, info.online ? `En ligne · ID ${info.online}` : "Hors ligne")),
             h("div", { class: "page-sub" },

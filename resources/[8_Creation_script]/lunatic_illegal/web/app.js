@@ -47,6 +47,15 @@ function icon(name) {
     return svg;
 }
 
+// Logo de la tablette (tuile Images du panel) : caché s'il est vide ou ne charge pas
+function setTabletLogo(url) {
+    const img = $("tabletLogo");
+    img.onload = () => { img.hidden = false; };
+    img.onerror = () => { img.hidden = true; };
+    if (!url) img.hidden = true;
+    if (img.getAttribute("src") !== url) img.src = url;
+}
+
 let currency = "$"; // symbole de la tuile Économie du panel, reçu à l'ouverture
 const money = (n) => `${new Intl.NumberFormat("fr-FR").format(Math.floor(n || 0))} ${currency}`;
 const minutes = (s) => (s < 60 ? `${Math.max(1, Math.round(s))} s` : `${Math.round(s / 60)} min`);
@@ -308,6 +317,7 @@ window.addEventListener("message", (event) => {
     if (!msg || typeof msg !== "object") return;
     if (msg.action === "openTablet") {
         if (typeof msg.currency === "string" && msg.currency) currency = msg.currency;
+        setTabletLogo(typeof msg.logo === "string" ? msg.logo : "");
         open();
     }
     else if (msg.action === "closeTablet") document.body.classList.add("hidden");

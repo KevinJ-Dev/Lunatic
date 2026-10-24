@@ -91,6 +91,9 @@ const ACTION_LABELS = {
     "blips.save": "a modifié un blip",
     "economy.salaries": "a modifié des salaires",
     "economy.settings": "a modifié l'économie",
+    "images.save": "a modifié une image",
+    "images.delete": "a supprimé une image",
+    "mugshots.retake": "a refait le mugshot de",
     "items.save": "a modifié un objet",
     "items.delete": "a supprimé ou réinitialisé un objet",
     "items.give": "a donné un objet",
@@ -226,6 +229,13 @@ function describeLog(log) {
             break;
         case "poles.delete":
             summary = `${d.label} (${d.job})`;
+            break;
+        case "images.save":
+        case "images.delete":
+            summary = [d.label || d.key, d.reset ? "image d'origine" : null].filter(Boolean).join(" · ");
+            break;
+        case "mugshots.retake":
+            summary = d.all ? `tous les joueurs connectés (${d.count})` : d.identifier || "";
             break;
         case "economy.salaries":
             summary = [d.label || d.job, ...(d.changes || []).map((c) => `${c.label} ${c.before} → ${c.after}`)].join(" · ");

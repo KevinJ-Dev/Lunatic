@@ -54,6 +54,7 @@ Permissions.List = {
     -- Lot E1 : entreprises et services publics
     { id = 'companies.manage', family = 'structures', label = 'Entreprises : créer et gérer les entreprises (fiche, grades, membres)' },
     { id = 'items.manage', family = 'manage', label = 'Items : créer, modifier, dupliquer, supprimer et donner les objets (appliqués au prochain redémarrage)' },
+    { id = 'images.manage', family = 'manage', label = 'Images : logos, bannières, images des menus et mugshots des personnages (appliqués tout de suite)' },
     { id = 'economy.manage', family = 'manage', label = "Économie : salaires, aide de l'État, banque, fourrière, devise et paie (appliqués tout de suite)" },
     { id = 'blips.manage', family = 'manage', label = 'Blips : créer, modifier, déplacer et supprimer les icônes de la carte (appliqués tout de suite)' },
     { id = 'catalogs.manage',  family = 'structures', label = 'Catalogues : magasins automatiques (LTD, Ammunation, grossistes…), prix, articles, emplacements' },
@@ -130,7 +131,7 @@ local SHORT = {
     ['players.recreate'] = 'Recréer le personnage', ['players.licenses'] = 'Give un permis', ['players.copy_appearance'] = "Récupérer l'apparence",
     ['players.wipe'] = 'Wipe un joueur', ['players.offline'] = 'Gérer les joueurs offline', ['players.kick'] = 'Kick', ['players.crash'] = 'Crash Player',
     ['server.manage'] = 'Gestion Global', ['dev.manage'] = 'Gestion Développeur', ['events.manage'] = 'Gestion des events', ['poles.manage'] = 'Pôle emploi',
-    ['illegal.manage'] = 'Illégal', ['crews.manage'] = 'Crews', ['companies.manage'] = 'Entreprises', ['items.manage'] = 'Items', ['blips.manage'] = 'Blips', ['economy.manage'] = 'Économie',
+    ['illegal.manage'] = 'Illégal', ['crews.manage'] = 'Crews', ['companies.manage'] = 'Entreprises', ['items.manage'] = 'Items', ['blips.manage'] = 'Blips', ['economy.manage'] = 'Économie', ['images.manage'] = 'Images',
     ['catalogs.manage'] = 'Catalogues', ['publics.manage'] = 'Services publics', ['premium.manage'] = 'Premium', ['shop.manage'] = 'Gestion Boutique',
     ['world.weather'] = 'Météo', ['world.time'] = 'Heure',
     ['economy.money'] = 'Argent (liquide, banque)', ['economy.black_money'] = 'Argent sale', ['economy.job'] = 'Changer de métier',

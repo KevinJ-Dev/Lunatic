@@ -243,10 +243,10 @@ function identityCard(kind, info, doAct) {
             h("h3", { class: "card-title" }, "Fiche d'identité"),
             h("div", { class: "struct-fields" }, fields),
             h("div", { class: "struct-fields", style: "margin-top:14px" },
-                h("div", { class: "field" }, h("label", null, "Logo (URL)"), logo, urlPreview(logo, "struct-logo-preview")),
+                h("div", { class: "field" }, h("label", null, "Logo (URL)"), imageField(logo), urlPreview(logo, "struct-logo-preview")),
                 h("div", { class: "field" }, h("label", null, "Icône du menu radial"), radial,
                     h("span", { class: "hint" }, "Nom d'icône Font Awesome, utilisée par le futur menu radial.")),
-                h("div", { class: "field struct-wide" }, h("label", null, "Bannière (URL)"), banner, urlPreview(banner, "struct-banner-preview"))),
+                h("div", { class: "field struct-wide" }, h("label", null, "Bannière (URL)"), imageField(banner), urlPreview(banner, "struct-banner-preview"))),
             h("div", { class: "btn-row", style: "margin-top:16px" }, submit)
         ),
         h("p", { class: "hint-line" }, `Créé${kind === "public" ? "" : "e"} par ${s.createdBy || "?"}${s.createdAt ? ` le ${new Date(s.createdAt * 1000).toLocaleDateString("fr-FR")}` : ""}.`)

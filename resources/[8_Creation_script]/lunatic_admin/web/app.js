@@ -156,6 +156,7 @@ function normalize(raw) {
 function applyState(next, fromAction) {
     const keepDraft = !fromAction && draft && isDirty();
     state = normalize(next);
+    applyBrandImages();
 
     sanitizeTabs();
 
@@ -221,6 +222,7 @@ const NAV = [
     { id: "items", label: "Items", icon: "i-box", show: () => can("items.manage") },
     { id: "blips", label: "Blips", icon: "i-pin", show: () => can("blips.manage") },
     { id: "economy", label: "Économie", icon: "i-coins", show: () => can("economy.manage") },
+    { id: "images", label: "Images", icon: "i-image", show: () => can("images.manage") },
     { id: "poles", label: "Pôle emploi", icon: "i-briefcase", show: () => can("poles.manage") },
     { id: "events", label: "Events", icon: "i-calendar", show: () => can("events.manage") },
     { id: "world", label: "Météo", icon: "i-sun", show: () => hasWorld() },
@@ -574,7 +576,7 @@ function render() {
 
     renderMe();
 
-    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "illegal", "crews", "catalogs", "items", "blips", "economy", "poles", "events", "dev", "ranks", "members"]) {
+    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "illegal", "crews", "catalogs", "items", "blips", "economy", "images", "poles", "events", "dev", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
     }
 
@@ -592,6 +594,7 @@ function render() {
     if (view === "items") renderItems();
     if (view === "blips") renderBlips();
     if (view === "economy") renderEconomy();
+    if (view === "images") renderImages();
     if (view === "crews") renderCrews();
     if (view === "illegal") renderIllegal();
     if (view === "publics") renderStructures("public");
@@ -807,9 +810,11 @@ function paintPlayerList() {
     const text = playerFilter.text.trim().toLowerCase();
     const rows = players().filter((p) => !text || p.name.toLowerCase().includes(text) || String(p.serverId) === text);
     playersDom.count.textContent = String(players().length);
+    loadMugshots(players().map((p) => p.identifier)).then((found) => found && paintPlayerList());
 
     playersDom.list.replaceChildren(...(rows.length ? rows.map((p) => {
         const row = h("button", { class: `list-row player-row${p.serverId === selectedPlayerId ? " active" : ""}`, onclick: () => selectPlayer(p.serverId) },
+            mugshotImg(p.identifier, "mug-row"),
             h("span", { class: "pid" }, `${p.serverId}`),
             h("span", { class: "who" },
                 h("b", null, p.name),
@@ -1010,6 +1015,7 @@ function paintFiche() {
 
     fiche.replaceChildren(
         h("div", { class: "page-head" },
+            mugshotImg(info.identifier, "mug-head"),
             h("div", { class: "grow" },
                 h("h1", { class: "page-title" }, info.name, info.rank ? rankPill(info.rank) : null),
                 h("div", { class: "page-sub" },
@@ -1753,6 +1759,9 @@ window.addEventListener("message", (event) => {
         const keptDraft = applyState(msg.state, false);
         if (keptDraft && view === "ranks") renderRanks(true);
         else render();
+    } else if (msg.action === "mugshotCapture") {
+        // Photo du personnage demandée par le serveur (même panel fermé)
+        if (typeof msg.url === "string") captureMugshot(msg.url);
     } else if (msg.action === "headshot") {
         meHeadshot = typeof msg.url === "string" ? msg.url : null;
         if (state) renderMe();
@@ -1887,6 +1896,20 @@ async function demoNui(name, data) {
                 { id: "door", label: "Porte du coffre", duration: 15, tool: "hack_device", toolLabel: "Boîtier de piratage", breakChance: 25, alert: 100, models: ["v_ilev_gb_vauldr"], loot: [], points: [] },
                 { id: "locker", label: "Casier", duration: 30, tool: "drill", toolLabel: "Perceuse", breakChance: 10, alert: 0, count: 4, models: [], loot: [{ item: "marked_bills", label: "Billets marqués", min: 15, max: 30, chance: 100 }, { item: "gold_bar", label: "Lingot d'or", min: 1, max: 1, chance: 15 }] }] },
         ] };
+    if (name === "action" && data && data.action === "images.list") return { ok: true, mugshots: 2,
+        categories: [{ id: "logo", label: "Logo" }, { id: "banner", label: "Bannière" }, { id: "header", label: "Headers" }, { id: "notification", label: "Notifications" }, { id: "character", label: "Création perso" }, { id: "other", label: "Autres" }],
+        images: [
+            { key: "panel_logo", slot: true, category: "logo", label: "Logo du panel staff", description: "Barre du haut et pastille du panel réduit", url: "logo.png", default: "logo.png", changed: false, order: 1 },
+            { key: "spawn_emblem", slot: true, category: "logo", label: "Petit logo de l'écran de spawn", description: "En haut à gauche de l'entrée en ville (novyra_spawn)", url: "nui://novyra_spawn/ui/img/emblem.png", default: "nui://novyra_spawn/ui/img/emblem.png", changed: false, order: 2 },
+            { key: "tablet_logo", slot: true, category: "header", label: "Logo de la tablette illégale", description: "En haut à gauche de la tablette des crews (vide : pas de logo)", url: "", default: "", changed: false, order: 4 },
+            { key: "img_1", slot: false, category: "banner", label: "Bannière Burger Shot", description: "Fiche de l'entreprise", url: "https://placehold.co/600x200/png", order: 1000 },
+        ] };
+    if (name === "action" && data && data.action === "images.choices") return { ok: true, images: [{ key: "img_1", label: "Bannière Burger Shot", category: "banner", url: "https://placehold.co/600x200/png" }] };
+    if (name === "action" && data && data.action === "mugshots.list") return { ok: true, total: 2, offset: 0, pageSize: 48, mugshots: [
+        { identifier: "char1:aaa", name: "Ramiro Lotus", image: "logo.png", updatedAt: Math.floor(Date.now() / 1000) - 3600, online: 1 },
+        { identifier: "char1:bbb", name: "Alex Moreau", image: "logo.png", updatedAt: Math.floor(Date.now() / 1000) - 86400 },
+    ] };
+    if (name === "action" && data && data.action === "mugshots.get") return { ok: true, images: {} };
     if (name === "action" && data && data.action === "economy.overview") return { ok: true, unemployed: 20, defaultUnemployed: 20,
         settings: { paycheckMinutes: 15, allowances: { premium: 35, premium_plus: 70 }, bank: { standard: 2000, premium: 4000, premium_plus: 6000 }, impound: { car: 300, bike: 300, truck: 300, boat: 300, heli: 300, plane: 300 }, currency: "$" },
         defaults: { paycheckMinutes: 15, allowances: { premium: 35, premium_plus: 70 }, bank: { standard: 2000, premium: 4000, premium_plus: 6000 }, impound: { car: 300, bike: 300, truck: 300, boat: 300, heli: 300, plane: 300 }, currency: "$" },

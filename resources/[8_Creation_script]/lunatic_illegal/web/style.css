@@ -122,3 +122,7 @@ h2 { margin: 4px 0 2px; font-size: 22px; }
 .toast.ok { border-color: var(--ok); }
 .toast.error { border-color: var(--danger); }
 @keyframes up2 { from { opacity: 0; transform: translateY(8px); } }
+
+/* Logo de la tablette (tuile Images du panel staff) */
+.tablet-logo { height: 26px; max-width: 120px; margin-right: 10px; object-fit: contain; }
+.tablet-logo[hidden] { display: none; }

@@ -110,9 +110,12 @@ table.insert(Panel.stateHooks, function(state, _, rank)
         local target = tonumber(id)
         local job = jobOf(ESX.GetPlayerFromId(target))
 
+        local identifier = ESX.GetPlayerFromId(target)
+
         list[#list + 1] = {
             serverId = target,
             name = Staff.displayName(target),
+            identifier = identifier and identifier.identifier or nil,
             job = job and job.label or nil,
             ping = GetPlayerPing(target),
             rank = rankBadge(target),
@@ -166,6 +169,7 @@ Panel.actions['player.info'] = function(src, actor, data)
         local money, bank, black = xPlayer.getAccount('money'), xPlayer.getAccount('bank'), xPlayer.getAccount('black_money')
 
         info.job = jobOf(xPlayer)
+        info.identifier = xPlayer.identifier
         info.money = money and money.money or nil
         info.bank = bank and bank.money or nil
         info.blackMoney = black and black.money or nil

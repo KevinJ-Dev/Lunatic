@@ -155,7 +155,7 @@ function crewIdentityCard(c) {
                 h("div", { class: "field" }, h("label", null, "Nom"), label),
                 h("div", { class: "field" }, h("label", null, "Type"), type),
                 h("div", { class: "field" }, h("label", null, "Couleur"), color),
-                h("div", { class: "field struct-wide" }, h("label", null, "Logo (URL)"), logo, urlPreview(logo, "struct-logo-preview"))),
+                h("div", { class: "field struct-wide" }, h("label", null, "Logo (URL)"), imageField(logo), urlPreview(logo, "struct-logo-preview"))),
             h("div", { class: "btn-row", style: "margin-top:16px" }, save)),
         h("p", { class: "hint-line" }, `Créé par ${c.createdBy || "?"}${c.createdAt ? ` le ${new Date(c.createdAt * 1000).toLocaleDateString("fr-FR")}` : ""}. Le type décide des recettes, laboratoires et commandes accessibles (étapes suivantes de l'illégal).`)
     );

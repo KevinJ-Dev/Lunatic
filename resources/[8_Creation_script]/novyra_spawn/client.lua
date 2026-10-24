@@ -140,8 +140,9 @@ local function open(info)
         config = {
             serverName = Config.ServerName,
             tagline    = Config.Tagline,
-            logo       = Config.Logo,
-            centerLogo = Config.CenterLogo,
+            -- Logos réglés dans la tuile Images du panel staff (lunatic_admin), sinon ceux de la config
+            logo       = (GlobalState.lunaticImages or {}).spawn_emblem or Config.Logo,
+            centerLogo = (GlobalState.lunaticImages or {}).spawn_logo or Config.CenterLogo,
             accent     = Config.Accent,
             accent2    = Config.Accent2,
             discord    = Config.Discord,
