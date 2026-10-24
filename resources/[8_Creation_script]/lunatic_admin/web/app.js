@@ -2071,7 +2071,7 @@ m("heist_fleeca", "Braquage Fleeca", "heist", ["heist", "fleeca"], false, true),
     if (name === "action" && data && data.action === "structures.list") {
         const company = data.payload.kind === "company";
         return { ok: true, orphans: [{ name: "taxi", label: "Taxi" }], types: company
-            ? [{ id: "nightclub", label: "Boîte de nuit" }, { id: "dealer", label: "Concessionnaire" }, { id: "business", label: "Entreprise" }, { id: "mechanic", label: "Mécanique" }, { id: "media", label: "Médias" }, { id: "restaurant", label: "Restaurant" }]
+            ? [{ id: "nightclub", label: "Boîte de nuit", color: "#30a46c" }, { id: "dealer", label: "Concessionnaire", color: "#f76b15" }, { id: "business", label: "Entreprise", color: "#f5d90a" }, { id: "mechanic", label: "Mécanique", color: "#3e63dd" }, { id: "media", label: "Médias", color: "#ab4aba" }, { id: "restaurant", label: "Restaurant", color: "#12a594" }]
             : [{ id: "police", label: "Police" }, { id: "medic", label: "Médecins" }, { id: "administration", label: "Administration" }, { id: "government", label: "Gouvernement" }],
             structures: company
                 ? [{ job: "burgershot", label: "Burger Shot", type: "restaurant", typeLabel: "Restaurant", color: "#f2a341", grades: 4, online: 2, total: 7 },

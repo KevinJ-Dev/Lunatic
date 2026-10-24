@@ -297,6 +297,34 @@ end
 -- Création, fiche, suppression
 ---------------------------------------------------------------------
 
+-- Le membre du staff prend le métier de la structure (grade le plus bas, modifiable ensuite)
+Panel.actions['structures.join'] = function(src, actor, data)
+    local structure, err = structureFor(actor, data.job)
+
+    if not structure then
+        return err
+    end
+
+    local xPlayer = ESX.GetPlayerFromId(src)
+    local job = ESX.GetJobs()[structure.job]
+
+    if not xPlayer or not job then
+        return Panel.fail("Votre personnage n'est pas chargé.")
+    end
+
+    local lowest
+
+    for _, grade in pairs(job.grades or {}) do
+        local number = tonumber(grade.grade)
+
+        if not lowest or number < lowest then
+            lowest = number
+        end
+    end
+
+    return Panel.actions['poles.setMember'](src, actor, { job = structure.job, identifier = xPlayer.identifier, grade = lowest or 0 })
+end
+
 Panel.actions['structures.create'] = function(src, actor, data)
     local kind = KINDS[data.kind] and data.kind
 

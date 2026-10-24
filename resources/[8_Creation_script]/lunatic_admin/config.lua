@@ -104,20 +104,20 @@ Config.MarketPickupDistance = 3.0     -- distance maximale au point de livraison
 Config.FenceDefaultPed = 's_m_y_dealer_01' -- modèle du PNJ d'un nouvel emplacement (modifiable ensuite)
 
 -- Entreprises et services publics (lot E1) : types proposés à la création
-Config.StructureTypes = {
+Config.StructureTypes = { -- color : pastille du type dans le panel
     company = {
-        { id = 'nightclub', label = 'Boîte de nuit' },
-        { id = 'dealer', label = 'Concessionnaire' },
-        { id = 'business', label = 'Entreprise' },
-        { id = 'mechanic', label = 'Mécanique' },
-        { id = 'media', label = 'Médias' },
-        { id = 'restaurant', label = 'Restaurant' },
+        { id = 'nightclub', label = 'Boîte de nuit', color = '#30a46c' },
+        { id = 'dealer', label = 'Concessionnaire', color = '#f76b15' },
+        { id = 'business', label = 'Entreprise', color = '#f5d90a' },
+        { id = 'mechanic', label = 'Mécanique', color = '#3e63dd' },
+        { id = 'media', label = 'Médias', color = '#ab4aba' },
+        { id = 'restaurant', label = 'Restaurant', color = '#12a594' },
     },
     public = {
-        { id = 'police', label = 'Police' },
-        { id = 'medic', label = 'Médecins' },
-        { id = 'administration', label = 'Administration' },
-        { id = 'government', label = 'Gouvernement' },
+        { id = 'police', label = 'Police', color = '#e5484d' },
+        { id = 'medic', label = 'Médecins', color = '#f5d90a' },
+        { id = 'administration', label = 'Administration', color = '#f76b15' },
+        { id = 'government', label = 'Gouvernement', color = '#3e63dd' },
     },
 }
 

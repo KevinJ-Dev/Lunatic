@@ -1,14 +1,14 @@
 "use strict";
 
 // ====================================================================
-//  lunatic_admin — lot E1 : tuiles Entreprises et Services publics
-//  Une même page pour les deux : liste, création, fiche (identité, grades, membres).
-//  Grades et membres réutilisent les cartes du Pôle emploi (web/poles.js).
+//  lunatic_admin — tuiles Entreprises et Services publics (organisation en 4 colonnes, comme les Crews)
+//  1. Types et structures du type ; 2. Fiche (bannière, logo, identité) ; 3. Catalogues et positions (groupes repliables) ;
+//  4. Employés, grades et compte de société, actions (rejoindre, supprimer). Grades : cartes du Pôle emploi (web/poles.js).
 // ====================================================================
 
 const STRUCTURE_KINDS = {
-    company: { view: "companies", title: "Entreprises", one: "entreprise", create: "Créer une entreprise", icon: "i-store" },
-    public: { view: "publics", title: "Services publics", one: "service public", create: "Créer un service public", icon: "i-shield" },
+    company: { view: "companies", title: "Entreprises", one: "entreprise", create: "Créer une entreprise", icon: "i-store", head: "Fiche d'entreprise", staff: "Employés" },
+    public: { view: "publics", title: "Services publics", one: "service public", create: "Créer un service public", icon: "i-shield", head: "Fiche", staff: "Employés" },
 };
 
 // Grades proposés à la création selon le type (modifiables avant de valider)
@@ -24,7 +24,10 @@ const structState = {};
 
 function structOf(kind) {
     if (!structState[kind]) {
-        structState[kind] = { dom: null, list: null, orphans: [], types: [], filter: "", selected: null, info: null, tab: "identity", loadedAt: 0, candidates: null };
+        structState[kind] = {
+            list: null, orphans: [], types: [], typeFilter: null, selected: null, info: null, draft: null, saved: "",
+            sideTab: "members", memberSearch: "", openMember: null, candidates: null, catalogs: false, openGroups: new Set(), loadedAt: 0,
+        };
     }
     return structState[kind];
 }
@@ -33,26 +36,7 @@ const NEW_STRUCTURE = "__new";
 
 function renderStructures(kind) {
     const st = structOf(kind);
-    const meta = STRUCTURE_KINDS[kind];
-    const root = $(`view-${meta.view}`);
-
-    if (!st.dom || !root.contains(st.dom.list)) {
-        const search = h("input", { placeholder: `Rechercher un${kind === "public" ? "" : "e"} ${meta.one}`, value: st.filter });
-        search.addEventListener("input", () => { st.filter = search.value; paintStructureList(kind); });
-        st.dom = { count: h("span", { class: "muted mono" }), list: h("div", { class: "side-scroll" }), fiche: h("div", { class: "content" }) };
-        root.replaceChildren(
-            h("aside", { class: "sidebar" },
-                h("div", { class: "side-head" }, h("h3", null, meta.title), st.dom.count),
-                h("div", { class: "side-search" }, h("label", { class: "search" }, icon("i-search"), search)),
-                st.dom.list,
-                h("div", { class: "side-foot" }, h("button", { class: "btn primary", style: "width:100%", onclick: () => selectStructure(kind, NEW_STRUCTURE) }, icon("i-plus"), meta.create))
-            ),
-            st.dom.fiche
-        );
-        paintStructureList(kind);
-        paintStructureFiche(kind);
-    }
-
+    if (!$(`view-${STRUCTURE_KINDS[kind].view}`).childElementCount) paintStructures(kind);
     if (Date.now() - st.loadedAt > 10000) loadStructures(kind);
 }
 
@@ -64,42 +48,8 @@ async function loadStructures(kind) {
     st.list = res.structures || [];
     st.orphans = res.orphans || [];
     st.types = res.types || [];
-    if (st.dom) paintStructureList(kind);
-}
-
-function paintStructureList(kind) {
-    const st = structOf(kind);
-    if (!st.dom) return;
-    if (!st.list) return st.dom.list.replaceChildren(h("div", { class: "muted side-empty" }, "Chargement…"));
-
-    const text = st.filter.trim().toLowerCase();
-    const rows = st.list.filter((s) => !text || (s.label || "").toLowerCase().includes(text) || s.job.includes(text) || (s.typeLabel || "").toLowerCase().includes(text));
-    st.dom.count.textContent = String(st.list.length);
-    st.dom.list.replaceChildren(...(rows.length ? rows.map((s) => {
-        const badge = h("span", { class: "struct-dot" });
-        badge.style.background = s.color || "#9650ff";
-        return h("button", { class: `list-row player-row${s.job === st.selected ? " active" : ""}`, onclick: () => selectStructure(kind, s.job) },
-            kind === "company" ? badge : null,
-            h("span", { class: "who" }, h("b", null, s.label || s.job),
-                h("span", null, `${s.typeLabel} · ${s.online} en ligne · ${s.total} membre${s.total > 1 ? "s" : ""}`)));
-    }) : [h("div", { class: "muted side-empty" }, st.list.length ? "Aucun résultat." : `Aucun${kind === "public" ? "" : "e"} ${STRUCTURE_KINDS[kind].one} pour l'instant.`)]));
-}
-
-function selectStructure(kind, job) {
-    const st = structOf(kind);
-    if (st.selected === job) return;
-    guardUnsaved(STRUCTURE_KINDS[kind].view, () => doSelectStructure(kind, job));
-}
-
-function doSelectStructure(kind, job) {
-    const st = structOf(kind);
-    untrackUnsaved(STRUCTURE_KINDS[kind].view);
-    st.selected = job;
-    st.info = null;
-    st.candidates = null;
-    paintStructureList(kind);
-    paintStructureFiche(kind);
-    if (job !== NEW_STRUCTURE) loadStructureInfo(kind);
+    if (!st.typeFilter && st.types.length) st.typeFilter = st.types[0].id;
+    paintStructures(kind);
 }
 
 async function loadStructureInfo(kind) {
@@ -110,7 +60,7 @@ async function loadStructureInfo(kind) {
     if (job !== st.selected) return;
     st.info = res && res.ok ? res.job : false;
     if (res && res.types) st.types = res.types;
-    paintStructureFiche(kind);
+    paintStructures(kind);
 }
 
 // Action sur une structure : recharge la liste et la fiche après succès
@@ -125,63 +75,327 @@ function structureActor(kind) {
     };
 }
 
-function paintStructureFiche(kind) {
+// Change de type, de structure ou de vue (en demandant si la fiche a des modifications)
+function structGo(kind, changes) {
     const st = structOf(kind);
-    if (!st.dom) return;
-    const fiche = st.dom.fiche;
-    const meta = STRUCTURE_KINDS[kind];
-
-    if (st.selected === NEW_STRUCTURE) return fiche.replaceChildren(...newStructureForm(kind));
-    if (!st.selected) return fiche.replaceChildren(h("div", { class: "empty" }, icon(meta.icon), `Choisissez un${kind === "public" ? "" : "e"} ${meta.one} ou créez-en un${kind === "public" ? "" : "e"}.`));
-    if (st.info === false) return fiche.replaceChildren(h("div", { class: "empty" }, icon(meta.icon), "Cette structure n'existe plus."));
-    if (!st.info) return fiche.replaceChildren(h("div", { class: "empty" }, icon(meta.icon), "Chargement de la fiche…"));
-
-    const info = st.info;
-    const s = info.structure;
-    const previous = fiche.querySelector(".scroll");
-    const keepScroll = previous && fiche.dataset.structure === info.name ? previous.scrollTop : 0;
-    fiche.dataset.structure = info.name;
-
-    const total = info.grades.reduce((sum, g) => sum + g.members, 0);
-    const online = info.members.filter((m) => m.online).length;
-    const doAct = structureActor(kind);
-    const logo = s.logo ? h("img", { class: "struct-logo", src: s.logo, alt: "" }) : null;
-    if (logo) logo.addEventListener("error", () => logo.remove());
-
-    const tabs = h("div", { class: "segmented" }, segmentedButtons([
-        { value: "identity", label: "Identité" }, { value: "grades", label: `Grades (${info.grades.length})` }, { value: "members", label: `Membres (${total})` },
-        { value: "points", label: `Points (${(info.points || []).length})` }, { value: "catalogs", label: `Catalogues (${(info.catalogs || []).length})` },
-        { value: "account", label: "Compte" },
-    ], st.tab, (value) => guardUnsaved(meta.view, () => { st.tab = value; paintStructureFiche(kind); })));
-
-    let body;
-    if (st.tab === "grades") body = gradesCard(info, doAct);
-    else if (st.tab === "points") body = pointsCard(info, doAct);
-    else if (st.tab === "account") body = accountCard(info, doAct);
-    else if (st.tab === "catalogs") body = structureCatalogsCard(info, doAct);
-    else if (st.tab === "members") body = h("div", null, addMemberCard(kind, info, doAct), membersCard(info, doAct, "Aucun membre : ajoutez-en un ci-dessus."));
-    else body = identityCard(kind, info, doAct);
-    if (st.tab !== "identity") untrackUnsaved(meta.view);
-
-    fiche.replaceChildren(
-        h("div", { class: "page-head" },
-            logo,
-            h("div", { class: "grow" },
-                h("h1", { class: "page-title" }, info.label || info.name, h("span", { class: "badge muted" }, info.typeLabel)),
-                h("div", { class: "page-sub" }, h("span", { class: "mono" }, info.name), h("span", { class: "sep" }), `${total} membre${total > 1 ? "s" : ""}`,
-                    h("span", { class: "sep" }), `${online} en ligne`, kind === "public" && info.leadName ? [h("span", { class: "sep" }), `Lead : ${info.leadName}`] : null)
-            ),
-            h("button", { class: "btn danger", disabled: total > 0, title: total > 0 ? "Renvoyez d'abord tous les membres" : null, onclick: () => deleteStructure(kind, info) }, icon("i-trash"), "Supprimer")
-        ),
-        h("div", { class: "struct-tabs" }, tabs),
-        h("div", { class: "scroll" }, body)
-    );
-
-    const scroller = fiche.querySelector(".scroll");
-    if (scroller) scroller.scrollTop = keepScroll;
+    guardUnsaved(STRUCTURE_KINDS[kind].view, () => {
+        untrackUnsaved(STRUCTURE_KINDS[kind].view);
+        const changed = "selected" in changes && changes.selected !== st.selected;
+        Object.assign(st, changes, { draft: null });
+        if (changed) {
+            Object.assign(st, { info: null, openMember: null, candidates: null, catalogs: false });
+            loadStructureInfo(kind);
+        }
+        paintStructures(kind);
+    });
 }
 
-// ---------- Onglet Identité ----------
+function selectStructure(kind, job) {
+    const st = structOf(kind);
+    const entry = (st.list || []).find((s) => s.job === job);
+    structGo(kind, { selected: job, typeFilter: entry ? entry.type : st.typeFilter });
+}
+
+const structType = (kind, id) => structOf(kind).types.find((t) => t.id === id) || { id, label: id, color: "#9650ff" };
+
+// ---------- Mise en page ----------
+
+function paintStructures(kind) {
+    const st = structOf(kind);
+    const meta = STRUCTURE_KINDS[kind];
+    const root = $(`view-${meta.view}`);
+    if (!st.list) return root.replaceChildren(h("div", { class: "content" }, h("div", { class: "empty" }, icon(meta.icon), "Chargement…")));
+
+    const keep = [...root.querySelectorAll(".crew-scroll")].map((el) => el.scrollTop);
+    const empty = (text) => [h("div", { class: "crew-empty" }, h("div", { class: "empty" }, icon(meta.icon), text))];
+    let columns;
+    if (st.selected === NEW_STRUCTURE) columns = [h("section", { class: "crew-col struct-wide-col" }, ...newStructureForm(kind))];
+    else if (!st.selected) columns = empty(`Choisissez un${kind === "public" ? "" : "e"} ${meta.one} dans la liste, ou créez-en un${kind === "public" ? "" : "e"}.`);
+    else if (st.info === false) columns = empty("Cette structure n'existe plus.");
+    else if (!st.info) columns = empty("Chargement de la fiche…");
+    else if (st.catalogs) columns = [structCatalogsColumn(kind, st.info)];
+    else columns = [structFicheColumn(kind, st.info), structPointsColumn(kind, st.info), structStaffColumn(kind, st.info)];
+
+    root.replaceChildren(h("div", { class: `crew-page struct-page${columns.length === 1 ? " single" : ""}` }, structNavColumn(kind), ...columns));
+    root.querySelectorAll(".crew-scroll").forEach((el, index) => { if (keep[index]) el.scrollTop = keep[index]; });
+}
+
+function structLogo(s, size) {
+    const box = h("span", { class: "struct-mini" });
+    box.style.width = box.style.height = `${size}px`;
+    const initial = () => { box.replaceChildren((s.label || s.job || "?").slice(0, 1).toUpperCase()); box.style.background = s.color || "#9650ff"; };
+    if (s.logo) {
+        const img = h("img", { src: s.logo, alt: "" });
+        img.addEventListener("error", initial);
+        box.append(img);
+    } else {
+        initial();
+    }
+    return box;
+}
+
+function structNavColumn(kind) {
+    const st = structOf(kind);
+    const meta = STRUCTURE_KINDS[kind];
+    const counts = {};
+    for (const s of st.list) counts[s.type] = (counts[s.type] || 0) + 1;
+
+    const typeRows = st.types.map((t) => {
+        const dot = h("span", { class: "crew-dot" });
+        dot.style.background = t.color || "#9650ff";
+        return h("button", { class: `list-row${st.typeFilter === t.id ? " active" : ""}`, onclick: () => st.typeFilter !== t.id && structGo(kind, { typeFilter: t.id }) },
+            dot, h("span", { class: "name" }, t.label), h("span", { class: "cnt" }, String(counts[t.id] || 0)));
+    });
+    const type = structType(kind, st.typeFilter);
+    const ofType = st.list.filter((s) => s.type === type.id);
+
+    return h("aside", { class: "sidebar crew-nav crew-scroll" },
+        h("div", { class: "crew-block" }, h("div", { class: "crew-block-head" }, icon("i-layers"), kind === "public" ? "Type" : "Type d'entreprise"), typeRows),
+        h("div", { class: "crew-block" },
+            h("div", { class: "crew-block-head" }, icon(meta.icon), type.label),
+            ofType.map((s) => h("button", { class: `list-row player-row${s.job === st.selected ? " active" : ""}`, onclick: () => s.job !== st.selected && selectStructure(kind, s.job) },
+                structLogo(s, 26), h("span", { class: "who" }, h("b", null, s.label || s.job), h("span", null, `${s.total} membre${s.total > 1 ? "s" : ""} · ${s.online} en ligne`)))),
+            h("button", { class: `list-row${st.selected === NEW_STRUCTURE ? " active" : ""}`, onclick: () => structGo(kind, { selected: NEW_STRUCTURE }) }, icon("i-plus"), h("span", { class: "name" }, kind === "public" ? "Créer" : "Créer une entreprise"))));
+}
+
+// ---------- 2. Fiche ----------
+
+function structDraft(kind, info) {
+    const st = structOf(kind);
+    const key = `struct:${info.name}`;
+    if (st.draft && st.draft.key === key) return st.draft;
+    const s = info.structure;
+    const base = { key, label: info.label || "", type: s.type, lead: s.lead || "", color: s.color || "#9650ff", logo: s.logo || "", banner: s.banner || "", radialIcon: s.radialIcon || "" };
+    st.draft = base;
+    st.saved = JSON.stringify(base);
+    trackUnsaved(STRUCTURE_KINDS[kind].view, {
+        label: `Fiche de ${info.label || info.name}`,
+        isDirty: () => !!st.draft && JSON.stringify(st.draft) !== st.saved,
+        save: () => saveStructure(kind),
+        reset: () => { st.draft = null; paintStructures(kind); },
+    });
+    return base;
+}
+
+async function saveStructure(kind) {
+    const st = structOf(kind);
+    const d = st.draft;
+    const info = st.info;
+    if (!d || !info) return;
+    const res = await act("structures.save", {
+        job: info.name, label: d.label.trim(), type: d.type, lead: kind === "public" ? d.lead : null, color: kind === "company" ? d.color : null,
+        logo: d.logo.trim(), banner: d.banner.trim(), radialIcon: d.radialIcon.trim(),
+    }, "Fiche enregistrée.");
+    if (!res) return;
+    untrackUnsaved(STRUCTURE_KINDS[kind].view);
+    st.draft = null;
+    loadStructures(kind);
+    loadStructureInfo(kind);
+}
+
+function structFicheColumn(kind, info) {
+    const st = structOf(kind);
+    const d = structDraft(kind, info);
+    const s = info.structure;
+    const meta = STRUCTURE_KINDS[kind];
+    const bind = (input, key, event = "input") => { input.addEventListener(event, () => { d[key] = input.value; }); return input; };
+    const total = info.grades.reduce((sum, g) => sum + g.members, 0);
+    const type = structType(kind, d.type);
+
+    const fields = [
+        crewField("i-key", "Nom", h("input", { class: "input mono", value: info.name, disabled: true, title: "Identifiant interne (métier ESX)" })),
+        crewField("i-edit", "Label", bind(h("input", { class: "input", maxlength: "50", value: d.label }), "label")),
+        crewField("i-layers", "Type", bind(h("select", { class: "input" }, st.types.map((t) => h("option", { value: t.id, selected: t.id === d.type }, t.label))), "type", "change")),
+    ];
+    if (kind === "public") {
+        const known = new Set(info.members.map((m) => m.identifier));
+        const lead = bind(h("select", { class: "input" }, h("option", { value: "" }, "— Aucun —"),
+            info.members.map((m) => h("option", { value: m.identifier, selected: m.identifier === d.lead }, m.name)),
+            d.lead && !known.has(d.lead) ? h("option", { value: d.lead, selected: true }, `${info.leadName || d.lead} (plus membre)`) : null), "lead", "change");
+        fields.push(crewField("i-crown", "Lead", lead));
+    } else {
+        fields.push(crewField("i-sparkle", "Couleur", bind(h("input", { class: "input color-input", type: "color", value: d.color }), "color")));
+    }
+
+    const banner = s.banner ? h("img", { class: "struct-banner", src: s.banner, alt: "" }) : null;
+    if (banner) banner.addEventListener("error", () => banner.remove());
+    const typeBadge = h("span", { class: "crew-type-badge" }, type.label);
+    typeBadge.style.setProperty("--type", type.color || "#9650ff");
+
+    return h("section", { class: "crew-col" },
+        h("div", { class: "crew-col-head" }, icon(meta.icon), meta.head),
+        h("div", { class: "crew-scroll crew-col-body" },
+            banner,
+            h("div", { class: `crew-id${banner ? " under-banner" : ""}` },
+                h("div", { class: "crew-pic" }, structLogo({ ...s, label: info.label, job: info.name }, 58)),
+                h("div", { class: "crew-id-text" }, h("b", null, info.label || info.name), typeBadge),
+                h("div", { class: "crew-stats two" },
+                    h("div", null, h("b", null, String(total)), h("span", null, kind === "public" ? "Mbr." : "Empl.")),
+                    h("div", null, h("b", null, String((info.points || []).length)), h("span", null, "Pts")))),
+            h("div", { class: "crew-sub" }, "Informations"),
+            fields,
+            h("div", { class: "crew-sub" }, "Logo"),
+            crewField("i-image", "URL", imageField(bind(h("input", { class: "input mono", maxlength: "255", placeholder: "https://…/logo.png", value: d.logo }), "logo"))),
+            crewField("i-sparkle", "Radial icon", bind(h("input", { class: "input mono", maxlength: "60", placeholder: "fa-solid fa-utensils", value: d.radialIcon }), "radialIcon")),
+            h("div", { class: "crew-sub" }, "Bannière"),
+            crewField("i-image", "URL", imageField(bind(h("input", { class: "input mono", maxlength: "255", placeholder: "https://…/banniere.png", value: d.banner }), "banner"))),
+            h("p", { class: "hint-line" }, `Créé${kind === "public" ? "" : "e"} par ${s.createdBy || "?"}${s.createdAt ? ` le ${new Date(s.createdAt * 1000).toLocaleDateString("fr-FR")}` : ""}. Enregistrez avec la barre du bas.`)));
+}
+
+// ---------- 3. Catalogues et positions ----------
+
+function structPointsColumn(kind, info) {
+    const st = structOf(kind);
+    const doAct = structureActor(kind);
+    const types = info.pointTypes || [];
+    const points = info.points || [];
+    const activeCatalogs = (info.catalogs || []).length;
+
+    const groups = types.map((t) => {
+        const list = points.filter((p) => p.type === t.id);
+        const open = st.openGroups.has(t.id);
+        const toggle = () => {
+            if (open) st.openGroups.delete(t.id);
+            else st.openGroups.add(t.id);
+            paintStructures(kind);
+        };
+        return h("div", { class: `crew-point-group${open ? " open" : ""}` },
+            h("button", { class: "crew-point-title", onclick: toggle },
+                h("span", null, t.label), t.ready ? null : h("span", { class: "badge muted" }, "bientôt"),
+                h("span", { class: "cnt" }, String(list.length)), h("span", { class: "crew-chevron" }, "▸")),
+            open ? [
+                ...list.map((p) => structPointCard(p, t, doAct)),
+                h("button", { class: "btn small ok-btn wide", onclick: () => {
+                    st.openGroups.add(t.id);
+                    doAct("structures.addPoint", { job: info.name, type: t.id, label: "" }, "Point ajouté à votre position.");
+                } }, icon("i-plus"), `Ajouter : ${t.label.toLowerCase()}`),
+                t.ready ? null : h("p", { class: "hint-line" }, "Plaçable dès maintenant, utilisable en jeu quand son système sera prêt."),
+            ] : null);
+    });
+
+    return h("section", { class: "crew-col" },
+        h("div", { class: "crew-col-pad", style: "padding-top:14px" },
+            h("button", { class: "struct-catalog-btn", onclick: () => structGo(kind, { catalogs: true }) },
+                icon("i-book"), h("span", null, h("b", null, "Catalogues"), h("small", null, `${activeCatalogs} actif${activeCatalogs > 1 ? "s" : ""}`)), h("span", { class: "crew-chevron" }, "▸"))),
+        h("div", { class: "crew-col-head", style: "padding-top:4px" }, icon("i-pin"), "Positions", h("span", { class: "cnt" }, String(points.length))),
+        h("div", { class: "crew-scroll crew-col-body" }, h("div", { class: "crew-list" }, groups),
+            h("p", { class: "hint-line" }, "Les points se placent à votre position en jeu. « Définir » les déplace, « TP » vous y emmène.")));
+}
+
+function structPointCard(p, type, doAct) {
+    const label = h("input", { class: "input", maxlength: "60", value: p.label });
+    label.addEventListener("change", () => {
+        if (label.value.trim() !== p.label) doAct("structures.renamePoint", { id: p.id, label: label.value.trim() }, "Point renommé.");
+    });
+    return h("div", { class: "crew-point" },
+        h("div", { class: "crew-point-head" }, h("span", { class: `crew-point-dot${type.ready ? "" : " soon"}` }), label,
+            h("button", { class: "btn small ghost sq-btn", title: "Supprimer", onclick: async () => {
+                const yes = await confirmBox(`Supprimer « ${p.label} » ?`, p.type === "storage" ? "Le contenu du coffre reste en base, mais il n'est plus accessible." : "Le point disparaît pour tous les membres.", "Supprimer", true);
+                if (yes) doAct("structures.deletePoint", { id: p.id }, "Point supprimé.");
+            } }, icon("i-trash"))),
+        h("div", { class: "crew-point-row" },
+            h("span", { class: "crew-coords mono" }, `${p.x.toFixed(0)}  ${p.y.toFixed(0)}  ${p.z.toFixed(0)}`),
+            h("button", { class: "btn small ghost", title: "Le point passe à votre position", onclick: () => doAct("structures.movePoint", { id: p.id }, "Point replacé à votre position.") }, icon("i-crosshair"), "Définir"),
+            h("button", { class: "btn small ghost", onclick: () => act("structures.tpPoint", { id: p.id }, null) }, icon("i-goto"), "TP")));
+}
+
+// Catalogues : l'éditeur de la structure en grand, avec retour à la fiche
+function structCatalogsColumn(kind, info) {
+    return h("section", { class: "crew-col struct-wide-col" },
+        h("div", { class: "crew-col-head" },
+            h("button", { class: "btn small ghost", onclick: () => structGo(kind, { catalogs: false }) }, icon("i-back"), "Retour"),
+            icon("i-book"), `Catalogues · ${info.label || info.name}`),
+        h("div", { class: "crew-scroll crew-col-body" }, structureCatalogsCard(info, structureActor(kind))));
+}
+
+// ---------- 4. Employés, grades, compte ----------
+
+function structStaffColumn(kind, info) {
+    const st = structOf(kind);
+    const doAct = structureActor(kind);
+    const total = info.grades.reduce((sum, g) => sum + g.members, 0);
+    const tabs = h("div", { class: "segmented block" }, segmentedButtons([
+        { value: "members", label: `${STRUCTURE_KINDS[kind].staff} (${total})` }, { value: "grades", label: `Grades (${info.grades.length})` }, { value: "account", label: "Compte" },
+    ], st.sideTab, (v) => { st.sideTab = v; paintStructures(kind); }));
+
+    let body;
+    if (st.sideTab === "grades") body = gradesCard(info, doAct);
+    else if (st.sideTab === "account") body = accountCard(info, doAct);
+    else body = structMemberList(kind, info, doAct);
+
+    return h("section", { class: "crew-col struct-staff" },
+        h("div", { class: "crew-col-head" }, icon("i-users"), STRUCTURE_KINDS[kind].staff, h("span", { class: "cnt" }, String(total))),
+        h("div", { class: "crew-col-pad" }, tabs),
+        h("div", { class: "crew-scroll crew-col-body" }, body),
+        st.sideTab === "members" ? structAddMember(kind, info) : null,
+        h("div", { class: "crew-actions two" },
+            h("button", { class: "btn small", onclick: () => doAct("structures.join", { job: info.name }, `Vous rejoignez ${info.label}.`) }, icon("i-user-plus"), "Rejoindre"),
+            h("button", { class: "btn small danger", disabled: total > 0, title: total > 0 ? "Renvoyez d'abord tous les membres" : null, onclick: () => deleteStructure(kind, info) }, icon("i-trash"), "Supprimer")));
+}
+
+function structMemberList(kind, info, doAct) {
+    const st = structOf(kind);
+    if (info.membersHidden) return h("p", { class: "hint-line" }, "Membres non listés.");
+    const search = h("input", { placeholder: "Rechercher…", value: st.memberSearch });
+    search.addEventListener("input", () => {
+        st.memberSearch = search.value;
+        const pos = search.selectionStart;
+        paintStructures(kind);
+        const again = $(`view-${STRUCTURE_KINDS[kind].view}`).querySelector(".crew-member-search input");
+        if (again) { again.focus(); again.setSelectionRange(pos, pos); }
+    });
+    const q = fold(st.memberSearch.trim());
+    const list = info.members.filter((m) => !q || fold(m.name).includes(q) || String(m.online || "") === q);
+    loadMugshots(info.members.map((m) => m.identifier)).then((found) => found && paintStructures(kind));
+    const gradeLabel = (grade) => (info.grades.find((g) => g.grade === grade) || {}).label || `Grade ${grade}`;
+
+    const rows = list.map((m) => {
+        const open = st.openMember === m.identifier;
+        const row = h("button", { class: `crew-member${open ? " open" : ""}`, onclick: () => { st.openMember = open ? null : m.identifier; paintStructures(kind); } },
+            mugshotImg(m.identifier, "mug-row"),
+            h("span", { class: "who" }, h("b", null, m.online ? `[${m.online}] ${m.name}` : m.name), h("span", null, [gradeLabel(m.grade), m.playtime ? `${playtimeText(m.playtime)} de service` : null].filter(Boolean).join(" · "))),
+            h("span", { class: `status${m.online ? " on" : ""}`, title: m.online ? `En ligne · ID ${m.online}` : "Hors ligne" }));
+        if (!open) return row;
+        const select = h("select", { class: "input", disabled: m.protected, title: m.protected ? "Rang égal ou supérieur au vôtre" : null },
+            [...info.grades].reverse().map((g) => h("option", { value: String(g.grade), selected: g.grade === m.grade }, g.label)));
+        select.addEventListener("change", async () => {
+            const grade = Number(select.value);
+            const res = await doAct("poles.setMember", { job: info.name, identifier: m.identifier, grade }, `${m.name} : ${gradeLabel(grade)}.`);
+            if (!res) select.value = String(m.grade);
+        });
+        return h("div", { class: "crew-member-box" }, row,
+            h("div", { class: "crew-member-edit" }, select,
+                h("button", { class: "btn small ghost", disabled: m.protected, onclick: async () => {
+                    if (await confirmBox(`Renvoyer ${m.name} ?`, `Il quitte ${info.label} et devient sans emploi.`, "Renvoyer", true)) doAct("poles.fire", { job: info.name, identifier: m.identifier }, `${m.name} a été renvoyé.`);
+                } }, icon("i-door"), "Renvoyer")));
+    });
+
+    return h("div", { class: "crew-list" },
+        h("label", { class: "search crew-member-search" }, icon("i-search"), search),
+        rows.length ? rows : h("p", { class: "hint-line" }, info.members.length ? "Aucun membre ne correspond." : "Aucun membre : ajoutez-en par nom ou ID."));
+}
+
+function structAddMember(kind, info) {
+    const st = structOf(kind);
+    const input = h("input", { class: "input", maxlength: "60", placeholder: "Nom ou ID" });
+    const add = async (payload) => {
+        const res = await act("structures.addMember", { job: info.name, ...payload }, null);
+        if (!res) return;
+        if (res.candidates) {
+            st.candidates = res.candidates;
+            return paintStructures(kind);
+        }
+        st.candidates = null;
+        toast(`${res.name || "Le joueur"} rejoint ${info.label}.`, "ok");
+        loadStructures(kind);
+        loadStructureInfo(kind);
+    };
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter" && input.value.trim()) add({ query: input.value.trim() }); });
+    return h("div", { class: "crew-add" },
+        st.candidates ? h("div", { class: "crew-candidates" }, st.candidates.map((c) => h("button", { class: "crew-line", onclick: () => add({ identifier: c.identifier }) },
+            h("span", { class: "who" }, h("b", null, c.name), h("span", null, c.job || "sans métier")), icon("i-plus")))) : null,
+        h("div", { class: "spawn-row" }, input, h("button", { class: "btn small primary", onclick: () => input.value.trim() && add({ query: input.value.trim() }) }, icon("i-plus"))));
+}
 
 function urlPreview(input, className) {
     const img = h("img", { class: className, alt: "" });
@@ -196,122 +410,18 @@ function urlPreview(input, className) {
     return img;
 }
 
-function identityCard(kind, info, doAct) {
-    const s = info.structure;
-    const label = h("input", { class: "input", maxlength: "50", value: info.label || "" });
-    const type = h("select", { class: "input" }, structOf(kind).types.map((t) => h("option", { value: t.id, selected: t.id === s.type }, t.label)));
-    const logo = h("input", { class: "input mono", maxlength: "255", placeholder: "https://…/logo.png", value: s.logo || "" });
-    const banner = h("input", { class: "input mono", maxlength: "255", placeholder: "https://…/banniere.png", value: s.banner || "" });
-    const radial = h("input", { class: "input mono", maxlength: "60", placeholder: "fa-solid fa-utensils", value: s.radialIcon || "" });
-
-    const fields = [
-        h("div", { class: "field" }, h("label", null, "Nom (identifiant interne)"), h("input", { class: "input mono", value: info.name, disabled: true })),
-        h("div", { class: "field" }, h("label", null, "Label (nom affiché aux joueurs)"), label),
-        h("div", { class: "field" }, h("label", null, "Type"), type),
-    ];
-
-    let lead = null;
-    let color = null;
-    if (kind === "public") {
-        const options = [h("option", { value: "" }, "— Aucun —")];
-        const known = new Set();
-        for (const m of info.members) {
-            known.add(m.identifier);
-            options.push(h("option", { value: m.identifier, selected: m.identifier === s.lead }, m.name));
-        }
-        if (s.lead && !known.has(s.lead)) options.push(h("option", { value: s.lead, selected: true }, `${info.leadName || s.lead} (n'est plus membre)`));
-        lead = h("select", { class: "input" }, options);
-        fields.push(h("div", { class: "field" }, h("label", null, "Lead (personnage responsable)"), lead));
-    } else {
-        color = h("input", { class: "input color-input", type: "color", value: s.color || "#9650ff" });
-        fields.push(h("div", { class: "field" }, h("label", null, "Couleur (carte et menus)"), color));
-    }
-
-    const submit = h("button", { class: "btn primary" }, icon("i-save"), "Enregistrer la fiche");
-    submit.addEventListener("click", () => doAct("structures.save", {
-        job: info.name, label: label.value.trim(), type: type.value, lead: lead ? lead.value : null, color: color ? color.value : null,
-        logo: logo.value.trim(), banner: banner.value.trim(), radialIcon: radial.value.trim(),
-    }, "Fiche enregistrée."));
-
-    // Suivi des modifications (barre en bas)
-    const values = () => JSON.stringify([label.value, type.value, lead && lead.value, color && color.value, logo.value, banner.value, radial.value]);
-    const saved = values();
-    trackUnsaved(STRUCTURE_KINDS[kind].view, { label: `Fiche de ${info.label}`, isDirty: () => document.body.contains(submit) && values() !== saved, save: () => submit.click(), reset: () => paintStructureFiche(kind) });
-
-    return h("div", null,
-        h("div", { class: "card" },
-            h("h3", { class: "card-title" }, "Fiche d'identité"),
-            h("div", { class: "struct-fields" }, fields),
-            h("div", { class: "struct-fields", style: "margin-top:14px" },
-                h("div", { class: "field" }, h("label", null, "Logo (URL)"), imageField(logo), urlPreview(logo, "struct-logo-preview")),
-                h("div", { class: "field" }, h("label", null, "Icône du menu radial"), radial,
-                    h("span", { class: "hint" }, "Nom d'icône Font Awesome, utilisée par le futur menu radial.")),
-                h("div", { class: "field struct-wide" }, h("label", null, "Bannière (URL)"), imageField(banner), urlPreview(banner, "struct-banner-preview"))),
-            h("div", { class: "btn-row", style: "margin-top:16px" }, submit)
-        ),
-        h("p", { class: "hint-line" }, `Créé${kind === "public" ? "" : "e"} par ${s.createdBy || "?"}${s.createdAt ? ` le ${new Date(s.createdAt * 1000).toLocaleDateString("fr-FR")}` : ""}.`)
-    );
+async function deleteStructure(kind, info) {
+    const yes = await confirmBox(`Supprimer « ${info.label} » ?`, "La fiche, le métier ESX, ses grades et le temps de jeu de ses membres sont effacés. Action définitive.", "Supprimer", true);
+    if (!yes) return;
+    const res = await act("structures.delete", { job: info.name }, "Structure supprimée.");
+    if (!res) return;
+    const st = structOf(kind);
+    untrackUnsaved(STRUCTURE_KINDS[kind].view);
+    Object.assign(st, { selected: null, info: null, draft: null });
+    loadStructures(kind);
 }
 
-// ---------- Onglet Points ----------
-
-function pointsCard(info, doAct) {
-    const types = info.pointTypes || [];
-    const typeLabel = (id) => (types.find((t) => t.id === id) || {}).label || id;
-    const select = h("select", { class: "input" }, types.map((t) => h("option", { value: t.id }, t.ready ? t.label : `${t.label} (bientôt)`)));
-    const label = h("input", { class: "input", maxlength: "60", placeholder: "Nom facultatif, ex. Coffre cuisine" });
-    const add = h("button", { class: "btn primary" }, icon("i-plus"), "Ajouter à ma position");
-    add.addEventListener("click", async () => {
-        const res = await doAct("structures.addPoint", { job: info.name, type: select.value, label: label.value.trim() }, "Point ajouté à votre position.");
-        if (res) label.value = "";
-    });
-
-    const rows = (info.points || []).map((p) => {
-        const ready = (types.find((t) => t.id === p.type) || {}).ready;
-        return h("div", { class: "row point-row" },
-            h("span", { class: `status${ready ? " on" : ""}`, title: ready ? "Utilisable en jeu" : "Bientôt disponible en jeu" }),
-            h("div", { class: "who" }, h("b", null, p.label), h("span", null, `${typeLabel(p.type)} · ${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)}`)),
-            h("div", { class: "btn-row" },
-                h("button", { class: "btn small", title: "Placer le point à votre position et orientation actuelles", onclick: () => doAct("structures.movePoint", { id: p.id }, "Point replacé à votre position.") }, icon("i-crosshair"), "Définir"),
-                h("button", { class: "btn small ghost", onclick: () => act("structures.tpPoint", { id: p.id }, null) }, icon("i-goto"), "TP"),
-                h("button", { class: "btn small ghost", title: "Renommer", onclick: () => renamePoint(p, doAct) }, icon("i-edit")),
-                h("button", { class: "btn small ghost", title: "Supprimer", onclick: async () => {
-                    const yes = await confirmBox(`Supprimer « ${p.label} » ?`, p.type === "storage" ? "Le contenu du coffre reste en base, mais il n'est plus accessible." : "Le point disparaît pour tous les membres.", "Supprimer", true);
-                    if (yes) doAct("structures.deletePoint", { id: p.id }, "Point supprimé.");
-                } }, icon("i-trash")))
-        );
-    });
-
-    return h("div", null,
-        h("div", { class: "card" },
-            h("h3", { class: "card-title" }, "Ajouter un point"),
-            h("div", { class: "point-add" }, select, label, add),
-            h("p", { class: "hint-line" }, "Le point est posé au sol, sous vos pieds. « Définir » le déplace à votre position, « TP » vous y emmène. Plusieurs points du même type sont possibles.")),
-        h("div", { class: "card", style: "margin-top:16px" },
-            h("h3", { class: "card-title" }, `Points (${rows.length})`),
-            rows.length ? h("div", { class: "table" }, rows) : h("p", { class: "hint-line", style: "margin:0" }, "Aucun point pour l'instant."),
-            h("p", { class: "hint-line" }, "Pastille verte : utilisable en jeu (Gestion, Stockage, Casier, Vestiaire, Sonnette, Custom). Les autres types sont déjà plaçables et s'activeront avec leur système."))
-    );
-}
-
-function renamePoint(p, doAct) {
-    const input = h("input", { class: "input", maxlength: "60", value: p.label });
-    openModal((close) => {
-        const submit = h("button", { class: "btn primary" }, icon("i-save"), "Renommer");
-        submit.addEventListener("click", async () => {
-            const res = await doAct("structures.renamePoint", { id: p.id, label: input.value.trim() }, "Point renommé.");
-            if (res) close();
-        });
-        return [
-            h("header", null, h("h3", null, "Renommer le point"), h("p", null, "Nom affiché aux membres avec [E]. Vide = nom du type.")),
-            h("div", { class: "body" }, input),
-            h("footer", null, h("button", { class: "btn ghost", onclick: () => close() }, "Annuler"), submit),
-        ];
-    });
-    input.focus();
-}
-
-// ---------- Onglet Compte de société ----------
+// ---------- Compte de société ----------
 
 function accountCard(info, doAct) {
     const account = info.account;
@@ -347,49 +457,6 @@ function accountCard(info, doAct) {
     );
 }
 
-// ---------- Onglet Membres : ajout ----------
-
-function addMemberCard(kind, info, doAct) {
-    const st = structOf(kind);
-    const input = h("input", { class: "input", maxlength: "60", placeholder: "ID en jeu (ex. 12) ou nom RP (ex. Jean Dupont)" });
-    const add = async (payload) => {
-        const res = await act("structures.addMember", { job: info.name, ...payload }, null);
-        if (!res) return;
-        if (res.candidates) {
-            st.candidates = res.candidates;
-            return paintStructureFiche(kind);
-        }
-        st.candidates = null;
-        toast(`${res.name || "Le joueur"} rejoint ${info.label}.`, "ok");
-        loadStructures(kind);
-        loadStructureInfo(kind);
-    };
-    const submit = h("button", { class: "btn primary", onclick: () => input.value.trim() && add({ query: input.value.trim() }) }, icon("i-user-plus"), "Ajouter");
-    input.addEventListener("keydown", (e) => { if (e.key === "Enter" && input.value.trim()) add({ query: input.value.trim() }); });
-
-    return h("div", { class: "card" },
-        h("h3", { class: "card-title" }, "Ajouter un membre"),
-        h("div", { class: "spawn-row" }, input, submit),
-        h("p", { class: "hint-line" }, "Il est embauché au grade le plus bas. Un joueur qui a déjà un métier le quitte."),
-        st.candidates ? h("div", { class: "table", style: "margin-top:12px" }, st.candidates.map((c) =>
-            h("div", { class: "row candidate-row" },
-                h("div", { class: "who" }, h("b", null, c.name), h("span", null, `${c.job || "sans métier"} · perso ${c.identifier.slice(0, 8)}…`)),
-                h("button", { class: "btn small", onclick: () => add({ identifier: c.identifier }) }, icon("i-plus"), "Ajouter")))) : null
-    );
-}
-
-async function deleteStructure(kind, info) {
-    const yes = await confirmBox(`Supprimer « ${info.label} » ?`, "La fiche, le métier ESX, ses grades et le temps de jeu de ses membres sont effacés. Action définitive.", "Supprimer", true);
-    if (!yes) return;
-    const res = await act("structures.delete", { job: info.name }, "Structure supprimée.");
-    if (!res) return;
-    const st = structOf(kind);
-    st.selected = null;
-    st.info = null;
-    loadStructures(kind);
-    paintStructureFiche(kind);
-}
-
 // ---------- Création ----------
 
 function newStructureForm(kind) {
@@ -399,7 +466,7 @@ function newStructureForm(kind) {
     let gradesTouched = false;
     let nameTouched = false;
 
-    const type = h("select", { class: "input" }, st.types.map((t) => h("option", { value: t.id }, t.label)));
+    const type = h("select", { class: "input" }, st.types.map((t) => h("option", { value: t.id, selected: t.id === st.typeFilter }, t.label)));
     const label = h("input", { class: "input", maxlength: "50", placeholder: kind === "public" ? "Ex. LSPD" : "Ex. Burger Shot" });
     const name = h("input", { class: "input mono", maxlength: "30", placeholder: kind === "public" ? "lspd" : "burgershot" });
     const existing = h("select", { class: "input" }, st.orphans.length

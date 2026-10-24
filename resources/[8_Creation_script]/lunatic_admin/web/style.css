@@ -1051,3 +1051,29 @@ body.hidden.minimized .mini-pill { display: flex; }
 .crew-chevron { color: var(--muted); font-size: 11px; transition: transform .15s; }
 .crew-point-group.open .crew-chevron { transform: rotate(90deg); }
 .crew-point-group.open .crew-point-title { border-color: rgba(var(--accent-rgb), .5); }
+/* Entreprises et Services publics : même organisation que les Crews */
+#view-companies.on, #view-publics.on { display: flex; }
+.struct-page { grid-template-columns: 230px 340px minmax(0, 1fr) 330px; }
+.struct-mini { display: grid; flex: none; place-items: center; overflow: hidden; border-radius: 8px; background: var(--surface-2); color: #fff; font-size: 12px; font-weight: 700; }
+.struct-mini img { width: 100%; height: 100%; object-fit: cover; }
+.crew-pic .struct-mini { border-radius: 12px; font-size: 22px; }
+.struct-banner { display: block; width: 100%; height: 96px; object-fit: cover; border-radius: 12px 12px 0 0; }
+.crew-id.under-banner { margin-top: -1px; border-top-left-radius: 0; border-top-right-radius: 0; }
+.crew-stats.two { grid-template-columns: repeat(2, 1fr); }
+.crew-actions.two { grid-template-columns: repeat(2, 1fr); }
+.crew-point-dot.soon { background: var(--muted-2); box-shadow: none; }
+.struct-catalog-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; border: 1px solid rgba(var(--accent-rgb), .45); border-radius: 12px; background: rgba(var(--accent-rgb), .14); color: #fff; text-align: left; }
+.struct-catalog-btn:hover { background: rgba(var(--accent-rgb), .24); }
+.struct-catalog-btn > span:nth-child(2) { display: grid; flex: 1; }
+.struct-catalog-btn small { color: var(--muted); font-size: 11px; }
+.struct-catalog-btn svg.i { width: 18px; height: 18px; }
+.struct-wide-col .crew-col-head .btn { margin-right: 6px; }
+.struct-wide-col .scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0 22px 22px; }
+.struct-staff .card { padding: 12px; }
+.struct-staff .card + .card { margin-top: 10px; }
+.struct-staff .grade-row { grid-template-columns: 22px minmax(0, 1fr) 90px; row-gap: 6px; }
+.struct-staff .grade-row > :nth-child(n+4) { grid-column: 2 / -1; }
+.struct-staff .kpis { grid-template-columns: 1fr; }
+.struct-staff .account-form { grid-template-columns: 1fr; }
+@media (max-width: 1500px) { .struct-page { grid-template-columns: 200px 310px minmax(0, 1fr) 300px; } }
+.struct-staff .segmented button { padding: 0 6px; font-size: 11.5px; white-space: nowrap; }
