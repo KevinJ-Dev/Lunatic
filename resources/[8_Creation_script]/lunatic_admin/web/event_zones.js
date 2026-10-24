@@ -186,15 +186,16 @@ function zoneFiche() {
     const drawZone = () => {
         map.clear();
         if (d.x != null) map.circle(d.x, d.y, d.radius, { color: "#f2c26b", fill: 0.25, label: d.label });
+        const picking = zoneState.picking || d.x == null;
         map.setClick((x, y) => {
-            if (!zoneState.picking) return;
+            if (!picking) return;
             if (!insideGtaMap(x, y)) return toast("Position hors de la carte.", "error");
             d.x = Math.round(x * 10) / 10;
             d.y = Math.round(y * 10) / 10;
             d.z = null;
             zoneState.picking = false;
             repaintZones();
-        }, zoneState.picking);
+        }, picking);
     };
     requestAnimationFrame(() => {
         drawZone();
@@ -206,12 +207,10 @@ function zoneFiche() {
         h("div", { class: "card zone-id" },
             h("span", { class: "muted" }, event ? (event.loaded ? `Chargé · ${event.players} joueur(s)` : "Déchargé") : "Aucune bannière"),
             h("b", null, d.label || "Nouvel événement")),
-        h("div", { class: "card" }, h("div", { class: "crew-sub" }, "Résumé"), summary),
         h("div", { class: "card zone-map-card" },
             h("div", { class: "crew-sub" }, `Zone de l'event · ${d.radius} m`),
-            h("div", { class: "zone-map" }, map.el),
             h("div", { class: "btn-row" },
-                h("button", { class: `btn small${zoneState.picking ? " primary" : ""}`, title: "Le prochain clic sur la carte place le centre de la zone", onclick: () => { zoneState.picking = !zoneState.picking; repaintZones(); } }, icon("i-crosshair"), zoneState.picking ? "Cliquez sur la carte" : "Placer"),
+                h("button", { class: `btn small${zoneState.picking ? " primary" : ""}`, title: "Le prochain clic sur la carte place le centre de la zone", onclick: () => { zoneState.picking = !zoneState.picking; repaintZones(); } }, icon("i-crosshair"), zoneState.picking ? "Cliquez sur la carte" : d.x == null ? "Placer" : "Déplacer"),
                 h("button", { class: "btn small ghost", title: "Centre de la zone à votre position en jeu", onclick: async () => {
                     const c = await nui("getCoords").catch(() => null);
                     if (!c || typeof c.x !== "number") return toast("Position indisponible.", "error");
@@ -219,7 +218,9 @@ function zoneFiche() {
                     repaintZones();
                 } }, icon("i-player"), "Ma position"),
                 event && event.x != null ? h("button", { class: "btn small ghost", onclick: () => act("eventZones.tp", { id: event.id }, null) }, icon("i-goto"), "TP") : null),
-            h("p", { class: "hint-line", style: "margin:0" }, d.x != null ? `Centre : ${d.x.toFixed(0)}, ${d.y.toFixed(0)}` : "Zone pas encore placée : obligatoire pour charger l'event.")));
+            h("div", { class: `zone-map${d.x == null || zoneState.picking ? " picking" : ""}` }, map.el),
+            h("p", { class: "hint-line", style: "margin:0" }, d.x != null ? `Centre : ${d.x.toFixed(0)}, ${d.y.toFixed(0)}` : "Pas encore placée : cliquez sur la carte, ou « Ma position ».")),
+        h("div", { class: "card" }, h("div", { class: "crew-sub" }, "Résumé"), summary));
 
     const tabs = h("div", { class: "segmented block zone-tabs" }, ZONE_TABS.map((t) => h("button", {
         "aria-checked": String(zoneState.tab === t.value), class: t.soon ? "soon" : null, title: t.soon ? "Prochaine partie" : null,

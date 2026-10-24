@@ -1341,3 +1341,4 @@ body.hidden.minimized .mini-pill { display: flex; }
 .poster-foot { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-top: 1px solid #ffffff14; color: #ffffffb3; font-size: 11.5px; }
 .poster-foot kbd { display: grid; place-items: center; min-width: 22px; height: 22px; border-radius: 5px; background: #ffffff1f; font: 700 11px var(--mono); }
 .zone-com .item-field textarea.input { height: 84px; padding-top: 8px; resize: vertical; }
+.zone-map.picking .gta-map { outline: 2px dashed #f2c26b; outline-offset: -2px; cursor: crosshair; }
