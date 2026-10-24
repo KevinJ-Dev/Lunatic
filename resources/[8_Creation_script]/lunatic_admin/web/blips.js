@@ -137,14 +137,14 @@ function selectedEntry() {
 function blipDraft(entry) {
     if (blipState.draft && blipState.draft.key === blipState.sel) return blipState.draft;
     const base = entry
-        ? { key: entry.key, label: entry.label, sprite: entry.sprite, color: entry.color, scale: entry.scale, short: entry.blip ? entry.blip.short : true, active: entry.blip ? entry.blip.active : true }
+        ? { key: entry.key, label: entry.label, sprite: entry.sprite, color: entry.color, scale: Math.round(entry.scale * 100) / 100, short: entry.blip ? entry.blip.short : true, active: entry.blip ? entry.blip.active : true }
         : { key: "new", label: "Nouveau blip", sprite: 1, color: 0, scale: 0.8, short: true, active: true, ...(blipState.prefill || {}) };
     blipState.prefill = null;
     blipState.draft = base;
     blipState.saved = JSON.stringify(base);
     trackUnsaved("blips", {
-        label: `Blip ${base.label}`,
-        isDirty: () => !!blipState.draft && JSON.stringify(blipState.draft) !== blipState.saved,
+        label: base.key === "new" ? "Nouveau blip" : `Blip ${base.label}`,
+        isDirty: () => !!blipState.draft && (blipState.draft.key === "new" || JSON.stringify(blipState.draft) !== blipState.saved),
         save: () => saveBlip(),
         reset: () => { blipState.draft = null; paintBlips(); },
     });
@@ -205,7 +205,6 @@ function blipEditor() {
             spriteBox, colorBox,
             shop ? h("p", { class: "hint-line" }, "Blip de magasin : le nom, l'icône, la couleur et la taille valent pour tous ses emplacements.") : null),
         h("div", { class: "item-actions" },
-            h("button", { class: "btn small primary", onclick: saveBlip }, icon("i-save"), blipState.sel === "new" ? "Créer" : "Sauvegarder"),
             own ? deleteButton(async () => {
                 const yes = await confirmBox(`Supprimer « ${own.label} » ?`, "Le blip disparaît de la carte de tous les joueurs.", "Supprimer", true);
                 if (!yes) return;
@@ -215,8 +214,7 @@ function blipEditor() {
                 blipState.sel = null;
                 blipState.draft = null;
                 await loadBlips();
-            }) : null),
-        h("p", { class: "hint-line", style: "margin:0 18px 14px" }, "Les modifications s'appliquent en jeu tout de suite."));
+            }) : null));
 }
 
 function spritePicker(d, done) {

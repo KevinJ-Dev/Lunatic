@@ -785,7 +785,7 @@ body.hidden.minimized .mini-pill { display: flex; }
 .map-pane { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 16px 18px 18px; border-left: 1px solid var(--line); }
 .map-head { display: flex; align-items: center; gap: 8px; min-height: 30px; }
 .map-head b { flex: 1; overflow: hidden; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
-.gta-map { flex: 1; min-height: 0; border: 1px solid var(--line-strong); border-radius: 14px; background: #143d5a; }
+.gta-map { flex: 1; min-height: 0; border: 1px solid var(--line-strong); border-radius: 14px; background: #143d5a; isolation: isolate; }
 .gta-map.picking, .gta-map.picking .leaflet-interactive { cursor: crosshair; }
 .gta-map .leaflet-control-zoom a { background: #17121f; color: var(--ink); border-color: var(--line); }
 .gta-map .leaflet-control-zoom a:hover { background: #241c31; }

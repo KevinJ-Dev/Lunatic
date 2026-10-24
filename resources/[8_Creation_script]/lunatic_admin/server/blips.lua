@@ -117,7 +117,7 @@ local function load()
 
     for _, row in ipairs(MySQL.query.await('SELECT * FROM `lunatic_blips` ORDER BY `label`, `id`') or {}) do
         blips[#blips + 1] = {
-            id = tonumber(row.id), label = row.label, sprite = tonumber(row.sprite), color = tonumber(row.color), scale = tonumber(row.scale),
+            id = tonumber(row.id), label = row.label, sprite = tonumber(row.sprite), color = tonumber(row.color), scale = math.floor(tonumber(row.scale) * 100 + 0.5) / 100,
             x = tonumber(row.x), y = tonumber(row.y), z = tonumber(row.z),
             -- TINYINT : nombre (TINYINT(1) serait renvoyé en booléen par oxmysql)
             short = tonumber(row.short_range) == 1, active = tonumber(row.active) == 1,
