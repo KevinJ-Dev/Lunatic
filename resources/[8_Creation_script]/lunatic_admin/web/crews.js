@@ -10,6 +10,7 @@ const crewState = {
     list: null, types: [], requestsCount: 0, typeFilter: null, selected: null, info: null, draft: null, saved: "",
     infraTab: "positions", sideTab: "members", memberSearch: "", openMember: null, candidates: null,
     territories: null, requests: null, loadedAt: 0,
+    openGroups: new Set(), // groupes de positions ouverts (Stockage, Stockage séparé, Garage)
 };
 
 function renderCrews() {
@@ -504,7 +505,10 @@ function crewInfraTab(c, tab) {
         }
         return h("div", { class: "empty" }, icon("i-pin"), "Chargement…");
     }
-    const add = (kind, interior) => crewPointAct("crews.pointAdd", { id: c.id, kind, interior }, "Point ajouté à votre position.");
+    const add = (kind, interior) => {
+        crewState.openGroups.add(kind); // le groupe s'ouvre pour montrer le nouveau point
+        return crewPointAct("crews.pointAdd", { id: c.id, kind, interior }, "Point ajouté à votre position.");
+    };
 
     if (tab === "properties") {
         const list = crewState.points.filter((p) => p.kind === "property");
@@ -514,12 +518,23 @@ function crewInfraTab(c, tab) {
             h("p", { class: "hint-line" }, "La porte est placée là où vous êtes en jeu : regardez vers l'extérieur en la plaçant."));
     }
 
+    // Groupes repliables (fermés par défaut) : un clic sur le titre ouvre ou ferme
     return h("div", { class: "crew-list" }, Object.entries(CREW_POINT_KINDS).map(([kind, meta]) => {
         const list = crewState.points.filter((p) => p.kind === kind);
-        return h("div", { class: "crew-point-group" },
-            h("div", { class: "crew-point-title" }, h("span", null, meta.label), meta.soon ? h("span", { class: "badge muted" }, "bientôt") : null, h("span", { class: "cnt" }, String(list.length))),
-            list.map((p) => crewPointCard(p)),
-            h("button", { class: "btn small ok-btn wide", onclick: () => add(kind) }, icon("i-plus"), meta.add),
-            h("p", { class: "hint-line" }, meta.hint));
+        const open = crewState.openGroups.has(kind);
+        const toggle = () => {
+            if (open) crewState.openGroups.delete(kind);
+            else crewState.openGroups.add(kind);
+            paintCrews();
+        };
+        return h("div", { class: `crew-point-group${open ? " open" : ""}` },
+            h("button", { class: "crew-point-title", onclick: toggle },
+                h("span", null, meta.label), meta.soon ? h("span", { class: "badge muted" }, "bientôt") : null,
+                h("span", { class: "cnt" }, String(list.length)), h("span", { class: "crew-chevron" }, "▸")),
+            open ? [
+                ...list.map((p) => crewPointCard(p)),
+                h("button", { class: "btn small ok-btn wide", onclick: () => add(kind) }, icon("i-plus"), meta.add),
+                h("p", { class: "hint-line" }, meta.hint),
+            ] : null);
     }));
 }

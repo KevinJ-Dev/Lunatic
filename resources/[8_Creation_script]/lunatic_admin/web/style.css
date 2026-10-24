@@ -1045,3 +1045,9 @@ body.hidden.minimized .mini-pill { display: flex; }
 .crew-coords { flex: 1; min-width: 110px; color: var(--muted); font-size: 11.5px; }
 .btn.ok-btn { border-color: #5fd3a055; background: #5fd3a01a; color: #9ff0c8; justify-content: center; }
 .btn.ok-btn:hover { background: #5fd3a02e; }
+.crew-point-title { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); text-align: left; }
+.crew-point-title:hover { background: var(--surface-2); }
+.crew-point-title .cnt { margin-left: auto; }
+.crew-chevron { color: var(--muted); font-size: 11px; transition: transform .15s; }
+.crew-point-group.open .crew-chevron { transform: rotate(90deg); }
+.crew-point-group.open .crew-point-title { border-color: rgba(var(--accent-rgb), .5); }
