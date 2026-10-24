@@ -167,6 +167,9 @@ lib.callback.register('lunatic_illegal:gofastStart', function(src, startId, vari
     SetVehicleNumberPlateText(vehicle, ('GF%04d'):format(math.random(0, 9999)))
     Entity(vehicle).state:set('lunaticGoFast', src, true)
 
+    -- Le joueur est mis directement au volant : plus de véhicule « introuvable » (apparu sur lui ou derrière un mur)
+    SetPedIntoVehicle(ped, vehicle, -1)
+
     lastRun[src] = now
     local run = { variant = v, vehicle = vehicle, drop = drop, startedAt = now, deadline = now + a.duration * 60, tracked = math.random(100) <= a.alert, nextTrack = now + 20 }
     runs[src] = run

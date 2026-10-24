@@ -63,7 +63,6 @@ client_scripts {
     'client/events.lua',
     'client/dev.lua',
     'client/context.lua',
-    'client/points.lua',
 }
 
 ui_page 'web/index.html'
