@@ -103,6 +103,25 @@ lib.callback.register('lunatic_gameplay:deathState', function(src)
     return { remaining = math.max(0, death.at + delay - os.time()) }
 end)
 
+-- Zone d'un event (lunatic_admin) : pas de coma (réveil sur place) ou respawn au centre de la zone.
+-- Les règles viennent de l'état du joueur, posé par le serveur : le client ne peut pas se les donner.
+lib.callback.register('lunatic_gameplay:eventRevive', function(src)
+    local event = Player(src).state.lunaticEvent
+
+    if not deaths[src] or type(event) ~= 'table' or not (event.noKO or event.respawn) then
+        return { ok = false }
+    end
+
+    deaths[src] = nil
+    GameLog('players', 'info', src, 'player.eventRevive', event.label, { respawn = not event.noKO })
+
+    if event.noKO then
+        return { ok = true, here = true }
+    end
+
+    return { ok = true, x = event.x, y = event.y, z = event.z or -200.0 }
+end)
+
 ---------------------------------------------------------------------
 -- Secours : appel des médecins, réanimation
 ---------------------------------------------------------------------

@@ -33,6 +33,13 @@ end)
 AddEventHandler('esx_status:loaded', function()
     -- Lunatic : perte réglée dans le panel staff (tuile Fonctionnalités : faim et soif, sprint, pause)
     local function rateOf(name, removalRate)
+        -- Zone d'un event avec la faim et la soif suspendues (lunatic_admin)
+        local event = LocalPlayer.state.lunaticEvent
+
+        if event and event.noNeeds then
+            return 0
+        end
+
         local features = GlobalState.lunaticFeatures
 
         if not features then

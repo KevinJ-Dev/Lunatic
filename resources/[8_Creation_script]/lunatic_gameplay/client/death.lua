@@ -44,9 +44,65 @@ local function respawn()
         or ('Vous vous réveillez à %s.'):format(result.label), 'info')
 end
 
-AddEventHandler('esx:onPlayerDeath', function()
+-- Sol sous un point placé sur la carte du panel (hauteur inconnue)
+local function groundAt(x, y)
+    for height = 1000.0, 0.0, -25.0 do
+        RequestCollisionAtCoord(x, y, height)
+        Wait(0)
+
+        local found, z = GetGroundZFor_3dCoord(x, y, height, false)
+
+        if found then
+            return z
+        end
+    end
+
+    return 200.0
+end
+
+-- Zone d'un event (lunatic_admin) sans coma : réveil sur place ; avec respawn : au centre de la zone après un délai
+local function eventRevive(event, fallback)
+    dead = true
+
+    CreateThread(function()
+        local untilAt = GetGameTimer() + (event.noKO and 1500 or Config.EventRespawnDelay * 1000)
+
+        while GetGameTimer() < untilAt do
+            if not event.noKO then
+                DrawScreenText(0.5, 0.86, ('Respawn dans %d s'):format(math.ceil((untilAt - GetGameTimer()) / 1000)), 0.45)
+            end
+
+            Wait(0)
+        end
+
+        local result = lib.callback.await('lunatic_gameplay:eventRevive', false)
+
+        if not result or not result.ok then
+            -- Plus dans la zone (event déchargé entre-temps) : mort normale
+            dead = false
+            return fallback()
+        end
+
+        dead = false
+
+        if result.here then
+            local coords = GetEntityCoords(PlayerPedId())
+            return resurrect(coords.x, coords.y, coords.z, GetEntityHeading(PlayerPedId()))
+        end
+
+        resurrect(result.x, result.y, result.z > -100.0 and result.z or groundAt(result.x, result.y) + 1.0, 0.0)
+    end)
+end
+
+local function startDeath(skipEvent)
     if dead then
         return
+    end
+
+    local event = LocalPlayer.state.lunaticEvent
+
+    if not skipEvent and event and (event.noKO or event.respawn) then
+        return eventRevive(event, function() startDeath(true) end)
     end
 
     dead = true
@@ -95,6 +151,10 @@ AddEventHandler('esx:onPlayerDeath', function()
             Wait(0)
         end
     end)
+end
+
+AddEventHandler('esx:onPlayerDeath', function()
+    startDeath(false)
 end)
 
 AddEventHandler('esx:onPlayerSpawn', function()

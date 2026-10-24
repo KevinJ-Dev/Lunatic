@@ -34,22 +34,45 @@ function toLocalInput(ts) {
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+// Catégories de la tuile : events à zone (event_zones.js) et planning des annonces
+let eventsTab = "zones";
+
 function renderEvents() {
     const root = $("view-events");
 
-    if (!eventsDom || !root.contains(eventsDom.list)) {
-        eventsDom = { list: h("div", { class: "scroll" }), sub: h("div", { class: "page-sub" }) };
-        root.replaceChildren(h("div", { class: "content" },
+    if (!eventsDom || !root.contains(eventsDom.nav)) {
+        eventsDom = { nav: h("aside", { class: "sidebar crew-nav events-nav" }), main: h("div", { class: "events-main" }), list: h("div", { class: "scroll" }), sub: h("div", { class: "page-sub" }) };
+        eventsDom.planning = h("div", { class: "content" },
             h("div", { class: "page-head" },
-                h("div", { class: "grow" }, h("h1", { class: "page-title" }, "Events"), eventsDom.sub),
+                h("div", { class: "grow" }, h("h1", { class: "page-title" }, "Planning"), eventsDom.sub),
                 h("button", { class: "btn primary", onclick: () => openEventForm(null) }, icon("i-plus"), "Nouvel event")
             ),
             eventsDom.list
-        ));
+        );
+        root.replaceChildren(h("div", { class: "events-page" }, eventsDom.nav, eventsDom.main));
         paintEvents();
     }
 
-    if (Date.now() - eventsLoadedAt > 10000) loadEvents();
+    const zonesCount = zoneState.list ? zoneState.list.length : "…";
+    const planned = eventsList ? eventsList.filter((e) => e.status === "scheduled" || e.status === "started").length : "…";
+    const row = (tab, iconName, label, count) => h("button", { class: `list-row${eventsTab === tab ? " active" : ""}`, onclick: () => eventsTab !== tab && guardUnsaved("events", () => {
+        untrackUnsaved("events");
+        zoneState.draft = null;
+        eventsTab = tab;
+        repaintZones();
+    }) }, icon(iconName), h("span", { class: "name" }, label), h("span", { class: "cnt" }, String(count)));
+    eventsDom.nav.replaceChildren(h("div", { class: "crew-block" },
+        h("div", { class: "crew-block-head" }, icon("i-layers"), "Catégories"),
+        row("zones", "i-pin", "Zone Events", zonesCount),
+        row("planning", "i-calendar", "Planning", planned)));
+
+    if (eventsTab === "planning") {
+        if (eventsDom.main.firstChild !== eventsDom.planning) eventsDom.main.replaceChildren(eventsDom.planning);
+        if (Date.now() - eventsLoadedAt > 10000) loadEvents();
+        return;
+    }
+    if (!eventsList && Date.now() - eventsLoadedAt > 10000) loadEvents();
+    renderEventZones(eventsDom.main);
 }
 
 async function loadEvents() {
@@ -59,6 +82,7 @@ async function loadEvents() {
     eventsList = res.events || [];
     eventsReminder = res.reminder || eventsReminder;
     if (eventsDom) paintEvents();
+    if (view === "events") renderEvents();
 }
 
 function paintEvents() {

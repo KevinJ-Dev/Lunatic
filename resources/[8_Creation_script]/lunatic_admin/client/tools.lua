@@ -61,6 +61,11 @@ local function controlledEntity()
     return ped, ped
 end
 
+-- Modes du staff qui rendent invincible (lu par les events à zone avant de retirer l'invincibilité)
+function StaffImmortal()
+    return modes.godmode or modes.noclip or modes.ghost
+end
+
 -- Réapplique l'état « normal » ou « staff » du personnage selon les modes actifs
 local function applyBody()
     local ped = PlayerPedId()

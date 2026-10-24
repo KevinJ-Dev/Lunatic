@@ -13,6 +13,7 @@ Config.DeathKeepItems = { 'phone', 'id_card' } -- objets gardés quand l'inventa
 Config.ReviveDistance = 3.0     -- distance maximale pour réanimer quelqu'un (/reanimer)
 Config.MedicCallCooldown = 60   -- secondes entre deux appels aux secours d'un même joueur
 Config.MedicTypes = { medic = true } -- types de services publics (tuile Services publics) qui peuvent réanimer
+Config.EventRespawnDelay = 5     -- secondes avant le respawn dans la zone d'un event (règle « Respawn », lunatic_admin)
 
 -- Carburant : stations-service (le plein se fait près d'une pompe, à moins de Config.FuelStationRadius du centre)
 Config.FuelStationRadius = 35.0

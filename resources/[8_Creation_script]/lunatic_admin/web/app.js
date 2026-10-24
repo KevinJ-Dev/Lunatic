@@ -1763,6 +1763,13 @@ async function demoNui(name, data) {
             { id: 860, category: "players", level: "info", actor: "Jean Dupont", action: "player.disconnect", details: { reason: "Exiting" }, created: now - 86400 },
         ] };
     }
+    if (name === "action" && data && data.action === "eventZones.list") return { ok: true, events: [
+        { id: 1, label: "Course de Vespucci", description: "Course de rue sur le front de mer, véhicules fournis.", maxPlayers: 16, duration: 90, x: -1245.6, y: -1530.2, z: 4.3, radius: 220,
+            rules: { noKO: true, godmode: false, vehicleGodmode: true, policeCalls: false, respawn: true, noNeeds: true }, hour: 21, audio: "", volume: 40, loaded: true, loadedAt: Math.floor(Date.now() / 1000) - 900, players: 7, createdBy: "Ramiro Lotus" },
+        { id: 2, label: "Paintball au port", description: "", maxPlayers: 0, duration: 60, x: null, y: null, z: null, radius: 120,
+            rules: { noKO: false, godmode: false, vehicleGodmode: false, policeCalls: false, respawn: true, noNeeds: false }, hour: null, audio: "", volume: 50, loaded: false, loadedAt: null, players: 0, createdBy: "Alex Moreau" },
+    ] };
+    if (name === "action" && data && data.action === "eventZones.save") return { ok: true, id: data.payload.id || 3 };
     if (name === "action" && data && data.action === "players.banned") return { ok: true, players: [
         { license: "license:9f1e22aa00bb11", identifier: "9f1e22aa00bb11", name: "Tony Vega", reason: "Cheat", expires: null },
         { license: "license:5511", identifier: "5511", name: "Kenny West", reason: "Freekill", expires: Math.floor(Date.now() / 1000) + 3 * 86400 },

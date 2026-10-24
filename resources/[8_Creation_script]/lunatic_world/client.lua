@@ -49,6 +49,13 @@ local function applyWorld(world, instant)
 end
 
 local function applyClock(clock)
+    -- Dans la zone d'un event avec une heure imposée (lunatic_admin), l'heure de l'event reste affichée
+    local event = LocalPlayer.state.lunaticEvent
+
+    if event and event.hour then
+        return
+    end
+
     if type(clock) == 'table' then
         NetworkOverrideClockTime(tonumber(clock.h) or 12, tonumber(clock.m) or 0, 0)
     end
