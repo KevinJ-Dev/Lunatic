@@ -121,6 +121,8 @@ table.insert(Panel.stateHooks, function(state, _, rank)
             rank = rankBadge(target),
             frozen = frozen[target] == true,
             jailed = Panel.jailOf and Panel.jailOf(target) ~= nil or false,
+            premium = Player(target).state.premium,
+            playtime = Accounts.playtimeOf(GetPlayerIdentifierByType(target, 'license')),
         }
     end
 
@@ -178,6 +180,10 @@ Panel.actions['player.info'] = function(src, actor, data)
         info.sex = xPlayer.get('sex')
         info.height = xPlayer.get('height')
     end
+
+    -- Profil (tuile Joueurs) : Discord, temps de jeu, warns, crew, ban, personnages liés, véhicules, planques
+    info.profile = Accounts.profile(info.license, info.identifier)
+    info.onDuty = xPlayer and xPlayer.getJob().onDuty == true or false
 
     return { ok = true, silent = true, info = info }
 end

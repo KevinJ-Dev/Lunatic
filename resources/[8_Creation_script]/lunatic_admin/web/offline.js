@@ -57,7 +57,8 @@ async function selectOffline(identifier) {
     offlineForms = null;
     premiumPanel = null;
     playerHistory = null;
-    paintOfflineList();
+    playerLogs = null;
+    paintPlayerList();
     paintOfflineFiche();
     await loadOfflineInfo();
 }
@@ -99,12 +100,6 @@ function paintOfflineFiche() {
     }
 
     const info = offlineInfo;
-    const subTabs = ficheTabs(paintOfflineFiche);
-    const previous = fiche.querySelector(".scroll");
-    const keepScroll = previous && fiche.dataset.offline === info.identifier && fiche.dataset.sub === ficheTab ? previous.scrollTop : 0;
-    fiche.dataset.offline = info.identifier;
-    fiche.dataset.sub = ficheTab;
-
     const locked = info.online || info.protected;
     const reason = (perm) => {
         if (!can(perm)) return "Permission manquante";
@@ -116,55 +111,30 @@ function paintOfflineFiche() {
         const blocked = reason(perm);
         return h("button", { class: `btn action${danger ? " danger" : ""}`, disabled: !!blocked, title: blocked, onclick }, icon(iconName), label);
     };
-    const sex = info.sex === "m" ? "Homme" : info.sex === "f" ? "Femme" : null;
-
-    let body;
-    if (ficheTab === "character") {
-        body = [
-            h("div", { class: "info-grid cols-3" },
-                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Identité"),
-                    infoRow("Naissance", info.dateofbirth), infoRow("Sexe", sex), infoRow("Taille", info.height ? `${info.height} cm` : null)),
-                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Métier"),
-                    infoRow("Emploi", info.job && info.job.label), infoRow("Grade", info.job && info.job.grade)),
-                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Compte"),
-                    infoRow("Licence", shortLicense(info.license)), infoRow("Staff", info.rank ? info.rank.name : "Non"))),
-            offlineLicensesCard(info, locked),
-            info.online ? null : premiumCard(info, { identifier: info.identifier }, () => loadOfflineInfo()),
-        ];
-    } else if (ficheTab === "money") {
-        body = [moneyCards(info), locked ? null : offlineFormsNode(info)];
-    } else if (ficheTab === "history") {
-        body = [historyCard(info)];
-    } else {
-        body = [
-            !info.hasIdentity ? h("div", { class: "banner" }, icon("i-undo"), "Ce joueur n'a pas d'identité : il passera par la création de personnage à sa prochaine connexion.") : null,
-            h("div", { class: "card" }, h("div", { class: "action-groups" },
-                h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Sanction"),
-                    button("Bannir", "i-ban", "sanctions.ban", true, () => openBan({ identifier: info.identifier, name: info.name }))),
-                h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Personnage"),
-                    button("Recréer à la connexion", "i-undo", "players.recreate", true, () => openOfflineRecreate(info)),
-                    button("Wipe", "i-trash", "players.wipe", true, () => openOfflineWipe(info)))
-            )),
-        ];
-    }
-
-    fiche.replaceChildren(
-        h("div", { class: "page-head" }, mugshotImg(info.identifier, "mug-head"), h("div", { class: "grow" },
-            h("h1", { class: "page-title" }, info.name, info.rank ? rankPill(info.rank) : null,
-                h("span", { class: `badge ${info.online ? "ok" : "muted"}` }, info.online ? `En ligne · ID ${info.online}` : "Hors ligne")),
-            h("div", { class: "page-sub" },
-                info.lastSeen ? `Vu ${ago(info.lastSeen)}` : "Jamais revu", h("span", { class: "sep" }),
-                h("span", { class: "mono" }, shortLicense(info.license)), h("span", { class: "sep" }),
-                info.createdAt ? `Arrivé le ${fmtDate(info.createdAt)}` : "")
+    const actions = [
+        !info.hasIdentity ? h("div", { class: "banner" }, icon("i-undo"), "Ce joueur n'a pas d'identité : il passera par la création de personnage à sa prochaine connexion.") : null,
+        h("div", { class: "card" }, h("div", { class: "action-groups" },
+            h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Sanction"),
+                button("Bannir", "i-ban", "sanctions.ban", true, () => openBan({ identifier: info.identifier, name: info.name }))),
+            h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Personnage"),
+                button("Recréer à la connexion", "i-undo", "players.recreate", true, () => openOfflineRecreate(info)),
+                button("Wipe", "i-trash", "players.wipe", true, () => openOfflineWipe(info)))
         )),
-        subTabs,
-        h("div", { class: "scroll" },
-            info.online ? h("div", { class: "banner info" }, icon("i-player"), "Ce joueur est connecté : ses données se modifient depuis l'onglet « En ligne ».") : null,
-            body)
-    );
+    ];
 
-    const scroller = fiche.querySelector(".scroll");
-    if (scroller) scroller.scrollTop = keepScroll;
+    playerColumns(fiche, info, {
+        head: h("div", { class: "crew-id player-id" },
+            h("div", { class: "crew-pic" }, mugshotImg(info.identifier, "mug-head")),
+            h("div", { class: "crew-id-text" },
+                h("b", null, info.name),
+                h("span", { class: `badge ${info.online ? "ok" : "muted"}` }, info.online ? `En ligne · ID ${info.online}` : "Hors ligne"),
+                h("span", { class: "mono muted" }, shortLicense(info.license)),
+                info.rank ? rankPill(info.rank) : null)),
+        actions: [info.online ? h("div", { class: "banner info" }, icon("i-player"), "Ce joueur est connecté : ses données se modifient depuis sa fiche en ligne.") : null, ...actions],
+        money: [moneyCards(info), locked ? null : offlineFormsNode(info)],
+        extra: [offlineLicensesCard(info, locked), info.online ? null : premiumCard(info, { identifier: info.identifier }, () => loadOfflineInfo())],
+        sanctions: { ban: reason("sanctions.ban") ? null : () => openBan({ identifier: info.identifier, name: info.name }), warn: null },
+    });
 }
 
 function offlineLicensesCard(info, locked) {

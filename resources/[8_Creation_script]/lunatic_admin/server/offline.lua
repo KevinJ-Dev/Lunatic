@@ -182,6 +182,7 @@ Panel.actions['offline.info'] = function(_, actor, data)
             licenses = Panel.licensesOf and Panel.licensesOf(identifier) or {},
             premium = Panel.premiumOf and Panel.premiumOf(license) or nil,
             credits = Panel.creditsOf and Panel.creditsOf(license) or nil,
+            profile = Accounts.profile(license, identifier),
         },
     }
 end

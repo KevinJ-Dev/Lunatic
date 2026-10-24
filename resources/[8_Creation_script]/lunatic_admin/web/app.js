@@ -767,72 +767,6 @@ const currencySymbol = () => (state && state.currency) || "$";
 const money = (n) => (typeof n === "number" ? `${new Intl.NumberFormat("fr-FR").format(n)} ${currencySymbol()}` : "—");
 const players = () => state.players || [];
 
-function renderPlayers() {
-    const root = $("view-players");
-
-    // La structure est gardée entre deux rafraîchissements (recherche et défilement conservés)
-    if (!playersDom || !root.contains(playersDom.list)) {
-        const search = h("input", { placeholder: "Nom ou ID", value: playerFilter.text });
-        search.addEventListener("input", () => {
-            playerFilter.text = search.value;
-            if (playersTab === "offline") scheduleOfflineSearch(search.value);
-            else paintPlayerList();
-        });
-        playersDom = {
-            title: h("h3", null, "Joueurs en ligne"),
-            count: h("span", { class: "muted mono" }),
-            tabs: h("div", { class: "segmented block" }),
-            search,
-            list: h("div", { class: "side-scroll" }),
-            fiche: h("div", { class: "content" }),
-        };
-        root.replaceChildren(
-            h("aside", { class: "sidebar" },
-                h("div", { class: "side-head" }, playersDom.title, playersDom.count),
-                h("div", { class: "side-search" }, playersDom.tabs),
-                h("div", { class: "side-search" }, h("label", { class: "search" }, icon("i-search"), search)),
-                playersDom.list
-            ),
-            playersDom.fiche
-        );
-    }
-
-    // Onglets En ligne / Hors ligne (permission players.offline)
-    if (!can("players.offline")) playersTab = "online";
-    playersDom.tabs.style.display = can("players.offline") ? "" : "none";
-    playersDom.tabs.replaceChildren(...[["online", "En ligne"], ["offline", "Hors ligne"]].map(([value, label]) =>
-        h("button", { "aria-checked": String(playersTab === value), onclick: () => switchPlayersTab(value) }, label)));
-    playersDom.title.textContent = playersTab === "offline" ? "Recherche en base" : "Joueurs en ligne";
-    playersDom.search.placeholder = playersTab === "offline" ? "Nom RP ou licence (2 caractères min.)" : "Nom ou ID";
-
-    paintPlayerList();
-    paintFiche();
-}
-
-function paintPlayerList() {
-    if (playersTab === "offline") return paintOfflineList();
-    const text = playerFilter.text.trim().toLowerCase();
-    const rows = players().filter((p) => !text || p.name.toLowerCase().includes(text) || String(p.serverId) === text);
-    playersDom.count.textContent = String(players().length);
-    loadMugshots(players().map((p) => p.identifier)).then((found) => found && paintPlayerList());
-
-    playersDom.list.replaceChildren(...(rows.length ? rows.map((p) => {
-        const row = h("button", { class: `list-row player-row${p.serverId === selectedPlayerId ? " active" : ""}`, onclick: () => selectPlayer(p.serverId) },
-            mugshotImg(p.identifier, "mug-row"),
-            h("span", { class: "pid" }, `${p.serverId}`),
-            h("span", { class: "who" },
-                h("b", null, p.name),
-                h("span", null, [p.job, `${p.ping} ms`].filter(Boolean).join(" · "))
-            ),
-            p.frozen ? icon("i-snow") : null,
-            p.jailed ? icon("i-lock") : null,
-            p.rank ? dot(p.rank.color) : null
-        );
-        if (p.rank) row.title = p.rank.name;
-        return row;
-    }) : [h("div", { class: "muted side-empty" }, "Aucun joueur ne correspond.")]));
-}
-
 function selectPlayer(id) {
     if (selectedPlayerId === id) return;
     economyPanel = null;
@@ -840,6 +774,7 @@ function selectPlayer(id) {
     selectedPlayerId = id;
     playerInfo = null;
     playerHistory = null;
+    playerLogs = null;
     paintPlayerList();
     paintFiche();
     loadPlayerInfo();
@@ -870,36 +805,6 @@ function bar(label, value, pct, color) {
     return h("div", { class: "bar-row" }, h("div", { class: "info-row" }, h("span", null, label), h("b", null, value)), h("div", { class: "bar" }, fill));
 }
 
-// Sous-onglets de la fiche (joueur en ligne ou hors ligne), mémorisés d'une ouverture à l'autre
-const FICHE_TAB_KEY = "lunatic_admin_fiche";
-let ficheTab = (() => {
-    try {
-        return localStorage.getItem(FICHE_TAB_KEY) || "actions";
-    } catch (e) {
-        return "actions";
-    }
-})();
-
-function ficheTabs(repaint) {
-    const list = [
-        { value: "actions", label: "Actions" },
-        { value: "character", label: "Personnage" },
-        { value: "money", label: "Argent et objets" },
-    ];
-    if (can("sanctions.view")) list.push({ value: "history", label: "Historique" });
-    if (!list.some((t) => t.value === ficheTab)) ficheTab = "actions";
-
-    return h("div", { class: "fiche-tabs" }, h("div", { class: "segmented" }, segmentedButtons(list, ficheTab, (value) => {
-        ficheTab = value;
-        try {
-            localStorage.setItem(FICHE_TAB_KEY, value);
-        } catch (e) {
-            // stockage indisponible : le sous-onglet reste seulement en mémoire
-        }
-        repaint();
-    })));
-}
-
 // Soldes en grand (onglet Argent et objets)
 function moneyCards(info) {
     const card = (label, value) => h("div", { class: "card" }, h("h3", { class: "card-title" }, label), h("div", { class: "stat-value mono" }, money(value)));
@@ -921,14 +826,6 @@ function paintFiche() {
     }
 
     const info = playerInfo;
-    const subTabs = ficheTabs(paintFiche);
-
-    // Garde la position de défilement entre deux rafraîchissements de la même fiche (et du même sous-onglet)
-    const previous = fiche.querySelector(".scroll");
-    const keepScroll = previous && fiche.dataset.player === String(info.serverId) && fiche.dataset.sub === ficheTab ? previous.scrollTop : 0;
-    fiche.dataset.player = String(info.serverId);
-    fiche.dataset.sub = ficheTab;
-
     const reason = (perm, opts = {}) => {
         if (!can(perm)) return "Permission manquante";
         if (opts.notSelf && info.isSelf) return "Impossible sur vous-même";
@@ -947,94 +844,73 @@ function paintFiche() {
     const healthPct = health === null ? 0 : ((health - 100) / Math.max(1, maxHealth - 100)) * 100;
     const down = health !== null && health <= 100;
 
-    const sex = info.sex === "m" ? "Homme" : info.sex === "f" ? "Femme" : null;
-
-    let body;
-    if (ficheTab === "character") {
-        body = [
-            h("div", { class: "info-grid cols-3" },
-                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Identité"),
-                    infoRow("Naissance", info.dateofbirth), infoRow("Sexe", sex), infoRow("Taille", info.height ? `${info.height} cm` : null)),
-                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Métier"),
-                    infoRow("Emploi", info.job && info.job.label), infoRow("Grade", info.job && info.job.grade)),
-                h("div", { class: "card" }, h("h3", { class: "card-title" }, "Compte"),
-                    infoRow("Pseudo", info.pseudo), infoRow("Licence", shortLicense(info.license)), infoRow("Staff", info.rank ? info.rank.name : "Non"))),
-            licensesCard(info),
-            premiumCard(info, { serverId: info.serverId }, () => loadPlayerInfo()),
-        ];
-    } else if (ficheTab === "money") {
-        body = [moneyCards(info), economySection(info) || (info.protected ? h("p", { class: "hint-line" }, "Rang égal ou supérieur au vôtre : argent et inventaire en lecture seule.") : null)];
-    } else if (ficheTab === "history") {
-        body = [historyCard(info)];
-    } else {
-        body = [
-            h("div", { class: "card" },
-                h("div", { class: "action-groups" },
-                    h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Déplacement"),
-                        button("Aller vers", "i-goto", "players.goto", { notSelf: true }, () => run("player.goto", "Téléportation vers le joueur.")),
-                        button("Ramener", "i-bring", "players.bring", { notSelf: true, protect: true }, () => run("player.bring", "Joueur ramené.")),
-                        button("Renvoyer", "i-undo", "players.bring", { notSelf: true, protect: true, extra: info.canReturn ? null : "Le joueur n'a pas été ramené" }, () => run("player.return", "Joueur renvoyé à sa position."))
-                    ),
-                    h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Surveillance"),
-                        button("Observer", "i-eye", "players.spectate", { notSelf: true }, () => run("player.spectate", null)),
-                        button(info.frozen ? "Libérer" : "Figer", "i-snow", "players.freeze", { notSelf: true, protect: true }, () => run("player.freeze", info.frozen ? "Joueur libéré." : "Joueur figé."))
-                    ),
-                    h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Soins"),
-                        button("Soigner", "i-heart", "players.heal", {}, () => run("player.heal", "Joueur soigné.")),
-                        button("Réanimer", "i-pulse", "players.heal", {}, () => run("player.revive", "Joueur réanimé.")),
-                        button("Nourrir", "i-food", "players.heal", {}, () => run("player.feed", "Faim et soif remplies."))
-                    ),
-                    h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Personnage"),
-                        button("Apparence", "i-player", "players.appearance", { protect: true }, async () => {
-                            const res = await playerAction("player.appearance", info.isSelf ? null : "Menu d'apparence ouvert chez le joueur.");
-                            if (res && info.isSelf) closePanel(); // le menu s'ouvre sur votre écran
-                        }),
-                        info.isSelf
-                            ? button("Mon apparence", "i-player", "players.copy_appearance", {}, () => run("player.restoreAppearance", "Votre apparence est rétablie."))
-                            : button("Copier l'apparence", "i-copy", "players.copy_appearance", {}, () => run("player.copyAppearance", "Apparence copiée sur vous (non enregistrée).")),
-                        button("Recréer", "i-undo", "players.recreate", { protect: true, danger: true }, () => openRecreate(info)),
-                        button("Wipe", "i-trash", "players.wipe", { notSelf: true, protect: true, danger: true }, () => openWipe(info)),
-                        button("Donner un véhicule", "i-car", "vehicles.give", {}, () => openGiveCar(info))
-                    ),
-                    h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Sanction"),
-                        button("Avertir", "i-warn", "sanctions.warn", { notSelf: true, protect: true }, () => openWarn(info)),
-                        info.jail
-                            ? button("Sortir de prison", "i-lock", "sanctions.jail", { notSelf: true }, () => run("sanction.unjail", "Joueur libéré de prison."))
-                            : button("Prison", "i-lock", "sanctions.jail", { notSelf: true, protect: true }, () => openJail(info)),
-                        button("Bannir", "i-ban", "sanctions.ban", { notSelf: true, protect: true, danger: true }, () => openBan({ serverId: info.serverId, name: info.name })),
-                        button("Expulser", "i-door", "players.kick", { notSelf: true, protect: true }, () => openKick(info)),
-                        button("Déconnecter", "i-x", "players.crash", { notSelf: true, protect: true, danger: true }, () => openCrash(info))
-                    )
-                )
-            ),
-            h("div", { class: "card", style: "margin-top:16px" }, h("h3", { class: "card-title" }, "État"),
-                bar("Santé", health === null ? "—" : down ? "Au sol" : `${Math.round(healthPct)} %`, healthPct, down ? "var(--danger)" : "var(--ok)"),
-                bar("Armure", typeof info.armor === "number" ? `${info.armor} %` : "—", info.armor || 0, "var(--info)"),
-                h("div", { class: "info-cols" },
-                    infoRow("Ping", `${info.ping} ms`),
-                    infoRow("Figé", info.frozen ? "Oui" : "Non"),
-                    info.jail ? infoRow("Prison", `${Math.ceil(info.jail.remaining / 60)} min restantes`) : null)),
-        ];
-    }
-
-    fiche.replaceChildren(
-        h("div", { class: "page-head" },
-            mugshotImg(info.identifier, "mug-head"),
-            h("div", { class: "grow" },
-                h("h1", { class: "page-title" }, info.name, info.rank ? rankPill(info.rank) : null),
-                h("div", { class: "page-sub" },
-                    `ID ${info.serverId}`, h("span", { class: "sep" }), info.pseudo || "—", h("span", { class: "sep" }),
-                    h("span", { class: "mono" }, shortLicense(info.license)),
-                    info.isSelf ? [h("span", { class: "sep" }), h("span", { class: "you" }, "Vous")] : null
+    const actions = [
+        h("div", { class: "card" },
+            h("div", { class: "action-groups" },
+                h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Déplacement"),
+                    button("Aller vers", "i-goto", "players.goto", { notSelf: true }, () => run("player.goto", "Téléportation vers le joueur.")),
+                    button("Ramener", "i-bring", "players.bring", { notSelf: true, protect: true }, () => run("player.bring", "Joueur ramené.")),
+                    button("Renvoyer", "i-undo", "players.bring", { notSelf: true, protect: true, extra: info.canReturn ? null : "Le joueur n'a pas été ramené" }, () => run("player.return", "Joueur renvoyé à sa position."))
+                ),
+                h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Surveillance"),
+                    button("Observer", "i-eye", "players.spectate", { notSelf: true }, () => run("player.spectate", null)),
+                    button(info.frozen ? "Libérer" : "Figer", "i-snow", "players.freeze", { notSelf: true, protect: true }, () => run("player.freeze", info.frozen ? "Joueur libéré." : "Joueur figé."))
+                ),
+                h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Soins"),
+                    button("Soigner", "i-heart", "players.heal", {}, () => run("player.heal", "Joueur soigné.")),
+                    button("Réanimer", "i-pulse", "players.heal", {}, () => run("player.revive", "Joueur réanimé.")),
+                    button("Nourrir", "i-food", "players.heal", {}, () => run("player.feed", "Faim et soif remplies."))
+                ),
+                h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Personnage"),
+                    button("Apparence", "i-player", "players.appearance", { protect: true }, async () => {
+                        const res = await playerAction("player.appearance", info.isSelf ? null : "Menu d'apparence ouvert chez le joueur.");
+                        if (res && info.isSelf) closePanel(); // le menu s'ouvre sur votre écran
+                    }),
+                    info.isSelf
+                        ? button("Mon apparence", "i-player", "players.copy_appearance", {}, () => run("player.restoreAppearance", "Votre apparence est rétablie."))
+                        : button("Copier l'apparence", "i-copy", "players.copy_appearance", {}, () => run("player.copyAppearance", "Apparence copiée sur vous (non enregistrée).")),
+                    button("Recréer", "i-undo", "players.recreate", { protect: true, danger: true }, () => openRecreate(info)),
+                    button("Wipe", "i-trash", "players.wipe", { notSelf: true, protect: true, danger: true }, () => openWipe(info)),
+                    button("Donner un véhicule", "i-car", "vehicles.give", {}, () => openGiveCar(info))
+                ),
+                h("div", { class: "action-group" }, h("span", { class: "group-title" }, "Sanction"),
+                    button("Avertir", "i-warn", "sanctions.warn", { notSelf: true, protect: true }, () => openWarn(info)),
+                    info.jail
+                        ? button("Sortir de prison", "i-lock", "sanctions.jail", { notSelf: true }, () => run("sanction.unjail", "Joueur libéré de prison."))
+                        : button("Prison", "i-lock", "sanctions.jail", { notSelf: true, protect: true }, () => openJail(info)),
+                    button("Bannir", "i-ban", "sanctions.ban", { notSelf: true, protect: true, danger: true }, () => openBan({ serverId: info.serverId, name: info.name })),
+                    button("Expulser", "i-door", "players.kick", { notSelf: true, protect: true }, () => openKick(info)),
+                    button("Déconnecter", "i-x", "players.crash", { notSelf: true, protect: true, danger: true }, () => openCrash(info))
                 )
             )
         ),
-        subTabs,
-        h("div", { class: "scroll" }, body)
-    );
+        h("div", { class: "card", style: "margin-top:16px" }, h("h3", { class: "card-title" }, "État"),
+            bar("Santé", health === null ? "—" : down ? "Au sol" : `${Math.round(healthPct)} %`, healthPct, down ? "var(--danger)" : "var(--ok)"),
+            bar("Armure", typeof info.armor === "number" ? `${info.armor} %` : "—", info.armor || 0, "var(--info)"),
+            h("div", { class: "info-cols" },
+                infoRow("Ping", `${info.ping} ms`),
+                infoRow("Figé", info.frozen ? "Oui" : "Non"),
+                info.jail ? infoRow("Prison", `${Math.ceil(info.jail.remaining / 60)} min restantes`) : null)),
+    ];
 
-    const scroller = fiche.querySelector(".scroll");
-    if (scroller) scroller.scrollTop = keepScroll;
+    const blockedBan = reason("sanctions.ban", { notSelf: true, protect: true });
+    const blockedWarn = reason("sanctions.warn", { notSelf: true, protect: true });
+    playerColumns(fiche, info, {
+        head: h("div", { class: "crew-id player-id" },
+            h("div", { class: "crew-pic" }, mugshotImg(info.identifier, "mug-head")),
+            h("div", { class: "crew-id-text" },
+                h("b", null, info.name),
+                h("span", { class: "muted" }, `ID ${info.serverId} · ${info.pseudo || "—"}`),
+                h("span", { class: "mono muted" }, shortLicense(info.license)),
+                h("div", { class: "btn-row" }, info.rank ? rankPill(info.rank) : null, info.isSelf ? h("span", { class: "you" }, "Vous") : null))),
+        actions,
+        money: [moneyCards(info), economySection(info) || (info.protected ? h("p", { class: "hint-line" }, "Rang égal ou supérieur au vôtre : argent et inventaire en lecture seule.") : null)],
+        extra: [licensesCard(info), premiumCard(info, { serverId: info.serverId }, () => loadPlayerInfo())],
+        sanctions: {
+            ban: blockedBan ? null : () => openBan({ serverId: info.serverId, name: info.name }),
+            warn: blockedWarn ? null : () => openWarn(info),
+        },
+    });
 }
 
 async function playerAction(action, okMessage, payload) {
@@ -1829,10 +1705,10 @@ function demoState() {
         ],
         candidates: [{ serverId: 2, name: "Joueur Test" }, { serverId: 7, name: "Marco" }],
         players: [
-            { serverId: 1, name: "Ramiro Lotus", job: "Sans emploi", ping: 38, rank: { name: "Fondateur", color: "#9650ff" } },
-            { serverId: 2, name: "Jean Dupont", job: "Mécanicien", ping: 54 },
-            { serverId: 4, name: "Alex Moreau", job: "Police", ping: 61, rank: { name: "Admin", color: "#ff6b6b" } },
-            { serverId: 7, name: "Marco Rossi", job: "Taxi", ping: 112, frozen: true },
+            { serverId: 1, name: "Ramiro Lotus", job: "Sans emploi", ping: 38, rank: { name: "Fondateur", color: "#9650ff" }, playtime: 3125 },
+            { serverId: 2, name: "Jean Dupont", job: "Mécanicien", ping: 54, premium: "premium_plus", playtime: 742 },
+            { serverId: 4, name: "Alex Moreau", job: "Police", ping: 61, rank: { name: "Admin", color: "#ff6b6b" }, playtime: 1810 },
+            { serverId: 7, name: "Marco Rossi", job: "Taxi", ping: 112, frozen: true, playtime: 95 },
         ],
         tools: { noclip: true, names: true },
         world: {
@@ -1878,6 +1754,19 @@ async function demoNui(name, data) {
         return { ok: true, more: false, staff: [{ license: "license:a", name: "Alex Moreau" }, { license: "license:b", name: "Ramiro Lotus" }], logs: all,
             levels: { info: 9, warn: 2, success: 1 }, categories: { players: 2, economy: 1, inventory: 1, illegal: 1, vehicles: 1, staff: staff.length } };
     }
+    if (name === "action" && data && data.action === "logs.player") {
+        const now = Math.floor(Date.now() / 1000);
+        return { ok: true, logs: [
+            { id: 900, category: "players", level: "success", actor: "Jean Dupont", action: "player.loaded", details: { job: "Burger Shot" }, created: now - 120 },
+            { id: 898, category: "inventory", level: "info", actor: "Jean Dupont", action: "item.give", target: "[7] Lina Petit", details: { item: "water", label: "Eau", count: 2 }, created: now - 600 },
+            { id: 880, category: "economy", level: "warn", actor: "Jean Dupont", action: "money.add", details: { account: "bank", amount: 120000, reason: "Vente véhicule" }, created: now - 5400 },
+            { id: 860, category: "players", level: "info", actor: "Jean Dupont", action: "player.disconnect", details: { reason: "Exiting" }, created: now - 86400 },
+        ] };
+    }
+    if (name === "action" && data && data.action === "players.banned") return { ok: true, players: [
+        { license: "license:9f1e22aa00bb11", identifier: "9f1e22aa00bb11", name: "Tony Vega", reason: "Cheat", expires: null },
+        { license: "license:5511", identifier: "5511", name: "Kenny West", reason: "Freekill", expires: Math.floor(Date.now() / 1000) + 3 * 86400 },
+    ] };
     if (name === "action" && data && data.action === "logs.chat") return { ok: true, messages: [
         { id: 9, name: "[12] Jean Dupont", channel: "hrp", message: "Quelqu'un sait où est le garage ?", created: Math.floor(Date.now() / 1000) - 120 },
         { id: 8, name: "[4] Léa Martin", channel: "me", message: "sort son téléphone", created: Math.floor(Date.now() / 1000) - 400 },
@@ -1891,6 +1780,7 @@ async function demoNui(name, data) {
         identifier: "9f1e22aa00bb11", license: "license:9f1e22aa00bb11", name: "Tony Vega", hasIdentity: true, dateofbirth: "02/08/1993", sex: "m", height: 178,
         money: 820, bank: 15400, blackMoney: 0, job: { name: "mechanic", label: "Mécanicien", grade: "Recrue", level: 0 },
         lastSeen: Math.floor(Date.now() / 1000) - 7200, createdAt: Math.floor(Date.now() / 1000) - 20 * 86400,
+        profile: { discord: null, firstSeen: Math.floor(Date.now() / 1000) - 20 * 86400, lastSeen: Math.floor(Date.now() / 1000) - 7200, playtime: 210, warns: 0, banned: true, linked: [], vehicles: [], instances: [] },
         licenses: [{ type: "dmv", label: "Code de la route", owned: true }, { type: "drive", label: "Permis voiture", owned: false }, { type: "weapon", label: "Port d'arme", owned: false }],
     } };
     if (name === "action" && data && data.action === "drugs.info") return { ok: true,
@@ -2220,7 +2110,12 @@ m("heist_fleeca", "Braquage Fleeca", "heist", ["heist", "fleeca"], false, true),
             health: 164, maxHealth: 200, armor: 40, job: { name: "mechanic", label: p.job, grade: "Employé", level: 1 }, money: 2350, bank: 48200, blackMoney: 0,
             dateofbirth: "14/03/1996", sex: "m", height: 182, jail: p.serverId === 7 ? { remaining: 540, reason: "Freekill" } : undefined,
             premium: p.serverId === 2 ? { tier: "premium_plus", label: "Premium+", color: "#9650ff", expires: Math.floor(Date.now() / 1000) + 25 * 86400 } : undefined,
-            credits: 1250,
+            credits: 1250, onDuty: true,
+            profile: { discord: "284719305512345678", firstSeen: Math.floor(Date.now() / 1000) - 42 * 86400, lastSeen: Math.floor(Date.now() / 1000) - 3600, playtime: 742, warns: 1, banned: false,
+                crew: { id: 1, label: "Ballas", rank: "Lieutenant", color: "#9650ff" },
+                linked: [{ identifier: "77aa00cc11dd22", name: "Sarah Klein", lastSeen: Math.floor(Date.now() / 1000) - 4 * 86400 }],
+                vehicles: [{ plate: "LNT 042", model: 1093792632, type: "car", stored: true }, { plate: "88KJT21", model: -1622444098, type: "car", stored: false }],
+                instances: [{ label: "Entrepôt de Grove", kind: "Planque du crew" }] },
             licenses: [{ type: "dmv", label: "Code de la route", owned: true }, { type: "drive", label: "Permis voiture", owned: true }, { type: "drive_bike", label: "Permis moto", owned: false }, { type: "drive_truck", label: "Permis poids lourd", owned: false }, { type: "boat", label: "Permis bateau", owned: false }, { type: "weapon", label: "Port d'arme", owned: false }],
         } };
     }

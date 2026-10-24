@@ -1175,3 +1175,57 @@ body.hidden.minimized .mini-pill { display: flex; }
 .logs-detail-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .logs-detail-head > span:last-child { display: grid; gap: 4px; justify-items: start; }
 @media (max-width: 1500px) { .logs-grid { grid-template-columns: 200px minmax(0, 1fr) 300px; } }
+
+/* Tuile Joueurs : liste + fiche en 3 colonnes (profil, actions / inventaire / véhicules, logs / sanctions) */
+#view-players.on { display: flex; }
+.players-page { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+.players-top { display: flex; justify-content: center; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.players-body { display: flex; flex: 1; min-height: 0; }
+.players-body .sidebar .side-head svg.i { width: 16px; height: 16px; color: var(--muted); }
+.player-filters { display: flex; gap: 4px; }
+.player-filter { display: grid; place-items: center; flex: 1; height: 32px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--muted); }
+.player-filter svg.i { width: 15px; height: 15px; }
+.player-filter:hover { color: var(--ink); }
+.player-filter.on { border-color: rgba(var(--accent-rgb), .7); background: rgba(var(--accent-rgb), .18); color: #fff; }
+.player-select { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 0 14px 8px; font-size: 11.5px; color: var(--muted); }
+.player-select-all { display: flex; align-items: center; gap: 6px; }
+.player-group { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.player-row { cursor: pointer; }
+.player-check { flex: none; width: 14px; height: 14px; accent-color: var(--accent); }
+.player-row .status.ban { background: var(--danger); }
+.player-fiche { display: grid; grid-template-columns: minmax(0, 330px) minmax(0, 1fr) minmax(0, 340px); flex: 1; min-width: 0; min-height: 0; }
+.player-fiche > .empty { grid-column: 1 / -1; }
+.player-col .card + .card { margin-top: 12px; }
+.player-id .crew-pic .mug-head { width: 100%; height: 100%; border-radius: 0; }
+.player-id .btn-row { gap: 4px; }
+.profile-card { padding-top: 4px; }
+.linked-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; margin-top: 4px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); color: var(--ink); font-size: 12.5px; text-align: left; }
+.linked-row span:nth-child(2) { flex: 1; }
+.player-logs { display: grid; gap: 4px; }
+.player-log { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-size: 12px; }
+.player-log .log-line { flex: 1; min-width: 0; }
+.btn.ok-btn { border-color: transparent; background: var(--ok); color: #06180f; }
+.player-map { flex: 1; min-height: 0; }
+.influence-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; height: 100%; }
+.influence-map { display: flex; min-height: 0; }
+.influence-map .gta-map { flex: 1; height: auto; min-height: 0; border: 0; border-radius: 0; }
+.influence-side { overflow-y: auto; padding: 0 14px 16px; border-left: 1px solid var(--line); }
+.influence-card { display: grid; gap: 6px; margin-bottom: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.influence-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.influence-card .info-row { border-top: 0; padding: 2px 0; font-size: 12px; }
+.player-col .action-groups { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.player-col .action-group { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.player-col .action-group .group-title { grid-column: 1 / -1; }
+.player-log .log-line { overflow-wrap: anywhere; }
+.player-col .card[style*="margin-top:16px"]:first-child { margin-top: 0 !important; }
+.player-col .sanction-row { grid-template-columns: 38px minmax(0, 1fr) auto; gap: 4px 8px; min-height: 0; padding: 8px 10px; }
+.player-col .sanction-row .reason { grid-column: 1 / -1; font-size: 12.5px; }
+.player-col .sanction-row .when { grid-column: 1 / 3; font-size: 11.5px; }
+.player-col .sanction-row .sanction-end { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+.player-fiche { grid-template-columns: minmax(0, 300px) minmax(0, 1fr) minmax(0, 300px); }
+.player-col .info-grid { margin-top: 0; gap: 8px; }
+.player-col .info-grid .card { padding: 10px 12px; }
+.player-col .stat-value { font-size: 15px; white-space: nowrap; }
+.player-col .eco-grid { grid-template-columns: minmax(0, 1fr); }
+.player-col .eco-form:not(.job) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.player-col .eco-form:not(.job) > :last-child { grid-column: 1 / -1; }
