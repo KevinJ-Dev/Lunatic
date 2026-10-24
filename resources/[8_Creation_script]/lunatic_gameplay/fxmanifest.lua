@@ -19,6 +19,7 @@ server_scripts {
     'server/fuel.lua',
     'server/effects.lua',
     'server/misc.lua',
+    'server/idcard.lua',
 }
 
 client_scripts {
@@ -27,6 +28,15 @@ client_scripts {
     'client/fuel.lua',
     'client/effects.lua',
     'client/misc.lua',
+    'client/idcard.lua',
+}
+
+ui_page 'html/index.html'
+
+files {
+    'html/index.html',
+    'html/style.css',
+    'html/app.js',
 }
 
 dependencies {

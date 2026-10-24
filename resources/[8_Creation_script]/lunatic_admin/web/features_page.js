@@ -14,6 +14,7 @@ const FEATURE_TABS = [
     { id: "features", label: "Fonctionnalités", icon: "i-tool", sections: ["toggles"] },
     { id: "gameplay", label: "Gameplay", icon: "i-pulse", sections: ["needs", "inventory", "death", "fuel", "misc", "population", "time"] },
     { id: "effects", label: "Effets", icon: "i-sparkle", sections: ["effects_cocaine", "effects_fentanyl", "effects_cannabis", "effects_meth", "effects_alcohol"] },
+    { id: "idcard", label: "Carte d'identité", icon: "i-player", sections: ["idcard"] },
     { id: "weights", label: "Poids", icon: "i-box", sections: ["trunks"] },
     { id: "newPlayers", label: "Nouveaux joueurs", icon: "i-user-plus", sections: ["newPlayers"] },
     { id: "discord", label: "Discord", icon: "i-users", sections: ["discord"] },
@@ -133,6 +134,15 @@ const FEATURE_SECTIONS = {
             price: { label: "Prix du litre", hint: "Aux pompes des stations-service (liquide, sinon banque)", money: true },
         },
     },
+    idcard: {
+        label: "Carte d'identité", icon: "i-player",
+        fields: {
+            model: { label: "Modèle de carte", hint: "Affiché quand un joueur regarde ou montre sa carte (objet id_card)", options: [
+                { value: "fr", label: "Carte d'identité française" }, { value: "us", label: "Driver license américain (San Andreas)" },
+                { value: "be", label: "Carte d'identité belge" }, { value: "ca", label: "Permis canadien" }] },
+            autoGive: { label: "Carte remise à la connexion", hint: "Si le joueur n'en a pas (identité créée)" },
+        },
+    },
     misc: {
         label: "Confort & sécurité", icon: "i-shield",
         fields: {
@@ -234,6 +244,11 @@ function ftField(section, key, values) {
     const meta = (FEATURE_SECTIONS[section].fields || {})[key] || { label: key };
     if (schema.type === "bool") {
         return h("div", { class: "mode-list" }, draftToggle(values, key, meta.label, meta.hint || ""));
+    }
+    if (meta.options) {
+        const select = h("select", { class: "input" }, meta.options.map((o) => h("option", { value: o.value, selected: o.value === values[key] }, o.label)));
+        select.addEventListener("change", () => { values[key] = select.value; });
+        return h("div", { class: "ft-row" }, h("span", { class: "ft-label" }, h("b", null, meta.label), meta.hint ? h("small", null, meta.hint) : null), select);
     }
     if (schema.type === "string") {
         const input = h("input", { class: "input", maxlength: String(schema.maxLength || 120), value: values[key] ?? "" });

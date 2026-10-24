@@ -1909,6 +1909,7 @@ async function demoNui(name, data) {
             population: { peds: n(1, 0, 1, 0.05), vehicles: n(1, 0, 1, 0.05), parked: n(1, 0, 1, 0.05), scenario: n(1, 0, 1, 0.05) },
             time: { minute: n(2000, 250, 60000, 250) },
             ...Object.fromEntries(["cannabis", "cocaine", "meth", "fentanyl", "alcohol"].map((e) => ["effects_" + e, { enabled: b(true), duration: n(120, 10, 900, 10), speed: n(1, 1, 1.49, 0.01), shake: n(0.3, 0, 3, 0.1), blur: b(false), visual: b(true), walk: b(true) }])),
+            idcard: { model: t("fr", 2), autoGive: b(true) },
             misc: { weaponBack: b(true), safeZones: b(true), afk: b(false), afkMinutes: n(20, 5, 120, 5), afkOffDutyOnly: b(true) },
             trunks: { trunkWeight: n(1, 0.25, 4, 0.05), trunkSlots: n(1, 0.25, 4, 0.05), gloveWeight: n(1, 0.25, 4, 0.05), gloveSlots: n(1, 0.25, 4, 0.05) },
             fuel: { enabled: b(true), consumption: n(1, 0.1, 5, 0.1), startLevel: n(60, 0, 100, 5), price: n(3, 0, 50, 0.5) },

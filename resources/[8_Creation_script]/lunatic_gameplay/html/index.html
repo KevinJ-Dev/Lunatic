@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <title>Carte d'identité</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="card hidden" id="card">
+        <div class="head"><span class="title" id="title"></span><span class="sub" id="sub"></span></div>
+        <div class="main">
+            <div class="photo" id="photo"></div>
+            <div class="fields">
+                <div><small id="lLast">Nom</small><b id="last"></b></div>
+                <div><small id="lFirst">Prénom(s)</small><b id="first"></b></div>
+                <div class="row">
+                    <div><small id="lSex">Sexe</small><b id="sex"></b></div>
+                    <div><small id="lHeight">Taille</small><b id="height"></b></div>
+                </div>
+                <div><small id="lBirth">Né(e) le</small><b id="birth"></b></div>
+                <div><small id="lNumber">N° du document</small><b id="number" class="mono"></b></div>
+            </div>
+        </div>
+        <div class="foot" id="foot"></div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

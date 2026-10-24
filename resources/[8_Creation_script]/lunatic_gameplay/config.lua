@@ -57,3 +57,8 @@ Config.SafeZones = {
     { label = 'Hôpital de Sandy Shores', coords = vector3(1839.6, 3672.9, 34.3), radius = 30.0 },
     { label = 'Hôpital de Paleto Bay', coords = vector3(-247.7, 6331.2, 32.4), radius = 30.0 },
 }
+
+-- Carte d'identité (modèle FR, US, BE ou CA choisi dans la tuile Fonctionnalités → Carte d'identité)
+Config.IdCardItem = 'id_card'
+Config.IdCardDuration = 10    -- secondes d'affichage (Retour arrière pour fermer avant)
+Config.IdCardShowDistance = 3.0

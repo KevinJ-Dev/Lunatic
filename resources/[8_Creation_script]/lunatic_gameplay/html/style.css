@@ -1,0 +1,32 @@
+html, body { margin: 0; background: transparent; font-family: "Segoe UI", Arial, sans-serif; overflow: hidden; }
+.hidden { display: none !important; }
+
+.card { position: absolute; right: 4vw; bottom: 8vh; width: 430px; overflow: hidden; border-radius: 16px; color: #1c2230; box-shadow: 0 22px 60px -12px #000b; animation: pop .25s ease-out; }
+@keyframes pop { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+.head { position: relative; display: grid; gap: 2px; padding: 12px 16px 8px; }
+.title { font-size: 15px; font-weight: 800; letter-spacing: .06em; }
+.sub { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; opacity: .8; }
+.main { display: grid; grid-template-columns: 112px 1fr; gap: 14px; padding: 6px 16px 10px; }
+.photo { width: 112px; height: 140px; overflow: hidden; border-radius: 8px; background: #c9ced8 center / 60% no-repeat url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23888'><circle cx='12' cy='8' r='4'/><path d='M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z'/></svg>"); }
+.photo img { width: 100%; height: 100%; object-fit: cover; }
+.fields { display: grid; gap: 6px; align-content: start; }
+.fields small { display: block; font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: .65; }
+.fields b { font-size: 14px; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mono, .foot { font-family: Consolas, "Courier New", monospace; }
+.foot { padding: 7px 16px 10px; font-size: 11px; letter-spacing: .12em; white-space: nowrap; overflow: hidden; text-overflow: clip; opacity: .75; }
+
+/* France : bandeau tricolore, fond bleu pâle */
+.model-fr { background: linear-gradient(135deg, #eef3fb, #dfe7f5); }
+.model-fr .head { background: linear-gradient(90deg, #1f3c8f 0 33%, #fff 33% 66%, #d6232f 66%); background-size: 100% 4px; background-repeat: no-repeat; background-position: bottom; color: #1f3c8f; }
+/* États-Unis (San Andreas) : bandeau bleu étoilé */
+.model-us { background: linear-gradient(135deg, #fbf6ea, #efe6cf); }
+.model-us .head { background: linear-gradient(90deg, #12285a, #24468f); color: #fff; }
+.model-us .head .sub { color: #f2c94c; }
+/* Belgique : noir, jaune, rouge */
+.model-be { background: linear-gradient(135deg, #f7f4ec, #e9e3d3); }
+.model-be .head { background: linear-gradient(90deg, #111 0 33%, #f6c90e 33% 66%, #e1251b 66%); background-size: 100% 5px; background-repeat: no-repeat; background-position: bottom; }
+/* Canada : rouge et blanc, feuille d'érable */
+.model-ca { background: #fdf7f7; }
+.model-ca .head { background: #c8102e; color: #fff; }
+.model-ca .head::after { content: "🍁"; position: absolute; right: 16px; top: 10px; font-size: 26px; }

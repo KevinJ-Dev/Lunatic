@@ -414,6 +414,15 @@ Panel.actions['mugshots.list'] = function(_, actor, data)
     return { ok = true, silent = true, mugshots = list, total = tonumber(total) or 0, offset = offset, pageSize = MUGSHOT_PAGE }
 end
 
+-- Photo d'un personnage pour les autres ressources (carte d'identité de lunatic_gameplay)
+exports('getMugshot', function(identifier)
+    if type(identifier) ~= 'string' then
+        return nil
+    end
+
+    return MySQL.scalar.await('SELECT `image` FROM `lunatic_mugshots` WHERE `identifier` = ?', { identifier })
+end)
+
 -- Photos de quelques personnages (fiche joueur, liste des joueurs)
 Panel.actions['mugshots.get'] = function(_, actor, data)
     if not Ranks.hasPermission(actor, 'players.view') and not Ranks.hasPermission(actor, 'images.manage') then

@@ -138,6 +138,15 @@ local items = {
 		weight = 160,
 	},
 
+	-- Lunatic : carte d'identite (lunatic_gameplay, modele choisi dans le panel staff)
+	['id_card'] = {
+		label = "Carte d'identité",
+		weight = 10,
+		stack = false,
+		close = true,
+		description = 'Regarder sa carte ou la montrer à la personne la plus proche.',
+	},
+
 	['phone'] = {
 		label = 'Phone',
 		weight = 190,
