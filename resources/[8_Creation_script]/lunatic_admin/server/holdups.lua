@@ -18,9 +18,11 @@ local TYPES = {
     gofast_drop = { label = 'GoFast : livraison', short = 'GF LIV', ped = '', spot = true },
     gofast_sea_start = { label = 'GoFast maritime : quai', short = 'GFM QUAI', ped = '', spot = true },
     gofast_sea_drop = { label = 'GoFast maritime : crique', short = 'GFM CRIQ', ped = '', spot = true },
+    -- Yacht : le coffre à pirater, gardé par des hommes armés qui apparaissent quand un crew approche
+    yacht = { label = 'Yacht : coffre', short = 'YACHT', ped = '', spot = true },
     company = { label = 'Entreprise', short = 'ENTR', ped = 'a_m_y_business_02' },
 }
-local ORDER = { 'store', 'barber', 'binco', 'ammunation', 'tattoo', 'company', 'house', 'gofast_start', 'gofast_drop', 'gofast_sea_start', 'gofast_sea_drop', 'heliwave' }
+local ORDER = { 'store', 'barber', 'binco', 'ammunation', 'tattoo', 'company', 'house', 'gofast_start', 'gofast_drop', 'gofast_sea_start', 'gofast_sea_drop', 'yacht', 'heliwave' }
 local INTERIORS = { low = 'Petit appartement', mid = 'Appartement moyen' }
 
 -- Réglages par type, selon la difficulté : arme en main exigée (any = blanche ou à feu, jamais les poings),
@@ -39,6 +41,7 @@ local DEFAULT_SETTINGS = {
     gofast_drop = { weapon = 'any', duration = 0, cooldown = 0, alert = 0, resist = 0, loot = {} },
     gofast_sea_start = { weapon = 'any', duration = 0, cooldown = 0, alert = 0, resist = 0, loot = {} },
     gofast_sea_drop = { weapon = 'any', duration = 0, cooldown = 0, alert = 0, resist = 0, loot = {} },
+    yacht = { weapon = 'any', duration = 0, cooldown = 0, alert = 0, resist = 0, loot = {} }, -- réglages : page Missions → Braquage Yacht
 }
 local WEAPONS = { any = true, melee = true, firearm = true }
 
@@ -46,6 +49,10 @@ local WEAPONS = { any = true, melee = true, firearm = true }
 local DEFAULT_POINTS = {
     -- GoFast : garages de départ (le véhicule apparaît là, dans l'axe) et points de livraison loin les uns des autres
     -- GoFast maritime : quais de départ (le bateau apparaît sur l'eau, dans l'axe) et criques le long des côtes
+    -- Yacht du casse (bob74_ipl, au large de Pacific Bluffs) : coffre sur le pont, à ajuster avec « Définir »
+    yacht = {
+        { 'Yacht de Pacific Bluffs', -2043.97, -1031.58, 11.98, 0.0 },
+    },
     gofast_sea_start = {
         { 'Marina de Puerto del Sol', -800.5, -1513.0, 0.3, 110.0 }, { 'Quai de Paleto Bay', -275.0, 6635.0, 0.5, 45.0 },
     },
@@ -264,6 +271,7 @@ table.insert(Panel.readyHooks, function()
         { kvp = 'holdups_houses_seeded', types = { house = true } },
         { kvp = 'holdups_gofast_seeded', types = { gofast_start = true, gofast_drop = true } },
         { kvp = 'holdups_gofast_sea_seeded', types = { gofast_sea_start = true, gofast_sea_drop = true } },
+        { kvp = 'holdups_yacht_seeded', types = { yacht = true } },
     }
     local created = 0
 

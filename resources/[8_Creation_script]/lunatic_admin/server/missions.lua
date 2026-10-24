@@ -39,7 +39,18 @@ local CATALOG = {
     { id = 'heist_tattoo', label = 'Braquage Tattoo', category = 'heist', description = 'Menacer le tatoueur au comptoir.', holdup = 'tattoo', reward = true },
     { id = 'heist_jewelry', label = 'Braquage Vangelico', category = 'heist', description = 'Briser les vitrines de la bijouterie.', link = { 'heist', 'jewelry' },
         places = { { 'Vangelico Rockford Hills', -630.7, -237.0, 38.1 } } },
-    { id = 'heist_yacht', label = 'Braquage Yacht', category = 'heist', description = 'Braquer le yacht.' },
+    { id = 'heist_yacht', label = 'Braquage Yacht', category = 'heist', description = "Aborder le yacht (page Braquages → Yacht), éliminer les gardes armés qui le défendent, pirater le coffre et repartir avec le butin.", ready = true, reward = true, points = 'yacht',
+        advanced = {
+            { key = 'guards', label = 'Nombre de gardes', min = 0, max = 12, default = 6 },
+            { key = 'guardModel', label = 'Gardes', default = 's_m_y_blackops_01', options = { { 's_m_y_blackops_01', 'Mercenaires' }, { 's_m_m_highsec_01', 'Sécurité privée' }, { 'g_m_m_chicold_01', 'Hommes de main' }, { 'mp_m_securoguard_01', 'Vigiles' } } },
+            { key = 'guardWeapon', label = 'Arme des gardes', default = 'WEAPON_CARBINERIFLE', options = { { 'WEAPON_CARBINERIFLE', 'Carabine' }, { 'WEAPON_SMG', 'Mitraillette' }, { 'WEAPON_PUMPSHOTGUN', 'Fusil à pompe' }, { 'WEAPON_PISTOL', 'Pistolet' } } },
+            { key = 'tool', label = 'Outil pour le coffre (objet)', default = 'hack_device', item = true },
+            { key = 'difficulty', label = 'Difficulté du piratage', default = 'hard', options = { { 'easy', 'Facile' }, { 'medium', 'Moyenne' }, { 'hard', 'Difficile' } } },
+            { key = 'duration', label = "Temps pour vider le coffre (s)", min = 10, max = 300, default = 60 },
+            { key = 'breakChance', label = "Casse de l'outil si le piratage échoue (%)", min = 0, max = 100, default = 25 },
+            { key = 'cooldown', label = 'Délai avant de rebraquer le yacht (min)', min = 10, max = 2880, default = 240 },
+        },
+        loot = { { item = 'gold_bar', min = 1, max = 2, chance = 60 }, { item = 'jewel_necklace', min = 1, max = 2, chance = 40 }, { item = 'marked_bills', min = 10, max = 25, chance = 100 } } },
     { id = 'contract_delivery', label = 'Livraison', category = 'contract', description = 'Récupérer un colis scellé et le livrer à temps.', link = { 'contract', 'delivery' }, reward = true },
     { id = 'contract_theft', label = 'Vol sur commande', category = 'contract', description = "Voler un modèle précis et l'amener au garage.", link = { 'contract', 'theft' }, reward = true },
     { id = 'contract_cargo', label = 'Cargaison gardée', category = 'contract', description = 'Éliminer les gardes et ouvrir la caisse.', link = { 'contract', 'cargo' }, reward = true },
@@ -118,6 +129,7 @@ local READY_START = {
     burglary = { kvp = 'missions_burglary_ready', values = { reward = 1500, xp = 8, influence = 3, police = 1, levelRequired = false } },
     gofast = { kvp = 'missions_gofast_ready', values = { reward = 8000, xp = 30, influence = 5, police = 2, levelRequired = true, minLevel = 1 } },
     gofast_sea = { kvp = 'missions_gofast_sea_ready', values = { reward = 12000, xp = 40, influence = 6, police = 2, levelRequired = true, minLevel = 2 } },
+    heist_yacht = { kvp = 'missions_yacht_ready', values = { reward = 25000, xp = 80, influence = 15, police = 4, levelRequired = true, minLevel = 3 } },
 }
 
 local LIMITS = { xp = 10000, influence = 1000, police = 20, reward = 1000000, daily = 500, loot = 8 }
