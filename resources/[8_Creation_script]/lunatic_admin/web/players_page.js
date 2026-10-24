@@ -251,8 +251,8 @@ function playerLogsList(info) {
         const [day, time] = logTime(log.created);
         const dot = h("span", { class: "log-dot" });
         dot.style.background = levelOf(log.level).color;
-        return h("div", { class: "player-log" }, h("span", { class: "log-when mono" }, h("small", null, day), time), dot,
-            h("span", { class: "log-line" }, `${verb}${log.target ? ` ${log.target}` : ""}${summary ? ` · ${summary}` : ""}`));
+        const text = `${verb}${log.target ? ` ${log.target}` : ""}${summary ? ` · ${summary}` : ""}`;
+        return h("div", { class: "player-log", title: text }, h("span", { class: "log-when mono" }, h("small", null, day), time), dot, h("span", { class: "log-line" }, text));
     }));
 }
 
