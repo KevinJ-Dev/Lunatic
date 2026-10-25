@@ -141,7 +141,7 @@ local items = {
 	-- Lunatic : carte d'identite (lunatic_gameplay, modele choisi dans le panel staff)
 	['id_card'] = {
 		label = "Carte d'identité",
-		weight = 10,
+		weight = 0,
 		stack = false,
 		close = true,
 		description = 'Regarder sa carte ou la montrer aux personnes proches.',
@@ -150,7 +150,7 @@ local items = {
 	-- Lunatic : permis de conduire (lunatic_gameplay) : catégories obtenues à l'auto-école, lues en direct
 	['driver_license'] = {
 		label = 'Permis de conduire',
-		weight = 10,
+		weight = 0,
 		stack = false,
 		close = true,
 		description = 'Regarder son permis ou le montrer aux personnes proches.',

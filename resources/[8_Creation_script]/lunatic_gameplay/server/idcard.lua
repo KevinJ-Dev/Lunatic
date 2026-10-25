@@ -220,8 +220,14 @@ lib.callback.register('lunatic_gameplay:officeDocument', function(src, index, ki
         return { error = ('Vous avez déjà votre %s sur vous.'):format(document.label) }
     end
 
+    -- Objet absent d'ox_inventory (data/items.lua pas encore chargé) : ce n'est pas une question de place
+    if not ox:Items(document.item) then
+        return { error = 'Document indisponible pour le moment : prévenez le staff.' }
+    end
+
+    -- Les documents ne pèsent rien : seul un emplacement libre est nécessaire
     if not ox:CanCarryItem(src, document.item, 1) then
-        return { error = "Vous n'avez pas de place dans votre inventaire." }
+        return { error = "Vous n'avez plus d'emplacement libre dans votre inventaire." }
     end
 
     local price = documentPrice(xPlayer.identifier, kind)
