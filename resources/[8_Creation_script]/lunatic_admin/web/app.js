@@ -203,35 +203,35 @@ function isDirty() {
 
 // ---------- Rendu général ----------
 
-// Pages du panel. L'accueil affiche une tuile par page visible (dans cet ordre) ;
+// Pages du panel (seule liste : affichage, onglets, tuiles). L'accueil affiche une tuile par page visible (dans cet ordre) ;
 // les pages d'un même groupe partagent une tuile et s'affichent en onglets dans la barre du haut.
 const NAV = [
-    { id: "home", label: "Gestion", icon: "i-home", show: () => true, tile: false },
-    { id: "dashboard", label: "Tableau de bord", icon: "i-pulse", show: () => true },
-    { id: "players", label: "Joueurs", icon: "i-player", show: () => can("players.view") },
-    { id: "sanctions", label: "Sanctions", icon: "i-gavel", show: () => can("sanctions.view") },
-    { id: "tools", label: "Outils", icon: "i-tool", show: () => hasAnyTool() },
-    { id: "logs", label: "Logs", icon: "i-list", show: () => can("logs.view") || can("logs.chat") },
-    { id: "ranks", label: "Rangs", icon: "i-layers", show: () => can("ranks.view"), group: "perms" },
-    { id: "members", label: "Membres", icon: "i-users", show: () => can("staff.view"), group: "perms" },
-    { id: "companies", label: "Entreprises", icon: "i-store", show: () => can("companies.manage") },
-    { id: "publics", label: "Services publics", icon: "i-shield", show: () => can("publics.manage") },
-    { id: "shop", label: "Boutique", icon: "i-gem", show: () => can("shop.manage") },
-    { id: "illegal", label: "Illégal", icon: "i-mask", show: () => can("illegal.manage") },
-    { id: "crews", label: "Crews", icon: "i-flag", show: () => can("crews.manage") },
-    { id: "catalogs", label: "Catalogues", icon: "i-book", show: () => can("catalogs.manage") },
-    { id: "items", label: "Items", icon: "i-box", show: () => can("items.manage") },
-    { id: "blips", label: "Blips", icon: "i-pin", show: () => can("blips.manage") },
-    { id: "economy", label: "Économie", icon: "i-coins", show: () => can("economy.manage") },
-    { id: "images", label: "Images", icon: "i-image", show: () => can("images.manage") },
-    { id: "interactions", label: "Interactions", icon: "i-crosshair", show: () => can("interactions.manage") },
-    { id: "features", label: "Fonctionnalités", icon: "i-tool", show: () => can("features.manage") },
-    { id: "poles", label: "Pôle emploi", icon: "i-briefcase", show: () => can("poles.manage") },
-    { id: "events", label: "Events", icon: "i-calendar", show: () => can("events.manage") },
-    { id: "world", label: "Météo", icon: "i-sun", show: () => hasWorld() },
-    { id: "others", label: "Autres", icon: "i-layers", show: () => can("others.manage") },
-    { id: "server", label: "Serveur", icon: "i-server", show: () => can("server.manage") },
-    { id: "dev", label: "Développeur", icon: "i-code", show: () => can("dev.manage") },
+    { id: "home", label: "Gestion", icon: "i-home", show: () => true, tile: false, render: () => renderHome() },
+    { id: "dashboard", label: "Tableau de bord", icon: "i-pulse", show: () => true, render: () => renderDashboard() },
+    { id: "players", label: "Joueurs", icon: "i-player", show: () => can("players.view"), render: () => renderPlayers() },
+    { id: "sanctions", label: "Sanctions", icon: "i-gavel", show: () => can("sanctions.view"), render: () => renderSanctions() },
+    { id: "tools", label: "Outils", icon: "i-tool", show: () => hasAnyTool(), render: () => renderTools() },
+    { id: "logs", label: "Logs", icon: "i-list", show: () => can("logs.view") || can("logs.chat"), render: () => renderLogs() },
+    { id: "ranks", label: "Rangs", icon: "i-layers", show: () => can("ranks.view"), group: "perms", render: () => renderRanks(!!rankEditorShown()) },
+    { id: "members", label: "Membres", icon: "i-users", show: () => can("staff.view"), group: "perms", render: () => renderMembers() },
+    { id: "companies", label: "Entreprises", icon: "i-store", show: () => can("companies.manage"), render: () => renderStructures("company") },
+    { id: "publics", label: "Services publics", icon: "i-shield", show: () => can("publics.manage"), render: () => renderStructures("public") },
+    { id: "shop", label: "Boutique", icon: "i-gem", show: () => can("shop.manage"), render: () => renderStore() },
+    { id: "illegal", label: "Illégal", icon: "i-mask", show: () => can("illegal.manage"), render: () => renderIllegal() },
+    { id: "crews", label: "Crews", icon: "i-flag", show: () => can("crews.manage"), render: () => renderCrews() },
+    { id: "catalogs", label: "Catalogues", icon: "i-book", show: () => can("catalogs.manage"), render: () => renderShops() },
+    { id: "items", label: "Items", icon: "i-box", show: () => can("items.manage"), render: () => renderItems() },
+    { id: "blips", label: "Blips", icon: "i-pin", show: () => can("blips.manage"), render: () => renderBlips() },
+    { id: "economy", label: "Économie", icon: "i-coins", show: () => can("economy.manage"), render: () => renderEconomy() },
+    { id: "images", label: "Images", icon: "i-image", show: () => can("images.manage"), render: () => renderImages() },
+    { id: "interactions", label: "Interactions", icon: "i-crosshair", show: () => can("interactions.manage"), render: () => renderInteractions() },
+    { id: "features", label: "Fonctionnalités", icon: "i-tool", show: () => can("features.manage"), render: () => renderFeatures() },
+    { id: "poles", label: "Pôle emploi", icon: "i-briefcase", show: () => can("poles.manage"), render: () => renderPoles() },
+    { id: "events", label: "Events", icon: "i-calendar", show: () => can("events.manage"), render: () => renderEvents() },
+    { id: "world", label: "Météo", icon: "i-sun", show: () => hasWorld(), render: () => renderWorld() },
+    { id: "others", label: "Autres", icon: "i-layers", show: () => can("others.manage"), render: () => renderOthers() },
+    { id: "server", label: "Serveur", icon: "i-server", show: () => can("server.manage"), render: () => renderGlobal() },
+    { id: "dev", label: "Développeur", icon: "i-code", show: () => can("dev.manage"), render: () => renderDev() },
 ];
 const GROUPS = { perms: { label: "Permissions", icon: "i-lock" } };
 
@@ -580,36 +580,13 @@ function render() {
 
     renderMe();
 
-    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "illegal", "crews", "catalogs", "items", "blips", "economy", "images", "interactions", "features", "poles", "events", "shop", "others", "dev", "ranks", "members"]) {
-        $(`view-${id}`).classList.toggle("on", view === id);
+    for (const page of NAV) {
+        const el = $(`view-${page.id}`);
+        if (el) el.classList.toggle("on", view === page.id);
     }
 
-    if (view === "home") renderHome();
-    if (view === "dashboard") renderDashboard();
-    if (view === "players") renderPlayers();
-    if (view === "sanctions") renderSanctions();
-    if (view === "tools") renderTools();
-    if (view === "logs") renderLogs();
-    if (view === "world") renderWorld();
-    if (view === "server") renderGlobal();
-    if (view === "poles") renderPoles();
-    if (view === "companies") renderStructures("company");
-    if (view === "catalogs") renderShops();
-    if (view === "items") renderItems();
-    if (view === "blips") renderBlips();
-    if (view === "economy") renderEconomy();
-    if (view === "images") renderImages();
-    if (view === "interactions") renderInteractions();
-    if (view === "features") renderFeatures();
-    if (view === "crews") renderCrews();
-    if (view === "illegal") renderIllegal();
-    if (view === "publics") renderStructures("public");
-    if (view === "events") renderEvents();
-    if (view === "shop") renderStore();
-    if (view === "others") renderOthers();
-    if (view === "dev") renderDev();
-    if (view === "ranks") renderRanks();
-    if (view === "members") renderMembers();
+    const page = NAV.find((p) => p.id === view);
+    if (page && page.render) page.render();
 }
 
 // Ouvre une page : son onglet s'il existe, sinon l'onglet Gestion courant devient la page, sinon un nouvel onglet
@@ -645,7 +622,13 @@ function replaceKeepingScroll(root, node) {
     if (top) node.scrollTop = top;
 }
 
+let homeSignature = null;
+let dashboardSignature = null;
+
 function renderHome() {
+    const signature = JSON.stringify([homeKpis().map((k) => k.textContent), tiles().map((t) => t.target)]);
+    if (signature === homeSignature && $("view-home").childElementCount) return;
+    homeSignature = signature;
     replaceKeepingScroll($("view-home"), h("div", { class: "home menu" },
         h("div", { class: "kpis menu-kpis" }, homeKpis()),
         h("div", { class: "tiles" }, tiles().map((t) =>
@@ -657,6 +640,9 @@ function renderHome() {
 
 function renderDashboard() {
     const d = state.dashboard || {};
+    const signature = JSON.stringify(d);
+    if (signature === dashboardSignature && $("view-dashboard").childElementCount) return;
+    dashboardSignature = signature;
     const showStaff = Array.isArray(d.staff); // permission staff.online
     const staffOnline = showStaff ? d.staff : [];
 
@@ -1069,6 +1055,11 @@ setInterval(async () => {
 
 // ---------- Rangs ----------
 
+// Éditeur de rang déjà affiché (une mise à jour de l'état ne doit pas le reconstruire)
+function rankEditorShown() {
+    return $("view-ranks").querySelector(".sidebar") && draft;
+}
+
 function renderRanks(onlySidebar) {
     const manage = can("ranks.manage");
     const sidebar = h("aside", { class: "sidebar" },
@@ -1372,39 +1363,48 @@ async function deleteRank(rank) {
 
 // ---------- Membres ----------
 
+// Structure gardée entre deux mises à jour de l'état (recherche et défilement conservés) : seuls les compteurs,
+// les filtres et la liste sont repeints
+let membersDom = null;
+
 function renderMembers() {
-    const online = staff().filter((m) => m.online).length;
-    const search = h("input", { placeholder: "Rechercher un membre", value: memberFilter.text });
-    search.addEventListener("input", () => {
-        memberFilter.text = search.value;
-        $("members-table").replaceChildren(...memberRows());
-    });
+    const root = $("view-members");
 
-    const segmented = h("div", { class: "segmented", role: "radiogroup" },
-        h("button", { "aria-checked": String(!memberFilter.onlineOnly), onclick: () => { memberFilter.onlineOnly = false; renderMembers(); } }, "Tous"),
-        h("button", { "aria-checked": String(memberFilter.onlineOnly), onclick: () => { memberFilter.onlineOnly = true; renderMembers(); } }, "En ligne")
-    );
-
-    function memberRows() {
-        const rows = staff()
-            .filter((m) => !memberFilter.onlineOnly || m.online)
-            .filter((m) => !memberFilter.text || m.name.toLowerCase().includes(memberFilter.text.toLowerCase()))
-            .sort((a, b) => ((rankById(b.rankId) || {}).level || 0) - ((rankById(a.rankId) || {}).level || 0) || a.name.localeCompare(b.name))
-            .map(memberRow);
-        return rows.length ? rows : [h("div", { class: "empty" }, icon("i-users"), "Aucun membre ne correspond.")];
+    if (!membersDom || !root.contains(membersDom.table)) {
+        const search = h("input", { placeholder: "Rechercher un membre", value: memberFilter.text });
+        search.addEventListener("input", () => {
+            memberFilter.text = search.value;
+            paintMemberRows();
+        });
+        membersDom = {
+            sub: h("div", { class: "page-sub" }),
+            add: h("span"),
+            segmented: h("div", { class: "segmented", role: "radiogroup" }),
+            table: h("div", { class: "table", id: "members-table" }),
+        };
+        root.replaceChildren(h("div", { class: "content" },
+            h("div", { class: "page-head" }, h("div", { class: "grow" }, h("h1", { class: "page-title" }, "Membres du staff"), membersDom.sub), membersDom.add),
+            h("div", { class: "toolbar" }, h("label", { class: "search" }, icon("i-search"), search), membersDom.segmented),
+            h("div", { class: "scroll" }, membersDom.table)
+        ));
     }
 
-    $("view-members").replaceChildren(h("div", { class: "content" },
-        h("div", { class: "page-head" },
-            h("div", { class: "grow" },
-                h("h1", { class: "page-title" }, "Membres du staff"),
-                h("div", { class: "page-sub" }, `${online} en ligne`, h("span", { class: "sep" }), `${staff().length} membre${staff().length > 1 ? "s" : ""}`)
-            ),
-            can("staff.manage") ? h("button", { class: "btn primary", onclick: openAddMember }, icon("i-user-plus"), "Ajouter un membre") : null
-        ),
-        h("div", { class: "toolbar" }, h("label", { class: "search" }, icon("i-search"), search), segmented),
-        h("div", { class: "scroll" }, h("div", { class: "table", id: "members-table" }, memberRows()))
-    ));
+    const online = staff().filter((m) => m.online).length;
+    membersDom.sub.replaceChildren(`${online} en ligne`, h("span", { class: "sep" }), `${staff().length} membre${staff().length > 1 ? "s" : ""}`);
+    membersDom.add.replaceChildren(...(can("staff.manage") ? [h("button", { class: "btn primary", onclick: openAddMember }, icon("i-user-plus"), "Ajouter un membre")] : []));
+    membersDom.segmented.replaceChildren(
+        h("button", { "aria-checked": String(!memberFilter.onlineOnly), onclick: () => { memberFilter.onlineOnly = false; renderMembers(); } }, "Tous"),
+        h("button", { "aria-checked": String(memberFilter.onlineOnly), onclick: () => { memberFilter.onlineOnly = true; renderMembers(); } }, "En ligne"));
+    paintMemberRows();
+}
+
+function paintMemberRows() {
+    const rows = staff()
+        .filter((m) => !memberFilter.onlineOnly || m.online)
+        .filter((m) => !memberFilter.text || m.name.toLowerCase().includes(memberFilter.text.toLowerCase()))
+        .sort((a, b) => ((rankById(b.rankId) || {}).level || 0) - ((rankById(a.rankId) || {}).level || 0) || a.name.localeCompare(b.name))
+        .map(memberRow);
+    membersDom.table.replaceChildren(...(rows.length ? rows : [h("div", { class: "empty" }, icon("i-users"), "Aucun membre ne correspond.")]));
 }
 
 function memberRow(member) {
