@@ -299,6 +299,18 @@ local function requestMugshot(target)
     TriggerClientEvent('lunatic_admin:takeMugshot', target)
 end
 
+-- Création de personnage (lunatic_creator) : la photo est prise à la fin de la création, avant l'arrivée en ville
+exports('requestMugshot', function(target)
+    target = tonumber(target)
+
+    if target and GetPlayerName(target) then
+        requestMugshot(target)
+        return true
+    end
+
+    return false
+end)
+
 -- Photo automatique à la première connexion d'un personnage (sans photo en base)
 AddEventHandler('esx:playerLoaded', function(playerId, xPlayer)
     local identifier = xPlayer and xPlayer.identifier
@@ -316,7 +328,8 @@ AddEventHandler('esx:playerLoaded', function(playerId, xPlayer)
     SetTimeout(MUGSHOT_DELAY, function()
         local current = ESX.GetPlayerFromId(playerId)
 
-        if current and current.identifier == identifier then
+        -- En pleine création de personnage : la photo sera demandée par lunatic_creator à la fin
+        if current and current.identifier == identifier and not Player(playerId).state.lunaticCreating then
             requestMugshot(playerId)
         end
     end)

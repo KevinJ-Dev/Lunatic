@@ -1,12 +1,14 @@
 -- Création de personnage, côté client : pièce privée, caméras, aperçu en direct (héritage, pilosité, yeux,
--- maquillage, détails, traits du visage), puis enregistrement (identité par esx_identity, apparence par
--- illenium-appearance). Ouverte par esx_identity (« lunatic_creator:open ») à la première connexion ou après
--- « Recréer » dans le panel staff.
+-- maquillage, détails, traits du visage, vêtements), aperçu du lieu d'apparition, puis enregistrement
+-- (identité par esx_identity, apparence par illenium-appearance), photo d'identité et arrivée avec l'animation GTA.
+-- Ouverte par esx_identity (« lunatic_creator:open ») à la première connexion ou après « Recréer » dans le panel.
 
 local active = false
 local cam = nil
 local cameraIndex = 2
+local anchor = Config.Room   -- position du personnage (la pièce, puis l'aperçu du lieu d'apparition)
 local heading = Config.Room.w
+local spawnIndex = nil
 
 local MODELS = { male = `mp_m_freemode_01`, female = `mp_f_freemode_01` }
 -- Type de couleur de chaque calque du visage : 1 = couleurs des cheveux, 2 = maquillage
@@ -14,14 +16,31 @@ local OVERLAY_COLOR_TYPE = { [1] = 1, [2] = 1, [10] = 1, [5] = 2, [8] = 2 }
 
 local appearance -- choix en cours (renvoyé tel quel par l'interface)
 
+-- Tenue de départ : { components = { ["11"] = { drawable, texture } }, props = { ... } } (clés texte pour l'interface)
+local function starterClothes(sex)
+    local starter = Config.StarterOutfit[sex] or { components = {}, props = {} }
+    local clothes = { components = {}, props = {} }
+
+    for id, value in pairs(starter.components or {}) do
+        clothes.components[tostring(id)] = { value[1], value[2] }
+    end
+
+    for id, value in pairs(starter.props or {}) do
+        clothes.props[tostring(id)] = { value[1], value[2] }
+    end
+
+    return clothes
+end
+
 local function defaults(sex)
     return {
         sex = sex,
-        heritage = { father = 0, mother = 21, shape = 0.5, skin = 0.5 },
+        heritage = sex == 'female' and { father = 0, mother = 21, shape = 0.8, skin = 0.5 } or { father = 0, mother = 21, shape = 0.5, skin = 0.5 },
         hair = { style = 0, color = 0, highlight = 0 },
         eyeColor = 0,
         overlays = {},
         features = {},
+        clothes = starterClothes(sex),
     }
 end
 
@@ -33,12 +52,23 @@ end
 -- Application sur le personnage
 ---------------------------------------------------------------------
 
-local function undress(ped, sex)
-    for component, drawable in pairs(Config.Undress[sex] or {}) do
+local function applyClothes(ped)
+    for component, drawable in pairs(Config.Undress[appearance.sex] or {}) do
         SetPedComponentVariation(ped, component, drawable, 0, 0)
     end
 
     ClearAllPedProps(ped)
+    local clothes = appearance.clothes or {}
+
+    for id, value in pairs(clothes.components or {}) do
+        SetPedComponentVariation(ped, tonumber(id), value[1], value[2] or 0, 0)
+    end
+
+    for id, value in pairs(clothes.props or {}) do
+        if value[1] >= 0 then
+            SetPedPropIndex(ped, tonumber(id), value[1], value[2] or 0, true)
+        end
+    end
 end
 
 local function applyHeritage(ped)
@@ -71,6 +101,7 @@ end
 
 local function applyAll()
     local ped = PlayerPedId()
+    applyClothes(ped)
     applyHeritage(ped)
     applyHair(ped)
     SetPedEyeColor(ped, appearance.eyeColor)
@@ -84,14 +115,17 @@ local function applyAll()
     end
 end
 
-local function setSex(sex)
-    appearanceApi():setPlayerModel(MODELS[sex])
+local function placePed()
     local ped = PlayerPedId()
-    SetEntityCoords(ped, Config.Room.x, Config.Room.y, Config.Room.z - 0.98, false, false, false, false)
+    SetEntityCoords(ped, anchor.x, anchor.y, anchor.z - 0.98, false, false, false, false)
     SetEntityHeading(ped, heading)
     FreezeEntityPosition(ped, true)
     SetEntityInvincible(ped, true)
-    undress(ped, sex)
+end
+
+local function setSex(sex)
+    appearanceApi():setPlayerModel(MODELS[sex])
+    placePed()
     applyAll()
 end
 
@@ -124,16 +158,27 @@ local function options()
     }
 end
 
+-- Nombre de modèles et de couleurs d'un vêtement (selon le modèle choisi)
+local function clothesCounts(kind, id, drawable)
+    local ped = PlayerPedId()
+
+    if kind == 'prop' then
+        return { drawables = GetNumberOfPedPropDrawableVariations(ped, id), textures = drawable >= 0 and GetNumberOfPedPropTextureVariations(ped, id, drawable) or 0 }
+    end
+
+    return { drawables = GetNumberOfPedDrawableVariations(ped, id), textures = GetNumberOfPedTextureVariations(ped, id, drawable) }
+end
+
 ---------------------------------------------------------------------
--- Caméras
+-- Caméras (relatives à la position du personnage : pièce ou lieu d'apparition)
 ---------------------------------------------------------------------
 
 local function setCamera(index, instant)
     local settings = Config.Cameras[index] or Config.Cameras[2]
     cameraIndex = index
 
-    local base = vector3(Config.Room.x, Config.Room.y, Config.Room.z)
-    local angle = math.rad(Config.Room.w)
+    local base = vector3(anchor.x, anchor.y, anchor.z)
+    local angle = math.rad(anchor.w)
     local forward = vector3(-math.sin(angle), math.cos(angle), 0.0)
     local position = base + forward * settings.distance + vector3(0.0, 0.0, settings.height)
 
@@ -156,8 +201,8 @@ local function setCamera(index, instant)
     cam = new
 end
 
-local function stopCamera()
-    RenderScriptCams(false, true, 500, true, true)
+local function stopCamera(ease)
+    RenderScriptCams(false, ease == true, ease and 500 or 0, true, true)
 
     if cam then
         DestroyCam(cam, false)
@@ -181,6 +226,35 @@ local function fade(out)
     end
 end
 
+local function waitCollision()
+    RequestCollisionAtCoord(anchor.x, anchor.y, anchor.z)
+    local timeout = GetGameTimer() + 5000
+
+    while not HasCollisionLoadedAroundEntity(PlayerPedId()) and GetGameTimer() < timeout do
+        Wait(0)
+    end
+end
+
+local function spawnList()
+    local list = {}
+
+    for index, spawn in ipairs(Config.Spawns) do
+        list[#list + 1] = { index = index, group = spawn.group, label = spawn.label, image = spawn.image }
+    end
+
+    return list
+end
+
+local function clothesList()
+    local list = {}
+
+    for index, entry in ipairs(Config.Clothes) do
+        list[#list + 1] = { index = index, label = entry.label, kind = entry.kind, id = entry.id, camera = entry.camera, extra = entry.extra }
+    end
+
+    return list
+end
+
 local function open()
     if active then
         return
@@ -191,15 +265,9 @@ local function open()
     TriggerServerEvent('lunatic_creator:enter')
 
     appearance = defaults('male')
-    heading = Config.Room.w
-    RequestCollisionAtCoord(Config.Room.x, Config.Room.y, Config.Room.z)
+    anchor, heading, spawnIndex = Config.Room, Config.Room.w, nil
     setSex('male')
-
-    local timeout = GetGameTimer() + 5000
-
-    while not HasCollisionLoadedAroundEntity(PlayerPedId()) and GetGameTimer() < timeout do
-        Wait(0)
-    end
+    waitCollision()
 
     RequestStreamedTextureDict('char_creator_portraits', true)
     DisplayRadar(false)
@@ -210,7 +278,7 @@ local function open()
         action = 'open',
         appearance = appearance,
         options = options(),
-        config = { height = Config.Height, age = Config.Age, cameras = #Config.Cameras },
+        config = { height = Config.Height, age = Config.Age, cameras = #Config.Cameras, spawns = spawnList(), clothes = clothesList(), mugshot = Config.MugshotSeconds },
     })
 
     Wait(300)
@@ -226,27 +294,33 @@ local function open()
     end)
 end
 
-local function close(spawn)
-    fade(true)
-    SetNuiFocus(false, false)
-    SendNUIMessage({ action = 'close' })
-    stopCamera()
-
+-- Arrivée en ville avec l'animation de changement de personnage de GTA (caméra qui monte puis redescend)
+local function arrive()
     local ped = PlayerPedId()
+    SwitchOutPlayer(ped, 0, 1)
+
+    local timeout = GetGameTimer() + 8000
+
+    while GetPlayerSwitchState() ~= 5 and GetGameTimer() < timeout do
+        Wait(0)
+    end
+
+    -- En l'air : le joueur rejoint le monde de tous, puis la caméra redescend sur lui
+    SendNUIMessage({ action = 'close' })
+    TriggerServerEvent('lunatic_creator:leave')
     FreezeEntityPosition(ped, false)
     SetEntityInvincible(ped, false)
-    TriggerServerEvent('lunatic_creator:leave')
-    active = false
+    Wait(1500)
+    SwitchInPlayer(ped)
 
-    if spawn then
-        RequestCollisionAtCoord(spawn.x, spawn.y, spawn.z)
-        SetEntityCoords(ped, spawn.x, spawn.y, spawn.z - 0.98, false, false, false, false)
-        SetEntityHeading(ped, spawn.w)
+    timeout = GetGameTimer() + 15000
+
+    while IsPlayerSwitchInProgress() and GetGameTimer() < timeout do
+        Wait(0)
     end
 
     DisplayRadar(true)
-    Wait(800)
-    fade(false)
+    active = false
 end
 
 AddEventHandler('lunatic_creator:open', open)
@@ -259,13 +333,8 @@ RegisterNUICallback('sex', function(data, cb)
     local sex = data.sex == 'female' and 'female' or 'male'
 
     if sex ~= appearance.sex then
-        -- Nouveau modèle : on repart des réglages par défaut du sexe choisi (coiffures et calques diffèrent)
+        -- Nouveau modèle : on repart des réglages par défaut du sexe choisi (coiffures, calques et vêtements diffèrent)
         appearance = defaults(sex)
-
-        if sex == 'female' then
-            appearance.heritage = { father = 0, mother = 21, shape = 0.8, skin = 0.5 }
-        end
-
         setSex(sex)
     end
 
@@ -281,6 +350,11 @@ RegisterNUICallback('appearance', function(data, cb)
     end
 
     cb({})
+end)
+
+-- Nombre de modèles / couleurs d'un vêtement
+RegisterNUICallback('clothesCounts', function(data, cb)
+    cb(clothesCounts(data.kind == 'prop' and 'prop' or 'component', tonumber(data.id) or 0, tonumber(data.drawable) or 0))
 end)
 
 RegisterNUICallback('camera', function(data, cb)
@@ -299,12 +373,36 @@ RegisterNUICallback('rotate', function(data, cb)
     cb({})
 end)
 
--- Fin de la création : identité (esx_identity), apparence (illenium-appearance), lieu de naissance
+-- Aperçu d'un lieu d'apparition : le personnage y est placé (seul, dans son instance)
+RegisterNUICallback('spawn', function(data, cb)
+    local spawn = Config.Spawns[tonumber(data.index) or 0]
+    cb({})
+
+    if not spawn or spawnIndex == tonumber(data.index) then
+        return
+    end
+
+    spawnIndex = tonumber(data.index)
+    fade(true)
+    anchor = spawn.coords
+    heading = spawn.coords.w
+    placePed()
+    waitCollision()
+    setCamera(3, true)
+    Wait(200)
+    fade(false)
+end)
+
+-- Fin de la création : identité (esx_identity), apparence (illenium-appearance), lieu de naissance, photo, arrivée
 RegisterNUICallback('finish', function(data, cb)
     local identity = type(data) == 'table' and data.identity
 
     if type(identity) ~= 'table' then
         return cb({ ok = false, error = 'Identité incomplète.' })
+    end
+
+    if not spawnIndex or not Config.Spawns[spawnIndex] then
+        return cb({ ok = false, error = "Choisissez un lieu d'apparition." })
     end
 
     local ok = exports.esx_identity:registerIdentity({
@@ -318,15 +416,26 @@ RegisterNUICallback('finish', function(data, cb)
 
     TriggerServerEvent('illenium-appearance:server:saveAppearance', appearanceApi():getPedAppearance(PlayerPedId()))
     lib.callback.await('lunatic_creator:saveInfo', false, { birthplace = identity.birthplace or '' })
-
     cb({ ok = true })
-    close(Config.DefaultSpawn)
+
+    -- Photo d'identité : face à l'objectif, quelques secondes
+    heading = anchor.w
+    SetEntityHeading(PlayerPedId(), heading)
+    setCamera(1, false)
+    SendNUIMessage({ action = 'mugshot', seconds = Config.MugshotSeconds })
+    Wait(1200)
+    lib.callback.await('lunatic_creator:mugshot', false)
+    Wait(math.max(0, Config.MugshotSeconds * 1000 - 1200))
+
+    SetNuiFocus(false, false)
+    stopCamera(false)
+    arrive()
 end)
 
 AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() and active then
         SetNuiFocus(false, false)
-        stopCamera()
+        stopCamera(false)
         FreezeEntityPosition(PlayerPedId(), false)
         DisplayRadar(true)
         DoScreenFadeIn(0)

@@ -79,14 +79,14 @@ const FEATURES = [
     ["Cou", [[19, "Épaisseur"]]],
 ];
 
-// Étapes : les deux dernières arrivent avec la partie 2
+// Étapes de la création
 const STEPS = [
     { id: "identity", label: "Identité", icon: "M12 3a7 7 0 0 0-7 7v3M19 10a7 7 0 0 0-7-7M8.5 21c.6-2 1-4.3 1-7a2.5 2.5 0 0 1 5 0c0 1.5-.1 3-.4 4.4M5 16c.4-1.2.6-2.6.6-4M12 10v4c0 2.6-.4 5-1.2 7M18.6 17c.3-1.6.4-3.3.4-5" },
     { id: "heritage", label: "Héritage", icon: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" },
     { id: "appearance", label: "Apparence", icon: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" },
     { id: "face", label: "Visage", icon: "M18 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM8.6 13.5l6.8 4M15.4 6.5l-6.8 4" },
-    { id: "clothes", label: "Vêtements", icon: "M8 3 3 6l2 4 2-1v12h10V9l2 1 2-4-5-3a4 4 0 0 1-8 0z", soon: true },
-    { id: "spawn", label: "Lieu d'apparition", icon: "M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12zM12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z", soon: true },
+    { id: "clothes", label: "Vêtements", icon: "M8 3 3 6l2 4 2-1v12h10V9l2 1 2-4-5-3a4 4 0 0 1-8 0z" },
+    { id: "spawn", label: "Lieu d'apparition", icon: "M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12zM12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" },
 ];
 
 // ---------- État ----------
@@ -120,7 +120,7 @@ function paint() {
     }, svg(s.icon))));
 
     const step = STEPS[stepIndex];
-    const body = { identity: identityStep, heritage: heritageStep, appearance: appearanceStep, face: faceStep }[step.id]();
+    const body = { identity: identityStep, heritage: heritageStep, appearance: appearanceStep, face: faceStep, clothes: clothesStep, spawn: spawnStep }[step.id]();
     $("step").replaceChildren(h("h2", null, step.label === "Visage" ? "Traits du visage" : step.label), body);
     $("prev").style.visibility = stepIndex === 0 ? "hidden" : "visible";
     $("next").textContent = stepIndex === lastStep() ? "Terminer" : "Suivant";
@@ -128,7 +128,7 @@ function paint() {
     $("cams").replaceChildren(...Array.from({ length: settings.cameras }, (_, i) => h("button", { class: `cam${camera === i + 1 ? " on" : ""}`, title: ["Visage", "Buste", "Corps"][i], onclick: () => setCamera(i + 1) }, String(i + 1))));
 }
 
-const lastStep = () => STEPS.findIndex((s) => s.soon) - 1;
+const lastStep = () => STEPS.length - 1;
 
 function go(index) {
     if (STEPS[index].soon) return toast("Cette étape arrive bientôt.");
@@ -138,6 +138,7 @@ function go(index) {
     paint();
     $("step").scrollTop = 0;
     if (STEPS[index].id === "face" || STEPS[index].id === "heritage") setCamera(1);
+    if (STEPS[index].id === "clothes") setCamera(3);
 }
 
 let camera = 2;
@@ -318,12 +319,107 @@ function faceStep() {
         h("p", { class: "note" }, "Double-cliquez sur une barre pour la remettre au milieu."));
 }
 
+// ---------- 5. Vêtements ----------
+
+let clothesOpen = null; // index de la catégorie dépliée
+const clothesCounts = {}; // "kind:id:drawable" -> { drawables, textures }
+
+function clothesValue(kind, id) {
+    const bag = kind === "prop" ? appearance.clothes.props : appearance.clothes.components;
+    return bag[id] || (bag[id] = kind === "prop" ? [-1, 0] : [0, 0]);
+}
+
+async function counts(kind, id, drawable) {
+    const key = `${appearance.sex}:${kind}:${id}:${drawable}`; // les comptes changent avec le modèle homme / femme
+    if (!clothesCounts[key]) clothesCounts[key] = await nui("clothesCounts", { kind, id, drawable });
+    return clothesCounts[key] || { drawables: 1, textures: 1 };
+}
+
+// Réglage d'un vêtement : modèle puis couleur (les comptes viennent du jeu)
+function clothesEditor(kind, id, label) {
+    const value = clothesValue(kind, id);
+    const box = h("div", { class: "field" }, h("span", null, label), h("div", { class: "muted-line" }, "…"));
+    const paintBox = async () => {
+        const c = await counts(kind, id, value[0]);
+        const min = kind === "prop" ? -1 : 0;
+        const model = stepper(value[0], min, Math.max(min, c.drawables - 1), async (v) => {
+            value[0] = v;
+            value[1] = 0;
+            pushAppearance();
+            paintBox();
+        }, (v) => (v < 0 ? "Aucun" : `${v + 1} / ${c.drawables}`));
+        const color = c.textures > 1 ? stepper(value[1], 0, c.textures - 1, (v) => { value[1] = v; pushAppearance(); }, (v) => `Couleur ${v + 1} / ${c.textures}`) : null;
+        box.replaceChildren(h("span", null, label), model, color);
+    };
+    paintBox();
+    return box;
+}
+
+function clothesStep() {
+    return h("div", { class: "stack" }, h("div", { class: "field" }, h("span", null, "Catégories"),
+        h("div", { class: "clothes" }, settings.clothes.map((entry) => [
+            h("button", { class: `clothes-card${clothesOpen === entry.index ? " on" : ""}`, onclick: () => {
+                clothesOpen = clothesOpen === entry.index ? null : entry.index;
+                if (clothesOpen) setCamera(entry.camera || 2);
+                paint();
+            } }, h("span", null, entry.label)),
+            clothesOpen === entry.index ? h("div", { class: "editor" },
+                clothesEditor(entry.kind, entry.id, "Modèle"),
+                (entry.extra || []).map((extra) => clothesEditor("component", extra.id, extra.label))) : null,
+        ]))),
+        h("p", { class: "note" }, "La tenue est enregistrée avec le personnage ; elle se change ensuite dans les magasins de vêtements."));
+}
+
+// ---------- 6. Lieu d'apparition ----------
+
+let spawnChoice = null;
+
+function spawnStep() {
+    const groups = [];
+    for (const spawn of settings.spawns) {
+        let group = groups.find((g) => g.name === spawn.group);
+        if (!group) groups.push(group = { name: spawn.group, list: [] });
+        group.list.push(spawn);
+    }
+    return h("div", { class: "stack" }, groups.map((g) => h("div", { class: "field" }, h("span", null, g.name),
+        h("div", { class: "spawns" }, g.list.map((spawn) => {
+            const card = h("button", { class: `spawn-card${spawnChoice === spawn.index ? " on" : ""}`, onclick: () => {
+                spawnChoice = spawn.index;
+                nui("spawn", { index: spawn.index });
+                paint();
+            } }, h("span", null, spawn.label));
+            if (spawn.image) card.style.backgroundImage = `url("${spawn.image}")`;
+            return card;
+        })))),
+        h("p", { class: "note" }, "Votre personnage est montré sur place. « Terminer » : photo d'identité, puis arrivée en ville."));
+}
+
+// ---------- Photo d'identité ----------
+
+function mugshot(seconds) {
+    const left = h("b", null, String(seconds));
+    const screen = h("div", { class: "mugshot" },
+        h("div", { class: "mugshot-frame" }),
+        h("div", { class: "mugshot-text" }, h("span", null, "Photo d'identité"), h("small", null, "Regardez l'objectif"), left),
+        h("div", { class: "flash" }));
+    document.body.append(screen);
+    $("creator").classList.add("shooting");
+    let n = seconds;
+    const timer = setInterval(() => {
+        n -= 1;
+        left.textContent = n > 0 ? String(n) : "";
+        if (n === Math.floor(seconds / 2)) screen.classList.add("flashing");
+        if (n <= 0) clearInterval(timer);
+    }, 1000);
+}
+
 // ---------- Navigation et fin ----------
 
 $("prev").addEventListener("click", () => stepIndex > 0 && go(stepIndex - 1));
 $("next").addEventListener("click", async () => {
     if (stepIndex < lastStep()) return go(stepIndex + 1);
     if (!checkIdentity()) { stepIndex = 0; paint(); return; }
+    if (!spawnChoice) return toast("Choisissez un lieu d'apparition.");
     $("next").disabled = true;
     $("next").textContent = "Création…";
     const res = await nui("finish", { identity });
@@ -354,17 +450,25 @@ window.addEventListener("message", (event) => {
         identity.height = settings.height.default;
         stepIndex = 0;
         camera = 2;
+        spawnChoice = null;
+        clothesOpen = null;
         $("creator").classList.remove("hidden");
         paint();
     }
-    if (msg.action === "close") $("creator").classList.add("hidden");
+    if (msg.action === "mugshot") mugshot(msg.seconds || 4);
+    if (msg.action === "close") {
+        $("creator").classList.add("hidden");
+        $("creator").classList.remove("shooting");
+        document.querySelectorAll(".mugshot").forEach((el) => el.remove());
+    }
 });
 
 // ---------- Aperçu navigateur ----------
 
 function demo(name) {
     if (name === "sex") return { appearance: { ...appearance, sex: appearance.sex === "male" ? "female" : "male" }, options };
-    if (name === "finish") return { ok: true };
+    if (name === "finish") { setTimeout(() => window.postMessage({ action: "mugshot", seconds: 4 }, "*"), 100); return { ok: true }; }
+    if (name === "clothesCounts") return { drawables: 120, textures: 6 };
     return {};
 }
 
@@ -372,8 +476,10 @@ if (!inGame) {
     const colors = Array.from({ length: 64 }, (_, i) => [40 + (i * 13) % 200, 30 + (i * 7) % 150, 20 + (i * 5) % 100]);
     window.postMessage({
         action: "open",
-        appearance: { sex: "male", heritage: { father: 0, mother: 21, shape: 0.5, skin: 0.5 }, hair: { style: 0, color: 0, highlight: 0 }, eyeColor: 0, overlays: {}, features: {} },
+        appearance: { sex: "male", heritage: { father: 0, mother: 21, shape: 0.5, skin: 0.5 }, hair: { style: 0, color: 0, highlight: 0 }, eyeColor: 0, overlays: {}, features: {}, clothes: { components: { 11: [0, 0], 4: [0, 0] }, props: {} } },
         options: { hairStyles: 76, overlays: { 0: 24, 1: 29, 2: 34, 3: 15, 4: 75, 5: 7, 7: 11, 8: 10, 9: 18, 10: 17, 11: 12 }, hairColors: colors, makeupColors: colors },
-        config: { height: { min: 150, max: 210, default: 178 }, age: { min: 18, max: 90 }, cameras: 3 },
+        config: { height: { min: 150, max: 210, default: 178 }, age: { min: 18, max: 90 }, cameras: 3, mugshot: 4,
+            clothes: [{ index: 1, label: "Chapeau", kind: "prop", id: 0, camera: 1 }, { index: 2, label: "Haut", kind: "component", id: 11, camera: 2, extra: [{ label: "Sous-haut", id: 8 }, { label: "Bras", id: 3 }] }, { index: 3, label: "Bas", kind: "component", id: 4, camera: 3 }, { index: 4, label: "Lunettes", kind: "prop", id: 1, camera: 1 }, { index: 5, label: "Cou", kind: "component", id: 7 }, { index: 6, label: "Sac", kind: "component", id: 5 }, { index: 7, label: "Chaussures", kind: "component", id: 6 }],
+            spawns: [{ index: 1, group: "Los Santos", label: "Vespucci" }, { index: 2, group: "Los Santos", label: "Place des Cubes" }, { index: 3, group: "Los Santos", label: "Gouvernement" }, { index: 4, group: "Blaine County", label: "Sandy Shores" }, { index: 5, group: "Blaine County", label: "Paleto Bay" }, { index: 6, group: "Aéroport", label: "Aéroport international" }] },
     }, "*");
 }

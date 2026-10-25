@@ -4,8 +4,36 @@ Config = {}
 -- Chaque joueur y est seul : il est placé dans une instance (routing bucket) le temps de la création.
 Config.Room = vector4(-786.87, 315.76, 217.64, 270.0)
 
--- Arrivée après la création (partie 2 : choix du lieu d'apparition)
-Config.DefaultSpawn = vector4(-1037.62, -2737.71, 20.17, 330.0) -- aéroport de Los Santos
+-- Lieux d'apparition proposés à la fin de la création (aperçu en direct sur place, arrivée avec l'animation GTA).
+-- image : lien https (facultatif), affiché derrière le nom.
+Config.Spawns = {
+    { group = 'Los Santos', label = 'Vespucci', coords = vector4(-1184.4, -1509.8, 4.38, 305.0), image = '' },
+    { group = 'Los Santos', label = 'Place des Cubes', coords = vector4(195.17, -933.77, 30.69, 144.0), image = '' },
+    { group = 'Los Santos', label = 'Gouvernement', coords = vector4(-544.9, -204.4, 38.22, 210.0), image = '' },
+    { group = 'Blaine County', label = 'Sandy Shores', coords = vector4(1961.3, 3740.4, 32.34, 300.0), image = '' },
+    { group = 'Blaine County', label = 'Paleto Bay', coords = vector4(-103.6, 6330.7, 31.49, 135.0), image = '' },
+    { group = 'Aéroport', label = 'Aéroport international', coords = vector4(-1037.62, -2737.71, 20.17, 330.0), image = '' },
+}
+
+-- Catégories de vêtements (composants et accessoires GTA) ; extra = réglages supplémentaires dans la même carte
+Config.Clothes = {
+    { label = 'Chapeau', kind = 'prop', id = 0, camera = 1 },
+    { label = 'Haut', kind = 'component', id = 11, camera = 2, extra = { { label = 'Sous-haut', id = 8 }, { label = 'Bras', id = 3 } } },
+    { label = 'Bas', kind = 'component', id = 4, camera = 3 },
+    { label = 'Lunettes', kind = 'prop', id = 1, camera = 1 },
+    { label = 'Cou', kind = 'component', id = 7, camera = 2 },
+    { label = 'Sac', kind = 'component', id = 5, camera = 3 },
+    { label = 'Chaussures', kind = 'component', id = 6, camera = 3 },
+}
+
+-- Tenue proposée au départ de l'étape Vêtements (à ajuster selon tes packs de vêtements)
+Config.StarterOutfit = {
+    male = { components = { [11] = { 0, 0 }, [8] = { 15, 0 }, [3] = { 0, 0 }, [4] = { 0, 0 }, [6] = { 1, 0 } }, props = {} },
+    female = { components = { [11] = { 0, 0 }, [8] = { 2, 0 }, [3] = { 0, 0 }, [4] = { 0, 0 }, [6] = { 0, 0 } }, props = {} },
+}
+
+-- Temps laissé à la photo d'identité (mugshot) avant l'arrivée en ville
+Config.MugshotSeconds = 4
 
 -- Caméras (en haut à droite) : distance devant le personnage, hauteur visée, champ de vision
 Config.Cameras = {

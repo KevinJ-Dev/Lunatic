@@ -108,3 +108,28 @@ input[type="range"]::-webkit-slider-thumb { appearance: none; width: 18px; heigh
 
 .toast { position: fixed; bottom: 30px; left: 430px; padding: 10px 16px; border-left: 3px solid #e0a040; background: #111a; opacity: 0; transition: opacity .2s; pointer-events: none; }
 .toast.on { opacity: 1; }
+
+/* Vêtements */
+.clothes { display: grid; gap: 6px; }
+.clothes-card { position: relative; height: 64px; border: 0; background: linear-gradient(90deg, #ffffff0d, #ffffff04); color: var(--muted); font-size: 14px; }
+.clothes-card:hover { color: var(--ink); }
+.clothes-card.on { background: linear-gradient(90deg, rgba(91, 127, 209, .7), rgba(61, 94, 168, .25)); color: #fff; font-weight: 700; }
+.muted-line { color: var(--muted); }
+
+/* Lieux d'apparition */
+.spawns { display: grid; gap: 6px; }
+.spawn-card { height: 70px; border: 0; background: linear-gradient(120deg, #1a2440, #0f1626) center / cover; color: var(--muted); font-size: 14px; text-shadow: 0 1px 6px #000; }
+.spawn-card:hover { color: var(--ink); }
+.spawn-card.on { outline: 2px solid var(--accent-2); color: #fff; font-weight: 700; box-shadow: inset 0 0 0 999px rgba(61, 94, 168, .35); }
+
+/* Photo d'identité */
+.creator.shooting .panel, .creator.shooting .cams, .creator.shooting .hint { display: none; }
+.mugshot { position: fixed; inset: 0; pointer-events: none; }
+.mugshot-frame { position: absolute; top: 12%; left: 50%; width: 30vh; height: 40vh; transform: translateX(-50%); border: 2px solid #ffffffb0; border-radius: 12px; box-shadow: 0 0 0 9999px #00000070; }
+.mugshot-text { position: absolute; bottom: 12%; left: 50%; display: grid; justify-items: center; gap: 4px; transform: translateX(-50%); text-shadow: 0 2px 8px #000; }
+.mugshot-text span { font-size: 22px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.mugshot-text small { color: #ffffffc0; font-size: 14px; }
+.mugshot-text b { font-size: 40px; }
+.flash { position: absolute; inset: 0; background: #fff; opacity: 0; }
+.mugshot.flashing .flash { animation: flash .6s ease-out; }
+@keyframes flash { 0% { opacity: .9; } 100% { opacity: 0; } }
