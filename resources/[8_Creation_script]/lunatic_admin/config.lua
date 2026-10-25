@@ -25,6 +25,8 @@ Config.LicenseLabels = {
     boat = 'Permis bateau',
     weapon = "Port d'arme",
     weed_processing = 'Licence de transformation',
+    aircraft = 'Permis avion',
+    helicopter = 'Permis hélicoptère',
 }
 
 -- Raison d'une expulsion : longueur minimale et maximale

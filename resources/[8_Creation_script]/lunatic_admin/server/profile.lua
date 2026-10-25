@@ -3,13 +3,22 @@
 ---@type {type:string, label:string}[] catalogue des permis (table licenses d'ESX)
 local catalogue = {}
 
-table.insert(Panel.readyHooks, function()
+-- Rechargé aussi quand un module ajoute des permis (auto-école : avion, hélicoptère)
+function Panel.reloadLicenses()
     local rows = MySQL.query.await('SELECT `type`, `label` FROM `licenses` ORDER BY `type`') or {}
+    catalogue = {}
 
     for _, row in ipairs(rows) do
         catalogue[#catalogue + 1] = { type = row.type, label = Config.LicenseLabels[row.type] or row.label }
     end
-end)
+end
+
+table.insert(Panel.readyHooks, Panel.reloadLicenses)
+
+---@return {type:string, label:string}[] catalogue des permis (auto-école)
+function Panel.licenseCatalogue()
+    return catalogue
+end
 
 local function knownLicense(licenseType)
     for _, entry in ipairs(catalogue) do

@@ -229,6 +229,7 @@ const NAV = [
     { id: "poles", label: "Pôle emploi", icon: "i-briefcase", show: () => can("poles.manage") },
     { id: "events", label: "Events", icon: "i-calendar", show: () => can("events.manage") },
     { id: "world", label: "Météo", icon: "i-sun", show: () => hasWorld() },
+    { id: "others", label: "Autres", icon: "i-layers", show: () => can("others.manage") },
     { id: "server", label: "Serveur", icon: "i-server", show: () => can("server.manage") },
     { id: "dev", label: "Développeur", icon: "i-code", show: () => can("dev.manage") },
 ];
@@ -579,7 +580,7 @@ function render() {
 
     renderMe();
 
-    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "illegal", "crews", "catalogs", "items", "blips", "economy", "images", "interactions", "features", "poles", "events", "shop", "dev", "ranks", "members"]) {
+    for (const id of ["home", "dashboard", "players", "sanctions", "tools", "logs", "world", "server", "companies", "publics", "illegal", "crews", "catalogs", "items", "blips", "economy", "images", "interactions", "features", "poles", "events", "shop", "others", "dev", "ranks", "members"]) {
         $(`view-${id}`).classList.toggle("on", view === id);
     }
 
@@ -605,6 +606,7 @@ function render() {
     if (view === "publics") renderStructures("public");
     if (view === "events") renderEvents();
     if (view === "shop") renderStore();
+    if (view === "others") renderOthers();
     if (view === "dev") renderDev();
     if (view === "ranks") renderRanks();
     if (view === "members") renderMembers();
@@ -1665,7 +1667,7 @@ window.addEventListener("message", (event) => {
 
 function demoState() {
     return {
-        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["illegal.manage", "crews.manage", "catalogs.manage", "companies.manage", "publics.manage", "players.crash", "vehicles.give", "dev.manage", "events.manage", "poles.manage", "server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["illegal.manage", "others.manage", "crews.manage", "catalogs.manage", "companies.manage", "publics.manage", "players.crash", "vehicles.give", "dev.manage", "events.manage", "poles.manage", "server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],
@@ -1787,6 +1789,27 @@ async function demoNui(name, data) {
             cat(11, "Armes de poing", [{ id: 6, category: 11, label: "Pistolet", image: "", price: 800, active: true, data: { item: "WEAPON_PISTOL", ammo: 24 } }]),
             cat(12, "Armes automatiques", []), cat(13, "Fusils à pompe", []), cat(14, "Armes lourdes", []), cat(15, "Armes blanches", []),
         ] };
+    }
+    if (name === "action" && data && data.action === "driving.info") {
+        const exam = (label, license, price, model, speed, active, points) => ({ label, license, price, model, speed, active, spawn: points.length ? { x: 213.63, y: -1388.45, z: 30.58, h: 175.2 } : null, points });
+        return { ok: true, types: ["car", "bike", "truck", "plane", "heli", "boat"],
+            licenses: [{ type: "dmv", label: "Code de la route" }, { type: "drive", label: "Permis voiture" }, { type: "drive_bike", label: "Permis moto" }, { type: "drive_truck", label: "Permis poids lourd" }, { type: "aircraft", label: "Permis avion" }, { type: "helicopter", label: "Permis hélicoptère" }, { type: "boat", label: "Permis bateau" }],
+            settings: {
+                maxErrors: 3, minEngine: 750, ped: "a_m_y_business_01", blip: true,
+                school: { x: 239.47, y: -1380.96, z: 33.74, h: 140 }, finalTp: { x: 233.66, y: -1393.42, z: 30.51, h: 140 },
+                theory: { price: 200, count: 10, pass: 8, questions: [
+                    { q: "En agglomération, sauf indication contraire, la vitesse est limitée à :", a: ["30 km/h", "50 km/h", "70 km/h"], c: 2 },
+                    { q: "Un feu orange fixe signifie :", a: ["Je m'arrête, sauf si c'est dangereux", "J'accélère pour passer", "Je peux passer sans ralentir"], c: 1 },
+                ] },
+                exams: {
+                    car: exam("Voiture", "drive", 500, "blista", 50, true, [{ x: 240.06, y: 344.0, z: 103.93, speed: 70 }, { x: 106.66, y: 235.81, z: 108.06, speed: 50 }, { x: 342.97, y: 133.38, z: 103.41, speed: 80 }]),
+                    bike: exam("Moto", "drive_bike", 400, "pcj", 50, true, []),
+                    truck: exam("Camion", "drive_truck", 800, "mule", 50, true, []),
+                    plane: exam("Avion", "aircraft", 5000, "cuban800", 300, false, []),
+                    heli: exam("Hélicoptère", "helicopter", 5000, "frogger", 200, false, []),
+                    boat: exam("Bateau", "boat", 600, "dinghy", 80, true, []),
+                },
+            } };
     }
     if (name === "action" && data && data.action === "shop.info") return { ok: true,
         stats: { credits: 48250, subscriptions: 12, vehicles: 7, weapons: 3 },

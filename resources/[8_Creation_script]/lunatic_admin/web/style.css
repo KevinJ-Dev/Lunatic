@@ -1437,3 +1437,26 @@ body.hidden.minimized .mini-pill { display: flex; }
 .store-line { display: grid; grid-template-columns: minmax(0, 1fr) 90px auto; gap: 6px; align-items: center; }
 .store-actions { grid-template-columns: 1fr; }
 .store-line.vehicle { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+
+/* Tuile Autres et Auto-école */
+.others-tiles { max-width: 1000px; }
+.driving-head { display: flex; align-items: center; gap: 12px; padding: 18px 24px 10px; }
+.driving-head .page-title { margin: 0; }
+.driving-body { display: grid; gap: 14px; align-content: start; }
+.driving-body .card { display: grid; gap: 10px; }
+.driving-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 18px; }
+.driving-grid .item-field { grid-template-columns: 170px minmax(0, 1fr); }
+.driving-spot { display: grid; grid-template-columns: 200px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: #0000002e; font-size: 12.5px; }
+.driving-exam { display: grid; gap: 10px; }
+.driving-points-head { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; font-size: 13px; }
+.driving-points { display: grid; gap: 4px; }
+.driving-point { display: grid; grid-template-columns: 24px minmax(0, 1fr) 80px 36px auto auto auto auto; gap: 6px; align-items: center; padding: 4px 8px; border-radius: 8px; background: #0000002e; font-size: 12px; }
+.driving-point .input { height: 28px; }
+.driving-fold { margin-top: 0; }
+.driving-questions { display: grid; gap: 10px; margin-top: 8px; }
+.driving-question { display: grid; gap: 4px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #0000002e; }
+.driving-question-head { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.driving-answer { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 6px; align-items: center; padding-left: 30px; }
+.driving-answer .input, .driving-question-head .input { height: 30px; }
+.driving-good { width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); }
+.driving-good.on { border-color: transparent; background: var(--ok); color: #06180f; font-weight: 800; }
