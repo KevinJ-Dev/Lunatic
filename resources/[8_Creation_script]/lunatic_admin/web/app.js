@@ -1775,7 +1775,7 @@ async function demoNui(name, data) {
                 { id: 1, category: 1, label: "Pack Débutant", image: "", price: 500, active: true, data: { cash: 5000, bank: 0, items: [{ item: "phone", count: 1 }, { item: "id_card", count: 1 }], vehicles: [] } },
                 { id: 2, category: 1, label: "Pack Essentiel", image: "", price: 1500, active: true, data: { cash: 10000, bank: 0, items: [{ item: "phone", count: 1 }], vehicles: [{ model: "sultan", label: "Sultan Classic" }] } },
             ]),
-            cat(2, "Véhicule", []), cat(3, "Nourriture", []), cat(4, "Illégal", []), cat(5, "Premium", []),
+            cat(2, "Véhicule", []), cat(3, "Nourriture", []), cat(4, "Illégal", []), cat(5, "VIP", []),
         ] };
         if (kind === "vehicles") return { ok: true, categories: [
             cat(6, "Sportive", [
@@ -1844,7 +1844,7 @@ async function demoNui(name, data) {
         },
         transactions: [
             { name: "Jean Dupont", category: "vehicles", product: "Sultan Classic", amount: 1500, created: Math.floor(Date.now() / 1000) - 3600 },
-            { name: "Lina Petit", category: "premium", product: "Premium (30 jours)", amount: 1000, created: Math.floor(Date.now() / 1000) - 86400 },
+            { name: "Lina Petit", category: "premium", product: "VIP (30 jours)", amount: 1000, created: Math.floor(Date.now() / 1000) - 86400 },
         ] };
     if (name === "action" && data && data.action === "eventZones.list") return { ok: true, events: [
         { id: 1, label: "Course de Vespucci", description: "Course de rue sur le front de mer, véhicules fournis.", maxPlayers: 16, duration: 90, x: -1245.6, y: -1530.2, z: 4.3, radius: 220,
@@ -2204,7 +2204,7 @@ m("heist_fleeca", "Braquage Fleeca", "heist", ["heist", "fleeca"], false, true),
             rank: p.rank, frozen: !!p.frozen, canReturn: false, isSelf: p.serverId === 1, protected: p.serverId === 4 ? false : false,
             health: 164, maxHealth: 200, armor: 40, job: { name: "mechanic", label: p.job, grade: "Employé", level: 1 }, money: 2350, bank: 48200, blackMoney: 0,
             dateofbirth: "14/03/1996", sex: "m", height: 182, jail: p.serverId === 7 ? { remaining: 540, reason: "Freekill" } : undefined,
-            premium: p.serverId === 2 ? { tier: "premium_plus", label: "Premium+", color: "#9650ff", expires: Math.floor(Date.now() / 1000) + 25 * 86400 } : undefined,
+            premium: p.serverId === 2 ? { tier: "premium_plus", label: "VIP+", color: "#9650ff", expires: Math.floor(Date.now() / 1000) + 25 * 86400 } : undefined,
             credits: 1250, onDuty: true,
             profile: { discord: "284719305512345678", firstSeen: Math.floor(Date.now() / 1000) - 42 * 86400, lastSeen: Math.floor(Date.now() / 1000) - 3600, playtime: 742, warns: 1, banned: false,
                 crew: { id: 1, label: "Ballas", rank: "Lieutenant", color: "#9650ff" },

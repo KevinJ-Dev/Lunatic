@@ -161,6 +161,19 @@ exports('getPremiumPerks', function(src)
     return Shop.perksOf(src)
 end)
 
+-- exports.lunatic_admin:getPremiumTiers() -> { premium = { label, color, characters }, premium_plus = { … } }
+exports('getPremiumTiers', function()
+    local list = {}
+
+    for _, tier in ipairs(TIERS) do
+        local info = Config.PremiumTiers[tier] or {}
+        local perks = settings.tiers[tier] or {}
+        list[tier] = { label = info.label or tier, color = info.color, characters = tonumber(perks.characters) }
+    end
+
+    return list
+end)
+
 ---------------------------------------------------------------------
 -- Transactions (achats en boutique, partie 3)
 ---------------------------------------------------------------------

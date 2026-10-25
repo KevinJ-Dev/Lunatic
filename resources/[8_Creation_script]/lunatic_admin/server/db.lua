@@ -82,7 +82,7 @@ function DB.init()
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ]])
 
-    -- Abonnements Premium / Premium+ (expires_at NULL = à vie, secondes Unix sinon)
+    -- Abonnements VIP / VIP+ (expires_at NULL = à vie, secondes Unix sinon)
     MySQL.query.await([[
         CREATE TABLE IF NOT EXISTS `lunatic_admin_premium` (
             `license` VARCHAR(60) NOT NULL,

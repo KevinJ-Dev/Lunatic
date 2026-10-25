@@ -80,7 +80,7 @@ exports('getEconomy', function()
     return copy(settings)
 end)
 
--- Tuile Boutique (onglet Premium) : aide de l'État par abonnement, même réglage que cette tuile
+-- Tuile Boutique (onglet VIP) : aide de l'État par abonnement, même réglage que cette tuile
 function Panel.allowances()
     return copy(settings.allowances)
 end

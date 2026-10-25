@@ -13,7 +13,7 @@ Permissions.Families = {
     { id = 'dev',       label = 'Développeur' },
     { id = 'structures', label = 'Entreprises et services publics' },
     { id = 'illegal',    label = 'Illégal' },
-    { id = 'shop',      label = 'Premium et boutique' },
+    { id = 'shop',      label = 'VIP et boutique' },
     { id = 'chat',      label = 'Tchat' },
     { id = 'manage',    label = 'Gestion' },
 }
@@ -63,8 +63,8 @@ Permissions.List = {
     { id = 'catalogs.manage',  family = 'structures', label = 'Catalogues : magasins automatiques (LTD, Ammunation, grossistes…), prix, articles, emplacements' },
     { id = 'publics.manage',   family = 'structures', label = 'Services publics : créer et gérer police, médecins, administration, gouvernement' },
 
-    -- Lot G : Premium et boutique
-    { id = 'premium.manage', family = 'shop', label = 'Premium / Premium+ : attribuer et retirer les abonnements' },
+    -- Lot G : VIP et boutique
+    { id = 'premium.manage', family = 'shop', label = 'VIP / VIP+ : attribuer et retirer les abonnements' },
     { id = 'shop.manage',    family = 'shop', label = 'Gestion Boutique : donner et retirer des crédits boutique' },
 
     -- Lot D : météo et heure (lunatic_world)
@@ -135,7 +135,7 @@ local SHORT = {
     ['players.wipe'] = 'Wipe un joueur', ['players.offline'] = 'Gérer les joueurs offline', ['players.kick'] = 'Kick', ['players.crash'] = 'Crash Player',
     ['server.manage'] = 'Gestion Global', ['dev.manage'] = 'Gestion Développeur', ['events.manage'] = 'Gestion des events', ['poles.manage'] = 'Pôle emploi',
     ['illegal.manage'] = 'Illégal', ['crews.manage'] = 'Crews', ['companies.manage'] = 'Entreprises', ['items.manage'] = 'Items', ['blips.manage'] = 'Blips', ['economy.manage'] = 'Économie', ['images.manage'] = 'Images', ['interactions.manage'] = 'Interactions', ['features.manage'] = 'Fonctionnalités', ['others.manage'] = 'Autres',
-    ['catalogs.manage'] = 'Catalogues', ['publics.manage'] = 'Services publics', ['premium.manage'] = 'Premium', ['shop.manage'] = 'Gestion Boutique',
+    ['catalogs.manage'] = 'Catalogues', ['publics.manage'] = 'Services publics', ['premium.manage'] = 'VIP', ['shop.manage'] = 'Gestion Boutique',
     ['world.weather'] = 'Météo', ['world.time'] = 'Heure',
     ['economy.money'] = 'Argent (liquide, banque)', ['economy.black_money'] = 'Argent sale', ['economy.job'] = 'Changer de métier',
     ['economy.items'] = "Gérer l'inventaire", ['economy.clear'] = "Vider l'inventaire", ['vehicles.give'] = 'Give un véhicule',

@@ -153,11 +153,11 @@ Page Joueurs → onglet **Hors ligne** (permission `players.offline`) : recherch
 
 Actions (chacune exige aussi sa propre permission) : bannir (par licence), argent, métier, permis, recréer à la prochaine connexion, wipe. Un joueur connecté est refusé ici : ses données se modifient depuis l'onglet En ligne (sinon ESX les écraserait à la sauvegarde).
 
-## Premium et boutique (lot G)
+## VIP et boutique (lot G)
 
-Carte « Premium et boutique » des fiches (en ligne et hors ligne).
+Carte « VIP et boutique » des fiches (en ligne et hors ligne).
 
-- **Premium / Premium+** (`premium.manage`) : 7, 30, 90 jours, 1 an ou à vie ; un même abonnement encore actif est prolongé. Expiration automatique (vérifiée chaque minute).
+- **VIP / VIP+** (`premium.manage`) : 7, 30, 90 jours, 1 an ou à vie ; un même abonnement encore actif est prolongé. Expiration automatique (vérifiée chaque minute).
 - **Crédits boutique** (`shop.manage`) : donner / retirer avec raison, solde jamais négatif, historique des 15 derniers mouvements.
 
 Pour les autres scripts :
@@ -165,7 +165,7 @@ Pour les autres scripts :
 ```lua
 -- serveur
 exports.lunatic_admin:getPremium(source)                 -- { tier, label, expires } ou nil
-exports.lunatic_admin:isPremium(source, 'premium_plus')  -- Premium+ inclut Premium
+exports.lunatic_admin:isPremium(source, 'premium_plus')  -- VIP+ inclut VIP
 exports.lunatic_admin:getCredits(source)
 exports.lunatic_admin:removeCredits(source, montant, raison) -- true si le solde suffisait (achat boutique)
 -- client

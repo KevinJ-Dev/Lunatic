@@ -1,7 +1,14 @@
 Config = {}
 
--- Emplacements de personnages selon l'abonnement (lunatic_admin : Premium / Premium+) ; max = plafond absolu
-Config.Slots = { default = 1, premium = 2, premium_plus = 3, max = 5 }
+-- Emplacements de personnages : default sans abonnement, max = plafond absolu.
+-- Avec un abonnement, c'est l'avantage « personnages » du VIP / VIP+ (panel : tuile Boutique), plus les ajouts du staff.
+Config.Slots = { default = 1, max = 5 }
+
+-- Abonnements si lunatic_admin ne tourne pas (sinon nom, couleur et nombre de personnages viennent du panel)
+Config.Tiers = {
+    premium = { label = 'VIP', color = '#f2c26b', characters = 2 },
+    premium_plus = { label = 'VIP+', color = '#9650ff', characters = 3 },
+}
 
 -- Écran de sélection : le personnage choisi est montré sur ce décor, seul dans une instance privée
 -- (ped : position et orientation ; camera : distance devant lui, hauteur, visée, champ, décalage à droite du panneau)

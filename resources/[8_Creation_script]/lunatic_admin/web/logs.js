@@ -211,7 +211,7 @@ function describeLog(log) {
             summary = d.enabled ? "activé" : "désactivé";
             break;
         case "premium.set":
-            summary = `${d.tier === "premium_plus" ? "Premium+" : "Premium"} · ${d.days === "lifetime" ? "à vie" : `${d.days} jours`}`;
+            summary = `${d.tier === "premium_plus" ? "VIP+" : "VIP"} · ${d.days === "lifetime" ? "à vie" : `${d.days} jours`}`;
             break;
         case "server.restart":
             summary = `dans ${d.minutes} min${d.reason ? ` · ${d.reason}` : ""}`;

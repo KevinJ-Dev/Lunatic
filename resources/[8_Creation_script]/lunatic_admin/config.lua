@@ -49,10 +49,10 @@ Config.Jail = {
     maxMinutes = 600,                           -- durée maximale d'une peine
 }
 
--- Premium et boutique (lot G)
+-- VIP et boutique (lot G)
 Config.PremiumTiers = {
-    premium = { label = 'Premium', color = '#f2c26b' },
-    premium_plus = { label = 'Premium+', color = '#9650ff' },
+    premium = { label = 'VIP', color = '#f2c26b' },
+    premium_plus = { label = 'VIP+', color = '#9650ff' },
 }
 Config.PremiumMaxDays = 3650         -- durée maximale d'un abonnement (hors « à vie »)
 Config.CreditsMaxAction = 100000     -- crédits maximum par opération

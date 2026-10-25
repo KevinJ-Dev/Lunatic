@@ -1,4 +1,4 @@
--- Lot G : abonnements Premium / Premium+ et crédits boutique.
+-- Lot G : abonnements VIP / VIP+ et crédits boutique.
 -- Les autres scripts lisent l'abonnement par export (serveur) ou par l'état du joueur (client : LocalPlayer.state.premium).
 
 ---@type table<string, {tier:string, expires:number|nil}> abonnements actifs par licence
@@ -98,7 +98,7 @@ exports('getPremium', function(src)
     return license and Panel.premiumOf(license) or nil
 end)
 
--- exports.lunatic_admin:isPremium(source, 'premium_plus') : Premium+ inclut Premium
+-- exports.lunatic_admin:isPremium(source, 'premium_plus') : VIP+ inclut VIP
 exports('isPremium', function(src, minimum)
     local license = GetPlayerIdentifierByType(tonumber(src), 'license')
     local premium = license and Panel.premiumOf(license)
@@ -322,7 +322,7 @@ exports('grantPremium', function(src, tier, days)
     local current = premiums[license]
 
     if current and not isExpired(current) and current.tier ~= tier and current.tier == 'premium_plus' then
-        return false, 'Vous avez déjà Premium+ : attendez sa fin pour prendre Premium.'
+        return false, 'Vous avez déjà VIP+ : attendez sa fin pour prendre VIP.'
     end
 
     if current and not isExpired(current) and current.tier == tier and not current.expires then
@@ -400,4 +400,4 @@ Panel.actions['credits.history'] = function(_, actor, data)
     return { ok = true, silent = true, history = list }
 end
 
-print('[lunatic_admin] Module Premium et boutique chargé.')
+print('[lunatic_admin] Module VIP et boutique chargé.')

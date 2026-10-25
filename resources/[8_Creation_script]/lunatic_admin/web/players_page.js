@@ -14,7 +14,7 @@ let influenceMap = null;
 const PLAYER_FILTERS = [
     { value: "online", label: "Connectés", icon: "i-player" },
     { value: "staff", label: "Staff", icon: "i-shield" },
-    { value: "premium", label: "Premium", icon: "i-gem" },
+    { value: "premium", label: "VIP", icon: "i-gem" },
     { value: "playtime", label: "Temps de jeu", icon: "i-clock" },
     { value: "banned", label: "Bannis", icon: "i-ban", perm: "sanctions.view" },
     { value: "offline", label: "Recherche en base", icon: "i-search", perm: "players.offline" },
@@ -141,7 +141,7 @@ function paintPlayerList() {
             mugshotImg(p.identifier, "mug-row"),
             h("span", { class: "who" },
                 h("b", null, p.name),
-                h("span", null, [playersView.filter === "playtime" ? playtimeShort(p.playtime) : p.job, p.premium ? "Premium" : null].filter(Boolean).join(" · "))),
+                h("span", null, [playersView.filter === "playtime" ? playtimeShort(p.playtime) : p.job, p.premium ? "VIP" : null].filter(Boolean).join(" · "))),
             p.frozen ? icon("i-snow") : null,
             p.jailed ? icon("i-lock") : null,
             h("span", { class: "status on" }),

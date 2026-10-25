@@ -69,3 +69,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .detail { display: grid; gap: 2px; }
 .detail small { color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
 .detail b { font-size: 14px; }
+
+/* Abonnement du joueur, à côté du titre */
+.vip { display: inline-block; margin-left: 8px; padding: 2px 9px; border-radius: 999px; background: var(--accent); color: #1a1205; font: 700 11px/1.5 var(--font); letter-spacing: .04em; vertical-align: 3px; -webkit-text-fill-color: #1a1205; }

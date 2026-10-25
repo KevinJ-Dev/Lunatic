@@ -243,10 +243,10 @@ if (!inGame) {
         credits: { name: "LCoins", image: "" }, currency: "$", days: 30, balance: 2750,
         banners: [{ text: "Nouveautés", color: "#f2c26b", image: "" }, { text: "-30 % sur les véhicules", color: "#ff6b6b", image: "" }],
         categories: { premium: true, premium_plus: true, vehicles: true, packs: true, weapons: true, credits: true },
-        premium: { tier: "premium", label: "Premium", expires: Math.floor(Date.now() / 1000) + 12 * 86400 },
+        premium: { tier: "premium", label: "VIP", expires: Math.floor(Date.now() / 1000) + 12 * 86400 },
         tiers: {
-            premium: { label: "Premium", color: "#f2c26b", open: true, price: 1000, salaryMultiplier: 1.1, allowance: 35, characters: 2, garageSlots: 5, farmMultiplier: 1, outfits: 10 },
-            premium_plus: { label: "Premium+", color: "#9650ff", open: true, price: 2000, salaryMultiplier: 1.25, allowance: 70, characters: 3, garageSlots: 10, farmMultiplier: 1.25, outfits: 20 },
+            premium: { label: "VIP", color: "#f2c26b", open: true, price: 1000, salaryMultiplier: 1.1, allowance: 35, characters: 2, garageSlots: 5, farmMultiplier: 1, outfits: 10 },
+            premium_plus: { label: "VIP+", color: "#9650ff", open: true, price: 2000, salaryMultiplier: 1.25, allowance: 70, characters: 3, garageSlots: 10, farmMultiplier: 1.25, outfits: 20 },
         },
         catalogs: {
             vehicles: [{ id: 6, label: "Sportive", products: [

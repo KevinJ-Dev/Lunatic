@@ -221,7 +221,7 @@ function itemEditor() {
             row("Image", image),
             row("Description", description),
             h("div", { class: "mode-list" },
-                toggle("Premium", "Achetable seulement par les joueurs Premium (magasins du panel).", "premium"),
+                toggle("VIP", "Achetable seulement par les joueurs VIP (magasins du panel).", "premium"),
                 toggle("Permanent", "Ne quitte jamais l'inventaire : ni jeté, ni donné, ni rangé.", "permanent"),
                 toggle("Empilable", "Plusieurs exemplaires dans une même case.", "stack")),
             consumable ? h("div", null,

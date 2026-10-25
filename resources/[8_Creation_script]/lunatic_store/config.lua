@@ -6,6 +6,6 @@ Config.PremiumDays = 30              -- durée d'un abonnement acheté en boutiq
 Config.NotificationSeconds = 12      -- durée d'affichage de la notification de la boutique
 
 Config.Tiers = {
-    premium = { label = 'Premium', color = '#f2c26b' },
-    premium_plus = { label = 'Premium+', color = '#9650ff' },
+    premium = { label = 'VIP', color = '#f2c26b' },
+    premium_plus = { label = 'VIP+', color = '#9650ff' },
 }

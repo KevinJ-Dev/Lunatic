@@ -3,7 +3,7 @@
 // ====================================================================
 //  lunatic_admin — tuile Boutique (organisation comme Vision)
 //  Onglet Boutique : statistiques, catégories, bandeaux, notification en jeu, monnaie, transactions.
-//  Onglet Premium : prix et avantages de Premium / Premium+ (l'aide de l'État est celle de la tuile Économie).
+//  Onglet VIP : prix et avantages de VIP / VIP+ (l'aide de l'État est celle de la tuile Économie).
 //  Packs, Véhicules et Armes : partie 2. La boutique des joueurs : partie 3.
 // ====================================================================
 
@@ -11,13 +11,13 @@ const storeState = { data: null, tab: "shop", tier: "premium", draft: null, save
 
 const STORE_TABS = [
     { value: "shop", label: "Boutique" },
-    { value: "premium", label: "Premium" },
+    { value: "premium", label: "VIP" },
     { value: "packs", label: "Packs" },
     { value: "vehicles", label: "Véhicules" },
     { value: "weapons", label: "Armes" },
 ];
 
-const STORE_CATEGORIES = [["premium", "Premium"], ["premium_plus", "Premium+"], ["vehicles", "Véhicules"], ["packs", "Packs"], ["weapons", "Armes"], ["credits", null]];
+const STORE_CATEGORIES = [["premium", "VIP"], ["premium_plus", "VIP+"], ["vehicles", "Véhicules"], ["packs", "Packs"], ["weapons", "Armes"], ["credits", null]];
 
 // Avantages des abonnements : [clé, libellé, pas, appliqué en jeu ?]
 const STORE_PERKS = [
@@ -81,7 +81,7 @@ async function saveStore() {
 function paintStore() {
     const root = $("view-shop");
     if (!storeState.data) return root.replaceChildren(h("div", { class: "content" }, h("div", { class: "empty" }, icon("i-gem"), "Chargement de la boutique…")));
-    // Boutique et Premium partagent le brouillon des réglages ; chaque catalogue a le sien (produit ou catégorie)
+    // Boutique et VIP partagent le brouillon des réglages ; chaque catalogue a le sien (produit ou catégorie)
     const settingsTab = (tab) => tab === "shop" || tab === "premium";
     const catalog = !settingsTab(storeState.tab);
 
@@ -209,13 +209,13 @@ function storeCredits(d) {
         h("p", { class: "hint-line", style: "margin:0" }, "Les crédits se donnent depuis la fiche joueur (onglet Personnage). Achat en euros : plus tard, avec Tebex."));
 }
 
-// ---------- Onglet Premium ----------
+// ---------- Onglet VIP ----------
 
 function storePremiumTab(d) {
     const tier = storeState.tier;
     const perks = d.tiers[tier];
-    const label = tier === "premium_plus" ? "Premium+" : "Premium";
-    const tierSeg = h("div", { class: "segmented" }, segmentedButtons([{ value: "premium", label: "Premium" }, { value: "premium_plus", label: "Premium+" }], tier, (v) => { storeState.tier = v; paintStore(); }));
+    const label = tier === "premium_plus" ? "VIP+" : "VIP";
+    const tierSeg = h("div", { class: "segmented" }, segmentedButtons([{ value: "premium", label: "VIP" }, { value: "premium_plus", label: "VIP+" }], tier, (v) => { storeState.tier = v; paintStore(); }));
 
     const price = h("b", { class: "shop-price" });
     const paintPrice = () => price.replaceChildren(`${perks.priceEuro} €`, h("span", { class: "muted" }, ` · ${perks.priceCredits} ${storeCreditsName()}`));

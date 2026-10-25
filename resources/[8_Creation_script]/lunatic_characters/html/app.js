@@ -35,7 +35,7 @@ function toast(text) {
     toast.timer = setTimeout(() => el.classList.remove("on"), 3500);
 }
 
-let data = null;   // { characters, slots, tiers, serverId }
+let data = null;   // { characters, slots, max, tiers, vip }
 let selected = null; // emplacement choisi
 let busy = false;
 
@@ -50,19 +50,17 @@ function choose(slot) {
     paint();
 }
 
-// Abonnement nécessaire pour un emplacement verrouillé
+// Abonnement qui débloque un emplacement verrouillé (le moins cher qui suffit)
 function lockLabel(slot) {
-    const t = data.tiers;
-    if (slot <= t.premium) return "Premium";
-    if (slot <= t.premium_plus) return "Premium+";
-    return "Sur demande au staff";
+    const tiers = Object.values(data.tiers || {}).filter((t) => Number(t.characters) >= slot).sort((a, b) => a.characters - b.characters);
+    return tiers.length ? tiers[0].label : "Sur demande au staff";
 }
 
 function paint() {
     const bySlot = new Map(data.characters.map((c) => [c.slot, c]));
     const total = Math.max(data.slots, ...data.characters.map((c) => c.slot));
 
-    $("list").replaceChildren(...Array.from({ length: Math.min(total + 1, data.tiers.max) }, (_, i) => {
+    $("list").replaceChildren(...Array.from({ length: Math.min(total + 1, data.max) }, (_, i) => {
         const slot = i + 1;
         const character = bySlot.get(slot);
         const locked = slot > data.slots;
@@ -115,7 +113,13 @@ $("play").addEventListener("click", async () => {
 window.addEventListener("message", (event) => {
     const msg = event.data || {};
     if (msg.action === "open") {
-        data = { characters: msg.characters || [], slots: msg.slots || 1, tiers: msg.tiers };
+        data = { characters: msg.characters || [], slots: msg.slots || 1, max: msg.max || 5, tiers: msg.tiers || {}, vip: msg.vip };
+        const badge = $("vip");
+        badge.classList.toggle("hidden", !data.vip);
+        if (data.vip) {
+            badge.textContent = data.vip.label;
+            badge.style.background = data.vip.color || "";
+        }
         $("server-id").replaceChildren("ID ", h("b", null, String(msg.serverId || "")));
         // Premier personnage existant, sinon premier emplacement libre
         selected = null;
@@ -138,7 +142,9 @@ if (!inGame) {
     window.postMessage({
         action: "open",
         slots: 2,
-        tiers: { default: 1, premium: 2, premium_plus: 3, max: 5 },
+        max: 5,
+        tiers: { premium: { label: "VIP", color: "#f2c26b", characters: 2 }, premium_plus: { label: "VIP+", color: "#9650ff", characters: 3 } },
+        vip: { label: "VIP", color: "#f2c26b" },
         serverId: 2,
         characters: [
             { slot: 1, firstname: "Denzel", lastname: "Washington", job: "Chômeur", money: 390, bank: 143650, dateofbirth: "12/04/1992", nationality: "Américaine", lastSeen: 1792000000 },

@@ -31,8 +31,8 @@ const ECO_CURRENCIES = [
 ];
 const ECO_BANK = [
     { key: "standard", label: "Plafond de dépôt" },
-    { key: "premium", label: "Plafond de dépôt Premium" },
-    { key: "premium_plus", label: "Plafond de dépôt Premium+" },
+    { key: "premium", label: "Plafond de dépôt VIP" },
+    { key: "premium_plus", label: "Plafond de dépôt VIP+" },
 ];
 const ECO_IMPOUND = [
     { key: "car", label: "Voiture" },
@@ -249,8 +249,8 @@ function ecoOther() {
     if (tab === "aid") {
         cards = [
             ecoCard("Allocation chômage", d.unemployed, data.limits.salary, (v) => { d.unemployed = v; }, "Joueurs sans emploi, à chaque paie"),
-            ecoCard("Allocation Premium", d.allowances.premium, data.limits.allowance, (v) => { d.allowances.premium = v; }, "En plus du salaire, à chaque paie"),
-            ecoCard("Allocation Premium+", d.allowances.premium_plus, data.limits.allowance, (v) => { d.allowances.premium_plus = v; }, "En plus du salaire, à chaque paie"),
+            ecoCard("Allocation VIP", d.allowances.premium, data.limits.allowance, (v) => { d.allowances.premium = v; }, "En plus du salaire, à chaque paie"),
+            ecoCard("Allocation VIP+", d.allowances.premium_plus, data.limits.allowance, (v) => { d.allowances.premium_plus = v; }, "En plus du salaire, à chaque paie"),
         ];
         defaults = () => { d.unemployed = data.defaultUnemployed; d.allowances = { ...data.defaults.allowances }; };
     } else if (tab === "bank") {

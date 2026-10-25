@@ -9,16 +9,41 @@ local function licenseOf(src)
     return ok and identifier or nil
 end
 
--- Emplacements autorisés : 1 par défaut, plus selon l'abonnement (lunatic_admin), plus ceux ajoutés par le staff
+local function adminStarted()
+    return GetResourceState('lunatic_admin') == 'started'
+end
+
+-- Abonnements VIP / VIP+ : nom, couleur et nombre de personnages (réglés dans la tuile Boutique du panel)
+local function tiers()
+    if adminStarted() then
+        local ok, list = pcall(function() return exports.lunatic_admin:getPremiumTiers() end)
+
+        if ok and type(list) == 'table' then
+            return list
+        end
+    end
+
+    return Config.Tiers
+end
+
+-- Abonnement du joueur ({ tier, label, color, expires }) ou nil
+local function premiumOf(src)
+    if not adminStarted() then
+        return nil
+    end
+
+    local ok, premium = pcall(function() return exports.lunatic_admin:getPremium(src) end)
+    return ok and type(premium) == 'table' and premium or nil
+end
+
+-- Emplacements autorisés : 1 sans abonnement, l'avantage « personnages » du VIP / VIP+, plus ceux ajoutés par le staff
 local function slotCount(src)
     local slots = Config.Slots.default
+    local premium = premiumOf(src)
+    local tier = premium and tiers()[premium.tier]
 
-    if GetResourceState('lunatic_admin') == 'started' then
-        local ok, premium = pcall(function() return exports.lunatic_admin:getPremium(src) end)
-
-        if ok and type(premium) == 'table' then
-            slots = premium.tier == 'premium_plus' and Config.Slots.premium_plus or Config.Slots.premium
-        end
+    if tier then
+        slots = math.max(slots, tonumber(tier.characters) or slots)
     end
 
     local extra = MySQL.scalar.await('SELECT `extra` FROM `lunatic_character_slots` WHERE `license` = ?', { licenseOf(src) })
@@ -124,7 +149,12 @@ lib.callback.register('lunatic_characters:list', function(src)
         return nil
     end
 
-    return { characters = characters(src), slots = slotCount(src), tiers = Config.Slots }
+    local premium = premiumOf(src)
+
+    return {
+        characters = characters(src), slots = slotCount(src), max = Config.Slots.max, tiers = tiers(),
+        vip = premium and { label = premium.label, color = premium.color } or nil,
+    }
 end)
 
 -- Jouer un personnage (ou créer celui d'un emplacement vide) ; renvoie { ok = true } ou { error = '…' }

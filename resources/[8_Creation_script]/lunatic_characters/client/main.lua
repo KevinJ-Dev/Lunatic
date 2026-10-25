@@ -121,7 +121,10 @@ local function showSelection()
     shutdownLoadingScreen()
 
     SetNuiFocus(true, true)
-    SendNUIMessage({ action = 'open', characters = list, slots = data.slots or 1, tiers = data.tiers or Config.Slots, serverId = GetPlayerServerId(PlayerId()) })
+    SendNUIMessage({
+        action = 'open', characters = list, slots = data.slots or 1, max = data.max or Config.Slots.max,
+        tiers = data.tiers or Config.Tiers, vip = data.vip, serverId = GetPlayerServerId(PlayerId()),
+    })
 
     -- Pas de HUD ni d'actions pendant la sélection ; décor en plein jour
     CreateThread(function()

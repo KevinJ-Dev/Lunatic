@@ -91,7 +91,7 @@ const HELP = {
         tips: ["Un crew sans chef (membre au rang le plus haut) est signalé « Incomplet »."],
     },
     items: {
-        what: "Objets d'ox_inventory par catégorie : label, poids, prix, image, objet en main, Premium, Permanent, et pour les consommables faim, soif, expiration et animation.",
+        what: "Objets d'ox_inventory par catégorie : label, poids, prix, image, objet en main, VIP, Permanent, et pour les consommables faim, soif, expiration et animation.",
         game: "Les changements s'appliquent en jeu au prochain redémarrage du serveur : ox_inventory charge ses objets au démarrage. Le Give est immédiat (objets déjà en jeu).",
         tips: [
             "Image : un fichier de ox_inventory/web/images (ex. cafe.png) ou une adresse https.",

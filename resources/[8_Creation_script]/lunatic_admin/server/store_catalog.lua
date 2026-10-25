@@ -10,7 +10,7 @@ local LIMITS = { label = 60, url = 255, price = 10000000, money = 100000000, ite
 
 -- Catégories créées au premier démarrage (comme la boutique de Vision)
 local DEFAULT_CATEGORIES = {
-    { 'packs', 'Starter' }, { 'packs', 'Véhicule' }, { 'packs', 'Nourriture' }, { 'packs', 'Illégal' }, { 'packs', 'Premium' },
+    { 'packs', 'Starter' }, { 'packs', 'Véhicule' }, { 'packs', 'Nourriture' }, { 'packs', 'Illégal' }, { 'packs', 'VIP' },
     { 'vehicles', 'Sportive', 'car' }, { 'vehicles', 'SUV', 'car' }, { 'vehicles', 'Berline', 'car' }, { 'vehicles', 'Moto', 'bike' }, { 'vehicles', 'Utilitaire', 'car' },
     { 'weapons', 'Armes de poing' }, { 'weapons', 'Armes automatiques' }, { 'weapons', 'Fusils à pompe' }, { 'weapons', 'Armes lourdes' }, { 'weapons', 'Armes blanches' },
 }

@@ -1,13 +1,13 @@
 "use strict";
 
 // ====================================================================
-//  lunatic_admin — lot G : carte « Premium et boutique » des fiches joueur (en ligne et hors ligne)
+//  lunatic_admin — lot G : carte « VIP et boutique » des fiches joueur (en ligne et hors ligne)
 //  La carte est construite une fois par joueur et mise à jour sans perdre la saisie en cours.
 // ====================================================================
 
 const PREMIUM_TIERS = [
-    { value: "premium", label: "Premium" },
-    { value: "premium_plus", label: "Premium+" },
+    { value: "premium", label: "VIP" },
+    { value: "premium_plus", label: "VIP+" },
 ];
 const PREMIUM_DURATIONS = [
     { value: 7, label: "7 jours" },
