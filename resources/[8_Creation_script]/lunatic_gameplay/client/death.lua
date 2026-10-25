@@ -1,4 +1,4 @@
--- Mort et respawn côté client : écran d'inconscience (délai, appel des secours, réveil à l'hôpital),
+-- Mort et respawn côté client : écran d'inconscience (html/ : délai, appel des secours, réveil à l'hôpital),
 -- réanimation par un médecin (/reanimer). Le serveur valide le délai, les frais et la réanimation.
 
 local dead = false
@@ -29,6 +29,28 @@ end
 local function stopDeath()
     dead = false
     AnimpostfxStop('DeathFailOut')
+    SendNUIMessage({ action = 'deathHide' })
+    SetNuiFocusKeepInput(false)
+    SetNuiFocus(false, false)
+end
+
+-- État de l'écran (temps restant, secouristes en service, appel déjà fait) : le serveur fait foi
+local function refreshDeath(action)
+    local state = lib.callback.await('lunatic_gameplay:deathState', false)
+
+    if not state or not dead then
+        return
+    end
+
+    remaining = state.remaining or remaining
+    state.action = action or 'deathUpdate'
+    SendNUIMessage(state)
+end
+
+local function callMedic()
+    TriggerServerEvent('lunatic_gameplay:callMedic')
+    Wait(300)
+    refreshDeath()
 end
 
 local function respawn()
@@ -107,15 +129,25 @@ local function startDeath(skipEvent)
 
     dead = true
     AnimpostfxPlay('DeathFailOut', 0, true)
+    remaining = 300
+    refreshDeath('death')
 
-    local state = lib.callback.await('lunatic_gameplay:deathState', false)
-    remaining = state and state.remaining or 300
+    -- Souris pour les boutons ; le jeu garde le clavier (vocal, touches [G] et [E])
+    SetNuiFocus(true, true)
+    SetNuiFocusKeepInput(true)
 
-    -- Compte à rebours (le serveur revérifie au moment du réveil)
+    -- Compte à rebours, recalé sur le serveur toutes les 10 s (secouristes qui prennent ou quittent leur service)
     CreateThread(function()
+        local tick = 0
+
         while dead and remaining > 0 do
             Wait(1000)
             remaining = remaining - 1
+            tick = tick + 1
+
+            if tick % 10 == 0 then
+                refreshDeath()
+            end
         end
 
         -- Mort désactivée dans le panel : réveil automatique à l'hôpital
@@ -125,33 +157,41 @@ local function startDeath(skipEvent)
     end)
 
     CreateThread(function()
-        local settings = FeaturesOf('death')
-
         while dead do
-            DrawScreenText(0.5, 0.80, 'Vous êtes inconscient', 0.7)
+            -- Pas de caméra ni d'attaque à la souris pendant que le curseur est affiché
+            DisableControlAction(0, 1, true)
+            DisableControlAction(0, 2, true)
+            DisableControlAction(0, 24, true)
+            DisableControlAction(0, 25, true)
 
-            if remaining > 0 then
-                DrawScreenText(0.5, 0.86, ("Réveil à l'hôpital possible dans %d:%02d"):format(math.floor(remaining / 60), remaining % 60), 0.45)
-            else
-                DrawScreenText(0.5, 0.86, "[E] Se réveiller à l'hôpital", 0.45)
-
-                if IsControlJustReleased(0, 38) then
-                    respawn()
-                end
+            if remaining <= 0 and IsControlJustReleased(0, 38) then
+                respawn()
             end
 
-            if settings.callMedic ~= false then
-                DrawScreenText(0.5, 0.90, '[G] Appeler les secours', 0.4)
-
-                if IsControlJustReleased(0, 47) then
-                    TriggerServerEvent('lunatic_gameplay:callMedic')
-                end
+            if FeaturesOf('death').callMedic ~= false and IsControlJustReleased(0, 47) then
+                CreateThread(callMedic)
             end
 
             Wait(0)
         end
     end)
 end
+
+RegisterNUICallback('deathAlert', function(_, cb)
+    cb({})
+
+    if dead and FeaturesOf('death').callMedic ~= false then
+        callMedic()
+    end
+end)
+
+RegisterNUICallback('deathRise', function(_, cb)
+    cb({})
+
+    if dead and remaining <= 0 then
+        respawn()
+    end
+end)
 
 AddEventHandler('esx:onPlayerDeath', function()
     startDeath(false)
@@ -242,5 +282,10 @@ TriggerEvent('chat:addSuggestion', '/reanimer', 'Réanimer la personne inconscie
 AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
         AnimpostfxStop('DeathFailOut')
+
+        if dead then
+            SetNuiFocusKeepInput(false)
+            SetNuiFocus(false, false)
+        end
     end
 end)

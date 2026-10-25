@@ -26,6 +26,34 @@ AddEventHandler('playerDropped', function()
     lastCall[source] = nil
 end)
 
+local isMedic -- défini plus bas (secours)
+
+-- Secouristes en service : membres d'un service public de type Médecins, en service
+local function medicsOnDuty()
+    local count = 0
+
+    for _, xPlayer in pairs(ESX.GetExtendedPlayers()) do
+        if isMedic(xPlayer) and xPlayer.getJob().onDuty ~= false then
+            count = count + 1
+        end
+    end
+
+    return count
+end
+
+-- Délai avant le réveil à l'hôpital : réduit quand aucun secouriste n'est en service
+local function deathDelay(settings)
+    if settings.enabled == false then
+        return 10
+    end
+
+    if medicsOnDuty() > 0 then
+        return tonumber(settings.delay) or 300
+    end
+
+    return tonumber(settings.delayNoMedic) or 150
+end
+
 local function nearestHospital(coords)
     local best, bestDistance
 
@@ -50,8 +78,7 @@ lib.callback.register('lunatic_gameplay:respawn', function(src)
         return { ok = false, error = "Vous n'êtes pas inconscient." }
     end
 
-    local delay = settings.enabled == false and 10 or (tonumber(settings.delay) or 300)
-    local remaining = death.at + delay - os.time()
+    local remaining = death.at + deathDelay(settings) - os.time()
 
     if remaining > 0 then
         return { ok = false, error = ('Encore %d secondes.'):format(remaining) }
@@ -99,8 +126,14 @@ lib.callback.register('lunatic_gameplay:deathState', function(src)
     end
 
     local settings = FeaturesOf('death')
-    local delay = settings.enabled == false and 10 or (tonumber(settings.delay) or 300)
-    return { remaining = math.max(0, death.at + delay - os.time()) }
+    local medics = medicsOnDuty()
+
+    return {
+        remaining = math.max(0, death.at + deathDelay(settings) - os.time()),
+        medics = medics,
+        callMedic = settings.callMedic ~= false,
+        called = lastCall[src] ~= nil and os.time() - lastCall[src] < Config.MedicCallCooldown,
+    }
 end)
 
 -- Zone d'un event (lunatic_admin) : pas de coma (réveil sur place) ou respawn au centre de la zone.
@@ -126,7 +159,7 @@ end)
 -- Secours : appel des médecins, réanimation
 ---------------------------------------------------------------------
 
-local function isMedic(xPlayer)
+function isMedic(xPlayer)
     local structure = StructureOf(xPlayer)
     return structure ~= nil and structure.kind == 'public' and Config.MedicTypes[structure.type] == true
 end

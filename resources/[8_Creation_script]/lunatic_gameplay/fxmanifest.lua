@@ -45,6 +45,7 @@ files {
     'html/index.html',
     'html/style.css',
     'html/app.js',
+    'html/fonts/*.woff2',
 }
 
 dependencies {

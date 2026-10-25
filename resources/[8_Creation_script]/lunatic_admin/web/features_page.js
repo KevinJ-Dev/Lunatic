@@ -53,7 +53,8 @@ const FEATURE_SECTIONS = {
         label: "Mort & Respawn", icon: "i-heart",
         fields: {
             enabled: { label: "Inconscience", hint: "Désactivé : réveil automatique à l'hôpital après 10 secondes, sans frais" },
-            delay: { label: "Délai avant le réveil à l'hôpital", hint: "Temps pendant lequel on peut être réanimé", unit: "s" },
+            delay: { label: "Délai avant le réveil à l'hôpital", hint: "Avec au moins un secouriste en service : temps pendant lequel on peut être réanimé", unit: "s" },
+            delayNoMedic: { label: "Délai sans secouriste", hint: "Quand aucun secouriste n'est en service (réduit pour garder le jeu fluide)", unit: "s" },
             fee: { label: "Frais d'hôpital", hint: "Retirés de la banque au réveil (sans aller sous 0)", money: true },
             clearInventory: { label: "Vider l'inventaire au réveil", hint: "Sauf téléphone et carte d'identité (config lunatic_gameplay)" },
             keepCash: { label: "Garder le liquide", hint: "Quand l'inventaire est vidé" },

@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="utf-8">
-    <title>Carte d'identité</title>
+    <title>Lunatic - Gameplay</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -22,6 +22,18 @@
             </div>
         </div>
         <div class="foot" id="foot"></div>
+    </div>
+    <div class="death hidden" id="death">
+        <div class="death-shade"></div>
+        <aside class="death-side">
+            <div class="death-timer"><b id="death-time">00:00</b><small>Temps restant</small></div>
+            <div class="death-actions">
+                <button class="death-btn alert" id="death-alert"><span>Alerter les secours</span><kbd>G</kbd></button>
+                <p class="death-info" id="death-medics"></p>
+            </div>
+            <button class="death-btn rise" id="death-rise" disabled><span id="death-rise-label">Se relever</span><kbd>E</kbd></button>
+        </aside>
+        <div class="death-title">Vous êtes <b>inconscient</b></div>
     </div>
     <script src="app.js"></script>
 </body>

@@ -35,8 +35,57 @@ function show(identity) {
     }
 }
 
+// ---------- Écran de mort ----------
+// Le jeu envoie l'état (temps restant, secouristes en service) ; les boutons renvoient au jeu, qui décide.
+
+const death = { remaining: 0, timer: null };
+
+async function post(name, payload) {
+    try {
+        await fetch(`https://${GetParentResourceName()}/${name}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload || {}) });
+    } catch { /* aperçu navigateur */ }
+}
+
+function paintDeath() {
+    const left = Math.max(0, death.remaining);
+    $("death-time").textContent = `${String(Math.floor(left / 60)).padStart(2, "0")}:${String(left % 60).padStart(2, "0")}`;
+    $("death-rise").disabled = left > 0;
+    $("death-rise-label").textContent = left > 0 ? "Se relever" : "Se relever à l'hôpital";
+}
+
+function updateDeath(state) {
+    if (typeof state.remaining === "number") death.remaining = state.remaining;
+    const alert = $("death-alert");
+    alert.classList.toggle("hidden", state.callMedic === false);
+    alert.classList.toggle("done", state.called === true);
+    alert.querySelector("span").textContent = state.called ? "Secours alertés" : "Alerter les secours";
+    const medics = Number(state.medics) || 0;
+    $("death-medics").innerHTML = medics > 0
+        ? `<b>${medics}</b> secouriste${medics > 1 ? "s" : ""} en service`
+        : "Aucun secouriste en service : délai réduit";
+    paintDeath();
+}
+
+function showDeath(state) {
+    $("death").classList.remove("hidden");
+    updateDeath(state);
+    clearInterval(death.timer);
+    death.timer = setInterval(() => { death.remaining -= 1; paintDeath(); }, 1000);
+}
+
+function hideDeath() {
+    clearInterval(death.timer);
+    $("death").classList.add("hidden");
+}
+
+$("death-alert").addEventListener("click", () => { if (!$("death-alert").classList.contains("done")) post("deathAlert"); });
+$("death-rise").addEventListener("click", () => { if (!$("death-rise").disabled) post("deathRise"); });
+
 window.addEventListener("message", (event) => {
     const msg = event.data || {};
+    if (msg.action === "death") showDeath(msg);
+    if (msg.action === "deathUpdate") updateDeath(msg);
+    if (msg.action === "deathHide") hideDeath();
     if (msg.action === "idcard" && msg.identity) show(msg.identity);
     if (msg.action === "idcardHide") $("card").classList.add("hidden");
 });
