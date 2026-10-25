@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <title>Lunatic - Location de véhicules</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="rental hidden" id="rental">
+        <aside class="panel">
+            <header class="head">
+                <div><small>Location</small><b id="agency"></b></div>
+                <div class="count"><b>Véhicules</b><small id="count"></small></div>
+            </header>
+            <div class="active hidden" id="active"></div>
+            <nav class="tabs" id="tabs"></nav>
+            <main class="grid" id="grid"></main>
+            <footer class="foot" id="foot"></footer>
+        </aside>
+        <div class="stage" id="stage">
+            <button class="close" id="close" title="Fermer (Échap)">✕</button>
+            <div class="name" id="name"></div>
+            <div class="hint">Clic maintenu et glisser : tourner · Molette : zoom</div>
+        </div>
+        <div class="toast" id="toast"></div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

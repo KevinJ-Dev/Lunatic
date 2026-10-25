@@ -922,9 +922,14 @@ lib.callback.register('lunatic_business:rentalOpen', function(src, slug, index)
         return fail(err)
     end
 
+    local showroom = GlobalState.lunaticRentalShowroom or {
+        x = Config.RentalShowroom.x, y = Config.RentalShowroom.y, z = Config.RentalShowroom.z, h = Config.RentalShowroom.w,
+    }
+
     return {
-        ok = true, label = shop.label, vehicles = shop.vehicles or {}, active = rentalInfo(rentals[src]),
+        ok = true, label = shop.label, header = shop.header, vehicles = shop.vehicles or {}, active = rentalInfo(rentals[src]),
         cash = xPlayer.getAccount('money').money, bank = xPlayer.getAccount('bank').money,
+        maxPeriods = shop.maxPeriods or 4, showroom = showroom,
     }
 end)
 
@@ -938,7 +943,7 @@ local function spawnOf(location)
     return { x = location.x - math.sin(heading) * 4.0, y = location.y + math.cos(heading) * 4.0, z = location.z + 0.5, h = location.h or 0.0 }
 end
 
-lib.callback.register('lunatic_business:rent', function(src, slug, index, vehicleId, account)
+lib.callback.register('lunatic_business:rent', function(src, slug, index, vehicleId, account, periods)
     local shop, location, xPlayer, err = shopAt(src, slug, index, 'rental')
 
     if not shop then
@@ -961,6 +966,14 @@ lib.callback.register('lunatic_business:rent', function(src, slug, index, vehicl
         return fail('Véhicule introuvable.')
     end
 
+    periods = math.tointeger(tonumber(periods) or 1)
+
+    if not periods or periods < 1 or periods > (shop.maxPeriods or 4) then
+        return fail(('Durée invalide : de 1 à %d périodes.'):format(shop.maxPeriods or 4))
+    end
+
+    local price, duration = offer.price * periods, offer.duration * periods
+
     local spawn = spawnOf(location)
     local spawnCoords = vector3(spawn.x, spawn.y, spawn.z)
 
@@ -972,14 +985,14 @@ lib.callback.register('lunatic_business:rent', function(src, slug, index, vehicl
 
     account = account == 'bank' and 'bank' or 'money'
 
-    if offer.price > 0 then
+    if price > 0 then
         local balance = xPlayer.getAccount(account)
 
-        if not balance or balance.money < offer.price then
+        if not balance or balance.money < price then
             return fail(account == 'bank' and 'Solde bancaire insuffisant.' or "Vous n'avez pas assez de liquide.")
         end
 
-        xPlayer.removeAccountMoney(account, offer.price, ('Location : %s (%s)'):format(offer.label, shop.label))
+        xPlayer.removeAccountMoney(account, price, ('Location : %s (%s, %d min)'):format(offer.label, shop.label, duration))
     end
 
     local vehicle = CreateVehicleServerSetter(joaat(offer.model), offer.type or 'automobile', spawn.x, spawn.y, spawn.z, spawn.h or 0.0)
@@ -990,8 +1003,8 @@ lib.callback.register('lunatic_business:rent', function(src, slug, index, vehicl
     end
 
     if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then
-        if offer.price > 0 then
-            xPlayer.addAccountMoney(account, offer.price, 'Remboursement location')
+        if price > 0 then
+            xPlayer.addAccountMoney(account, price, 'Remboursement location')
         end
 
         return fail("Le véhicule n'a pas pu sortir. Vous avez été remboursé.")
@@ -1002,9 +1015,9 @@ lib.callback.register('lunatic_business:rent', function(src, slug, index, vehicl
     SetVehicleNumberPlateText(vehicle, plate)
     TaskWarpPedIntoVehicle(GetPlayerPed(src), vehicle, -1)
 
-    rentals[src] = { vehicle = vehicle, plate = plate, label = offer.label, location = location, expiresAt = os.time() + offer.duration * 60, warned = {} }
-    GameLog('vehicles', 'info', src, 'vehicle.rent', offer.label, { plate = plate, price = offer.price, duration = offer.duration })
-    return { ok = true, label = offer.label, plate = plate, duration = offer.duration, price = offer.price, account = account }
+    rentals[src] = { vehicle = vehicle, plate = plate, label = offer.label, location = location, expiresAt = os.time() + duration * 60, warned = {} }
+    GameLog('vehicles', 'info', src, 'vehicle.rent', offer.label, { plate = plate, price = price, duration = duration, periods = periods })
+    return { ok = true, label = offer.label, plate = plate, duration = duration, price = price, account = account }
 end)
 
 lib.callback.register('lunatic_business:rentReturn', function(src, slug, index)

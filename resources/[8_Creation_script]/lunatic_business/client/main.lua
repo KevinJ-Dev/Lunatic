@@ -769,106 +769,253 @@ CreateThread(function()
 end)
 
 ---------------------------------------------------------------------
--- Agences de location
+-- Agences de location : interface (html/) et aperçu 3D du véhicule dans la vitrine.
+-- Pendant le choix, le joueur attend invisible dans la vitrine (l'intérieur s'y charge) ; il revient au comptoir
+-- avant de louer ou de rendre, car le serveur vérifie qu'il s'y trouve. Le véhicule montré n'existe que chez lui.
 ---------------------------------------------------------------------
 
-local openRental
+local rental = nil -- { target, info, back, vehicle, cam, heading, pitch, distance, token }
 
-local function rent(target, info, offer, account)
-    local result = lib.callback.await('lunatic_business:rent', false, target.shop.slug, target.index, offer.id, account)
+local function rentalCamera()
+    local spot = rental.info.showroom
+    local h, p = math.rad(rental.heading), math.rad(rental.pitch)
+    local target = vector3(spot.x, spot.y, spot.z + 0.5)
+    local position = target + vector3(-math.sin(h) * math.cos(p) * rental.distance, math.cos(h) * math.cos(p) * rental.distance, math.sin(p) * rental.distance)
 
-    if not failed(result) then
-        notify(('%s loué pour %d minutes%s (plaque %s).'):format(result.label, result.duration,
-            result.price > 0 and (', ' .. money(result.price) .. (result.account == 'bank' and ' par carte' or ' en liquide')) or '', result.plate), 'success')
+    SetCamCoord(rental.cam, position.x, position.y, position.z)
+    PointCamAtCoord(rental.cam, target.x, target.y, target.z)
+end
+
+local function deletePreview()
+    if rental and rental.vehicle and DoesEntityExist(rental.vehicle) then
+        DeleteEntity(rental.vehicle)
+    end
+
+    if rental then
+        rental.vehicle = nil
     end
 end
 
-local function choosePayment(target, info, offer, parent)
-    if offer.price <= 0 then
-        return rent(target, info, offer, nil)
+-- Véhicule choisi posé dans la vitrine, phares allumés ; caméra reculée selon sa taille
+local function previewVehicle(offer)
+    rental.token = rental.token + 1
+    local token = rental.token
+    local model = joaat(offer.model)
+    deletePreview()
+
+    if not IsModelInCdimage(model) or not lib.requestModel(model, 10000) then
+        return
     end
 
-    lib.registerContext({ id = 'lb_rental_pay', title = ('%s · %s'):format(offer.label, money(offer.price)), menu = parent or 'lb_rental', options = {
-        { title = 'Payer en liquide', description = ('Liquide : %s'):format(money(info.cash)), icon = 'money-bill',
-            disabled = info.cash < offer.price, onSelect = function() rent(target, info, offer, 'money') end },
-        { title = 'Payer par carte', description = ('Banque : %s'):format(money(info.bank)), icon = 'credit-card',
-            disabled = info.bank < offer.price, onSelect = function() rent(target, info, offer, 'bank') end },
-    } })
-    lib.showContext('lb_rental_pay')
+    -- Un autre véhicule a été choisi pendant le chargement
+    if not rental or token ~= rental.token then
+        SetModelAsNoLongerNeeded(model)
+        return
+    end
+
+    local spot = rental.info.showroom
+    local vehicle = CreateVehicle(model, spot.x, spot.y, spot.z, spot.h or 0.0, false, false)
+    SetModelAsNoLongerNeeded(model)
+    SetVehicleOnGroundProperly(vehicle)
+    FreezeEntityPosition(vehicle, true)
+    SetEntityInvincible(vehicle, true)
+    SetVehicleDirtLevel(vehicle, 0.0)
+    SetVehicleLights(vehicle, 2)
+    SetVehicleNumberPlateText(vehicle, 'LOCATION')
+    rental.vehicle = vehicle
+
+    local min, max = GetModelDimensions(model)
+    rental.distance = math.max(4.0, #(max - min) * 1.15)
+    rentalCamera()
 end
 
-openRental = function(target)
+local function teleport(coords, heading)
+    local ped = PlayerPedId()
+    RequestCollisionAtCoord(coords.x, coords.y, coords.z)
+    SetEntityCoordsNoOffset(ped, coords.x, coords.y, coords.z, false, false, false)
+
+    if heading then
+        SetEntityHeading(ped, heading)
+    end
+
+    local timeout = GetGameTimer() + 3000
+
+    while not HasCollisionLoadedAroundEntity(ped) and GetGameTimer() < timeout do
+        Wait(0)
+    end
+end
+
+-- Fin de l'aperçu : joueur ramené au comptoir, visible ; attend que le serveur voie la nouvelle position
+local function closeRental()
+    if not rental then
+        return
+    end
+
+    local back = rental.back
+    DoScreenFadeOut(250)
+
+    while not IsScreenFadedOut() do
+        Wait(0)
+    end
+
+    SetNuiFocus(false, false)
+    SendNUIMessage({ action = 'rentalClose' })
+    deletePreview()
+    RenderScriptCams(false, false, 0, true, true)
+    DestroyCam(rental.cam, false)
+    rental = nil
+
+    local ped = PlayerPedId()
+    teleport(back, back.w)
+    FreezeEntityPosition(ped, false)
+    SetEntityVisible(ped, true, false)
+    SetEntityCollision(ped, true, true)
+    SetEntityInvincible(ped, false)
+    DisplayRadar(true)
+    Wait(600)
+    DoScreenFadeIn(400)
+end
+
+local function rentalData(info)
+    return {
+        action = 'rentalOpen', label = info.label, header = info.header, vehicles = info.vehicles, active = info.active,
+        cash = info.cash, bank = info.bank, maxPeriods = info.maxPeriods, currency = GlobalState.lunaticCurrency or '$',
+    }
+end
+
+local function openRental(target)
+    if rental then
+        return
+    end
+
     local info = lib.callback.await('lunatic_business:rentalOpen', false, target.shop.slug, target.index)
 
     if failed(info) then
         return
     end
 
-    local options = {}
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    rental = {
+        target = target, info = info, back = vector4(coords.x, coords.y, coords.z, GetEntityHeading(ped)),
+        heading = (info.showroom.h or 0.0) + 145.0, pitch = 12.0, distance = 5.0, token = 0,
+    }
 
-    if info.active then
-        options[#options + 1] = { title = ('Location en cours : %s'):format(info.active.label), description = ('Plaque %s · reste %d min'):format(info.active.plate, math.ceil(info.active.remaining / 60)), icon = 'clock', readOnly = true }
-        options[#options + 1] = { title = 'Rendre le véhicule', description = 'Le véhicule doit être garé près du comptoir', icon = 'key', onSelect = function()
-            local result = lib.callback.await('lunatic_business:rentReturn', false, target.shop.slug, target.index)
+    DoScreenFadeOut(250)
 
-            if not failed(result) then
-                notify(('%s rendu, merci !'):format(result.label), 'success')
-            end
-        end }
+    while not IsScreenFadedOut() do
+        Wait(0)
     end
 
-    -- Véhicules rangés par catégorie (un sous-menu par catégorie s'il y en a plusieurs), avec leur photo
-    local function vehicleOption(offer, parent)
-        return {
-            title = offer.label,
-            description = ('%s pour %d minutes'):format(offer.price > 0 and money(offer.price) or 'Gratuit', offer.duration),
-            icon = 'car',
-            image = offer.image ~= '' and offer.image or ('https://docs.fivem.net/vehicles/%s.webp'):format(offer.model),
-            disabled = info.active ~= nil,
-            onSelect = function() choosePayment(target, info, offer, parent) end,
-        }
-    end
+    -- Joueur invisible et figé dans la vitrine, un peu à l'écart du véhicule
+    local spot = info.showroom
+    teleport(vector3(spot.x, spot.y, spot.z - 0.5))
+    FreezeEntityPosition(ped, true)
+    SetEntityVisible(ped, false, false)
+    SetEntityCollision(ped, false, false)
+    SetEntityInvincible(ped, true)
+    DisplayRadar(false)
 
-    local groups, order = {}, {}
+    rental.cam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
+    rentalCamera()
+    RenderScriptCams(true, false, 0, true, true)
 
-    for _, offer in ipairs(info.vehicles) do
-        local name = offer.category ~= '' and offer.category or 'Autres'
+    -- La page choisit le premier véhicule et demande son aperçu
+    SetNuiFocus(true, true)
+    SendNUIMessage(rentalData(info))
 
-        if not groups[name] then
-            groups[name] = {}
-            order[#order + 1] = name
+    Wait(300)
+    DoScreenFadeIn(400)
+
+    CreateThread(function()
+        while rental do
+            HideHudAndRadarThisFrame()
+            Wait(0)
         end
-
-        table.insert(groups[name], offer)
-    end
-
-    table.sort(order)
-
-    if #order > 1 then
-        for _, name in ipairs(order) do
-            local id = ('lb_rental_%s'):format(name)
-            local list = {}
-
-            for _, offer in ipairs(groups[name]) do
-                list[#list + 1] = vehicleOption(offer, id)
-            end
-
-            lib.registerContext({ id = id, title = ('%s · %s'):format(info.label, name), menu = 'lb_rental', options = list })
-            options[#options + 1] = { title = name, description = ('%d véhicule%s'):format(#groups[name], #groups[name] > 1 and 's' or ''), icon = 'folder', menu = id }
-        end
-    else
-        for _, offer in ipairs(info.vehicles) do
-            options[#options + 1] = vehicleOption(offer, 'lb_rental')
-        end
-    end
-
-    if #info.vehicles == 0 then
-        options[#options + 1] = { title = 'Aucun véhicule disponible', readOnly = true }
-    end
-
-    lib.registerContext({ id = 'lb_rental', title = info.label, options = options })
-    lib.showContext('lb_rental')
+    end)
 end
+
+RegisterNUICallback('rentalPreview', function(data, cb)
+    cb({})
+
+    if not rental then
+        return
+    end
+
+    for _, offer in ipairs(rental.info.vehicles) do
+        if offer.id == tonumber(data.id) then
+            previewVehicle(offer)
+        end
+    end
+end)
+
+-- Glisser : tourner autour du véhicule ; molette : zoom
+RegisterNUICallback('rentalRotate', function(data, cb)
+    cb({})
+
+    if rental then
+        rental.heading = rental.heading - (tonumber(data.dx) or 0) * 0.4
+        rental.pitch = math.max(-5.0, math.min(60.0, rental.pitch + (tonumber(data.dy) or 0) * 0.25))
+        rental.distance = math.max(2.5, math.min(14.0, rental.distance + (tonumber(data.zoom) or 0)))
+        rentalCamera()
+    end
+end)
+
+RegisterNUICallback('rentalClose', function(_, cb)
+    cb({})
+    closeRental()
+end)
+
+RegisterNUICallback('rentalRent', function(data, cb)
+    cb({})
+
+    if not rental then
+        return
+    end
+
+    local target = rental.target
+    closeRental()
+
+    local result = lib.callback.await('lunatic_business:rent', false, target.shop.slug, target.index, tonumber(data.id), data.account == 'bank' and 'bank' or 'money', tonumber(data.periods) or 1)
+
+    if not failed(result) then
+        notify(('%s loué pour %d minutes%s (plaque %s).'):format(result.label, result.duration,
+            result.price > 0 and (', ' .. money(result.price) .. (result.account == 'bank' and ' par carte' or ' en liquide')) or '', result.plate), 'success')
+    end
+end)
+
+RegisterNUICallback('rentalReturn', function(_, cb)
+    cb({})
+
+    if not rental then
+        return
+    end
+
+    local target = rental.target
+    closeRental()
+
+    local result = lib.callback.await('lunatic_business:rentReturn', false, target.shop.slug, target.index)
+
+    if not failed(result) then
+        notify(('%s rendu, merci !'):format(result.label), 'success')
+    end
+end)
+
+AddEventHandler('onResourceStop', function(resource)
+    if resource == GetCurrentResourceName() and rental then
+        deletePreview()
+        SetNuiFocus(false, false)
+        RenderScriptCams(false, false, 0, true, true)
+        local ped = PlayerPedId()
+        SetEntityCoordsNoOffset(ped, rental.back.x, rental.back.y, rental.back.z, false, false, false)
+        FreezeEntityPosition(ped, false)
+        SetEntityVisible(ped, true, false)
+        SetEntityCollision(ped, true, true)
+        SetEntityInvincible(ped, false)
+        DisplayRadar(true)
+        DoScreenFadeIn(0)
+    end
+end)
 
 -- Grossiste : revente des objets que le joueur a sur lui
 local function openBuyback(target)

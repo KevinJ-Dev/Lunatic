@@ -20,6 +20,16 @@ server_scripts {
 
 client_script 'client/main.lua'
 
+-- Interface des agences de location (aperçu 3D, durée, paiement)
+ui_page 'html/index.html'
+
+files {
+    'html/index.html',
+    'html/style.css',
+    'html/app.js',
+    'html/fonts/*.woff2',
+}
+
 dependencies {
     'es_extended',
     'ox_lib',

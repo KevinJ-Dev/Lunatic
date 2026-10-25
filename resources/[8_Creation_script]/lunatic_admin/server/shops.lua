@@ -23,6 +23,10 @@ local function sortedLocations(shop)
     table.sort(shop.locations, function(a, b) return a.id < b.id end)
 end
 
+-- Vitrine d'aperçu des agences de location (garage où le véhicule choisi est montré en 3D), commune à toutes les agences
+local savedShowroom = GetResourceKvpString('rental_showroom')
+GlobalState.lunaticRentalShowroom = savedShowroom and json.decode(savedShowroom) or nil
+
 local function publish()
     local list = {}
 
@@ -49,6 +53,8 @@ local function load()
             id = tonumber(row.id), category = row.category, kind = category and category.kind or 'items', slug = row.slug, label = row.label,
             blip = { sprite = tonumber(row.blip_sprite), color = tonumber(row.blip_color), scale = tonumber(row.blip_scale), label = row.blip_label },
             header = row.header or '', jobs = ok and jobs or {}, items = {}, locations = {}, vehicles = {}, defaultPrice = tonumber(row.default_price) or 0,
+            -- Location : nombre maximum de périodes (prix et durée du véhicule) qu'un joueur peut prendre d'un coup
+            maxPeriods = tonumber(row.rental_periods) or 4,
         }
     end
 
@@ -162,6 +168,7 @@ table.insert(Panel.readyHooks, function()
 
     -- Catalogues lot 1 : prix par défaut d'un magasin, catégorie et image des véhicules de location
     MySQL.query.await('ALTER TABLE `lunatic_shops` ADD COLUMN IF NOT EXISTS `default_price` INT NOT NULL DEFAULT 0')
+    MySQL.query.await('ALTER TABLE `lunatic_shops` ADD COLUMN IF NOT EXISTS `rental_periods` INT NOT NULL DEFAULT 4')
     MySQL.query.await([[
         ALTER TABLE `lunatic_shop_vehicles`
             ADD COLUMN IF NOT EXISTS `category` VARCHAR(40) NOT NULL DEFAULT '',
@@ -310,6 +317,7 @@ Panel.actions['shops.info'] = function(_, actor, data)
     return { ok = true, silent = true, shop = {
         id = shop.id, category = shop.category, slug = shop.slug, label = shop.label, blip = shop.blip, header = shop.header,
         jobs = shop.jobs, items = items, locations = shop.locations, vehicles = shop.vehicles, kind = shop.kind, defaultPrice = shop.defaultPrice,
+        maxPeriods = shop.maxPeriods, showroom = GlobalState.lunaticRentalShowroom,
     }, licenses = licenseList, jobs = jobList }
 end
 
@@ -369,6 +377,7 @@ Panel.actions['shops.save'] = function(src, actor, data)
     local color = number(data.blipColor, 0, 85, true)
     local scale = number(data.blipScale, 0.1, 3)
     local defaultPrice = number(data.defaultPrice or 0, 0, LIMITS.price, true)
+    local maxPeriods = number(data.maxPeriods or 4, 1, 24, true)
 
     if not label or not blipLabel or not header then
         return Panel.fail('Label (2-60), label du blip (60 max) ou image (255 max) invalide.')
@@ -384,6 +393,10 @@ Panel.actions['shops.save'] = function(src, actor, data)
 
     if not defaultPrice then
         return Panel.fail('Prix par défaut invalide.')
+    end
+
+    if not maxPeriods then
+        return Panel.fail('Périodes de location : de 1 à 24.')
     end
 
     if not sprite or not color or not scale then
@@ -404,8 +417,8 @@ Panel.actions['shops.save'] = function(src, actor, data)
     end
 
     local queries = {
-        { query = 'UPDATE `lunatic_shops` SET `slug` = ?, `label` = ?, `blip_sprite` = ?, `blip_color` = ?, `blip_scale` = ?, `blip_label` = ?, `header` = ?, `jobs` = ?, `default_price` = ? WHERE `id` = ?',
-            values = { slug, label, sprite, color, scale, blipLabel, header, json.encode(jobs), defaultPrice, shop.id } },
+        { query = 'UPDATE `lunatic_shops` SET `slug` = ?, `label` = ?, `blip_sprite` = ?, `blip_color` = ?, `blip_scale` = ?, `blip_label` = ?, `header` = ?, `jobs` = ?, `default_price` = ?, `rental_periods` = ? WHERE `id` = ?',
+            values = { slug, label, sprite, color, scale, blipLabel, header, json.encode(jobs), defaultPrice, maxPeriods, shop.id } },
         { query = 'DELETE FROM `lunatic_shop_items` WHERE `shop_id` = ?', values = { shop.id } },
     }
 
@@ -761,6 +774,45 @@ Panel.actions['shops.setSpawn'] = function(src, actor, data)
     load()
     Logs.add(src, 'shops.location', nil, { id = shop.id, label = shop.label, operation = 'sortie véhicules' })
 
+    return { ok = true, silent = true }
+end
+
+-- Vitrine d'aperçu : placée à la position du staff (le véhicule y apparaît dans le sens où il regarde)
+Panel.actions['shops.setShowroom'] = function(src, actor, data)
+    local shop, err = shopFor(actor, data.id)
+
+    if not shop then
+        return err
+    end
+
+    local ped = GetPlayerPed(src)
+
+    if not ped or ped == 0 then
+        return Panel.fail("Votre personnage n'est pas encore apparu.")
+    end
+
+    local coords = GetEntityCoords(ped)
+    local showroom = { x = coords.x, y = coords.y, z = coords.z, h = GetEntityHeading(ped) }
+    SetResourceKvp('rental_showroom', json.encode(showroom))
+    GlobalState.lunaticRentalShowroom = showroom
+    Logs.add(src, 'shops.location', nil, { id = shop.id, label = shop.label, operation = "vitrine d'aperçu" })
+
+    return { ok = true, silent = true, showroom = showroom }
+end
+
+Panel.actions['shops.tpShowroom'] = function(src, actor, data)
+    local shop, err = shopFor(actor, data.id)
+    local showroom = GlobalState.lunaticRentalShowroom
+
+    if not shop then
+        return err
+    end
+
+    if not showroom then
+        return Panel.fail("Aucune vitrine réglée : celle de la config de lunatic_business est utilisée.")
+    end
+
+    TriggerClientEvent('lunatic_admin:teleport', src, vector3(showroom.x, showroom.y, showroom.z + 0.5))
     return { ok = true, silent = true }
 end
 

@@ -26,6 +26,9 @@ Config.BuybackAccount = 'money'      -- grossistes : compte crédité à la reve
 Config.BuybackMax = 500              -- quantité maximale par revente
 Config.RentalGrace = 120              -- après la fin : véhicule repris dès qu'il est vide, ou de force après ce délai (secondes)
 Config.RentalReturnDistance = 30.0    -- distance maximale entre le véhicule et le comptoir pour le rendre
+-- Vitrine d'aperçu par défaut (grand garage intérieur de GTA) : le véhicule choisi y est montré en 3D, visible du seul joueur.
+-- Réglable dans le panel (tuile Catalogues, agence de location : « Vitrine d'aperçu »), qui a la priorité.
+Config.RentalShowroom = vector4(228.7, -991.6, -99.0, 200.0)
 
 -- Véhicules de service (parc et garages placés dans le panel, fiche de la structure)
 Config.GarageStoreDistance = 8.0     -- au volant, distance au point Garages pour [E] Ranger

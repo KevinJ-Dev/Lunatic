@@ -78,7 +78,7 @@ async function loadShopList() {
 
 // Partie de la fiche enregistrée par « Enregistrer » (les emplacements sont enregistrés tout de suite)
 function shopSnapshot(d) {
-    return JSON.stringify([d.label, d.slug, d.blip, d.header || "", d.jobs, (d.items || []).map((e) => [e.item, e.price, e.license || null]), d.defaultPrice || 0]);
+    return JSON.stringify([d.label, d.slug, d.blip, d.header || "", d.jobs, (d.items || []).map((e) => [e.item, e.price, e.license || null]), d.defaultPrice || 0, d.maxPeriods || 4]);
 }
 
 // Image d'un véhicule : celle du panel, sinon la photo officielle des véhicules du jeu (docs FiveM)
@@ -197,6 +197,9 @@ function shopForm() {
 
     // Agence de location : véhicules proposés, rangés par catégorie
     const rental = shopState.category.kind === "rental";
+    const maxPeriods = bind(h("input", { class: "input mono", type: "number", min: "1", max: "24", value: String(d.maxPeriods || 4) }), (v) => { d.maxPeriods = Math.max(1, Math.min(24, Math.floor(Number(v) || 1))); });
+    const showroomText = (s) => (s ? `${s.x.toFixed(1)}, ${s.y.toFixed(1)}, ${s.z.toFixed(1)} · ${Math.round(s.h)}°` : "celle de la config (garage par défaut)");
+    const showroomCoords = h("span", { class: "mono muted" }, showroomText(d.showroom));
     const buyback = shopState.category.kind === "buyback";
     const vehicleRow = (v) => {
         const img = h("img", { class: "vehicle-img", src: vehicleImage(v), alt: "" });
@@ -250,7 +253,7 @@ function shopForm() {
         const snapshot = shopSnapshot(d);
         const res = await shopAct("shops.save", {
         id: d.id, label: d.label.trim(), slug: d.slug.trim(), blipSprite: d.blip.sprite, blipColor: d.blip.color, blipScale: d.blip.scale,
-        blipLabel: (d.blip.label || "").trim(), header: (d.header || "").trim(), jobs: d.jobs, defaultPrice: d.defaultPrice || 0,
+        blipLabel: (d.blip.label || "").trim(), header: (d.header || "").trim(), jobs: d.jobs, defaultPrice: d.defaultPrice || 0, maxPeriods: d.maxPeriods || 4,
         items: d.items.map((e) => ({ item: e.item, price: e.price, license: e.license || null })),
     }, "Magasin enregistré.");
         if (res) shopState.saved = snapshot;
@@ -274,7 +277,14 @@ function shopForm() {
                 h("div", { class: "card-head dev-head" }, h("h3", { class: "card-title" }, `Véhicules (${(d.vehicles || []).length})`),
                     h("button", { class: "btn small primary", onclick: () => openRentalVehicle(d, null) }, icon("i-plus"), "Ajouter")),
                 vehicles.length ? vehicles : h("p", { class: "hint-line", style: "margin:0" }, "Aucun véhicule à louer."),
-                h("p", { class: "hint-line" }, "Le client paie en liquide ou par carte, garde le véhicule le temps indiqué, puis le véhicule est repris. Il peut le rendre plus tôt au comptoir."))
+                h("p", { class: "hint-line" }, "Le prix et la durée d'un véhicule valent pour une période ; le client choisit le nombre de périodes, paie en liquide ou par carte, puis le véhicule est repris à la fin. Il peut le rendre plus tôt au comptoir."),
+                field("Périodes maximum par location", maxPeriods),
+                h("div", { class: "driving-spot" }, h("b", null, "Vitrine d'aperçu (toutes les agences)"), showroomCoords,
+                    h("button", { class: "btn small ghost", title: "Placez-vous là où le véhicule doit apparaître, dans le sens voulu", onclick: async () => {
+                        const res = await shopAct("shops.setShowroom", { id: d.id }, "Vitrine placée à votre position.");
+                        if (res && res.showroom) { d.showroom = res.showroom; showroomCoords.textContent = showroomText(res.showroom); }
+                    } }, icon("i-crosshair"), "Définir à ma position"),
+                    h("button", { class: "btn small ghost", onclick: () => shopAct("shops.tpShowroom", { id: d.id }, null) }, icon("i-goto"), "TP")))
             : h("div", { class: "card", style: "margin-top:16px" },
                 h("div", { class: "card-head dev-head" }, h("h3", { class: "card-title" }, buyback ? `Objets rachetés (${d.items.length})` : `Articles (${d.items.length})`),
                     h("button", { class: "btn small primary", onclick: openAddShopItem }, icon("i-plus"), "Ajouter")),

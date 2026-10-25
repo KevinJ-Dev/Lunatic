@@ -1,0 +1,86 @@
+/* Location de véhicules : mêmes couleurs, police et verre que le panel staff (lunatic_admin) */
+@font-face { font-family: "Public Sans"; src: url(fonts/public-sans-400.woff2) format("woff2"); font-weight: 400; }
+@font-face { font-family: "Public Sans"; src: url(fonts/public-sans-600.woff2) format("woff2"); font-weight: 600; }
+@font-face { font-family: "Public Sans"; src: url(fonts/public-sans-700.woff2) format("woff2"); font-weight: 700; }
+
+:root {
+    --accent-rgb: 150, 80, 255;
+    --accent: rgb(var(--accent-rgb));
+    --accent-2: #b48aff;
+    --panel: #100c18d1;
+    --line: #e9e1ff1a;
+    --glass-line: #e4d8ff26;
+    --ink: #f3f1f7;
+    --muted: #ffffff94;
+    --ok: #5fd3a0;
+    --font: "Public Sans", "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; color: var(--ink); font: 400 13px/1.4 var(--font); user-select: none; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.hidden { display: none !important; }
+
+.rental { position: fixed; inset: 0; display: flex; }
+
+/* Panneau de gauche */
+.panel { display: flex; flex-direction: column; width: 440px; height: calc(100% - 36px); margin: 18px; overflow: hidden; border: 1px solid var(--glass-line); border-radius: 22px; background:
+    radial-gradient(70% 30% at 50% 0%, rgba(var(--accent-rgb), .16), transparent 75%),
+    radial-gradient(60% 30% at 100% 100%, rgba(var(--accent-rgb), .14), transparent 75%), var(--panel); box-shadow: 0 30px 60px -30px #000c; }
+.head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 22px; border-bottom: 1px solid var(--line); }
+.head div { display: grid; gap: 1px; }
+.head small { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.head b { font-size: 17px; }
+.count { text-align: right; }
+.count b { font-size: 15px; letter-spacing: .08em; text-transform: uppercase; }
+.count small { letter-spacing: .04em; text-transform: none; }
+
+.active { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; margin: 14px 20px 0; padding: 10px 14px; border: 1px solid rgba(var(--accent-rgb), .5); border-radius: 12px; background: rgba(var(--accent-rgb), .14); font-size: 12.5px; }
+.active b { display: block; font-size: 13.5px; }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 14px 20px 0; }
+.tab { height: 30px; padding: 0 13px; border: 1px solid var(--line); border-radius: 999px; background: #ffffff0a; color: var(--muted); font-size: 12px; font-weight: 600; }
+.tab:hover { color: var(--ink); }
+.tab.on { border-color: transparent; background: var(--accent); color: #fff; }
+
+.grid { display: grid; flex: 1; grid-template-columns: repeat(3, 1fr); align-content: start; gap: 8px; min-height: 0; overflow-y: auto; padding: 14px 20px; }
+.grid::-webkit-scrollbar { width: 6px; }
+.grid::-webkit-scrollbar-thumb { border-radius: 3px; background: #ffffff25; }
+.card { display: grid; gap: 4px; padding: 6px 6px 8px; border: 1px solid var(--line); border-radius: 12px; background: #ffffff08; text-align: center; }
+.card:hover { border-color: #ffffff30; }
+.card.on { border-color: transparent; background: linear-gradient(180deg, rgba(var(--accent-rgb), .45), rgba(var(--accent-rgb), .15)); box-shadow: 0 0 0 1px var(--accent-2), 0 12px 30px -14px rgba(var(--accent-rgb), .9); }
+.card .pic { display: grid; place-items: center; height: 62px; overflow: hidden; border-radius: 8px; background: radial-gradient(70% 70% at 50% 50%, #ffffff14, transparent); }
+.card img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.card b { overflow: hidden; font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
+.card small { color: var(--muted); font-size: 11px; }
+.empty { grid-column: 1 / -1; padding: 30px 0; color: var(--muted); text-align: center; }
+
+/* Pied : durée, total, paiement, louer */
+.foot { display: grid; gap: 10px; padding: 14px 20px 20px; border-top: 1px solid var(--line); }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.row > span { color: var(--muted); font-size: 12px; }
+.stepper { display: flex; align-items: center; gap: 4px; }
+.stepper button { width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 8px; background: #ffffff0f; font-size: 16px; }
+.stepper button:disabled { opacity: .35; cursor: default; }
+.stepper b { min-width: 92px; text-align: center; }
+.total { font-size: 20px; font-weight: 700; }
+.pay { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pay button { display: grid; gap: 1px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 10px; background: #ffffff0a; text-align: left; }
+.pay button small { color: var(--muted); font-size: 11px; }
+.pay button.on { border-color: var(--accent-2); background: rgba(var(--accent-rgb), .22); }
+.pay button:disabled { opacity: .4; cursor: default; }
+.go { height: 44px; border: 0; border-radius: 999px; background: linear-gradient(90deg, #2f9e6c, var(--ok)); color: #06210f; font-size: 15px; font-weight: 700; box-shadow: 0 12px 30px -14px #5fd3a0cc; }
+.go:disabled { background: #ffffff14; color: var(--muted); box-shadow: none; cursor: default; }
+.ghost-btn { height: 30px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: #ffffff12; font-size: 12px; font-weight: 600; }
+
+/* Scène : glisser pour tourner */
+.stage { position: relative; flex: 1; cursor: grab; }
+.stage:active { cursor: grabbing; }
+.close { position: absolute; top: 24px; right: 28px; width: 40px; height: 40px; border: 1px solid var(--glass-line); border-radius: 50%; background: var(--panel); font-size: 16px; }
+.name { position: absolute; right: 44px; bottom: 70px; display: grid; justify-items: end; text-align: right; text-shadow: 0 4px 24px #000c; pointer-events: none; }
+.name b { font-size: 46px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; }
+.name small { color: #ffffffc0; font-size: 15px; }
+.hint { position: absolute; bottom: 26px; right: 44px; padding: 6px 12px; border: 1px solid var(--glass-line); border-radius: 20px; background: #0008; color: #ffffffb0; font-size: 12px; pointer-events: none; }
+
+.toast { position: fixed; bottom: 30px; left: 490px; padding: 10px 16px; border: 1px solid var(--glass-line); border-left: 3px solid #f2c26b; border-radius: 10px; background: var(--panel); opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.on { opacity: 1; }
