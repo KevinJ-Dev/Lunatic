@@ -21,20 +21,12 @@ async function loadCatalogItems() {
     return catalogItems;
 }
 
-// Champ objet avec la liste des objets d'ox_inventory (datalist partagée)
-function itemPicker(items, value) {
-    const listId = "catalog-items";
-    if (!document.getElementById(listId)) {
-        document.body.append(h("datalist", { id: listId }, items.map((i) => h("option", { value: i.name }, i.label))));
-    }
-    return h("input", { class: "input mono", list: listId, maxlength: "60", placeholder: "nom de l'objet (ex. burger)", value: value || "" });
-}
-
 const itemImage = (name) => h("img", { class: "item-img", src: `nui://ox_inventory/web/images/${name}.png`, alt: "", onerror: (e) => { e.target.style.visibility = "hidden"; } });
 
 // ---------- Choix d'un objet en image ----------
-// Bouton qui affiche l'objet choisi (image + nom) et ouvre une grille de tous les objets d'ox_inventory.
-// holder[key] reçoit le nom de l'objet ; options : { optional (bouton « Aucun »), filter (objet -> booléen), onChange }
+// Champ objet de tout le panel : un bouton qui affiche l'objet choisi (image + nom) et ouvre une grille des objets
+// d'ox_inventory (images, recherche). Il se lit comme l'ancien champ texte : propriété value, événements input
+// et change ; placeholder renseigné = objet facultatif (bouton « Aucun »). items limite la grille (ex. armes).
 
 let itemPickImagesLoaded = false;
 
@@ -43,55 +35,76 @@ function pickedItemImage(name) {
     return h("img", { class: "item-img", src, alt: "", onerror: (e) => { e.target.style.visibility = "hidden"; } });
 }
 
-function itemChooserButton(holder, key, options = {}) {
+function itemPicker(items, value, options = {}) {
+    let current = value || "";
+    let placeholder = options.placeholder || "";
     const button = h("button", { class: "item-choose", type: "button" });
     const paint = () => {
-        const name = holder[key];
-        const item = name ? (catalogItems || []).find((i) => i.name === name) : null;
+        const known = current ? (catalogItems || items || []).find((i) => i.name === current) : null;
         button.replaceChildren(
-            h("span", { class: "item-choose-pic" }, name ? pickedItemImage(name) : icon("i-box")),
-            h("span", { class: "item-choose-text" }, h("b", null, name ? (item ? item.label : name) : options.placeholder || "Choisir un objet"), name ? h("small", { class: "mono" }, name) : null),
+            h("span", { class: "item-choose-pic" }, current ? pickedItemImage(current) : icon("i-box")),
+            h("span", { class: "item-choose-text" }, h("b", null, current ? (known ? known.label : current) : placeholder || "Choisir un objet"), current ? h("small", { class: "mono" }, current) : null),
             icon("i-search"));
-        button.classList.toggle("empty", !name);
+        button.classList.toggle("empty", !current);
     };
-    button.addEventListener("click", () => openItemChooser(holder[key], options, (name) => {
-        holder[key] = name;
+    Object.defineProperty(button, "value", { get: () => current, set: (v) => { current = v || ""; paint(); } });
+    Object.defineProperty(button, "placeholder", { get: () => placeholder, set: (v) => { placeholder = v || ""; paint(); } });
+    button.addEventListener("click", () => openItemChooser(current, { title: options.title, optional: options.optional || !!placeholder, list: items }, (name) => {
+        current = name;
         paint();
-        if (options.onChange) options.onChange(name);
+        button.dispatchEvent(new Event("input", { bubbles: true }));
+        button.dispatchEvent(new Event("change", { bubbles: true }));
     }));
     paint();
     if (!catalogItems) loadCatalogItems().then(paint);
     return button;
 }
 
+// Variante liée à un brouillon : holder[key] reçoit le nom ; options : { title, optional, placeholder, filter, onChange }
+function itemChooserButton(holder, key, options = {}) {
+    const list = options.filter && catalogItems ? catalogItems.filter(options.filter) : null;
+    const button = itemPicker(list, holder[key], options);
+    button.addEventListener("change", () => {
+        holder[key] = button.value;
+        if (options.onChange) options.onChange(button.value);
+    });
+    return button;
+}
+
 async function openItemChooser(current, options, done) {
-    const items = await loadCatalogItems();
+    const all = await loadCatalogItems();
+    const items = Array.isArray(options.list) && options.list.length ? options.list : all;
     if (!itemPickImagesLoaded && typeof itemsState !== "undefined") {
         itemPickImagesLoaded = true;
         const images = await nui("itemImages", {}).catch(() => null);
         if (images && typeof images === "object") itemsState.images = images;
     }
+
+    // Ouvert depuis une fenêtre (article de magasin, recette…) : on y revient ensuite
+    const parent = $("backdrop").classList.contains("on") ? { nodes: [...$("modal").childNodes], className: $("modal").className } : null;
+    const finish = () => {
+        if (!parent) return closeModal();
+        $("modal").className = parent.className;
+        $("modal").replaceChildren(...parent.nodes);
+    };
+
     const search = h("input", { placeholder: "Rechercher un objet (nom ou identifiant)" });
     const grid = h("div", { class: "item-choose-grid" });
-    let closeModal = null;
     const paint = () => {
         const q = fold(search.value.trim());
-        const list = items.filter((i) => (!options.filter || options.filter(i)) && (!q || fold(i.label).includes(q) || i.name.toLowerCase().includes(q))).slice(0, 300);
-        grid.replaceChildren(...(list.length ? list.map((i) => h("button", { class: `item-choose-cell${i.name === current ? " on" : ""}`, title: i.name, onclick: () => { done(i.name); closeModal(); } },
+        const list = items.filter((i) => !q || fold(i.label).includes(q) || i.name.toLowerCase().includes(q)).slice(0, 300);
+        grid.replaceChildren(...(list.length ? list.map((i) => h("button", { class: `item-choose-cell${i.name === current ? " on" : ""}`, title: i.name, onclick: () => { finish(); done(i.name); } },
             h("span", { class: "item-choose-pic" }, pickedItemImage(i.name)), h("b", null, i.label), h("small", { class: "mono" }, i.name))) : [h("p", { class: "hint-line" }, "Aucun objet ne correspond.")]));
     };
     search.addEventListener("input", paint);
     paint();
-    openModal((close) => {
-        closeModal = close;
-        return [
-            h("header", null, h("h3", null, options.title || "Choisir un objet"), h("p", null, `${items.length} objets d'ox_inventory.`)),
-            h("div", { class: "body item-choose-body" }, h("label", { class: "search" }, icon("i-search"), search), grid),
-            h("footer", null,
-                options.optional ? h("button", { class: "btn ghost", onclick: () => { done(""); close(); } }, icon("i-x"), "Aucun") : null,
-                h("button", { class: "btn ghost", onclick: () => close() }, "Annuler")),
-        ];
-    });
+    openModal(() => [
+        h("header", null, h("h3", null, options.title || "Choisir un objet"), h("p", null, `${items.length} objets d'ox_inventory.`)),
+        h("div", { class: "body item-choose-body" }, h("label", { class: "search" }, icon("i-search"), search), grid),
+        h("footer", null,
+            options.optional ? h("button", { class: "btn ghost", onclick: () => { finish(); done(""); } }, icon("i-x"), "Aucun") : null,
+            h("button", { class: "btn ghost", onclick: finish }, "Annuler")),
+    ]);
     $("modal").classList.add("item-choose-modal");
     search.focus();
 }

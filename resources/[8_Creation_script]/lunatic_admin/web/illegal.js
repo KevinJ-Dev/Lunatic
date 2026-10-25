@@ -184,7 +184,7 @@ function draftText(d, key, attrs = {}) {
 }
 
 function draftItem(d, key, onChange) {
-    const input = catalogItems ? itemPicker(catalogItems, d[key]) : h("input", { class: "input mono", maxlength: "60", value: d[key] || "" });
+    const input = itemPicker(catalogItems, d[key]);
     input.addEventListener("input", () => { d[key] = input.value.trim(); });
     if (onChange) input.addEventListener("change", onChange);
     return input;
@@ -200,7 +200,7 @@ function draftToggle(d, key, label, hint) {
 function draftIngredients(d) {
     const list = h("div", { class: "ingredient-list" });
     const paint = () => list.replaceChildren(...d.ingredients.map((entry, index) => {
-        const name = catalogItems ? itemPicker(catalogItems, entry.item) : h("input", { class: "input mono", value: entry.item });
+        const name = itemPicker(catalogItems, entry.item, { title: "Ingrédient" });
         const amount = h("input", { class: "input mono", type: "number", min: "1", value: String(entry.count) });
         name.addEventListener("input", () => { entry.item = name.value.trim(); });
         amount.addEventListener("input", () => { entry.count = Number(amount.value || 1); });

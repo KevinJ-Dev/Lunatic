@@ -336,13 +336,11 @@ function zoneItemsTab(content) {
     }
     const list = h("div", { class: "zone-list" });
     const paint = () => list.replaceChildren(...(content.items.length ? content.items.map((entry, index) => {
-        const name = itemPicker(catalogItems, entry.item);
+        const name = itemPicker(catalogItems, entry.item, { title: "Objet donné aux participants" });
         const count = h("input", { class: "input mono", type: "number", min: "1", max: "1000", value: String(entry.count) });
-        const pic = h("span", { class: "zone-item-pic" }, itemImage(entry.item));
         name.addEventListener("input", () => { entry.item = name.value.trim(); });
-        name.addEventListener("change", () => pic.replaceChildren(itemImage(entry.item)));
         count.addEventListener("input", () => { entry.count = Number(count.value || 1); });
-        return h("div", { class: "zone-item-row" }, pic, name, count,
+        return h("div", { class: "zone-item-row" }, name, count,
             h("button", { class: "btn small ghost sq-btn", title: "Retirer", onclick: () => { content.items.splice(index, 1); paint(); } }, icon("i-trash")));
     }) : [h("p", { class: "hint-line" }, "Aucun objet : les participants gardent seulement leur inventaire.")]));
     paint();

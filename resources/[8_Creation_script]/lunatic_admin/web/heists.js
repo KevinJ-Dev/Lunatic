@@ -132,8 +132,7 @@ async function openHeistSettings(t) {
     const blocks = t.actions.map((a) => {
         const draft = { duration: a.duration, tool: a.tool || "", breakChance: a.breakChance, alert: a.alert, count: a.count, models: a.models.slice(), loot: (a.loot || []).map((l) => ({ item: l.item, min: l.min, max: l.max, chance: l.chance })) };
         const duration = num(draft.duration, 3, 300);
-        const tool = itemPicker(items, draft.tool);
-        tool.placeholder = "aucun outil";
+        const tool = itemPicker(items, draft.tool, { title: "Outil requis", placeholder: "Aucun outil" });
         const breakChance = num(draft.breakChance, 0, 100);
         const alert = num(draft.alert, 0, 100);
         const count = a.id === "locker" ? num(draft.count || 4, 1, 20) : null;

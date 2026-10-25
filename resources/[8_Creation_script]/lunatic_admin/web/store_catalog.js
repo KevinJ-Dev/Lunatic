@@ -188,8 +188,7 @@ function storeProductEditor(kind, category) {
         model.addEventListener("change", () => { d.data.model = model.value.trim().toLowerCase(); paintPreview(); });
         specific = [fieldRow("Modèle", model)];
     } else if (kind === "weapons") {
-        const item = catalogItems ? itemPicker(catalogItems.filter((i) => i.name.startsWith("WEAPON_")), d.data.item) : h("input", { class: "input mono", value: d.data.item });
-        item.placeholder = "WEAPON_PISTOL";
+        const item = itemPicker(catalogItems ? catalogItems.filter((i) => i.name.startsWith("WEAPON_")) : null, d.data.item, { title: "Arme vendue" });
         item.addEventListener("change", () => { d.data.item = item.value.trim().toUpperCase(); paintPreview(); });
         const ammo = h("input", { class: "input mono", type: "number", min: "0", max: "1000", value: String(d.data.ammo || 0) });
         ammo.addEventListener("input", () => { d.data.ammo = Number(ammo.value || 0); });
@@ -227,7 +226,7 @@ function storePackFields(data) {
 
     const items = h("div", { class: "zone-list" });
     const paintItems = () => items.replaceChildren(...data.items.map((entry, index) => {
-        const name = catalogItems ? itemPicker(catalogItems, entry.item) : h("input", { class: "input mono", value: entry.item });
+        const name = itemPicker(catalogItems, entry.item, { title: "Objet du pack" });
         name.addEventListener("input", () => { entry.item = name.value.trim(); });
         const count = h("input", { class: "input mono", type: "number", min: "1", value: String(entry.count) });
         count.addEventListener("input", () => { entry.count = Number(count.value || 1); });
