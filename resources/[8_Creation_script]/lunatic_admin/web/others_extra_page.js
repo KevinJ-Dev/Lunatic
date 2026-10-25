@@ -525,75 +525,95 @@ async function saveCreatorSettings() {
 }
 
 // ====================================================================
-//  Hôpitaux : réveil après l'inconscience à l'hôpital actif le plus proche (lunatic_gameplay)
+//  Listes de points (lunatic_gameplay) : hôpitaux et guichets de documents. Même page pour les deux :
+//  points de la config affichés d'office, actifs ou non, position prise en jeu, ordre, PNJ éventuel.
 // ====================================================================
 
-const hospitalState = { data: null, draft: null, saved: "" };
+const POINT_PAGES = {
+    hospitals: {
+        title: "Hôpitaux", item: "Hôpital", placeholder: "Pillbox Hill", spot: "Point de réveil", toggle: "Peut accueillir les réveils",
+        hint: "Après l'inconscience, le joueur se réveille à l'hôpital actif le plus proche de l'endroit où il est tombé (frais et règles : Fonctionnalités → Gameplay → Mort & Respawn).",
+    },
+    offices: {
+        title: "Guichets de documents", item: "Guichet", placeholder: "Commissariat de Mission Row", spot: "Guichet ([E])", toggle: "Ouvert aux joueurs", ped: true,
+        hint: "Les joueurs y retirent leur carte d'identité (première gratuite, puis duplicata) et leur permis. Réglages : Fonctionnalités → Carte d'identité.",
+    },
+};
+const pointStates = { hospitals: { data: null, draft: null, saved: "" }, offices: { data: null, draft: null, saved: "" } };
 
-function renderHospitals(root) {
-    if (hospitalState.data && root.querySelector(".hospitals-page")) return;
-    paintHospitals();
-    if (!hospitalState.data) loadHospitals();
+function renderPoints(root, kind) {
+    if (pointStates[kind].data && root.querySelector(`.points-page-${kind}`)) return;
+    paintPoints(kind);
+    if (!pointStates[kind].data) loadPoints(kind);
 }
 
-async function loadHospitals() {
-    const res = await nui("action", { action: "hospitals.get", payload: {} }).catch(() => null);
+const renderHospitals = (root) => renderPoints(root, "hospitals");
+const renderOffices = (root) => renderPoints(root, "offices");
+
+async function loadPoints(kind) {
+    const res = await nui("action", { action: `${kind}.get`, payload: {} }).catch(() => null);
     if (!res || !res.ok) return;
-    hospitalState.data = res;
-    if (othersState.page === "hospitals") paintHospitals();
+    pointStates[kind].data = res;
+    if (othersState.page === kind) paintPoints(kind);
 }
 
-function paintHospitals() {
+function paintPoints(kind) {
+    const page = POINT_PAGES[kind];
+    const st = pointStates[kind];
     const root = $("view-others");
-    if (!hospitalState.data) return root.replaceChildren(h("div", { class: "content hospitals-page" }, othersHead("Hôpitaux"), h("div", { class: "empty" }, icon("i-clock"), "Chargement…")));
-    if (!hospitalState.draft) {
-        // Hôpitaux de la config affichés d'office : tout se gère ici
-        const list = hospitalState.data.hospitals && hospitalState.data.hospitals.length ? hospitalState.data.hospitals : hospitalState.data.defaults || [];
-        hospitalState.draft = { key: "hospitals", hospitals: JSON.parse(JSON.stringify(list)) };
-        for (const hospital of hospitalState.draft.hospitals) if (hospital.enabled === undefined) hospital.enabled = true;
-        hospitalState.saved = JSON.stringify(hospitalState.draft);
-        othersTrack("Hôpitaux", hospitalState, saveHospitals, paintHospitals);
+    const pageClass = `content points-page-${kind}`;
+    if (!st.data) return root.replaceChildren(h("div", { class: pageClass }, othersHead(page.title), h("div", { class: "empty" }, icon("i-clock"), "Chargement…")));
+    if (!st.draft) {
+        const list = st.data.points && st.data.points.length ? st.data.points : st.data.defaults || [];
+        st.draft = { key: kind, points: JSON.parse(JSON.stringify(list)) };
+        for (const point of st.draft.points) if (point.enabled === undefined) point.enabled = true;
+        st.saved = JSON.stringify(st.draft);
+        othersTrack(page.title, st, () => savePoints(kind), () => paintPoints(kind));
     }
-    const d = hospitalState.draft;
+    const d = st.draft;
 
-    const card = (hospital, index) => {
-        const name = h("input", { class: "input", maxlength: "40", placeholder: "Pillbox Hill", value: hospital.label || "" });
-        name.addEventListener("input", () => { hospital.label = name.value; });
-        const coords = h("span", { class: "mono muted" }, afkCoords(hospital.x != null ? hospital : null));
-        const move = (delta) => { d.hospitals.splice(index + delta, 0, d.hospitals.splice(index, 1)[0]); paintHospitals(); };
+    const card = (point, index) => {
+        const name = h("input", { class: "input", maxlength: "40", placeholder: page.placeholder, value: point.label || "" });
+        name.addEventListener("input", () => { point.label = name.value; });
+        const ped = h("input", { class: "input mono", maxlength: "40", placeholder: "s_m_y_cop_01 (vide : aucun)", value: point.ped || "" });
+        ped.addEventListener("input", () => { point.ped = ped.value.trim(); });
+        const coords = h("span", { class: "mono muted" }, afkCoords(point.x != null ? point : null));
+        const move = (delta) => { d.points.splice(index + delta, 0, d.points.splice(index, 1)[0]); paintPoints(kind); };
         return h("div", { class: "card creator-spawn" },
-            h("div", { class: "creator-spawn-head" }, h("b", null, `Hôpital ${index + 1}`),
-                h("div", { class: "creator-spawn-toggle" }, draftToggle(hospital, "enabled", "Actif", "Peut accueillir les réveils")),
+            h("div", { class: "creator-spawn-head" }, h("b", null, `${page.item} ${index + 1}`),
+                h("div", { class: "creator-spawn-toggle" }, draftToggle(point, "enabled", "Actif", page.toggle)),
                 h("button", { class: "btn small ghost sq-btn", title: "Monter", disabled: index === 0, onclick: () => move(-1) }, "↑"),
-                h("button", { class: "btn small ghost sq-btn", title: "Descendre", disabled: index === d.hospitals.length - 1, onclick: () => move(1) }, "↓"),
-                h("button", { class: "btn small danger", onclick: () => { d.hospitals.splice(index, 1); paintHospitals(); } }, icon("i-trash"), "Retirer")),
+                h("button", { class: "btn small ghost sq-btn", title: "Descendre", disabled: index === d.points.length - 1, onclick: () => move(1) }, "↓"),
+                h("button", { class: "btn small danger", onclick: () => { d.points.splice(index, 1); paintPoints(kind); } }, icon("i-trash"), "Retirer")),
             fieldRow("Nom", name),
-            h("div", { class: "driving-spot" }, h("b", null, "Point de réveil"), coords,
+            page.ped ? fieldRow("PNJ au guichet", ped) : null,
+            h("div", { class: "driving-spot" }, h("b", null, page.spot), coords,
                 h("button", { class: "btn small ghost", onclick: async () => {
                     const p = await othersMyPosition();
                     if (!p) return;
-                    Object.assign(hospital, { x: p.x, y: p.y, z: p.z, h: p.h });
+                    Object.assign(point, { x: p.x, y: p.y, z: p.z, h: p.h });
                     coords.textContent = afkCoords(p);
                 } }, icon("i-crosshair"), "Définir position"),
-                h("button", { class: "btn small ghost", onclick: () => (hospital.x != null ? act("others.tp", { x: hospital.x, y: hospital.y, z: hospital.z, h: hospital.h }, null) : toast("Position non définie.", "error")) }, icon("i-goto"), "TP")));
+                h("button", { class: "btn small ghost", onclick: () => (point.x != null ? act("others.tp", { x: point.x, y: point.y, z: point.z, h: point.h }, null) : toast("Position non définie.", "error")) }, icon("i-goto"), "TP")));
     };
 
-    root.replaceChildren(h("div", { class: "content hospitals-page" }, othersHead("Hôpitaux"),
+    root.replaceChildren(h("div", { class: pageClass }, othersHead(page.title),
         h("div", { class: "scroll others-editor" },
             h("div", { class: "card" },
-                h("p", { class: "hint-line", style: "margin:0" }, "Après l'inconscience, le joueur se réveille à l'hôpital actif le plus proche de l'endroit où il est tombé (frais et règles : Fonctionnalités → Gameplay → Mort & Respawn)."),
+                h("p", { class: "hint-line", style: "margin:0" }, page.hint),
                 h("div", { class: "btn-row" }, h("button", { class: "btn small primary", onclick: () => {
-                    if (d.hospitals.length >= 20) return toast("20 hôpitaux au maximum.", "error");
-                    d.hospitals.push({ label: "", enabled: true });
-                    paintHospitals();
-                } }, icon("i-plus"), "Ajouter un hôpital"))),
-            d.hospitals.map(card))));
+                    if (d.points.length >= 20) return toast("20 au maximum.", "error");
+                    d.points.push({ label: "", enabled: true });
+                    paintPoints(kind);
+                } }, icon("i-plus"), `Ajouter (${page.item.toLowerCase()})`))),
+            d.points.map(card))));
 }
 
-async function saveHospitals() {
-    const res = await act("hospitals.save", { hospitals: hospitalState.draft.hospitals }, "Hôpitaux enregistrés.");
+async function savePoints(kind) {
+    const st = pointStates[kind];
+    const res = await act(`${kind}.save`, { points: st.draft.points }, `${POINT_PAGES[kind].title} enregistrés.`);
     if (!res) return;
     untrackUnsaved("others");
-    hospitalState.draft = null;
-    await loadHospitals();
+    st.draft = null;
+    await loadPoints(kind);
 }

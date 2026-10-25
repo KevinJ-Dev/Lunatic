@@ -558,73 +558,86 @@ Panel.actions['creator.photos'] = function(src, actor, data)
 end
 
 ---------------------------------------------------------------------
--- Hôpitaux : réveil après l'inconscience au plus proche (KVP 'hospitals', GlobalState.lunaticHospitals,
--- lu par lunatic_gameplay). Sans hôpital actif ici, ceux de sa config servent.
+-- Listes de points réglées ici et lues par lunatic_gameplay (GlobalState) : hôpitaux (réveil après l'inconscience
+-- au plus proche) et guichets de documents (carte d'identité, permis). Sans point actif, ceux de sa config servent.
 ---------------------------------------------------------------------
 
-local HOSPITALS_MAX = 20
-local savedHospitals = GetResourceKvpString('hospitals')
-local hospitalList = savedHospitals and json.decode(savedHospitals) or {}
+local POINTS_MAX = 20
 
-local function publishHospitals()
-    GlobalState.lunaticHospitals = hospitalList
-end
+local function pointList(spec)
+    local saved = GetResourceKvpString(spec.kvp)
+    local list = saved and json.decode(saved) or {}
 
-publishHospitals()
-
-local function defaultHospitals()
-    if GetResourceState('lunatic_gameplay') ~= 'started' then
-        return {}
+    local function publish()
+        GlobalState[spec.global] = list
     end
 
-    local ok, list = pcall(function() return exports.lunatic_gameplay:getDefaultHospitals() end)
-    return ok and type(list) == 'table' and list or {}
-end
+    publish()
 
-Panel.actions['hospitals.get'] = function(_, actor)
-    if not allowed(actor) then
-        return denied()
-    end
-
-    return { ok = true, silent = true, hospitals = hospitalList, defaults = defaultHospitals() }
-end
-
-Panel.actions['hospitals.save'] = function(src, actor, data)
-    if not allowed(actor) then
-        return denied()
-    end
-
-    if type(data) ~= 'table' or type(data.hospitals) ~= 'table' or #data.hospitals > HOSPITALS_MAX then
-        return Panel.fail(('Hôpitaux : %d au maximum.'):format(HOSPITALS_MAX))
-    end
-
-    local list, active = {}, 0
-
-    for index, hospital in ipairs(data.hospitals) do
-        local label = type(hospital) == 'table' and cleanText(hospital.label, 2, 40)
-        local point = type(hospital) == 'table' and position(hospital)
-
-        if not label then
-            return Panel.fail(('Hôpital %d : nom de 2 à 40 caractères.'):format(index))
-        elseif not point then
-            return Panel.fail(('Hôpital %d : position invalide (« Définir position » en jeu).'):format(index))
+    local function defaults()
+        if GetResourceState('lunatic_gameplay') ~= 'started' then
+            return {}
         end
 
-        local enabled = hospital.enabled ~= false
-        active = active + (enabled and 1 or 0)
-        list[#list + 1] = { label = label, x = point.x, y = point.y, z = point.z, h = point.h, enabled = enabled }
+        local ok, entries = pcall(function()
+            local api = exports.lunatic_gameplay
+            return api[spec.defaults](api)
+        end)
+
+        return ok and type(entries) == 'table' and entries or {}
     end
 
-    if #list > 0 and active == 0 then
-        return Panel.fail('Activez au moins un hôpital.')
+    Panel.actions[spec.prefix .. '.get'] = function(_, actor)
+        if not allowed(actor) then
+            return denied()
+        end
+
+        return { ok = true, silent = true, points = list, defaults = defaults() }
     end
 
-    hospitalList = list
-    SetResourceKvp('hospitals', json.encode(hospitalList))
-    publishHospitals()
+    Panel.actions[spec.prefix .. '.save'] = function(src, actor, data)
+        if not allowed(actor) then
+            return denied()
+        end
 
-    Logs.add(src, 'hospitals.save', nil, { count = #list })
-    return { ok = true, silent = true }
+        if type(data) ~= 'table' or type(data.points) ~= 'table' or #data.points > POINTS_MAX then
+            return Panel.fail(('%s : %d au maximum.'):format(spec.name, POINTS_MAX))
+        end
+
+        local entries, active = {}, 0
+
+        for index, point in ipairs(data.points) do
+            local label = type(point) == 'table' and cleanText(point.label, 2, 40)
+            local coords = type(point) == 'table' and position(point)
+            local ped = type(point) == 'table' and Util.cleanTextOrEmpty(point.ped, 0, 40)
+
+            if not label then
+                return Panel.fail(('%s %d : nom de 2 à 40 caractères.'):format(spec.item, index))
+            elseif not coords then
+                return Panel.fail(('%s %d : position invalide (« Définir position » en jeu).'):format(spec.item, index))
+            elseif spec.ped and (not ped or (ped ~= '' and not ped:match('^[%w_]+$'))) then
+                return Panel.fail(('%s %d : modèle de PNJ invalide (ex. s_m_y_cop_01, vide pour aucun).'):format(spec.item, index))
+            end
+
+            local enabled = point.enabled ~= false
+            active = active + (enabled and 1 or 0)
+            entries[#entries + 1] = { label = label, x = coords.x, y = coords.y, z = coords.z, h = coords.h, enabled = enabled, ped = spec.ped and ped or nil }
+        end
+
+        if #entries > 0 and active == 0 then
+            return Panel.fail(('%s : activez-en au moins un.'):format(spec.name))
+        end
+
+        list = entries
+        SetResourceKvp(spec.kvp, json.encode(list))
+        publish()
+
+        Logs.add(src, spec.prefix .. '.save', nil, { count = #list })
+        return { ok = true, silent = true }
+    end
 end
 
-print('[lunatic_admin] Modules Ascenseurs, Heal Items, Tarifs mécano, Zone AFK, Création perso et Hôpitaux chargés.')
+pointList({ prefix = 'hospitals', kvp = 'hospitals', global = 'lunaticHospitals', defaults = 'getDefaultHospitals', name = 'Hôpitaux', item = 'Hôpital' })
+pointList({ prefix = 'offices', kvp = 'document_offices', global = 'lunaticDocumentOffices', defaults = 'getDefaultOffices', name = 'Guichets', item = 'Guichet', ped = true })
+
+print('[lunatic_admin] Modules Ascenseurs, Heal Items, Tarifs mécano, Zone AFK, Création perso, Hôpitaux et Guichets chargés.')

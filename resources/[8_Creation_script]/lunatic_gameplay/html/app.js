@@ -3,10 +3,10 @@
 // Carte d'identité : modèles français, américain (San Andreas), belge et canadien
 
 const MODELS = {
-    fr: { title: "RÉPUBLIQUE FRANÇAISE", sub: "CARTE NATIONALE D'IDENTITÉ", foot: "IDFRA", labels: ["Nom", "Prénom(s)", "Sexe", "Taille", "Né(e) le", "N° du document"] },
-    us: { title: "STATE OF SAN ANDREAS", sub: "DRIVER LICENSE", foot: "USA · LOS SANTOS DMV", labels: ["Last name", "First name", "Sex", "Height", "Date of birth", "DL number"] },
-    be: { title: "BELGIQUE · BELGIË · BELGIEN", sub: "CARTE D'IDENTITÉ · IDENTITEITSKAART", foot: "IDBEL", labels: ["Nom", "Prénoms", "Sexe", "Taille", "Date de naissance", "N° de carte"] },
-    ca: { title: "CANADA", sub: "PERMIS DE CONDUIRE · DRIVER'S LICENCE", foot: "CAN", labels: ["Nom / Last name", "Prénom / First name", "Sexe / Sex", "Taille / Height", "Naissance / Birth", "N° / No."] },
+    fr: { title: "RÉPUBLIQUE FRANÇAISE", sub: "CARTE NATIONALE D'IDENTITÉ", foot: "IDFRA", labels: ["Nom", "Prénom(s)", "Sexe", "Taille", "Né(e) le", "N° du document", "Nationalité"] },
+    us: { title: "STATE OF SAN ANDREAS", sub: "DRIVER LICENSE", foot: "USA · LOS SANTOS DMV", labels: ["Last name", "First name", "Sex", "Height", "Date of birth", "DL number", "Nationality"] },
+    be: { title: "BELGIQUE · BELGIË · BELGIEN", sub: "CARTE D'IDENTITÉ · IDENTITEITSKAART", foot: "IDBEL", labels: ["Nom", "Prénoms", "Sexe", "Taille", "Date de naissance", "N° de carte", "Nationalité"] },
+    ca: { title: "CANADA", sub: "PERMIS DE CONDUIRE · DRIVER'S LICENCE", foot: "CAN", labels: ["Nom / Last name", "Prénom / First name", "Sexe / Sex", "Taille / Height", "Naissance / Birth", "N° / No.", "Nationalité"] },
 };
 
 const $ = (id) => document.getElementById(id);
@@ -19,12 +19,13 @@ function show(identity) {
     $("title").textContent = m.title;
     $("sub").textContent = m.sub;
     $("foot").textContent = `${m.foot}<<${String(identity.lastName || "").toUpperCase()}<<${String(identity.firstName || "").toUpperCase()}<<<<<<${identity.number || ""}`;
-    ["lLast", "lFirst", "lSex", "lHeight", "lBirth", "lNumber"].forEach((id, i) => { $(id).textContent = m.labels[i]; });
+    ["lLast", "lFirst", "lSex", "lHeight", "lBirth", "lNumber", "lNation"].forEach((id, i) => { $(id).textContent = m.labels[i]; });
     $("last").textContent = String(identity.lastName || "—").toUpperCase();
     $("first").textContent = identity.firstName || "—";
     $("sex").textContent = identity.sex === "m" ? "M" : identity.sex === "f" ? "F" : "—";
     $("height").textContent = identity.height ? `${identity.height} cm` : "—";
     $("birth").textContent = identity.dateofbirth || "—";
+    $("nation").textContent = identity.nationality || "—";
     $("number").textContent = identity.number || "—";
     const photo = $("photo");
     photo.replaceChildren();

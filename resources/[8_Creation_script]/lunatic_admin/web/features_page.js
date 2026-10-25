@@ -160,7 +160,13 @@ const FEATURE_SECTIONS = {
             model: { label: "Modèle de carte", hint: "Affiché quand un joueur regarde ou montre sa carte (objet id_card)", options: [
                 { value: "fr", label: "Carte d'identité française" }, { value: "us", label: "Driver license américain (San Andreas)" },
                 { value: "be", label: "Carte d'identité belge" }, { value: "ca", label: "Permis canadien" }] },
-            autoGive: { label: "Carte remise à la connexion", hint: "Si le joueur n'en a pas (identité créée)" },
+            delivery: { label: "Remise de la carte", hint: "Au guichet (Autres → Guichets de documents) ou automatique à la connexion", options: [
+                { value: "police", label: "À retirer au guichet (poste de police)" }, { value: "auto", label: "Remise automatique à la connexion" }] },
+            guide: { label: "Guider les nouveaux joueurs", hint: "Point GPS vers le guichet le plus proche tant que la carte n'a jamais été retirée" },
+            firstFree: { label: "Première carte gratuite", hint: "Ensuite, chaque nouvelle carte est un duplicata payant" },
+            duplicatePrice: { label: "Prix du duplicata", hint: "Carte perdue ou volée", money: true },
+            duration: { label: "Durée d'affichage", hint: "La carte disparaît ensuite (Retour arrière pour la fermer avant)", unit: "s" },
+            showRadius: { label: "Rayon pour montrer la carte", hint: "Tous les joueurs à cette distance la voient", unit: "m" },
         },
     },
     misc: {

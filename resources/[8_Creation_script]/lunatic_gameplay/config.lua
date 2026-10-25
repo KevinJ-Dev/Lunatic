@@ -56,7 +56,16 @@ Config.SafeZones = {
     { label = 'Hôpital de Paleto Bay', coords = vector3(-247.7, 6331.2, 32.4), radius = 30.0 },
 }
 
--- Carte d'identité (modèle FR, US, BE ou CA choisi dans la tuile Fonctionnalités → Carte d'identité)
+-- Carte d'identité : modèle, remise, prix du duplicata, durée d'affichage et rayon réglés dans le panel
+-- (Fonctionnalités → Carte d'identité)
 Config.IdCardItem = 'id_card'
-Config.IdCardDuration = 10    -- secondes d'affichage (Retour arrière pour fermer avant)
-Config.IdCardShowDistance = 3.0
+
+-- Guichets de documents par défaut (postes de police) ; ceux réglés dans le panel (Autres → Guichets de documents)
+-- les remplacent. ped : PNJ derrière le guichet ('' pour aucun).
+Config.DocumentOffices = {
+    { label = 'Commissariat de Mission Row', x = 441.0, y = -978.9, z = 30.69, h = 180.0, ped = 's_m_y_cop_01' },
+    { label = 'Bureau du shérif de Sandy Shores', x = 1853.2, y = 3689.6, z = 34.27, h = 210.0, ped = 's_m_y_sheriff_01' },
+    { label = 'Bureau du shérif de Paleto Bay', x = -448.4, y = 6012.8, z = 31.72, h = 310.0, ped = 's_m_y_sheriff_01' },
+}
+Config.OfficeDistance = 2.0
+Config.OfficeBlip = { sprite = 498, color = 29, scale = 0.75 }
