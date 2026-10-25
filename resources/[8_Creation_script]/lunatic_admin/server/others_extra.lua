@@ -418,4 +418,76 @@ Panel.actions['afkZone.save'] = function(src, actor, data)
     return { ok = true, silent = true }
 end
 
-print('[lunatic_admin] Modules Ascenseurs, Heal Items, Tarifs mécano et Zone AFK chargés.')
+---------------------------------------------------------------------
+-- Création perso : lieux d'apparition et visuels du créateur de personnage (KVP 'creator_settings',
+-- GlobalState.lunaticCreator, lu par lunatic_creator). Sans lieu réglé ici, ceux de sa config servent.
+---------------------------------------------------------------------
+
+local CREATOR_SPAWNS_MAX = 20
+local savedCreator = GetResourceKvpString('creator_settings')
+local creatorSettings = savedCreator and json.decode(savedCreator) or { showBanner = true, showLogo = true, spawns = {} }
+
+local function publishCreator()
+    GlobalState.lunaticCreator = creatorSettings
+end
+
+publishCreator()
+
+local function creatorDefaultSpawns()
+    if GetResourceState('lunatic_creator') ~= 'started' then
+        return {}
+    end
+
+    local ok, list = pcall(function() return exports.lunatic_creator:getDefaultSpawns() end)
+    return ok and type(list) == 'table' and list or {}
+end
+
+Panel.actions['creator.get'] = function(_, actor)
+    if not allowed(actor) then
+        return denied()
+    end
+
+    return { ok = true, silent = true, settings = creatorSettings, defaults = creatorDefaultSpawns() }
+end
+
+Panel.actions['creator.save'] = function(src, actor, data)
+    if not allowed(actor) then
+        return denied()
+    end
+
+    if type(data) ~= 'table' or type(data.spawns) ~= 'table' then
+        return Panel.fail('Réglages invalides.')
+    end
+
+    if #data.spawns > CREATOR_SPAWNS_MAX then
+        return Panel.fail(("%d lieux d'apparition au maximum."):format(CREATOR_SPAWNS_MAX))
+    end
+
+    local spawns = {}
+
+    for index, spawn in ipairs(data.spawns) do
+        local label = type(spawn) == 'table' and cleanText(spawn.label, 2, 40)
+        local group = type(spawn) == 'table' and cleanText(spawn.group, 2, 30)
+        local point = type(spawn) == 'table' and position(spawn)
+        local image = type(spawn) == 'table' and Util.cleanTextOrEmpty(spawn.image, 0, 300)
+
+        if not label or not group then
+            return Panel.fail(('Lieu %d : nom (2 à 40 caractères) et groupe (2 à 30) obligatoires.'):format(index))
+        elseif not point then
+            return Panel.fail(('Lieu %d : position invalide (« Définir position » en jeu).'):format(index))
+        elseif not image or (image ~= '' and not image:match('^https://') and not image:match('^nui://')) then
+            return Panel.fail(('Lieu %d : image invalide (lien https:// ou nui://).'):format(index))
+        end
+
+        spawns[#spawns + 1] = { label = label, group = group, x = point.x, y = point.y, z = point.z, h = point.h, image = image }
+    end
+
+    creatorSettings = { showBanner = data.showBanner ~= false, showLogo = data.showLogo ~= false, spawns = spawns }
+    SetResourceKvp('creator_settings', json.encode(creatorSettings))
+    publishCreator()
+
+    Logs.add(src, 'creator.save', nil, { spawns = #spawns })
+    return { ok = true, silent = true }
+end
+
+print('[lunatic_admin] Modules Ascenseurs, Heal Items, Tarifs mécano, Zone AFK et Création perso chargés.')

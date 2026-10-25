@@ -9,6 +9,7 @@ local cameraIndex = 2
 local anchor = Config.Room   -- position du personnage (la pièce, puis l'aperçu du lieu d'apparition)
 local heading = Config.Room.w
 local spawnIndex = nil
+local spawns = {}            -- lieux d'apparition figés à l'ouverture (panel staff ou config)
 
 local MODELS = { male = `mp_m_freemode_01`, female = `mp_f_freemode_01` }
 -- Type de couleur de chaque calque du visage : 1 = couleurs des cheveux, 2 = maquillage
@@ -243,7 +244,7 @@ end
 local function spawnList()
     local list = {}
 
-    for index, spawn in ipairs(Config.Spawns) do
+    for index, spawn in ipairs(spawns) do
         list[#list + 1] = { index = index, group = spawn.group, label = spawn.label, image = spawn.image }
     end
 
@@ -273,6 +274,16 @@ local function drawLights()
     end
 end
 
+local function branding()
+    local images = GlobalState.lunaticImages or {}
+    local settings = GlobalState.lunaticCreator or {}
+
+    return {
+        banner = settings.showBanner ~= false and images.creator_banner or nil,
+        logo = settings.showLogo ~= false and (images.creator_logo or 'logo.png') or nil,
+    }
+end
+
 local function open()
     if active then
         return
@@ -290,9 +301,27 @@ local function open()
     fade(true)
     TriggerServerEvent('lunatic_creator:enter')
 
-    appearance = defaults('male')
+    spawns = CreatorSpawns()
     anchor, heading, spawnIndex = Config.Room, Config.Room.w, nil
-    setSex('male')
+
+    -- Création interrompue (crash, déconnexion) : on reprend l'étape et les choix enregistrés
+    local draft = lib.callback.await('lunatic_creator:getDraft', false)
+    local saved = type(draft) == 'table' and type(draft.appearance) == 'table' and draft.appearance or nil
+
+    appearance = defaults(saved and saved.sex == 'female' and 'female' or 'male')
+    setSex(appearance.sex)
+
+    if saved then
+        saved.sex = appearance.sex
+        appearance = saved
+
+        if not pcall(applyAll) then
+            appearance = defaults(appearance.sex)
+            applyAll()
+            draft.appearance = nil
+        end
+    end
+
     waitCollision()
 
     RequestStreamedTextureDict('char_creator_portraits', true)
@@ -308,6 +337,8 @@ local function open()
             height = Config.Height, age = Config.Age, cameras = #Config.Cameras, spawns = spawnList(), clothes = clothesList(),
             mugshot = Config.MugshotSeconds, nationalities = Config.Nationalities, names = Config.RandomNames,
         },
+        branding = branding(),
+        draft = type(draft) == 'table' and { step = draft.step, identity = draft.identity } or nil,
     })
 
     Wait(300)
@@ -320,6 +351,13 @@ local function open()
             DisableAllControlActions(0)
             NetworkOverrideClockTime(Config.ClockHour, 0, 0)
             drawLights()
+
+            local ped = PlayerPedId()
+
+            if GetEntityHealth(ped) < GetEntityMaxHealth(ped) then
+                SetEntityHealth(ped, GetEntityMaxHealth(ped))
+            end
+
             Wait(0)
         end
     end)
@@ -436,7 +474,7 @@ end)
 
 -- Aperçu d'un lieu d'apparition : le personnage y est placé (seul, dans son instance)
 RegisterNUICallback('spawn', function(data, cb)
-    local spawn = Config.Spawns[tonumber(data.index) or 0]
+    local spawn = spawns[tonumber(data.index) or 0]
     cb({})
 
     if not spawn or spawnIndex == tonumber(data.index) then
@@ -454,6 +492,15 @@ RegisterNUICallback('spawn', function(data, cb)
     fade(false)
 end)
 
+-- Brouillon (étape, identité saisie, apparence) : permet de reprendre après un crash ou une déconnexion
+RegisterNUICallback('draft', function(data, cb)
+    cb({})
+
+    if active and type(data) == 'table' then
+        lib.callback.await('lunatic_creator:saveDraft', false, { step = tonumber(data.step), identity = data.identity, appearance = appearance })
+    end
+end)
+
 -- Fin de la création : identité et nationalité, apparence (illenium-appearance), photo, arrivée
 RegisterNUICallback('finish', function(data, cb)
     local identity = type(data) == 'table' and data.identity
@@ -462,7 +509,7 @@ RegisterNUICallback('finish', function(data, cb)
         return cb({ ok = false, error = 'Identité incomplète.' })
     end
 
-    if not spawnIndex or not Config.Spawns[spawnIndex] then
+    if not spawnIndex or not spawns[spawnIndex] then
         return cb({ ok = false, error = "Choisissez un lieu d'apparition." })
     end
 
@@ -470,6 +517,7 @@ RegisterNUICallback('finish', function(data, cb)
     local result = lib.callback.await('lunatic_creator:registerIdentity', false, {
         firstname = identity.firstname, lastname = identity.lastname, dateofbirth = identity.dateofbirth,
         sex = appearance.sex == 'female' and 'f' or 'm', height = tonumber(identity.height), nationality = identity.nationality,
+        spawn = spawnIndex,
     })
 
     if type(result) ~= 'table' or not result.ok then

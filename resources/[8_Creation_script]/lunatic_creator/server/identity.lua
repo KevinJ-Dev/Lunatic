@@ -5,7 +5,11 @@
 Identity = {
     pending = {},  -- [source] = true : identité à créer (ouvert par le serveur uniquement)
     creating = {}, -- [source] = true : joueur dans la pièce de création (instance privée)
+    arrival = {},  -- [source] = { identifier, coords } : identité validée, photo et arrivée en cours
 }
+
+local DRAFT_MAX = 60000 -- taille maximale d'un brouillon encodé (caractères)
+local draftSaved = {}   -- [source] = horodatage du dernier brouillon (limite d'envoi)
 
 local nationalities = {}
 for _, name in ipairs(Config.Nationalities) do
@@ -149,7 +153,76 @@ MySQL.ready(function()
 end)
 
 AddEventHandler('playerDropped', function()
-    Identity.pending[source] = nil
+    local src = source
+    local arrival = Identity.arrival[src]
+
+    Identity.pending[src] = nil
+    Identity.arrival[src] = nil
+    draftSaved[src] = nil
+
+    -- Parti pendant la photo ou l'arrivée : à la reconnexion, il apparaît au lieu choisi et non dans la pièce
+    -- (après la sauvegarde d'ESX, qui enregistre la position de la pièce)
+    if arrival then
+        SetTimeout(4000, function()
+            local c = arrival.coords
+            MySQL.update.await('UPDATE `users` SET `position` = ? WHERE `identifier` = ?', {
+                json.encode({ x = c.x, y = c.y, z = c.z, heading = c.w }), arrival.identifier,
+            })
+        end)
+    end
+end)
+
+---------------------------------------------------------------------
+-- Brouillon : reprise de la création après un crash ou une déconnexion
+---------------------------------------------------------------------
+
+local function deleteDraft(identifier)
+    MySQL.update.await('DELETE FROM `lunatic_character_draft` WHERE `identifier` = ?', { identifier })
+end
+
+lib.callback.register('lunatic_creator:getDraft', function(src)
+    local xPlayer = ESX.GetPlayerFromId(src)
+
+    if not xPlayer or not Identity.pending[src] then
+        return nil
+    end
+
+    local data = MySQL.scalar.await('SELECT `data` FROM `lunatic_character_draft` WHERE `identifier` = ?', { xPlayer.getIdentifier() })
+    local ok, draft = pcall(json.decode, data or '')
+
+    return ok and type(draft) == 'table' and draft or nil
+end)
+
+lib.callback.register('lunatic_creator:saveDraft', function(src, data)
+    local xPlayer = ESX.GetPlayerFromId(src)
+
+    if not xPlayer or not Identity.pending[src] or not Identity.creating[src] or type(data) ~= 'table' then
+        return false
+    end
+
+    -- Au plus un brouillon par seconde et par joueur
+    if (draftSaved[src] or 0) > GetGameTimer() - 1000 then
+        return false
+    end
+
+    draftSaved[src] = GetGameTimer()
+
+    local draft = {
+        step = math.tointeger(tonumber(data.step) or 0) or 0,
+        identity = type(data.identity) == 'table' and data.identity or nil,
+        appearance = type(data.appearance) == 'table' and data.appearance or nil,
+    }
+    local ok, encoded = pcall(json.encode, draft)
+
+    if not ok or #encoded > DRAFT_MAX then
+        return false
+    end
+
+    MySQL.query.await('INSERT INTO `lunatic_character_draft` (`identifier`, `data`, `updated_at`) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `data` = VALUES(`data`), `updated_at` = VALUES(`updated_at`)', {
+        xPlayer.getIdentifier(), encoded, os.time(),
+    })
+
+    return true
 end)
 
 ---------------------------------------------------------------------
@@ -188,6 +261,12 @@ lib.callback.register('lunatic_creator:registerIdentity', function(src, data)
         return { error = 'Choisissez une nationalité dans la liste.' }
     end
 
+    local spawn = CreatorSpawns()[math.tointeger(tonumber(data.spawn) or 0) or 0]
+
+    if not spawn then
+        return { error = "Choisissez un lieu d'apparition." }
+    end
+
     local identifier = xPlayer.getIdentifier()
 
     -- Une identité déjà enregistrée ne se remplace pas (il faut « Recréer » depuis le panel)
@@ -207,6 +286,8 @@ lib.callback.register('lunatic_creator:registerIdentity', function(src, data)
 
     setPlayerData(xPlayer, identity)
     Identity.pending[src] = nil
+    Identity.arrival[src] = { identifier = identifier, coords = spawn.coords }
+    deleteDraft(identifier)
 
     return { ok = true }
 end)
@@ -229,8 +310,20 @@ exports('resetIdentity', function(playerId)
     })
 
     setPlayerData(xPlayer, nil)
+    deleteDraft(xPlayer.getIdentifier())
     start(playerId)
     return true
+end)
+
+-- Lieux d'apparition de la config (proposés par le panel staff tant qu'aucun n'y est réglé)
+exports('getDefaultSpawns', function()
+    local list = {}
+
+    for _, spawn in ipairs(Config.Spawns) do
+        list[#list + 1] = { group = spawn.group, label = spawn.label, image = spawn.image or '', x = spawn.coords.x, y = spawn.coords.y, z = spawn.coords.z, h = spawn.coords.w }
+    end
+
+    return list
 end)
 
 exports('getNationality', function(identifier)

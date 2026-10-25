@@ -419,3 +419,91 @@ async function prefillMechanic() {
     paintMechanic();
     paintUnsaved();
 }
+
+// ====================================================================
+//  Création perso : lieux d'apparition et visuels du créateur de personnage (lunatic_creator)
+// ====================================================================
+
+const creatorState = { data: null, draft: null, saved: "" };
+
+function renderCreatorSettings(root) {
+    if (creatorState.data && root.querySelector(".creator-page")) return;
+    paintCreatorSettings();
+    if (!creatorState.data) loadCreatorSettings();
+}
+
+async function loadCreatorSettings() {
+    const res = await nui("action", { action: "creator.get", payload: {} }).catch(() => null);
+    if (!res || !res.ok) return;
+    creatorState.data = res;
+    if (othersState.page === "creator") paintCreatorSettings();
+}
+
+function paintCreatorSettings() {
+    const root = $("view-others");
+    if (!creatorState.data) return root.replaceChildren(h("div", { class: "content creator-page" }, othersHead("Création perso"), h("div", { class: "empty" }, icon("i-clock"), "Chargement…")));
+    if (!creatorState.draft) {
+        creatorState.draft = { key: "creator", ...JSON.parse(JSON.stringify(creatorState.data.settings)) };
+        creatorState.draft.spawns = creatorState.draft.spawns || [];
+        creatorState.saved = JSON.stringify(creatorState.draft);
+        othersTrack("Création perso", creatorState, saveCreatorSettings, paintCreatorSettings);
+    }
+    const d = creatorState.draft;
+    const defaults = creatorState.data.defaults || [];
+
+    const text = (spawn, key, placeholder, max) => {
+        const input = h("input", { class: "input", placeholder, maxlength: String(max), value: spawn[key] || "" });
+        input.addEventListener("input", () => { spawn[key] = input.value; });
+        return input;
+    };
+    const spawnCard = (spawn, index) => {
+        const coords = h("span", { class: "mono muted" }, afkCoords(spawn.x != null ? spawn : null));
+        const image = text(spawn, "image", "https://… (facultatif)", 300);
+        return h("div", { class: "card creator-spawn" },
+            h("div", { class: "creator-spawn-head" }, h("b", null, `Lieu ${index + 1}`),
+                h("button", { class: "btn small ghost sq-btn", title: "Monter", disabled: index === 0, onclick: () => { d.spawns.splice(index - 1, 0, d.spawns.splice(index, 1)[0]); paintCreatorSettings(); } }, "↑"),
+                h("button", { class: "btn small ghost sq-btn", title: "Descendre", disabled: index === d.spawns.length - 1, onclick: () => { d.spawns.splice(index + 1, 0, d.spawns.splice(index, 1)[0]); paintCreatorSettings(); } }, "↓"),
+                h("button", { class: "btn small danger", onclick: () => { d.spawns.splice(index, 1); paintCreatorSettings(); } }, icon("i-trash"), "Retirer")),
+            h("div", { class: "driving-grid" },
+                fieldRow("Groupe (ex. Los Santos)", text(spawn, "group", "Los Santos", 30)),
+                fieldRow("Nom du lieu", text(spawn, "label", "Vespucci", 40))),
+            fieldRow("Image derrière le nom", imageField(image)),
+            h("div", { class: "driving-spot" }, h("b", null, "Point d'apparition"), coords,
+                h("button", { class: "btn small ghost", onclick: async () => {
+                    const p = await othersMyPosition();
+                    if (!p) return;
+                    Object.assign(spawn, { x: p.x, y: p.y, z: p.z, h: p.h });
+                    coords.textContent = afkCoords(p);
+                } }, icon("i-crosshair"), "Définir position"),
+                h("button", { class: "btn small ghost", onclick: () => (spawn.x != null ? act("others.tp", { x: spawn.x, y: spawn.y, z: spawn.z, h: spawn.h }, null) : toast("Position non définie.", "error")) }, icon("i-goto"), "TP")));
+    };
+
+    root.replaceChildren(h("div", { class: "content creator-page" }, othersHead("Création perso"),
+        h("div", { class: "scroll others-editor" },
+            h("div", { class: "card" }, h("div", { class: "crew-sub" }, "Visuels du créateur"),
+                h("div", { class: "mode-list heal-toggles" },
+                    draftToggle(d, "showBanner", "Afficher la bannière", "Image de fond du haut du panneau de création."),
+                    draftToggle(d, "showLogo", "Afficher le logo", "Logo à gauche du titre « Nouveau personnage ».")),
+                h("button", { class: "btn small ghost", style: "justify-self:start", onclick: () => go("images") }, icon("i-image"), "Changer la bannière et le logo (tuile Images, catégorie Création perso)")),
+            h("div", { class: "card" }, h("div", { class: "crew-sub" }, "Lieux d'apparition"),
+                h("p", { class: "hint-line", style: "margin:0" }, d.spawns.length
+                    ? "Proposés à la fin de la création, regroupés par groupe, dans cet ordre. Placez-vous en jeu puis « Définir position »."
+                    : `Aucun lieu réglé ici : les ${defaults.length} lieux de la config de lunatic_creator sont proposés.`),
+                h("div", { class: "btn-row" },
+                    h("button", { class: "btn small primary", onclick: () => {
+                        if (d.spawns.length >= 20) return toast("20 lieux au maximum.", "error");
+                        d.spawns.push({ group: d.spawns.length ? d.spawns[d.spawns.length - 1].group : "Los Santos", label: "", image: "" });
+                        paintCreatorSettings();
+                    } }, icon("i-plus"), "Ajouter un lieu"),
+                    !d.spawns.length && defaults.length ? h("button", { class: "btn small ghost", onclick: () => { d.spawns = JSON.parse(JSON.stringify(defaults)); paintCreatorSettings(); } }, icon("i-copy"), "Reprendre ceux de la config") : null)),
+            d.spawns.map(spawnCard))));
+}
+
+async function saveCreatorSettings() {
+    const { key, ...payload } = creatorState.draft;
+    const res = await act("creator.save", payload, "Création perso enregistrée.");
+    if (!res) return;
+    untrackUnsaved("others");
+    creatorState.draft = null;
+    await loadCreatorSettings();
+}

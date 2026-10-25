@@ -66,8 +66,11 @@ RegisterNetEvent('esx_status:load', function(status)
 	CreateThread(function()
 		local data = {}
 		while ESX.PlayerLoaded do
+			-- Ajout Lunatic : faim et soif en pause pendant la création de personnage (state bag posé par lunatic_creator)
+			local paused = LocalPlayer.state.lunaticCreating
+
 			for i=1, #Status do
-				Status[i].onTick()
+				if not paused then Status[i].onTick() end
 				table.insert(data, {
 					name = Status[i].name,
 					val = Status[i].val,

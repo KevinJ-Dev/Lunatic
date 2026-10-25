@@ -115,9 +115,8 @@ const svg = (path) => {
 // ---------- Rendu ----------
 
 function paint() {
-    $("steps").replaceChildren(...STEPS.map((s, i) => h("button", {
-        class: `tab${i === stepIndex ? " on" : ""}${s.soon ? " soon" : ""}`, title: s.soon ? `${s.label} (bientôt)` : s.label,
-        onclick: () => go(i),
+    $("steps").replaceChildren(...STEPS.map((s, i) => h("span", {
+        class: `tab${i === stepIndex ? " on" : ""}${i < stepIndex ? " done" : ""}`, title: s.label,
     }, svg(s.icon))));
 
     const step = STEPS[stepIndex];
@@ -132,14 +131,47 @@ function paint() {
 const lastStep = () => STEPS.length - 1;
 
 function go(index) {
-    if (STEPS[index].soon) return toast("Cette étape arrive bientôt.");
     if (index > stepIndex && stepIndex === 0 && !checkIdentity()) return;
     stepIndex = index;
     openEditor = null;
     paint();
     $("step").scrollTop = 0;
-    if (STEPS[index].id === "face" || STEPS[index].id === "heritage") setCamera(1);
-    if (STEPS[index].id === "clothes") setCamera(3);
+    stepCamera();
+    saveDraft();
+}
+
+function stepCamera() {
+    const id = STEPS[stepIndex].id;
+    if (id === "face" || id === "heritage") setCamera(1);
+    if (id === "clothes") setCamera(3);
+}
+
+// Brouillon envoyé au serveur à chaque étape : la création reprend là après un crash ou une déconnexion
+function saveDraft() {
+    const { lastname, firstname, day, month, year, nationality, height } = identity;
+    nui("draft", { step: stepIndex, identity: { lastname, firstname, day, month, year, nationality, height } });
+}
+
+// Reprise d'un brouillon : seuls les champs connus, avec le bon type
+function restoreDraft(draft) {
+    const saved = draft && typeof draft.identity === "object" && draft.identity ? draft.identity : {};
+    for (const key of ["lastname", "firstname", "nationality"]) if (typeof saved[key] === "string") identity[key] = saved[key].slice(0, 40);
+    for (const key of ["day", "month", "year", "height"]) if (Number.isInteger(saved[key])) identity[key] = saved[key];
+    if (!settings.nationalities.includes(identity.nationality)) identity.nationality = "";
+    if (identity.month < 0 || identity.month > 11) identity.month = 0;
+    const step = Number.isInteger(draft && draft.step) ? Math.max(0, Math.min(lastStep(), draft.step)) : 0;
+    // Au-delà de l'identité, elle doit toujours être valide (sinon retour à la fiche)
+    stepIndex = step > 0 && checkIdentity() ? step : 0;
+}
+
+// Bannière et logo réglés dans le panel staff
+function applyBranding(branding) {
+    const banner = document.querySelector(".banner");
+    const logo = document.querySelector(".banner-logo");
+    banner.style.backgroundImage = branding && branding.banner ? `linear-gradient(90deg, #100c18e6, #100c1866), url("${branding.banner}")` : "";
+    banner.classList.toggle("with-image", !!(branding && branding.banner));
+    logo.classList.toggle("hidden", !(branding && branding.logo));
+    if (branding && branding.logo) logo.src = branding.logo;
 }
 
 let camera = 2;
@@ -559,8 +591,12 @@ window.addEventListener("message", (event) => {
         camera = 2;
         spawnChoice = null;
         clothesOpen = null;
+        applyBranding(msg.branding);
+        if (msg.draft) restoreDraft(msg.draft);
+        identityErrors = {};
         $("creator").classList.remove("hidden");
         paint();
+        stepCamera();
     }
     if (msg.action === "mugshot") mugshot(msg.seconds || 4);
     if (msg.action === "close") {

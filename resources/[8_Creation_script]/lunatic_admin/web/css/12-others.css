@@ -79,3 +79,7 @@
 
 .mechanic-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .afk-page { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+/* Autres > Création perso */
+.creator-spawn-head { display: flex; align-items: center; gap: 6px; }
+.creator-spawn-head b { flex: 1; }

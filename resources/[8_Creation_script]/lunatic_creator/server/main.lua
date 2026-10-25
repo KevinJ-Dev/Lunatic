@@ -19,6 +19,16 @@ MySQL.ready(function()
     if tonumber(hasColumn) == 0 then
         MySQL.query.await("ALTER TABLE `lunatic_character_info` ADD COLUMN `nationality` VARCHAR(40) NOT NULL DEFAULT ''")
     end
+
+    -- Brouillon d'une création en cours (reprise après un crash ou une déconnexion)
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `lunatic_character_draft` (
+            `identifier` VARCHAR(60) NOT NULL,
+            `data` MEDIUMTEXT NOT NULL,
+            `updated_at` BIGINT NOT NULL,
+            PRIMARY KEY (`identifier`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ]])
 end)
 
 -- Instance privée : personne ne voit le personnage pendant sa création (seulement si le serveur l'a ouverte)
@@ -40,6 +50,7 @@ RegisterNetEvent('lunatic_creator:leave', function()
 
     if creating[src] then
         creating[src] = nil
+        Identity.arrival[src] = nil
         SetPlayerRoutingBucket(src, 0)
         Player(src).state:set('lunaticCreating', nil, true)
     end
