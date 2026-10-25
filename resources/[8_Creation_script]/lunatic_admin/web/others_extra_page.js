@@ -445,6 +445,7 @@ function paintCreatorSettings() {
     if (!creatorState.draft) {
         creatorState.draft = { key: "creator", ...JSON.parse(JSON.stringify(creatorState.data.settings)) };
         creatorState.draft.spawns = creatorState.draft.spawns || [];
+        creatorState.draft.clothesImages = creatorState.draft.clothesImages || { component: "", prop: "" };
         creatorState.saved = JSON.stringify(creatorState.draft);
         othersTrack("Création perso", creatorState, saveCreatorSettings, paintCreatorSettings);
     }
@@ -485,6 +486,11 @@ function paintCreatorSettings() {
                     draftToggle(d, "showBanner", "Afficher la bannière", "Image de fond du haut du panneau de création."),
                     draftToggle(d, "showLogo", "Afficher le logo", "Logo à gauche du titre « Nouveau personnage ».")),
                 h("button", { class: "btn small ghost", style: "justify-self:start", onclick: () => go("images") }, icon("i-image"), "Changer la bannière et le logo (tuile Images, catégorie Création perso)")),
+            h("div", { class: "card" }, h("div", { class: "crew-sub" }, "Images des vêtements"),
+                h("p", { class: "hint-line", style: "margin:0" }, "Images de Lunatic Clothes Renderer (option « Numéros du jeu »), hébergées en https ou copiées dans lunatic_creator/html/clothes/. Repères : {sex} (male / female), {id} (numéro GTA), {drawable}, {texture}. Vide : numéro du style."),
+                h("div", { class: "driving-grid" },
+                    fieldRow("Vêtements", text(d.clothesImages, "component", "https://…/clothes/{sex}/{id}/{drawable}.png", 300)),
+                    fieldRow("Accessoires", text(d.clothesImages, "prop", "https://…/props/{sex}/{id}/{drawable}.png", 300)))),
             h("div", { class: "card" }, h("div", { class: "crew-sub" }, "Miniatures des styles"),
                 h("p", { class: "hint-line", style: "margin:0" }, "Votre personnage prend tour à tour chaque coupe, barbe, sourcils, maquillage… le temps d'un portrait (une dizaine de minutes, restez immobile). Ensuite : « ensure lunatic_creator » pour que les joueurs reçoivent les images."),
                 h("div", { class: "btn-row" },

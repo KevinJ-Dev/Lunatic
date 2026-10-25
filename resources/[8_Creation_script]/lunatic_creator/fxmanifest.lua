@@ -41,4 +41,5 @@ files {
     'html/logo.png',
     'html/fonts/*.woff2',
     'html/thumbs/*',
+    'html/clothes/**/*',
 }

@@ -256,7 +256,7 @@ local function clothesList()
     local list = {}
 
     for index, entry in ipairs(Config.Clothes) do
-        list[#list + 1] = { index = index, label = entry.label, kind = entry.kind, id = entry.id, camera = entry.camera, extra = entry.extra }
+        list[#list + 1] = { index = index, label = entry.label, kind = entry.kind, id = entry.id, camera = entry.camera, icon = entry.icon }
     end
 
     return list
@@ -338,6 +338,7 @@ local function open()
         config = {
             height = Config.Height, age = Config.Age, cameras = #Config.Cameras, spawns = spawnList(), clothes = clothesList(),
             mugshot = Config.MugshotSeconds, nationalities = Config.Nationalities, names = Config.RandomNames,
+            clothesImages = (GlobalState.lunaticCreator or {}).clothesImages or Config.ClothesImages,
         },
         branding = branding(),
         draft = type(draft) == 'table' and { step = draft.step, identity = draft.identity } or nil,

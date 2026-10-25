@@ -70,7 +70,8 @@ let appearance = null;
 let options = null;
 let settings = null;
 let stepIndex = 0;
-const category = { look: "parents", style: "hair" }; // catégorie ouverte dans chaque étape à panneaux
+const category = { look: "parents", style: "hair", clothes: "1" }; // catégorie ouverte dans chaque étape à panneaux
+const PANEL_STEPS = ["look", "style", "clothes"]; // étapes avec cartes à gauche et styles à droite
 let thumbs = {}; // miniatures disponibles : { male: { hair: Set }, ... } (thumbs/index.json, outil photo staff)
 const identity = { lastname: "", firstname: "", day: 0, month: 0, year: 2000, nationality: "", height: 178 };
 let identityErrors = {}; // section -> message, rempli quand l'identité est refusée
@@ -120,8 +121,7 @@ function go(index) {
 
 function stepCamera() {
     const id = STEPS[stepIndex].id;
-    if (id === "look" || id === "style") setCamera(categoryOf(id).camera || 1);
-    if (id === "clothes") setCamera(3);
+    if (PANEL_STEPS.includes(id)) setCamera(categoryOf(id).camera || 1);
 }
 
 // Brouillon envoyé au serveur à chaque étape : la création reprend là après un crash ou une déconnexion
@@ -297,6 +297,7 @@ async function chooseSex(sex) {
     if (res && res.appearance) {
         appearance = res.appearance;
         options = res.options || options;
+        starterOutfit = JSON.parse(JSON.stringify(appearance.clothes));
     }
     paint();
 }
@@ -366,6 +367,18 @@ const ICONS = {
     chest: "M4 5c3 2 13 2 16 0v15H4zM12 9v7M9 12h6",
     makeup: "M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6zM5 7l2 2M12 4v3M19 7l-2 2",
     face: "M12 3a8 9 0 1 0 0 18 8 9 0 1 0 0-18zM9 10h.01M15 10h.01M9 15c2 1 4 1 6 0",
+    jacket: "M8 3 3 6l2 5 2-1v11h10V10l2 1 2-5-5-3-4 5zM12 8v13",
+    shirt: "M8 3 3 6l2 4 2-1v12h10V9l2 1 2-4-5-3a4 4 0 0 1-8 0z",
+    glove: "M7 21v-6l-2-4V6a1 1 0 0 1 2 0v4V4a1 1 0 0 1 2 0v6V3a1 1 0 0 1 2 0v7V4a1 1 0 0 1 2 0v8l2-2a1 1 0 0 1 2 1l-4 5v5",
+    pants: "M6 3h12l1 18h-5l-2-11-2 11H5z",
+    shoe: "M3 17v-6l5-1 3 3 9 2v3H3zM3 17h17",
+    hat: "M4 16c0-5 3-9 8-9s8 4 8 9M2 16h20",
+    glasses: "M3 12a3 3 0 1 0 6 0 3 3 0 0 0-6 0M15 12a3 3 0 1 0 6 0 3 3 0 0 0-6 0M9 12h6",
+    mask: "M4 8c3-2 13-2 16 0 0 7-3 12-8 12S4 15 4 8zM8 11h2M14 11h2",
+    chain: "M6 4c0 8 3 12 6 12s6-4 6-12M12 16v4",
+    bag: "M5 8h14l-1 13H6zM9 8V6a3 3 0 0 1 6 0v2",
+    earring: "M12 3v6M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
+    watch: "M9 3h6l1 4M9 3 8 7M8 17l1 4h6l1-4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 10v2l1 1",
 };
 
 // Apparence : parents, yeux et traits du visage (index GTA des traits)
@@ -399,7 +412,8 @@ const STYLE = [
 ];
 
 const thumbKey = (entry) => (entry.key === "hair" ? "hair" : `overlay-${entry.key}`);
-const categoriesOf = (stepId) => (stepId === "look" ? LOOK : STYLE);
+const clothesCategories = () => settings.clothes.map((entry) => ({ ...entry, key: String(entry.index) }));
+const categoriesOf = (stepId) => (stepId === "look" ? LOOK : stepId === "style" ? STYLE : clothesCategories());
 const categoryOf = (stepId) => categoriesOf(stepId).find((c) => c.key === category[stepId]) || categoriesOf(stepId)[0];
 
 // Miniature d'un style (outil photo staff), sinon null
@@ -415,8 +429,14 @@ function categoryCards(stepId) {
         let visual;
         if (entry.key === "parents") visual = h("div", { class: "cat-parents" }, portraitImg(appearance.heritage.father), portraitImg(appearance.heritage.mother));
         else {
-            const url = stepId === "style" ? thumbUrl(thumbKey(entry), entry.key === "hair" ? 4 : 2) : null;
-            visual = url ? h("img", { src: url, alt: "" }) : svg(ICONS[entry.icon]);
+            let url = null;
+            if (stepId === "style") url = thumbUrl(thumbKey(entry), entry.key === "hair" ? 4 : 2);
+            if (stepId === "clothes") {
+                const worn = clothesValue(entry.kind, entry.id);
+                url = worn[0] >= 0 ? clothesImage(entry, worn[0], worn[1]) : null;
+            }
+            const icon = svg(ICONS[entry.icon] || ICONS.shirt);
+            visual = url ? h("img", { src: url, alt: "", onerror: (e) => e.target.replaceWith(icon) }) : icon;
         }
         return h("button", { class: `cat-card${current ? " on" : ""}`, onclick: () => {
             category[stepId] = entry.key;
@@ -447,7 +467,7 @@ function setSideShown(shown) {
 function paintSide() {
     const stepId = STEPS[stepIndex].id;
     const side = $("side");
-    if (stepId !== "look" && stepId !== "style") {
+    if (!PANEL_STEPS.includes(stepId)) {
         side.classList.add("hidden");
         setSideShown(false);
         return;
@@ -455,7 +475,7 @@ function paintSide() {
     const entry = categoryOf(stepId);
     const body = $("side-body");
     const scroll = body.dataset.key === `${stepId}:${entry.key}` ? body.scrollTop : 0;
-    const { content, randomize, reset } = stepId === "look" ? lookEditor(entry) : styleEditor(entry);
+    const { content, randomize, reset } = { look: lookEditor, style: styleEditor, clothes: clothesEditor }[stepId](entry);
 
     $("side-head").replaceChildren(h("h3", null, entry.label),
         h("button", { class: "dice", onclick: () => { randomize(); pushAppearance(); paint(); } }, "Aléatoire"),
@@ -468,13 +488,13 @@ function paintSide() {
 }
 
 // Grille de styles en cercles : miniature si elle existe, sinon numéro
-function styleGrid(key, count, current, withNone, onPick) {
+function styleGrid(urlOf, count, current, withNone, onPick) {
     const cells = [];
     if (withNone) cells.push(h("button", { class: `style-cell${current < 0 ? " on" : ""}`, onclick: () => onPick(-1) }, h("span", { class: "style-dot none" }, "∅"), h("small", null, "Aucun")));
     for (let i = 0; i < count; i += 1) {
-        const url = thumbUrl(key, i);
+        const url = urlOf(i);
         cells.push(h("button", { class: `style-cell${current === i ? " on" : ""}`, onclick: () => onPick(i) },
-            h("span", { class: "style-dot" }, url ? h("img", { src: url, alt: "", loading: "lazy" }) : String(i + 1)),
+            h("span", { class: "style-dot" }, url ? h("img", { src: url, alt: "", loading: "lazy", onerror: (e) => e.target.replaceWith(String(i + 1)) }) : String(i + 1)),
             h("small", null, `Style ${i + 1}`)));
     }
     return h("div", { class: "style-grid" }, cells);
@@ -525,7 +545,7 @@ function styleEditor(entry) {
         return {
             content: [h("div", { class: "side-sub" }, "Couleur"), palette(options.hairColors, hair.color, (i) => { hair.color = i; pushAppearance(); paint(); }),
                 h("div", { class: "side-sub" }, "Reflets"), palette(options.hairColors, hair.highlight, (i) => { hair.highlight = i; pushAppearance(); paint(); }),
-                h("div", { class: "side-sub" }, "Coupes"), styleGrid("hair", options.hairStyles, hair.style, false, (i) => { hair.style = i; pushAppearance(); paint(); })],
+                h("div", { class: "side-sub" }, "Coupes"), styleGrid((i) => thumbUrl("hair", i), options.hairStyles, hair.style, false, (i) => { hair.style = i; pushAppearance(); paint(); })],
             randomize: () => { hair.style = randomInt(0, Math.max(0, options.hairStyles - 1)); hair.color = randomInt(0, Math.min(options.hairColors.length - 1, 20)); hair.highlight = hair.color; },
             reset: () => Object.assign(hair, { style: 0, color: 0, highlight: 0 }),
         };
@@ -536,7 +556,7 @@ function styleEditor(entry) {
     return {
         content: [o.style >= 0 ? rangeField("Intensité", o.opacity, 0, 1, 0.05, (v) => { o.opacity = v; pushAppearance(); }) : null,
             o.style >= 0 && entry.palette ? [h("div", { class: "side-sub" }, "Couleur"), palette(colors, o.color, (i) => { o.color = i; pushAppearance(); paint(); })] : null,
-            h("div", { class: "side-sub" }, "Styles"), styleGrid(thumbKey(entry), count, o.style, true, (i) => { o.style = i; pushAppearance(); paint(); })],
+            h("div", { class: "side-sub" }, "Styles"), styleGrid((i) => thumbUrl(thumbKey(entry), i), count, o.style, true, (i) => { o.style = i; pushAppearance(); paint(); })],
         randomize: () => {
             o.style = randomInt(-1, count - 1);
             o.opacity = randomFloat(0.5, 1);
@@ -546,55 +566,70 @@ function styleEditor(entry) {
     };
 }
 
-// ---------- 5. Vêtements ----------
+// ---------- 4. Vêtements ----------
 
-let clothesOpen = null; // index de la catégorie dépliée
-const clothesCounts = {}; // "kind:id:drawable" -> { drawables, textures }
+const clothesCounts = {}; // "sexe:kind:id:drawable" -> { drawables, textures }
+let starterOutfit = null; // tenue de départ (bouton Réinitialiser)
 
 function clothesValue(kind, id) {
     const bag = kind === "prop" ? appearance.clothes.props : appearance.clothes.components;
     return bag[id] || (bag[id] = kind === "prop" ? [-1, 0] : [0, 0]);
 }
 
-async function counts(kind, id, drawable) {
-    const key = `${appearance.sex}:${kind}:${id}:${drawable}`; // les comptes changent avec le modèle homme / femme
-    if (!clothesCounts[key]) clothesCounts[key] = await nui("clothesCounts", { kind, id, drawable });
-    return clothesCounts[key] || { drawables: 1, textures: 1 };
+function starterValue(entry) {
+    const bag = (starterOutfit && (entry.kind === "prop" ? starterOutfit.props : starterOutfit.components)) || {};
+    return bag[entry.id] || (entry.kind === "prop" ? [-1, 0] : [0, 0]);
 }
 
-// Réglage d'un vêtement : modèle puis couleur (les comptes viennent du jeu)
-function clothesEditor(kind, id, label) {
-    const value = clothesValue(kind, id);
-    const box = h("div", { class: "field" }, h("span", null, label), h("div", { class: "muted-line" }, "…"));
-    const paintBox = async () => {
-        const c = await counts(kind, id, value[0]);
-        const min = kind === "prop" ? -1 : 0;
-        const model = stepper(value[0], min, Math.max(min, c.drawables - 1), async (v) => {
-            value[0] = v;
-            value[1] = 0;
-            pushAppearance();
-            paintBox();
-        }, (v) => (v < 0 ? "Aucun" : `${v + 1} / ${c.drawables}`));
-        const color = c.textures > 1 ? stepper(value[1], 0, c.textures - 1, (v) => { value[1] = v; pushAppearance(); }, (v) => `Couleur ${v + 1} / ${c.textures}`) : null;
-        box.replaceChildren(h("span", null, label), model, color);
-    };
-    paintBox();
-    return box;
+// Nombre de modèles et de textures, lu dans le jeu (selon le modèle homme / femme)
+const countsKey = (kind, id, drawable) => `${appearance.sex}:${kind}:${id}:${drawable}`;
+async function loadCounts(kind, id, drawable) {
+    const key = countsKey(kind, id, drawable);
+    if (!clothesCounts[key]) clothesCounts[key] = (await nui("clothesCounts", { kind, id, drawable })) || { drawables: 1, textures: 1 };
+    return clothesCounts[key];
+}
+
+// Image d'un vêtement (lien réglé dans le panel ou la config), sinon null
+function clothesImage(entry, drawable, texture) {
+    const links = settings.clothesImages || {};
+    const template = entry.kind === "prop" ? links.prop : links.component;
+    if (!template) return null;
+    return template.replaceAll("{sex}", appearance.sex).replaceAll("{id}", String(entry.id))
+        .replaceAll("{drawable}", String(drawable)).replaceAll("{texture}", String(texture));
 }
 
 function clothesStep() {
-    return h("div", { class: "stack" }, h("div", { class: "field" }, h("span", null, "Catégories"),
-        h("div", { class: "clothes" }, settings.clothes.map((entry) => [
-            h("button", { class: `clothes-card${clothesOpen === entry.index ? " on" : ""}`, onclick: () => {
-                clothesOpen = clothesOpen === entry.index ? null : entry.index;
-                if (clothesOpen) setCamera(entry.camera || 2);
-                paint();
-            } }, h("span", null, entry.label)),
-            clothesOpen === entry.index ? h("div", { class: "editor" },
-                clothesEditor(entry.kind, entry.id, "Modèle"),
-                (entry.extra || []).map((extra) => clothesEditor("component", extra.id, extra.label))) : null,
-        ]))),
+    return h("div", { class: "stack" }, categoryCards("clothes"),
         h("p", { class: "note" }, "La tenue est enregistrée avec le personnage ; elle se change ensuite dans les magasins de vêtements."));
+}
+
+function clothesEditor(entry) {
+    const value = clothesValue(entry.kind, entry.id);
+    const isProp = entry.kind === "prop";
+    const total = clothesCounts[countsKey(entry.kind, entry.id, 0)];
+    const worn = value[0] >= 0 ? clothesCounts[countsKey(entry.kind, entry.id, value[0])] : { textures: 0 };
+
+    // Comptes pas encore lus : chargement puis nouveau rendu
+    if (!total || !worn) {
+        Promise.all([loadCounts(entry.kind, entry.id, 0), value[0] >= 0 ? loadCounts(entry.kind, entry.id, value[0]) : null]).then(() => paint());
+        return { content: [h("p", { class: "note" }, "Chargement des styles…")], randomize: () => {}, reset: () => {} };
+    }
+
+    const textures = worn.textures || 0;
+    let texture = null;
+    if (textures > 1) {
+        const shown = h("b", null, `${value[1] + 1} / ${textures}`);
+        const input = h("input", { type: "range", min: "0", max: String(textures - 1), step: "1", value: String(value[1]) });
+        input.addEventListener("input", () => { value[1] = Number(input.value); shown.textContent = `${value[1] + 1} / ${textures}`; pushAppearance(); });
+        texture = h("div", { class: "field" }, h("span", null, "Texture"), h("div", { class: "slider" }, input, shown));
+    }
+
+    return {
+        content: [texture, h("div", { class: "side-sub" }, "Styles"),
+            styleGrid((i) => clothesImage(entry, i, 0), total.drawables, value[0], isProp, (i) => { value[0] = i; value[1] = 0; pushAppearance(); paint(); })],
+        randomize: () => { value[0] = randomInt(isProp ? -1 : 0, Math.max(0, total.drawables - 1)); value[1] = 0; },
+        reset: () => { const start = starterValue(entry); value[0] = start[0]; value[1] = start[1]; },
+    };
 }
 
 // ---------- 6. Lieu d'apparition ----------
@@ -680,11 +715,12 @@ window.addEventListener("message", (event) => {
         stepIndex = 0;
         camera = 2;
         spawnChoice = null;
-        clothesOpen = null;
         sideShown = null;
         applyBranding(msg.branding);
         category.look = "parents";
         category.style = "hair";
+        category.clothes = String(settings.clothes[0] ? settings.clothes[0].index : 1);
+        starterOutfit = JSON.parse(JSON.stringify(appearance.clothes));
         loadThumbs();
         if (msg.draft) restoreDraft(msg.draft);
         identityErrors = {};
@@ -754,7 +790,8 @@ if (!inGame) {
         config: { height: { min: 150, max: 210, default: 178 }, age: { min: 18, max: 90 }, cameras: 3, mugshot: 4,
             nationalities: ["Américaine", "Française", "Canadienne", "Mexicaine", "Britannique", "Italienne", "Espagnole", "Allemande", "Marocaine", "Brésilienne", "Japonaise", "Australienne"],
             names: { male: ["James", "Lucas", "Hugo"], female: ["Emma", "Léa", "Mia"], last: ["Smith", "Garcia", "Dubois"] },
-            clothes: [{ index: 1, label: "Chapeau", kind: "prop", id: 0, camera: 1 }, { index: 2, label: "Haut", kind: "component", id: 11, camera: 2, extra: [{ label: "Sous-haut", id: 8 }, { label: "Bras", id: 3 }] }, { index: 3, label: "Bas", kind: "component", id: 4, camera: 3 }, { index: 4, label: "Lunettes", kind: "prop", id: 1, camera: 1 }, { index: 5, label: "Cou", kind: "component", id: 7 }, { index: 6, label: "Sac", kind: "component", id: 5 }, { index: 7, label: "Chaussures", kind: "component", id: 6 }],
+            clothes: [{ index: 1, label: "Vestes", kind: "component", id: 11, camera: 2, icon: "jacket" }, { index: 2, label: "Sous-haut", kind: "component", id: 8, camera: 2, icon: "shirt" }, { index: 3, label: "Bras et gants", kind: "component", id: 3, camera: 2, icon: "glove" }, { index: 4, label: "Bas", kind: "component", id: 4, camera: 3, icon: "pants" }, { index: 5, label: "Chaussures", kind: "component", id: 6, camera: 3, icon: "shoe" }, { index: 6, label: "Chapeaux", kind: "prop", id: 0, camera: 1, icon: "hat" }, { index: 7, label: "Lunettes", kind: "prop", id: 1, camera: 1, icon: "glasses" }, { index: 8, label: "Masques", kind: "component", id: 1, camera: 1, icon: "mask" }, { index: 9, label: "Accessoires", kind: "component", id: 7, camera: 2, icon: "chain" }, { index: 10, label: "Sacs", kind: "component", id: 5, camera: 3, icon: "bag" }, { index: 11, label: "Boucles d'oreilles", kind: "prop", id: 2, camera: 1, icon: "earring" }, { index: 12, label: "Montres", kind: "prop", id: 6, camera: 2, icon: "watch" }],
+            clothesImages: { component: "", prop: "" },
             spawns: [{ index: 1, group: "Los Santos", label: "Vespucci" }, { index: 2, group: "Los Santos", label: "Place des Cubes" }, { index: 3, group: "Los Santos", label: "Gouvernement" }, { index: 4, group: "Blaine County", label: "Sandy Shores" }, { index: 5, group: "Blaine County", label: "Paleto Bay" }, { index: 6, group: "Aéroport", label: "Aéroport international" }] },
     }, "*");
 }

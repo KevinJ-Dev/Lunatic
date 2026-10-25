@@ -30,15 +30,28 @@ Config.Spawns = {
     { group = 'Aéroport', label = 'Aéroport international', coords = vector4(-1037.62, -2737.71, 20.17, 330.0), image = '' },
 }
 
--- Catégories de vêtements (composants et accessoires GTA) ; extra = réglages supplémentaires dans la même carte
+-- Catégories de vêtements (composants et accessoires GTA), dans l'ordre des cartes ; icon : dessin de la carte sans image
 Config.Clothes = {
-    { label = 'Chapeau', kind = 'prop', id = 0, camera = 1 },
-    { label = 'Haut', kind = 'component', id = 11, camera = 2, extra = { { label = 'Sous-haut', id = 8 }, { label = 'Bras', id = 3 } } },
-    { label = 'Bas', kind = 'component', id = 4, camera = 3 },
-    { label = 'Lunettes', kind = 'prop', id = 1, camera = 1 },
-    { label = 'Cou', kind = 'component', id = 7, camera = 2 },
-    { label = 'Sac', kind = 'component', id = 5, camera = 3 },
-    { label = 'Chaussures', kind = 'component', id = 6, camera = 3 },
+    { label = 'Vestes', kind = 'component', id = 11, camera = 2, icon = 'jacket' },
+    { label = 'Sous-haut', kind = 'component', id = 8, camera = 2, icon = 'shirt' },
+    { label = 'Bras et gants', kind = 'component', id = 3, camera = 2, icon = 'glove' },
+    { label = 'Bas', kind = 'component', id = 4, camera = 3, icon = 'pants' },
+    { label = 'Chaussures', kind = 'component', id = 6, camera = 3, icon = 'shoe' },
+    { label = 'Chapeaux', kind = 'prop', id = 0, camera = 1, icon = 'hat' },
+    { label = 'Lunettes', kind = 'prop', id = 1, camera = 1, icon = 'glasses' },
+    { label = 'Masques', kind = 'component', id = 1, camera = 1, icon = 'mask' },
+    { label = 'Accessoires', kind = 'component', id = 7, camera = 2, icon = 'chain' },
+    { label = 'Sacs', kind = 'component', id = 5, camera = 3, icon = 'bag' },
+    { label = "Boucles d'oreilles", kind = 'prop', id = 2, camera = 1, icon = 'earring' },
+    { label = 'Montres', kind = 'prop', id = 6, camera = 2, icon = 'watch' },
+}
+
+-- Images des vêtements (Lunatic Clothes Renderer, option « Numéros du jeu ») : lien https vers un hébergement,
+-- ou chemin dans html/clothes/ de la resource. {sex} = male / female, {id} = numéro GTA, {drawable}, {texture}.
+-- Vide : numéro du style dans le cercle. Réglable aussi dans le panel (Autres > Création perso), qui a la priorité.
+Config.ClothesImages = {
+    component = '', -- ex. 'https://images.monserveur.fr/clothes/{sex}/{id}/{drawable}.png'
+    prop = '',      -- même chose pour chapeaux, lunettes, boucles d'oreilles et montres
 }
 
 -- Tenue proposée au départ de l'étape Vêtements (à ajuster selon tes packs de vêtements)

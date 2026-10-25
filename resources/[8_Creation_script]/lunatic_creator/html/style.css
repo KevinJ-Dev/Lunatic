@@ -96,13 +96,6 @@ input[type="range"]::-webkit-slider-thumb { appearance: none; width: 18px; heigh
 .toast { position: fixed; bottom: 30px; left: 450px; padding: 10px 16px; border: 1px solid var(--glass-line); border-left: 3px solid #f2c26b; border-radius: 10px; background: var(--panel); opacity: 0; transition: opacity .2s; pointer-events: none; }
 .toast.on { opacity: 1; }
 
-/* Vêtements */
-.clothes { display: grid; gap: 6px; }
-.clothes-card { position: relative; height: 64px; border: 0; background: linear-gradient(90deg, #ffffff0d, #ffffff04); color: var(--muted); font-size: 14px; }
-.clothes-card:hover { color: var(--ink); }
-.clothes-card.on { background: linear-gradient(90deg, rgba(180, 138, 255, .7), rgba(var(--accent-rgb), .25)); color: #fff; font-weight: 700; }
-.muted-line { color: var(--muted); }
-
 /* Lieux d'apparition */
 .spawns { display: grid; gap: 6px; }
 .spawn-card { height: 70px; border: 0; background: linear-gradient(120deg, #241a38, #120d1c) center / cover; color: var(--muted); font-size: 14px; text-shadow: 0 1px 6px #000; }

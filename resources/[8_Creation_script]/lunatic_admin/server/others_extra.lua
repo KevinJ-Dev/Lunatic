@@ -450,6 +450,25 @@ Panel.actions['creator.get'] = function(_, actor)
     return { ok = true, silent = true, settings = creatorSettings, defaults = creatorDefaultSpawns() }
 end
 
+-- Modèle de lien des images de vêtements : vide, lien https ou chemin html/clothes/ de lunatic_creator, avec {drawable}
+local function imageTemplate(value)
+    local text = Util.cleanTextOrEmpty(value, 0, 300)
+
+    if text == '' then
+        return ''
+    end
+
+    if not text or not text:find('{drawable}', 1, true) then
+        return nil
+    end
+
+    if text:match('^https://') or (text:match('^clothes/') and not text:find('..', 1, true)) then
+        return text
+    end
+
+    return nil
+end
+
 Panel.actions['creator.save'] = function(src, actor, data)
     if not allowed(actor) then
         return denied()
@@ -482,7 +501,17 @@ Panel.actions['creator.save'] = function(src, actor, data)
         spawns[#spawns + 1] = { label = label, group = group, x = point.x, y = point.y, z = point.z, h = point.h, image = image }
     end
 
-    creatorSettings = { showBanner = data.showBanner ~= false, showLogo = data.showLogo ~= false, spawns = spawns }
+    local images = type(data.clothesImages) == 'table' and data.clothesImages or {}
+    local component, prop = imageTemplate(images.component), imageTemplate(images.prop)
+
+    if not component or not prop then
+        return Panel.fail('Images des vêtements : lien https:// ou chemin clothes/…, contenant {drawable}.')
+    end
+
+    creatorSettings = {
+        showBanner = data.showBanner ~= false, showLogo = data.showLogo ~= false, spawns = spawns,
+        clothesImages = { component = component, prop = prop },
+    }
     SetResourceKvp('creator_settings', json.encode(creatorSettings))
     publishCreator()
 
