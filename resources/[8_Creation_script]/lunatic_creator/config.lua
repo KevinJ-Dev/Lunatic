@@ -4,6 +4,19 @@ Config = {}
 -- Chaque joueur y est seul : il est placé dans une instance (routing bucket) le temps de la création.
 Config.Room = vector4(-786.87, 315.76, 217.64, 270.0)
 
+-- Éclairage studio autour du personnage pendant la création (offset : droite, devant, hauteur par rapport à lui)
+Config.Lights = {
+    { offset = vector3(-1.1, 1.5, 1.3), color = { 255, 244, 232 }, range = 5.0, intensity = 4.0 },  -- principale, devant à gauche
+    { offset = vector3(1.3, 1.2, 0.8), color = { 214, 220, 255 }, range = 4.0, intensity = 2.0 },   -- appoint, devant à droite
+    { offset = vector3(0.0, -1.0, 1.7), color = { 170, 120, 255 }, range = 3.5, intensity = 2.5 },  -- contre-jour violet (couleur du panel)
+}
+
+-- Heure affichée pendant la création (pour la lumière du jour), l'heure du serveur revient ensuite
+Config.ClockHour = 13
+
+-- Décalage du personnage vers la droite de l'écran (0 = centré, 0.25 = un quart de demi-écran), pour le panneau de gauche
+Config.CameraShift = 0.25
+
 -- Lieux d'apparition proposés à la fin de la création (aperçu en direct sur place, arrivée avec l'animation GTA).
 -- image : lien https (facultatif), affiché derrière le nom.
 Config.Spawns = {

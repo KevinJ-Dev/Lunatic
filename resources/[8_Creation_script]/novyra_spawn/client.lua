@@ -305,6 +305,17 @@ if Config.CamCommand and Config.CamCommand ~= '' then
 end
 
 -- ═════════════════════════════════════════════
+--  Création de personnage (lunatic_creator)
+-- ═════════════════════════════════════════════
+-- « Recréer » du panel pendant que l'écran d'entrée est affiché : on le ferme pour laisser la place au créateur
+AddStateBagChangeHandler('lunaticCreating', ('player:%d'):format(GetPlayerServerId(PlayerId())), function(_, _, value)
+    if not value or not State.open then return end
+    State.open, State.entering, State.loaded = false, false, true
+    SendNUIMessage({ action = 'close' })
+    reset()
+end)
+
+-- ═════════════════════════════════════════════
 --  Restart de la ressource
 -- ═════════════════════════════════════════════
 AddEventHandler('onResourceStart', function(res)

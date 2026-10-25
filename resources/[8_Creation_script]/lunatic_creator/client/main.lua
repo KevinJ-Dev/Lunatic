@@ -121,6 +121,8 @@ local function placePed()
     SetEntityHeading(ped, heading)
     FreezeEntityPosition(ped, true)
     SetEntityInvincible(ped, true)
+    SetEntityVisible(ped, true, false)
+    ResetEntityAlpha(ped)
 end
 
 local function setSex(sex)
@@ -177,9 +179,12 @@ local function setCamera(index, instant)
     local settings = Config.Cameras[index] or Config.Cameras[2]
     cameraIndex = index
 
-    local base = vector3(anchor.x, anchor.y, anchor.z)
     local angle = math.rad(anchor.w)
     local forward = vector3(-math.sin(angle), math.cos(angle), 0.0)
+    local right = vector3(math.cos(angle), math.sin(angle), 0.0)
+    -- Le panneau occupe la gauche de l'écran : caméra et visée glissent sur le côté pour centrer le personnage à droite
+    local halfWidth = settings.distance * math.tan(math.rad(settings.fov) / 2) * GetAspectRatio(false)
+    local base = vector3(anchor.x, anchor.y, anchor.z) + right * (halfWidth * Config.CameraShift)
     local position = base + forward * settings.distance + vector3(0.0, 0.0, settings.height)
 
     local new = CreateCamWithParams('DEFAULT_SCRIPTED_CAMERA', position.x, position.y, position.z, 0.0, 0.0, 0.0, settings.fov, false, 2)
@@ -255,12 +260,33 @@ local function clothesList()
     return list
 end
 
+-- Lumières autour du personnage (décalages par rapport au point de création : droite, devant, hauteur)
+local function drawLights()
+    local angle = math.rad(anchor.w)
+    local forward = vector3(-math.sin(angle), math.cos(angle), 0.0)
+    local right = vector3(math.cos(angle), math.sin(angle), 0.0)
+    local base = vector3(anchor.x, anchor.y, anchor.z)
+
+    for _, light in ipairs(Config.Lights) do
+        local at = base + right * light.offset.x + forward * light.offset.y + vector3(0.0, 0.0, light.offset.z)
+        DrawLightWithRange(at.x, at.y, at.z, light.color[1], light.color[2], light.color[3], light.range, light.intensity)
+    end
+end
+
 local function open()
     if active then
         return
     end
 
     active = true
+
+    -- L'écran d'entrée de novyra_spawn se ferme tout seul quand la création démarre
+    local timeout = GetGameTimer() + 3000
+
+    while GetResourceState('novyra_spawn') == 'started' and exports.novyra_spawn:isOpen() and GetGameTimer() < timeout do
+        Wait(100)
+    end
+
     fade(true)
     TriggerServerEvent('lunatic_creator:enter')
 
@@ -287,14 +313,27 @@ local function open()
     Wait(300)
     fade(false)
 
-    -- Pas de HUD ni d'actions pendant la création
+    -- Pas de HUD ni d'actions pendant la création ; éclairage studio et heure fixe
     CreateThread(function()
         while active do
             HideHudAndRadarThisFrame()
             DisableAllControlActions(0)
+            NetworkOverrideClockTime(Config.ClockHour, 0, 0)
+            drawLights()
             Wait(0)
         end
     end)
+end
+
+-- Heure du serveur (lunatic_world) une fois la création terminée
+local function restoreClock()
+    local clock = GlobalState.lunaticClock
+
+    if type(clock) == 'table' then
+        NetworkOverrideClockTime(tonumber(clock.h) or 12, tonumber(clock.m) or 0, 0)
+    else
+        NetworkClearClockTimeOverride()
+    end
 end
 
 -- Arrivée en ville avec l'animation de changement de personnage de GTA (caméra qui monte puis redescend)
@@ -324,6 +363,7 @@ local function arrive()
 
     DisplayRadar(true)
     active = false
+    restoreClock()
 end
 
 -- Ouverte par le serveur (server/identity.lua) : première connexion sans identité ou « Recréer » du panel
@@ -460,5 +500,6 @@ AddEventHandler('onResourceStop', function(resource)
         FreezeEntityPosition(PlayerPedId(), false)
         DisplayRadar(true)
         DoScreenFadeIn(0)
+        restoreClock()
     end
 end)
