@@ -32,6 +32,70 @@ function itemPicker(items, value) {
 
 const itemImage = (name) => h("img", { class: "item-img", src: `nui://ox_inventory/web/images/${name}.png`, alt: "", onerror: (e) => { e.target.style.visibility = "hidden"; } });
 
+// ---------- Choix d'un objet en image ----------
+// Bouton qui affiche l'objet choisi (image + nom) et ouvre une grille de tous les objets d'ox_inventory.
+// holder[key] reçoit le nom de l'objet ; options : { optional (bouton « Aucun »), filter (objet -> booléen), onChange }
+
+let itemPickImagesLoaded = false;
+
+function pickedItemImage(name) {
+    const src = typeof itemImageSrc === "function" ? itemImageSrc(name) : `nui://ox_inventory/web/images/${name}.png`;
+    return h("img", { class: "item-img", src, alt: "", onerror: (e) => { e.target.style.visibility = "hidden"; } });
+}
+
+function itemChooserButton(holder, key, options = {}) {
+    const button = h("button", { class: "item-choose", type: "button" });
+    const paint = () => {
+        const name = holder[key];
+        const item = name ? (catalogItems || []).find((i) => i.name === name) : null;
+        button.replaceChildren(
+            h("span", { class: "item-choose-pic" }, name ? pickedItemImage(name) : icon("i-box")),
+            h("span", { class: "item-choose-text" }, h("b", null, name ? (item ? item.label : name) : options.placeholder || "Choisir un objet"), name ? h("small", { class: "mono" }, name) : null),
+            icon("i-search"));
+        button.classList.toggle("empty", !name);
+    };
+    button.addEventListener("click", () => openItemChooser(holder[key], options, (name) => {
+        holder[key] = name;
+        paint();
+        if (options.onChange) options.onChange(name);
+    }));
+    paint();
+    if (!catalogItems) loadCatalogItems().then(paint);
+    return button;
+}
+
+async function openItemChooser(current, options, done) {
+    const items = await loadCatalogItems();
+    if (!itemPickImagesLoaded && typeof itemsState !== "undefined") {
+        itemPickImagesLoaded = true;
+        const images = await nui("itemImages", {}).catch(() => null);
+        if (images && typeof images === "object") itemsState.images = images;
+    }
+    const search = h("input", { placeholder: "Rechercher un objet (nom ou identifiant)" });
+    const grid = h("div", { class: "item-choose-grid" });
+    let closeModal = null;
+    const paint = () => {
+        const q = fold(search.value.trim());
+        const list = items.filter((i) => (!options.filter || options.filter(i)) && (!q || fold(i.label).includes(q) || i.name.toLowerCase().includes(q))).slice(0, 300);
+        grid.replaceChildren(...(list.length ? list.map((i) => h("button", { class: `item-choose-cell${i.name === current ? " on" : ""}`, title: i.name, onclick: () => { done(i.name); closeModal(); } },
+            h("span", { class: "item-choose-pic" }, pickedItemImage(i.name)), h("b", null, i.label), h("small", { class: "mono" }, i.name))) : [h("p", { class: "hint-line" }, "Aucun objet ne correspond.")]));
+    };
+    search.addEventListener("input", paint);
+    paint();
+    openModal((close) => {
+        closeModal = close;
+        return [
+            h("header", null, h("h3", null, options.title || "Choisir un objet"), h("p", null, `${items.length} objets d'ox_inventory.`)),
+            h("div", { class: "body item-choose-body" }, h("label", { class: "search" }, icon("i-search"), search), grid),
+            h("footer", null,
+                options.optional ? h("button", { class: "btn ghost", onclick: () => { done(""); close(); } }, icon("i-x"), "Aucun") : null,
+                h("button", { class: "btn ghost", onclick: () => close() }, "Annuler")),
+        ];
+    });
+    $("modal").classList.add("item-choose-modal");
+    search.focus();
+}
+
 function structureCatalogsCard(info, doAct) {
     const linked = info.catalogs || [];
     const linkedIds = new Set(linked.map((c) => c.id));

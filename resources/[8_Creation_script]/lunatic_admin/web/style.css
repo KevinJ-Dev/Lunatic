@@ -1467,3 +1467,26 @@ body.hidden.minimized .mini-pill { display: flex; }
 .harvest-body { flex: 1; border-top: 1px solid var(--line); }
 .harvest-new { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .harvest-new .btn { justify-content: center; padding: 0 8px; }
+
+/* Choix d'un objet en image (bouton + grille) */
+.item-choose { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 5px 10px 5px 6px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); color: var(--ink); text-align: left; }
+.item-choose:hover { border-color: rgba(var(--accent-rgb), .7); }
+.item-choose.empty { border-style: dashed; color: var(--muted); }
+.item-choose > svg.i { width: 14px; height: 14px; margin-left: auto; color: var(--muted); }
+.item-choose-pic { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 8px; background: #0000002e; }
+.item-choose-pic .item-img { max-width: 30px; max-height: 30px; }
+.item-choose-pic svg.i { width: 16px; height: 16px; color: var(--muted); }
+.item-choose-text { display: grid; min-width: 0; line-height: 1.2; }
+.item-choose-text b { overflow: hidden; font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+.item-choose-text small { color: var(--muted); font-size: 10.5px; }
+.modal.item-choose-modal { width: min(860px, 92%); }
+.item-choose-body { grid-template-rows: auto minmax(0, 1fr); }
+.item-choose-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; align-content: start; overflow-y: auto; max-height: 52vh; }
+.item-choose-cell { display: grid; justify-items: center; gap: 4px; padding: 10px 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); text-align: center; }
+.item-choose-cell:hover { border-color: rgba(var(--accent-rgb), .7); }
+.item-choose-cell.on { border-color: var(--accent); background: rgba(var(--accent-rgb), .15); }
+.item-choose-cell .item-choose-pic { width: 52px; height: 52px; }
+.item-choose-cell .item-choose-pic .item-img { max-width: 46px; max-height: 46px; }
+.item-choose-cell b { overflow: hidden; max-width: 100%; font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
+.item-choose-cell small { overflow: hidden; max-width: 100%; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.store-line .item-choose { min-height: 36px; }

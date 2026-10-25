@@ -119,12 +119,6 @@ function harvestEditor() {
         input.addEventListener("input", () => { holder[key] = attrs.type === "number" ? Number(input.value || 0) : input.value.trim(); });
         return input;
     };
-    const picker = (holder, key, placeholder) => {
-        const input = catalogItems ? itemPicker(catalogItems, holder[key]) : h("input", { class: "input mono", value: holder[key] || "" });
-        if (placeholder) input.placeholder = placeholder;
-        input.addEventListener("input", () => { holder[key] = input.value.trim(); });
-        return input;
-    };
     const job = h("select", { class: "input" }, h("option", { value: "" }, "Tout le monde"),
         harvestState.data.jobs.map((j) => h("option", { value: j.name, selected: j.name === data.job }, j.label)));
     job.addEventListener("change", () => { data.job = job.value; });
@@ -146,17 +140,17 @@ function harvestEditor() {
     let specific;
     if (d.kind === "harvest") {
         specific = [
-            fieldRow("Objet récolté", picker(data, "item", "ex. apple")),
+            fieldRow("Objet récolté", itemChooserButton(data, "item", { title: "Objet récolté" })),
             fieldRow("Quantité min", text(data, "min", { type: "number", min: "1", class: "input mono" })),
             fieldRow("Quantité max", text(data, "max", { type: "number", min: "1", class: "input mono" })),
-            fieldRow("Outil requis", picker(data, "tool", "aucun (facultatif)")),
+            fieldRow("Outil requis", itemChooserButton(data, "tool", { title: "Outil requis", optional: true, placeholder: "Aucun outil" })),
             fieldRow("Limite par heure", text(data, "limit", { type: "number", min: "0", class: "input mono" })),
             h("p", { class: "hint-line" }, "Limite par joueur et par heure (0 = sans limite), multipliée par la « limite farm » des abonnés (tuile Boutique). L'outil n'est pas consommé."),
         ];
     } else {
         const inputs = h("div", { class: "zone-list" });
         const paintInputs = () => inputs.replaceChildren(...data.inputs.map((entry, index) => h("div", { class: "store-line" },
-            picker(entry, "item"), text(entry, "count", { type: "number", min: "1", class: "input mono" }),
+            itemChooserButton(entry, "item", { title: "Objet à transformer" }), text(entry, "count", { type: "number", min: "1", class: "input mono" }),
             h("button", { class: "btn small ghost sq-btn", disabled: data.inputs.length <= 1, onclick: () => { data.inputs.splice(index, 1); paintInputs(); } }, icon("i-trash")))));
         paintInputs();
         specific = [
@@ -167,7 +161,7 @@ function harvestEditor() {
                 paintInputs();
             } }, icon("i-plus"), "Ajouter un objet"),
             h("div", { class: "crew-sub" }, "Résultat"),
-            fieldRow("Objet obtenu", picker(data, "item")),
+            fieldRow("Objet obtenu", itemChooserButton(data, "item", { title: "Objet obtenu" })),
             fieldRow("Quantité", text(data, "count", { type: "number", min: "1", class: "input mono" })),
         ];
     }
