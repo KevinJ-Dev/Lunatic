@@ -22,6 +22,7 @@ local DEFAULT_QUESTIONS = {
 
 local DEFAULTS = {
     maxErrors = 3,
+    majorFail = true,
     minEngine = 750,
     ped = 'a_m_y_business_01',
     blip = true,
@@ -60,7 +61,7 @@ local function merge(saved)
         return result
     end
 
-    for _, key in ipairs({ 'maxErrors', 'minEngine', 'ped', 'blip', 'school', 'finalTp' }) do
+    for _, key in ipairs({ 'maxErrors', 'majorFail', 'minEngine', 'ped', 'blip', 'school', 'finalTp' }) do
         if saved[key] ~= nil then
             result[key] = saved[key]
         end
@@ -209,7 +210,7 @@ local function readExam(id, data, licenses)
             return nil, ('%s : point de trajet n°%d invalide.'):format(label, index)
         end
 
-        points[#points + 1] = { x = spot.x, y = spot.y, z = spot.z, speed = limit }
+        points[#points + 1] = { x = spot.x, y = spot.y, z = spot.z, speed = limit, stop = point.stop == true or nil }
     end
 
     local spawn = data.spawn ~= nil and position(data.spawn) or nil
@@ -275,7 +276,7 @@ Panel.actions['driving.save'] = function(src, actor, data)
     end
 
     settings = {
-        maxErrors = maxErrors, minEngine = minEngine, ped = ped, blip = data.blip ~= false, school = school, finalTp = finalTp,
+        maxErrors = maxErrors, majorFail = data.majorFail ~= false, minEngine = minEngine, ped = ped, blip = data.blip ~= false, school = school, finalTp = finalTp,
         theory = { price = price, count = count, pass = pass, questions = questions }, exams = exams,
     }
 

@@ -1,0 +1,132 @@
+/* Auto-école : mêmes couleurs, police et verre que le panel staff (lunatic_admin) */
+@font-face { font-family: "Public Sans"; src: url(fonts/public-sans-400.woff2) format("woff2"); font-weight: 400; }
+@font-face { font-family: "Public Sans"; src: url(fonts/public-sans-600.woff2) format("woff2"); font-weight: 600; }
+@font-face { font-family: "Public Sans"; src: url(fonts/public-sans-700.woff2) format("woff2"); font-weight: 700; }
+
+:root {
+    --accent-rgb: 150, 80, 255;
+    --accent: rgb(var(--accent-rgb));
+    --accent-2: #b48aff;
+    --panel: #100c18d1;
+    --line: #e9e1ff1a;
+    --glass-line: #e4d8ff26;
+    --ink: #f3f1f7;
+    --muted: #ffffff94;
+    --ok: #5fd3a0;
+    --bad: #ff4d5e;
+    --warn: #f2c26b;
+    --font: "Public Sans", "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; color: var(--ink); font: 400 13px/1.4 var(--font); user-select: none; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:disabled { cursor: default; }
+.hidden { display: none !important; }
+
+.btn { height: 36px; padding: 0 18px; border: 0; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 700; }
+.btn:hover:not(:disabled) { background: var(--accent-2); }
+.btn:disabled { opacity: .4; }
+.btn.ghost { border: 1px solid var(--line); background: #ffffff0a; color: var(--muted); }
+.btn.ghost:hover { color: var(--ink); background: #ffffff14; }
+
+/* ---------- Accueil ---------- */
+.school { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(80% 80% at 50% 50%, #0000004d, #000000a6); animation: fade .2s ease-out; }
+@keyframes fade { from { opacity: 0; } }
+.sheet { display: flex; flex-direction: column; width: 640px; max-height: calc(100% - 60px); overflow: hidden; border-radius: 22px; }
+.sheet { border: 1px solid var(--glass-line); background:
+    radial-gradient(70% 30% at 50% 0%, rgba(var(--accent-rgb), .18), transparent 75%),
+    radial-gradient(60% 30% at 100% 100%, rgba(var(--accent-rgb), .14), transparent 75%), var(--panel); box-shadow: 0 30px 60px -30px #000c; }
+.head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 22px; border-bottom: 1px solid var(--line); }
+.head div { display: grid; gap: 1px; }
+.head small, .quiz-head small { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.head b { font-size: 19px; }
+.close { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 10px; background: #ffffff0a; color: var(--muted); }
+.close:hover { color: var(--ink); }
+
+.sheet-body { display: grid; gap: 12px; min-height: 0; overflow-y: auto; padding: 16px 22px 18px; }
+.step { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.step span { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: rgba(var(--accent-rgb), .3); color: #fff; font-size: 11px; letter-spacing: 0; }
+
+.theory { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: #ffffff08; }
+.theory.owned { border-color: #5fd3a05c; background: #5fd3a012; }
+.ico { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: rgba(var(--accent-rgb), .2); color: var(--accent-2); }
+.ico svg { width: 24px; height: 24px; }
+.owned .ico { background: #5fd3a026; color: var(--ok); }
+.theory b { display: block; font-size: 15px; }
+.theory p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+
+.exams { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.exam { display: grid; justify-items: center; gap: 6px; padding: 14px 10px 12px; border: 1px solid var(--line); border-radius: 14px; background: #ffffff08; text-align: center; }
+.exam b { font-size: 14px; }
+.exam .tag { color: var(--muted); font-size: 11.5px; }
+.exam .btn { width: 100%; height: 30px; margin-top: 4px; font-size: 12px; }
+.exam.owned { border-color: #5fd3a05c; background: #5fd3a012; }
+.exam.owned .tag { color: var(--ok); font-weight: 700; }
+.exam.locked { opacity: .55; }
+
+.rules { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 12px 22px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11.5px; }
+.rules span::before { content: "•"; margin-right: 6px; color: var(--accent-2); }
+
+/* ---------- Code de la route ---------- */
+.quiz { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(80% 80% at 50% 50%, #000000a6, #000000e0); animation: fade .2s ease-out; }
+.box { display: grid; gap: 16px; width: 720px; padding: 22px 26px; border-radius: 22px; border: 1px solid var(--glass-line); background:
+    radial-gradient(70% 30% at 50% 0%, rgba(var(--accent-rgb), .18), transparent 75%), var(--panel); box-shadow: 0 30px 60px -30px #000c; }
+.quiz-head { display: flex; align-items: center; justify-content: space-between; }
+.quiz-head div { display: grid; }
+.quiz-head b { font-size: 17px; }
+.clock { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: #ffffff0a; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.clock.low { border-color: #ff4d5e80; color: var(--bad); }
+.bar { height: 5px; overflow: hidden; border-radius: 3px; background: #ffffff14; }
+.bar i { display: block; height: 100%; width: 0; border-radius: 3px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .25s; }
+.question { margin: 6px 0 0; font-size: 20px; font-weight: 700; line-height: 1.35; }
+.answers { display: grid; gap: 8px; }
+.answer { display: grid; grid-template-columns: 30px 1fr; align-items: center; gap: 12px; min-height: 50px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 12px; background: #ffffff08; font-size: 14.5px; text-align: left; }
+.answer:hover { border-color: #ffffff30; background: #ffffff10; }
+.answer span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: #ffffff12; font-weight: 700; }
+.answer.on { border-color: transparent; background: linear-gradient(90deg, rgba(var(--accent-rgb), .45), rgba(var(--accent-rgb), .15)); box-shadow: 0 0 0 1px var(--accent-2); }
+.answer.on span { background: var(--accent); }
+.quiz-foot { display: flex; justify-content: space-between; }
+
+.result { justify-items: center; width: 560px; text-align: center; }
+.badge { display: grid; place-items: center; width: 74px; height: 74px; border-radius: 50%; font-size: 34px; font-weight: 700; }
+.badge.ok { background: #5fd3a026; color: var(--ok); box-shadow: 0 0 0 2px #5fd3a066; }
+.badge.ko { background: #ff4d5e26; color: var(--bad); box-shadow: 0 0 0 2px #ff4d5e66; }
+.r-title { font-size: 22px; }
+.r-text { margin: -8px 0 0; color: var(--muted); font-size: 14px; }
+.r-list { display: grid; width: 100%; max-height: 300px; gap: 4px; overflow-y: auto; text-align: left; }
+.r-list div { display: grid; grid-template-columns: 22px 1fr; gap: 8px; padding: 6px 10px; border-radius: 8px; background: #ffffff08; font-size: 12.5px; }
+.r-list i { font-style: normal; font-weight: 700; }
+.r-list .ok i { color: var(--ok); }
+.r-list .ko i { color: var(--bad); }
+.r-list::-webkit-scrollbar, .sheet-body::-webkit-scrollbar { width: 6px; }
+.r-list::-webkit-scrollbar-thumb, .sheet-body::-webkit-scrollbar-thumb { border-radius: 3px; background: #ffffff25; }
+
+/* ---------- Examen pratique ---------- */
+.hud { position: fixed; bottom: 34px; left: 50%; display: grid; gap: 8px; width: 380px; transform: translateX(-50%); animation: fade .3s ease-out; }
+.hud-top, .hud-main { border: 1px solid var(--glass-line); border-radius: 14px; background: var(--panel); box-shadow: 0 20px 40px -20px #000c; }
+.hud-top { display: flex; justify-content: space-between; padding: 7px 14px; font-size: 12.5px; }
+.hud-top span { font-weight: 700; font-variant-numeric: tabular-nums; }
+.hud-main { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 14px; padding: 10px 16px; }
+.speed { display: grid; justify-items: start; }
+.speed b { font-size: 34px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.speed small, .stats small { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.speed.over b { color: var(--bad); }
+/* Panneau de limitation américain */
+.sign { display: grid; justify-items: center; width: 58px; padding: 4px 0 3px; border: 3px solid #111; border-radius: 7px; background: #fff; color: #111; box-shadow: 0 0 0 2px #fff; }
+.sign small { font-size: 8.5px; font-weight: 700; line-height: 1.05; text-align: center; text-transform: uppercase; }
+.sign b { font-size: 22px; line-height: 1.05; }
+.stats { display: grid; justify-items: end; gap: 4px; }
+.stats div { display: grid; justify-items: end; }
+.stats b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.stats b.warn { color: var(--warn); }
+.stop { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 7px 12px; border-radius: 12px; background: #c8102ee6; font-weight: 700; }
+.stop b { padding: 1px 8px; border: 2px solid #fff; border-radius: 6px; letter-spacing: .06em; }
+.stop.done { background: #1f9e6be6; }
+.flash { padding: 7px 12px; border-radius: 12px; background: #ff4d5ee6; font-weight: 700; text-align: center; animation: fade .2s ease-out; }
+
+.banner { position: fixed; top: 9vh; left: 50%; display: grid; justify-items: center; gap: 2px; min-width: 360px; padding: 14px 26px; transform: translateX(-50%); border: 1px solid var(--glass-line); border-radius: 16px; background: var(--panel); box-shadow: 0 20px 40px -20px #000c; text-align: center; animation: fade .3s ease-out; }
+.banner b { font-size: 19px; }
+.banner span { color: var(--muted); }
+.banner.ok b { color: var(--ok); }
+.banner.ko b { color: var(--bad); }

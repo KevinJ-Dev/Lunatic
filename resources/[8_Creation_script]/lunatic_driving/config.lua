@@ -7,6 +7,9 @@ Config.ExamMinutes = 20              -- durée maximale d'un examen pratique
 Config.SpeedTolerance = 5            -- km/h tolérés au-dessus de la limite
 Config.SpeedingSeconds = 2           -- secondes d'excès de vitesse avant une erreur
 Config.CrashDamage = 25              -- perte de santé de carrosserie comptée comme un choc
+Config.MajorCrashDamage = 150        -- perte d'un coup comptée comme un accident grave (échec si réglé dans le panel)
+Config.MajorSpeeding = 40            -- km/h au-dessus de la limite : faute grave (voiture, moto, camion, bateau)
+Config.StopSeconds = 1               -- secondes d'arrêt complet demandées à un point STOP
 Config.OutOfVehicleSeconds = 15      -- hors du véhicule plus longtemps : examen échoué
 Config.Blip = { sprite = 498, color = 3, scale = 0.8 }
 

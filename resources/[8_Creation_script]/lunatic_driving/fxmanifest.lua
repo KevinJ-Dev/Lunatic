@@ -29,3 +29,12 @@ server_scripts {
 client_scripts {
     'client/main.lua',
 }
+
+ui_page 'html/index.html'
+
+files {
+    'html/index.html',
+    'html/style.css',
+    'html/app.js',
+    'html/fonts/*.woff2',
+}

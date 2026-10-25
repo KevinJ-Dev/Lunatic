@@ -10,8 +10,9 @@
 .driving-exam { display: grid; gap: 10px; }
 .driving-points-head { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; font-size: 13px; }
 .driving-points { display: grid; gap: 4px; }
-.driving-point { display: grid; grid-template-columns: 24px minmax(0, 1fr) 80px 36px auto auto auto auto; gap: 6px; align-items: center; padding: 4px 8px; border-radius: 8px; background: #0000002e; font-size: 12px; }
+.driving-point { display: grid; grid-template-columns: 24px minmax(0, 1fr) 80px 36px auto auto auto auto auto; gap: 6px; align-items: center; padding: 4px 8px; border-radius: 8px; background: #0000002e; font-size: 12px; }
 .driving-point .input { height: 28px; }
+.driving-point .stop-on { background: #c8102e; color: #fff; }
 .driving-fold { margin-top: 0; }
 .driving-questions { display: grid; gap: 10px; margin-top: 8px; }
 .driving-question { display: grid; gap: 4px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #0000002e; }

@@ -5,6 +5,14 @@
 local admin = exports.lunatic_admin
 local sessions = {} -- joueur -> { kind = 'theory' | 'exam', ... }
 
+-- Fautes graves relevées par le client : échec immédiat si l'option est active dans le panel
+local MAJOR_FAULTS = {
+    crash = 'Accident grave.',
+    pedestrian = 'Piéton percuté.',
+    exit = 'Sortie du véhicule en marche.',
+    speed = 'Grand excès de vitesse.',
+}
+
 local function now()
     return os.time()
 end
@@ -93,8 +101,8 @@ lib.callback.register('lunatic_driving:menu', function(src)
     table.sort(exams, function(a, b) return a.price < b.price end)
 
     return {
-        theory = { price = s.theory.price, count = s.theory.count, pass = s.theory.pass, owned = hasLicense(xPlayer.identifier, 'dmv') },
-        exams = exams, busy = sessions[src] ~= nil,
+        theory = { price = s.theory.price, count = s.theory.count, pass = s.theory.pass, minutes = Config.TheoryMinutes, owned = hasLicense(xPlayer.identifier, 'dmv') },
+        exams = exams, busy = sessions[src] ~= nil, maxErrors = s.maxErrors, majorFail = s.majorFail ~= false,
     }
 end)
 
@@ -148,7 +156,7 @@ lib.callback.register('lunatic_driving:startTheory', function(src)
     end
 
     sessions[src] = { kind = 'theory', answers = picked, pass = s.theory.pass, expires = now() + Config.TheoryMinutes * 60 }
-    return { ok = true, questions = questions, pass = s.theory.pass }
+    return { ok = true, questions = questions, pass = s.theory.pass, seconds = Config.TheoryMinutes * 60 }
 end)
 
 lib.callback.register('lunatic_driving:submitTheory', function(src, answers)
@@ -165,10 +173,13 @@ lib.callback.register('lunatic_driving:submitTheory', function(src, answers)
         return { ok = false, error = 'Temps écoulé : le code est raté.' }
     end
 
-    local score = 0
+    local score, results = 0, {}
 
+    -- Correction : juste ou faux par question (sans révéler les bonnes réponses)
     for i, correct in ipairs(session.answers) do
-        if type(answers) == 'table' and tonumber(answers[i]) == correct then
+        results[i] = type(answers) == 'table' and tonumber(answers[i]) == correct
+
+        if results[i] then
             score = score + 1
         end
     end
@@ -180,7 +191,7 @@ lib.callback.register('lunatic_driving:submitTheory', function(src, answers)
     end
 
     log(src, passed and 'driving.theory_pass' or 'driving.theory_fail', nil, { score = score, total = #session.answers })
-    return { ok = true, passed = passed, score = score, total = #session.answers, pass = session.pass }
+    return { ok = true, passed = passed, score = score, total = #session.answers, pass = session.pass, results = results }
 end)
 
 ---------------------------------------------------------------------
@@ -272,17 +283,20 @@ lib.callback.register('lunatic_driving:startExam', function(src, id)
     sessions[src] = {
         kind = 'exam', id = id, label = exam.label, license = exam.license, vehicle = vehicle, points = exam.points,
         next = 1, errors = 0, maxErrors = s.maxErrors, minEngine = s.minEngine, expires = now() + Config.ExamMinutes * 60,
+        majorFail = s.majorFail ~= false,
     }
 
     log(src, 'driving.exam_start', exam.label, { price = exam.price })
     return {
         ok = true, netId = NetworkGetNetworkIdFromEntity(vehicle), points = exam.points, label = exam.label,
         maxErrors = s.maxErrors, minEngine = s.minEngine, radius = Config.PointRadius[id] or 8.0, air = id == 'plane' or id == 'heli',
+        majorFail = s.majorFail ~= false, seconds = Config.ExamMinutes * 60,
     }
 end)
 
--- Passage à un point : dans l'ordre, dans le véhicule d'examen, à portée
-lib.callback.register('lunatic_driving:checkpoint', function(src, index)
+-- Passage à un point : dans l'ordre, dans le véhicule d'examen, à portée. Point STOP : véhicule arrêté, ou
+-- missed = STOP franchi sans arrêt (faute comptée ici)
+lib.callback.register('lunatic_driving:checkpoint', function(src, index, missed)
     local session = sessions[src]
 
     if not session or session.kind ~= 'exam' or tonumber(index) ~= session.next then
@@ -291,13 +305,35 @@ lib.callback.register('lunatic_driving:checkpoint', function(src, index)
 
     local point = session.points[session.next]
     local ped = GetPlayerPed(src)
+    local stop = point.stop and session.id ~= 'plane' and session.id ~= 'heli'
+    local reach = (Config.PointRadius[session.id] or 8.0) + (stop and missed and 30.0 or 10.0)
 
-    if GetVehiclePedIsIn(ped, false) ~= session.vehicle or distanceTo(src, point) > (Config.PointRadius[session.id] or 8.0) + 10.0 then
+    if GetVehiclePedIsIn(ped, false) ~= session.vehicle or distanceTo(src, point) > reach then
+        return { ok = false }
+    end
+
+    if stop and missed then
+        session.errors = session.errors + 1
+
+        if session.errors > session.maxErrors then
+            endExam(src, false, ("Trop d'erreurs (%d)."):format(session.errors))
+            return { ok = false }
+        end
+    elseif stop and #GetEntityVelocity(session.vehicle) > 2.0 then
         return { ok = false }
     end
 
     session.next = session.next + 1
-    return { ok = true, done = session.next > #session.points }
+    return { ok = true, done = session.next > #session.points, errors = session.errors }
+end)
+
+RegisterNetEvent('lunatic_driving:major', function(kind)
+    local src = source
+    local session = sessions[src]
+
+    if session and session.kind == 'exam' and session.majorFail and MAJOR_FAULTS[kind] then
+        endExam(src, false, MAJOR_FAULTS[kind])
+    end
 end)
 
 -- Erreur relevée par le client (vitesse, choc) : une erreur ne peut que pénaliser le joueur

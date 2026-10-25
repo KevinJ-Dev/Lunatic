@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <title>Lunatic - Auto-école</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Accueil de l'auto-école : code de la route puis examens pratiques -->
+    <div class="school hidden" id="school">
+        <div class="sheet">
+            <header class="head">
+                <div><small>Department of Motor Vehicles</small><b>Auto-école de Los Santos</b></div>
+                <button class="close" id="close" title="Fermer (Échap)">✕</button>
+            </header>
+            <div class="sheet-body">
+                <div class="step"><span>1</span>Code de la route</div>
+                <section class="theory" id="theory"></section>
+                <div class="step"><span>2</span>Examens pratiques</div>
+                <section class="exams" id="exams"></section>
+            </div>
+            <footer class="rules" id="rules"></footer>
+        </div>
+    </div>
+
+    <!-- Code de la route : une question à la fois -->
+    <div class="quiz hidden" id="quiz">
+        <div class="box">
+            <header class="quiz-head">
+                <div><small>Code de la route</small><b id="qCount"></b></div>
+                <div class="clock" id="qClock">00:00</div>
+            </header>
+            <div class="bar"><i id="qBar"></i></div>
+            <p class="question" id="qText"></p>
+            <div class="answers" id="qAnswers"></div>
+            <footer class="quiz-foot">
+                <button class="btn ghost" id="qQuit">Abandonner</button>
+                <button class="btn" id="qNext" disabled>Suivant</button>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Résultat du code -->
+    <div class="quiz hidden" id="result">
+        <div class="box result">
+            <div class="badge" id="rBadge"></div>
+            <b class="r-title" id="rTitle"></b>
+            <p class="r-text" id="rText"></p>
+            <div class="r-list" id="rList"></div>
+            <button class="btn" id="rClose">Retour à l'auto-école</button>
+        </div>
+    </div>
+
+    <!-- Examen pratique : vitesse, limite, point, fautes, temps -->
+    <div class="hud hidden" id="hud">
+        <div class="hud-top"><b id="hLabel"></b><span id="hClock">00:00</span></div>
+        <div class="hud-main">
+            <div class="speed" id="hSpeedBox"><b id="hSpeed">0</b><small>km/h</small></div>
+            <div class="sign"><small>Speed<br>Limit</small><b id="hLimit">0</b></div>
+            <div class="stats">
+                <div><small>Point</small><b id="hPoint"></b></div>
+                <div><small>Fautes</small><b id="hErrors"></b></div>
+            </div>
+        </div>
+        <div class="stop hidden" id="hStop"><b>STOP</b><span>Marquez l'arrêt complet</span></div>
+        <div class="flash hidden" id="hFlash"></div>
+    </div>
+
+    <!-- Fin d'examen -->
+    <div class="banner hidden" id="banner"><b id="bTitle"></b><span id="bText"></span></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

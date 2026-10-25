@@ -1,22 +1,12 @@
--- Auto-école, côté client : PNJ et blip, menu, questions du code, conduite de l'examen (points, vitesse, chocs).
--- Le client relève les erreurs et le passage aux points ; le serveur vérifie tout avant de délivrer le permis.
+-- Auto-école, côté client : PNJ et blip, page de l'auto-école (code puis examens), conduite de l'examen (points,
+-- arrêts aux STOP, vitesse, chocs, fautes graves) affichée dans le HUD. Le client relève les fautes et le passage
+-- aux points ; le serveur vérifie tout avant de délivrer le permis.
 
 local ped, blip = nil, nil
 local exam = nil -- examen en cours
 
 local function notify(text, kind)
     ESX.ShowNotification(text, kind or 'info')
-end
-
-local function drawText(x, y, text, scale)
-    SetTextFont(4)
-    SetTextScale(scale, scale)
-    SetTextCentre(true)
-    SetTextOutline()
-    SetTextColour(255, 255, 255, 230)
-    BeginTextCommandDisplayText('STRING')
-    AddTextComponentSubstringPlayerName(text)
-    EndTextCommandDisplayText(x, y)
 end
 
 local function currency()
@@ -92,49 +82,59 @@ CreateThread(function()
 end)
 
 ---------------------------------------------------------------------
--- Code de la route
+-- Page de l'auto-école
 ---------------------------------------------------------------------
 
-local function takeTheory()
+local function openMenu()
+    local data = lib.callback.await('lunatic_driving:menu', false)
+
+    if not data or data.busy then
+        SetNuiFocus(false, false)
+
+        if data then
+            notify('Terminez votre examen en cours (/stopexamen pour abandonner).', 'error')
+        end
+
+        return
+    end
+
+    data.currency = currency()
+    SendNUIMessage({ action = 'school', data = data })
+    SetNuiFocus(true, true)
+end
+
+RegisterNUICallback('close', function(_, cb)
+    SetNuiFocus(false, false)
+    cb(true)
+end)
+
+-- Retour à l'accueil après le code (résultat à jour)
+RegisterNUICallback('back', function(_, cb)
+    cb(true)
+    openMenu()
+end)
+
+RegisterNUICallback('theory', function(_, cb)
     local res = lib.callback.await('lunatic_driving:startTheory', false)
 
     if not res or not res.ok then
-        return notify(res and res.error or "Code indisponible.", 'error')
+        notify(res and res.error or 'Code indisponible.', 'error')
+        return cb({ ok = false })
     end
 
-    local answers = {}
+    cb(res)
+end)
 
-    for i, question in ipairs(res.questions) do
-        local options = {}
+RegisterNUICallback('submitTheory', function(data, cb)
+    local result = lib.callback.await('lunatic_driving:submitTheory', false, type(data) == 'table' and data.answers or {})
 
-        for index, answer in ipairs(question.a) do
-            options[#options + 1] = { value = index, label = answer }
-        end
-
-        local input = lib.inputDialog(('Code de la route · question %d / %d'):format(i, #res.questions), {
-            { type = 'select', label = question.q, options = options, required = true },
-        })
-
-        if not input then
-            -- Fenêtre fermée : réponse vide (comptée fausse)
-            answers[i] = 0
-        else
-            answers[i] = tonumber(input[1]) or 0
-        end
+    if result and result.ok then
+        notify(result.passed and ('Code obtenu : %d / %d.'):format(result.score, result.total)
+            or ('Code raté : %d / %d (il en faut %d).'):format(result.score, result.total, result.pass), result.passed and 'success' or 'error')
     end
 
-    local result = lib.callback.await('lunatic_driving:submitTheory', false, answers)
-
-    if not result or not result.ok then
-        return notify(result and result.error or 'Correction impossible.', 'error')
-    end
-
-    if result.passed then
-        notify(('Code obtenu : %d / %d bonnes réponses.'):format(result.score, result.total), 'success')
-    else
-        notify(('Code raté : %d / %d (il en faut %d).'):format(result.score, result.total, result.pass), 'error')
-    end
-end
+    cb(result or { ok = false, error = 'Correction impossible.' })
+end)
 
 ---------------------------------------------------------------------
 -- Examen pratique
@@ -146,6 +146,7 @@ local function stopExam()
     end
 
     exam = nil
+    SendNUIMessage({ action = 'hudHide' })
 end
 
 local function pointBlip(point)
@@ -153,19 +154,71 @@ local function pointBlip(point)
         RemoveBlip(exam.blip)
     end
 
+    local colour = point.stop and not exam.air and 1 or 5
     exam.blip = AddBlipForCoord(point.x + 0.0, point.y + 0.0, point.z + 0.0)
-    SetBlipColour(exam.blip, 5)
+    SetBlipColour(exam.blip, colour)
     SetBlipRoute(exam.blip, true)
-    SetBlipRouteColour(exam.blip, 5)
+    SetBlipRouteColour(exam.blip, colour)
+end
+
+local function fault(text)
+    PlaySoundFrontend(-1, 'CHECKPOINT_MISSED', 'HUD_MINI_GAME_SOUNDSET', false)
+    SendNUIMessage({ action = 'fault', text = ('Faute : %s'):format(text) })
 end
 
 local function addError(reason)
-    notify(('Erreur : %s'):format(reason), 'error')
+    fault(reason)
     local res = lib.callback.await('lunatic_driving:error', false, reason)
 
-    if res then
+    if res and exam then
         exam.errors = res.errors
     end
+end
+
+-- Faute grave : le serveur arrête l'examen (si c'est réglé ainsi dans le panel)
+local function majorFault(kind)
+    if exam and exam.majorFail and not exam.ending then
+        exam.ending = true
+        TriggerServerEvent('lunatic_driving:major', kind)
+    end
+end
+
+-- Piéton percuté par le véhicule d'examen
+local function hitPedestrian(vehicle)
+    local origin = GetEntityCoords(vehicle)
+    local me = PlayerPedId()
+
+    for _, other in ipairs(GetGamePool('CPed')) do
+        if other ~= me and #(GetEntityCoords(other) - origin) < 10.0 and HasEntityBeenDamagedByEntity(other, vehicle, true) then
+            ClearEntityLastDamageEntity(other)
+            return true
+        end
+    end
+
+    return false
+end
+
+-- Passage validé par le serveur ; missed = STOP franchi sans arrêt (faute comptée par le serveur).
+-- Renvoie true quand l'examen est terminé.
+local function reachPoint(missed)
+    local res = lib.callback.await('lunatic_driving:checkpoint', false, exam.index, missed)
+
+    if not exam or not res or not res.ok then
+        return not exam
+    end
+
+    exam.errors = res.errors or exam.errors
+
+    if res.done then
+        lib.callback.await('lunatic_driving:finish', false)
+        return true
+    end
+
+    exam.index = exam.index + 1
+    exam.entered, exam.stopped, exam.stillSince = false, false, nil
+    pointBlip(exam.points[exam.index])
+    PlaySoundFrontend(-1, 'CHECKPOINT_NORMAL', 'HUD_MINI_GAME_SOUNDSET', false)
+    return false
 end
 
 local function runExam(data)
@@ -183,31 +236,44 @@ local function runExam(data)
     end
 
     TaskWarpPedIntoVehicle(PlayerPedId(), vehicle, -1)
-    exam = { vehicle = vehicle, points = data.points, index = 1, errors = 0, maxErrors = data.maxErrors, minEngine = data.minEngine, radius = data.radius, air = data.air }
+    exam = {
+        vehicle = vehicle, points = data.points, index = 1, errors = 0, maxErrors = data.maxErrors, minEngine = data.minEngine,
+        radius = data.radius, air = data.air, majorFail = data.majorFail, label = data.label, endsAt = GetGameTimer() + data.seconds * 1000,
+    }
     pointBlip(exam.points[1])
-    notify(('Examen %s : suivez les points, respectez les vitesses.'):format(data.label), 'info')
+    notify(('Examen %s : suivez les points, respectez les limites et marquez les STOP.'):format(data.label), 'info')
 
-    local speeding, lastSpeedError, lastCrash, outSince = 0, 0, 0, nil
+    local speeding, lastSpeedError, lastCrash, lastHud, lastPedCheck, lastOutMessage = 0, 0, 0, 0, 0, 0
+    local outSince, lastSpeed = nil, 0
     local lastBody = GetVehicleBodyHealth(vehicle)
 
     while exam do
         local now = GetGameTimer()
-        local playerPed = PlayerPedId()
         local point = exam.points[exam.index]
         local limit = point.speed
-        local inVehicle = GetVehiclePedIsIn(playerPed, false) == vehicle
+        local inVehicle = GetVehiclePedIsIn(PlayerPedId(), false) == vehicle
+        local stopPoint = point.stop and not exam.air
+        local speed = inVehicle and GetEntitySpeed(vehicle) * 3.6 or 0.0
+        local stopState = nil
 
-        -- Marqueur du point à atteindre
+        -- Marqueur du point à atteindre (rouge pour un STOP)
+        local r, g, b = 242, 194, 107
+
+        if stopPoint then
+            r, g, b = 220, 40, 60
+        end
+
         DrawMarker(exam.air and 6 or 1, point.x, point.y, point.z - (exam.air and 0.0 or 1.0), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-            exam.air and exam.radius or 4.0, exam.air and exam.radius or 4.0, exam.air and exam.radius or 1.0, 242, 194, 107, 120, false, false, 2, false, nil, nil, false)
-
-        drawText(0.5, 0.86, ('Point %d / %d · limite %d km/h · erreurs %d / %d'):format(exam.index, #exam.points, limit, exam.errors, exam.maxErrors), 0.45)
+            exam.air and exam.radius or 4.0, exam.air and exam.radius or 4.0, exam.air and exam.radius or 1.0, r, g, b, 120, false, false, 2, false, nil, nil, false)
 
         if inVehicle then
             outSince = nil
-            local speed = GetEntitySpeed(vehicle) * 3.6
 
-            -- Excès de vitesse prolongé
+            -- Excès de vitesse prolongé ; très grand excès = faute grave (sauf avion et hélicoptère)
+            if not exam.air and speed > limit + Config.MajorSpeeding then
+                majorFault('speed')
+            end
+
             if speed > limit + Config.SpeedTolerance then
                 speeding = speeding + GetFrameTime()
 
@@ -219,15 +285,26 @@ local function runExam(data)
                 speeding = 0
             end
 
-            -- Choc
+            -- Choc : léger = faute, violent = faute grave
             local body = GetVehicleBodyHealth(vehicle)
+            local damage = lastBody - body
 
-            if lastBody - body >= Config.CrashDamage and now - lastCrash > 3000 then
+            if damage >= Config.MajorCrashDamage then
+                majorFault('crash')
+            elseif damage >= Config.CrashDamage and now - lastCrash > 3000 then
                 lastCrash = now
                 addError('choc avec le véhicule')
             end
 
             lastBody = body
+
+            if not exam.air and now - lastPedCheck > 300 then
+                lastPedCheck = now
+
+                if hitPedestrian(vehicle) then
+                    majorFault('pedestrian')
+                end
+            end
 
             -- Moteur trop abîmé : fin immédiate (le serveur vérifie la santé du moteur)
             if GetVehicleEngineHealth(vehicle) < exam.minEngine then
@@ -235,27 +312,54 @@ local function runExam(data)
                 break
             end
 
-            -- Point atteint
-            local coords = GetEntityCoords(vehicle)
+            -- Point atteint ; au STOP, arrêt complet avant de valider
+            local distance = #(GetEntityCoords(vehicle) - vector3(point.x, point.y, point.z))
 
-            if #(coords - vector3(point.x, point.y, point.z)) <= exam.radius then
-                local res = lib.callback.await('lunatic_driving:checkpoint', false, exam.index)
+            if distance <= exam.radius then
+                exam.entered = true
 
-                if res and res.ok then
-                    if res.done then
-                        lib.callback.await('lunatic_driving:finish', false)
-                        break
+                if stopPoint and not exam.stopped then
+                    if speed < 1.0 then
+                        exam.stillSince = exam.stillSince or now
+
+                        if now - exam.stillSince >= Config.StopSeconds * 1000 then
+                            exam.stopped = true
+                        end
+                    else
+                        exam.stillSince = nil
                     end
+                end
 
-                    exam.index = exam.index + 1
-                    pointBlip(exam.points[exam.index])
-                    PlaySoundFrontend(-1, 'CHECKPOINT_NORMAL', 'HUD_MINI_GAME_SOUNDSET', false)
+                if (not stopPoint or exam.stopped) and reachPoint(false) then
+                    break
+                end
+            elseif stopPoint and exam.entered and not exam.stopped and distance > exam.radius + 4.0 then
+                fault('arrêt non marqué au STOP')
+
+                if reachPoint(true) then
+                    break
                 end
             end
+
+            if stopPoint and exam and distance <= exam.radius + 25.0 then
+                stopState = exam.stopped and 'done' or 'need'
+            end
+
+            lastSpeed = speed
         else
+            -- Sortie du véhicule en marche : faute grave ; sinon un délai pour remonter
+            if not outSince and lastSpeed > 15.0 then
+                majorFault('exit')
+            end
+
             outSince = outSince or now
+            lastSpeed = 0
             local left = Config.OutOfVehicleSeconds - math.floor((now - outSince) / 1000)
-            drawText(0.5, 0.80, ("Remontez dans le véhicule d'examen (%d s)"):format(math.max(0, left)), 0.5)
+
+            if now - lastOutMessage > 1000 then
+                lastOutMessage = now
+                SendNUIMessage({ action = 'fault', text = ("Remontez dans le véhicule d'examen (%d s)"):format(math.max(0, left)) })
+            end
 
             if left <= 0 then
                 TriggerServerEvent('lunatic_driving:abort', 'Sortie du véhicule.')
@@ -263,22 +367,34 @@ local function runExam(data)
             end
         end
 
+        if exam and now - lastHud > 150 then
+            lastHud = now
+            SendNUIMessage({ action = 'hud', data = {
+                label = exam.label, speed = math.floor(speed), limit = limit, index = exam.index, total = #exam.points,
+                errors = exam.errors, maxErrors = exam.maxErrors, left = math.floor((exam.endsAt - now) / 1000), stop = stopState,
+            } })
+        end
+
         Wait(0)
     end
 end
 
-local function takeExam(id)
-    local res = lib.callback.await('lunatic_driving:startExam', false, id)
+RegisterNUICallback('exam', function(data, cb)
+    SetNuiFocus(false, false)
+    cb(true)
+
+    local res = lib.callback.await('lunatic_driving:startExam', false, type(data) == 'table' and data.id or nil)
 
     if not res or not res.ok then
         return notify(res and res.error or 'Examen indisponible.', 'error')
     end
 
     CreateThread(function() runExam(res) end)
-end
+end)
 
 RegisterNetEvent('lunatic_driving:examEnded', function(result)
     stopExam()
+    SendNUIMessage({ action = 'examEnded', data = { passed = result.passed, reason = result.reason, label = result.label or '' } })
 
     if result.passed then
         notify(('Félicitations : examen %s réussi, le permis est à vous !'):format(result.label or ''), 'success')
@@ -294,43 +410,8 @@ RegisterCommand('stopexamen', function()
 end, false)
 
 ---------------------------------------------------------------------
--- Menu au PNJ
+-- [E] au PNJ
 ---------------------------------------------------------------------
-
-local function openMenu()
-    local data = lib.callback.await('lunatic_driving:menu', false)
-
-    if not data then
-        return
-    end
-
-    if data.busy then
-        return notify('Terminez votre examen en cours (/stopexamen pour abandonner).', 'error')
-    end
-
-    local options = {
-        {
-            title = 'Code de la route',
-            description = data.theory.owned and 'Déjà obtenu' or ('%d questions · %d bonnes réponses requises · %d %s'):format(data.theory.count, data.theory.pass, data.theory.price, currency()),
-            icon = 'book', disabled = data.theory.owned,
-            onSelect = takeTheory,
-        },
-    }
-
-    for _, e in ipairs(data.exams) do
-        if e.open then
-            options[#options + 1] = {
-                title = ('Examen %s'):format(e.label),
-                description = e.owned and 'Permis déjà obtenu' or not data.theory.owned and "Code de la route requis" or ('%d %s'):format(e.price, currency()),
-                icon = 'car', disabled = e.owned or not data.theory.owned,
-                onSelect = function() takeExam(e.id) end,
-            }
-        end
-    end
-
-    lib.registerContext({ id = 'lunatic_driving', title = 'Auto-école', options = options })
-    lib.showContext('lunatic_driving')
-end
 
 CreateThread(function()
     while true do
@@ -364,5 +445,6 @@ AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
         clearSchool()
         stopExam()
+        SetNuiFocus(false, false)
     end
 end)

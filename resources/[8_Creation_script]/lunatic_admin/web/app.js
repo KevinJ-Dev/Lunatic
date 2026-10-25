@@ -1816,14 +1816,14 @@ async function demoNui(name, data) {
         return { ok: true, types: ["car", "bike", "truck", "plane", "heli", "boat"],
             licenses: [{ type: "dmv", label: "Code de la route" }, { type: "drive", label: "Permis voiture" }, { type: "drive_bike", label: "Permis moto" }, { type: "drive_truck", label: "Permis poids lourd" }, { type: "aircraft", label: "Permis avion" }, { type: "helicopter", label: "Permis hélicoptère" }, { type: "boat", label: "Permis bateau" }],
             settings: {
-                maxErrors: 3, minEngine: 750, ped: "a_m_y_business_01", blip: true,
+                maxErrors: 3, majorFail: true, minEngine: 750, ped: "a_m_y_business_01", blip: true,
                 school: { x: 239.47, y: -1380.96, z: 33.74, h: 140 }, finalTp: { x: 233.66, y: -1393.42, z: 30.51, h: 140 },
                 theory: { price: 200, count: 10, pass: 8, questions: [
                     { q: "En agglomération, sauf indication contraire, la vitesse est limitée à :", a: ["30 km/h", "50 km/h", "70 km/h"], c: 2 },
                     { q: "Un feu orange fixe signifie :", a: ["Je m'arrête, sauf si c'est dangereux", "J'accélère pour passer", "Je peux passer sans ralentir"], c: 1 },
                 ] },
                 exams: {
-                    car: exam("Voiture", "drive", 500, "blista", 50, true, [{ x: 240.06, y: 344.0, z: 103.93, speed: 70 }, { x: 106.66, y: 235.81, z: 108.06, speed: 50 }, { x: 342.97, y: 133.38, z: 103.41, speed: 80 }]),
+                    car: exam("Voiture", "drive", 500, "blista", 50, true, [{ x: 240.06, y: 344.0, z: 103.93, speed: 70 }, { x: 106.66, y: 235.81, z: 108.06, speed: 50, stop: true }, { x: 342.97, y: 133.38, z: 103.41, speed: 80 }]),
                     bike: exam("Moto", "drive_bike", 400, "pcj", 50, true, []),
                     truck: exam("Camion", "drive_truck", 800, "mule", 50, true, []),
                     plane: exam("Avion", "aircraft", 5000, "cuban800", 300, false, []),

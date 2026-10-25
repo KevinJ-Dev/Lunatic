@@ -150,10 +150,11 @@ function paintDriving() {
             fieldRow("Erreurs max", drivingNumber(d, "maxErrors", { min: "0", max: "20" })),
             fieldRow("Santé moteur min", drivingNumber(d, "minEngine", { min: "0", max: "1000", step: "50" })),
             fieldRow("PNJ (modèle)", ped),
-            h("div", { class: "mode-list" }, draftToggle(d, "blip", "Blip sur la carte", "Icône de l'auto-école visible par tous."))),
+            h("div", { class: "mode-list" }, draftToggle(d, "blip", "Blip sur la carte", "Icône de l'auto-école visible par tous."),
+                draftToggle(d, "majorFail", "Faute grave = échec", "Accident violent, piéton percuté, sortie du véhicule en marche ou grand excès de vitesse : examen échoué aussitôt."))),
         drivingSpot("Point auto-école (permis)", d, "school"),
         drivingSpot("Téléportation finale", d, "finalTp"),
-        h("p", { class: "hint-line" }, "Erreurs : excès de vitesse, choc, sortie du véhicule. L'examen échoue au-delà des erreurs max ou si le moteur passe sous la santé minimale (sur 1000)."));
+        h("p", { class: "hint-line" }, "Erreurs : excès de vitesse, choc, STOP non marqué. L'examen échoue au-delà des erreurs max ou si le moteur passe sous la santé minimale (sur 1000)."));
 
     root.replaceChildren(h("div", { class: "content driving-page" }, head,
         h("div", { class: "scroll driving-body" }, general, drivingTheoryCard(d), drivingExamCard(d))));
@@ -225,8 +226,9 @@ function drivingExamCard(d) {
                 [exam.points[index], exam.points[target]] = [exam.points[target], exam.points[index]];
                 paintPoints();
             };
+            const stop = h("button", { class: `btn small ${p.stop ? "stop-on" : "ghost"}`, title: "Point STOP : arrêt complet obligatoire (sinon faute)", onclick: () => { p.stop = !p.stop; paintPoints(); } }, "STOP");
             return h("div", { class: "driving-point" }, h("span", { class: "mono muted" }, String(index + 1)), h("span", { class: "mono" }, drivingCoords({ x: p.x, y: p.y, z: p.z })),
-                speed, h("span", { class: "muted" }, "km/h"),
+                speed, h("span", { class: "muted" }, "km/h"), stop,
                 h("button", { class: "btn small ghost", onclick: () => act("driving.tp", p, null) }, "TP"),
                 h("button", { class: "btn small ghost sq-btn", title: "Monter", disabled: index === 0, onclick: () => move(-1) }, "↑"),
                 h("button", { class: "btn small ghost sq-btn", title: "Descendre", disabled: index === exam.points.length - 1, onclick: () => move(1) }, "↓"),
