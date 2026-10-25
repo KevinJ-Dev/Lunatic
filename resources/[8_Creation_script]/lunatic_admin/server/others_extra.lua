@@ -386,4 +386,66 @@ exports('getMechanicPrices', function()
     return json.decode(json.encode(mechanic))
 end)
 
-print('[lunatic_admin] Modules Ascenseurs, Heal Items et Tarifs mécano chargés.')
+---------------------------------------------------------------------
+-- Zone AFK : endroit où les joueurs vont avec /afk (et d'où ils reviennent), sans expulsion pour inactivité
+---------------------------------------------------------------------
+
+local AFK_DEFAULTS = { enabled = false, point = nil, radius = 30, command = true, autoSend = true, invincible = true, rewardAmount = 0, rewardMinutes = 15 }
+local savedAfk = GetResourceKvpString('afk_zone')
+local afkZone = savedAfk and json.decode(savedAfk) or json.decode(json.encode(AFK_DEFAULTS))
+
+for key, value in pairs(AFK_DEFAULTS) do
+    if afkZone[key] == nil and value ~= nil then
+        afkZone[key] = value
+    end
+end
+
+local function publishAfk()
+    GlobalState.lunaticAfkZone = afkZone
+end
+
+publishAfk()
+
+Panel.actions['afkZone.get'] = function(_, actor)
+    if not allowed(actor) then
+        return denied()
+    end
+
+    return { ok = true, silent = true, settings = afkZone, afk = { minutes = (GlobalState.lunaticFeatures and GlobalState.lunaticFeatures.misc or {}).afkMinutes } }
+end
+
+Panel.actions['afkZone.save'] = function(src, actor, data)
+    if not allowed(actor) then
+        return denied()
+    end
+
+    local radius = whole(data.radius, 5, 300)
+    local amount = whole(data.rewardAmount, 0, 100000)
+    local minutes = whole(data.rewardMinutes, 1, 120)
+    local point = data.point ~= nil and position(data.point) or nil
+
+    if not radius or not amount or not minutes then
+        return Panel.fail('Rayon (5 à 300 m), récompense (0 à 100000) ou intervalle (1 à 120 min) invalide.')
+    end
+
+    if data.point ~= nil and not point then
+        return Panel.fail('Position de la zone invalide.')
+    end
+
+    if data.enabled == true and not point then
+        return Panel.fail("Placez d'abord le point d'arrivée de la zone (« Ma position » en jeu).")
+    end
+
+    afkZone = {
+        enabled = data.enabled == true, point = point, radius = radius, command = data.command ~= false, autoSend = data.autoSend == true,
+        invincible = data.invincible ~= false, rewardAmount = amount, rewardMinutes = minutes,
+    }
+
+    SetResourceKvp('afk_zone', json.encode(afkZone))
+    publishAfk()
+
+    Logs.add(src, 'afkZone.save', nil, { enabled = afkZone.enabled })
+    return { ok = true, silent = true }
+end
+
+print('[lunatic_admin] Modules Ascenseurs, Heal Items, Tarifs mécano et Zone AFK chargés.')

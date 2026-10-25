@@ -16,7 +16,7 @@ const OTHERS_TILES = [
     { id: "elevators", label: "Ascenseurs", icon: "i-layers", show: () => can("others.manage") },
     { id: "heal", label: "Heal Items (EMS)", icon: "i-heart", show: () => can("others.manage") },
     { id: "mechanic", label: "Prix custom (mécano)", icon: "i-tool", show: () => can("others.manage") },
-    { id: "afk", label: "Zone AFK", icon: "i-clock", go: "features", show: () => can("features.manage") },
+    { id: "afk", label: "Zone AFK", icon: "i-clock", show: () => can("others.manage") },
 ];
 
 const DRIVING_EXAMS = [["car", "Voiture"], ["bike", "Moto"], ["truck", "Camion"], ["plane", "Avion"], ["heli", "Hélicoptère"], ["boat", "Bateau"]];
@@ -27,6 +27,7 @@ function renderOthers() {
     if (othersState.page === "elevators") return renderElevators(root);
     if (othersState.page === "heal") return renderHealItems(root);
     if (othersState.page === "mechanic") return renderMechanic(root);
+    if (othersState.page === "afk") return renderAfkZone(root);
     if (othersState.page === "driving") {
         if (drivingState.data && root.querySelector(".driving-page")) return;
         paintDriving();
@@ -54,6 +55,7 @@ function closeOthersPage() {
         elevatorState.draft = null;
         healState.draft = null;
         mechanicState.draft = null;
+        afkState.draft = null;
         othersState.page = null;
         renderOthers();
     });

@@ -120,6 +120,7 @@ function elevatorEditor() {
                     paintFloors();
                 } }, icon("i-plus"), "Ajouter (position actuelle)")),
             floors,
+            d.floors.length < 2 || !d.active ? h("div", { class: "banner" }, icon("i-warn"), "Inactif en jeu : il faut l'activer et enregistrer au moins 2 étages.") : null,
             h("p", { class: "hint-line" }, "En jeu : [E] devant un étage ouvre la liste des étages ; le joueur arrive à la position et dans l'orientation enregistrées.")),
         elevator ? h("div", { class: "btn-row" }, deleteButton(async () => {
             const yes = await confirmBox(`Supprimer « ${elevator.label} » ?`, "L'ascenseur disparaît en jeu.", "Supprimer", true);
@@ -303,7 +304,8 @@ function paintMechanic() {
     root.replaceChildren(h("div", { class: "content mechanic-page" }, othersHead("Tarification mécanique"),
         h("div", { class: "others-split mechanic-split" }, nav,
             h("div", { class: "scroll others-editor" },
-                h("p", { class: "hint-line" }, `${title}. Vide = prix hérité. Enregistré pour le futur script de customisation (exports.lunatic_admin:getMechanicPrice).`),
+                h("div", { class: "mechanic-top" }, h("p", { class: "hint-line", style: "margin:0" }, `${title}. Vide = prix hérité. Enregistré pour le futur script de customisation (exports.lunatic_admin:getMechanicPrice).`),
+                    h("button", { class: "btn small primary", onclick: prefillMechanic }, icon("i-sparkle"), "Pré-remplir les tarifs")),
                 sel.startsWith("model:") ? h("button", { class: "btn small danger", style: "justify-self:start", onclick: () => { delete d.models[sel.slice(6)]; mechanicState.sel = "default"; paintMechanic(); } }, icon("i-trash"), "Retirer ce modèle") : null,
                 ...sections))));
 }
@@ -315,4 +317,105 @@ async function saveMechanic() {
     untrackUnsaved("others");
     mechanicState.draft = null;
     await loadMechanic();
+}
+
+// ====================================================================
+//  Zone AFK : endroit où l'on va avec /afk, sans expulsion pour inactivité
+// ====================================================================
+
+const afkState = { data: null, draft: null, saved: "" };
+
+function renderAfkZone(root) {
+    if (afkState.data && root.querySelector(".afk-page")) return;
+    paintAfkZone();
+    if (!afkState.data) loadAfkZone();
+}
+
+async function loadAfkZone() {
+    const res = await nui("action", { action: "afkZone.get", payload: {} }).catch(() => null);
+    if (!res || !res.ok) return;
+    afkState.data = res;
+    if (othersState.page === "afk") paintAfkZone();
+}
+
+const afkCoords = (p) => (p ? `${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)} · ${Math.round(p.h)}°` : "non défini");
+
+function paintAfkZone() {
+    const root = $("view-others");
+    if (!afkState.data) return root.replaceChildren(h("div", { class: "content afk-page" }, othersHead("Zone AFK"), h("div", { class: "empty" }, icon("i-clock"), "Chargement…")));
+    if (!afkState.draft) {
+        afkState.draft = { key: "afk", ...JSON.parse(JSON.stringify(afkState.data.settings)) };
+        afkState.draft.point = afkState.draft.point || null;
+        afkState.saved = JSON.stringify(afkState.draft);
+        othersTrack("Zone AFK", afkState, saveAfkZone, paintAfkZone);
+    }
+    const d = afkState.draft;
+    const num = (key, attrs) => {
+        const input = h("input", { class: "input mono", type: "number", ...attrs, value: String(d[key]) });
+        input.addEventListener("input", () => { d[key] = Number(input.value || 0); });
+        return input;
+    };
+    const coords = h("span", { class: "mono muted" }, afkCoords(d.point));
+    const minutes = afkState.data.afk.minutes;
+
+    root.replaceChildren(h("div", { class: "content afk-page" }, othersHead("Zone AFK"),
+        h("div", { class: "scroll others-editor" },
+            h("div", { class: "card" },
+                h("div", { class: "mode-list" }, draftToggle(d, "enabled", "Zone AFK active", "Les joueurs peuvent s'y mettre ; ils n'y sont jamais expulsés pour inactivité.")),
+                h("div", { class: "driving-spot" }, h("b", null, "Point d'arrivée"), coords,
+                    h("button", { class: "btn small ghost", onclick: async () => {
+                        const p = await othersMyPosition();
+                        if (!p) return;
+                        d.point = p;
+                        coords.textContent = afkCoords(p);
+                    } }, icon("i-crosshair"), "Définir position"),
+                    h("button", { class: "btn small ghost", onclick: () => (d.point ? act("others.tp", d.point, null) : toast("Position non définie.", "error")) }, icon("i-goto"), "TP")),
+                h("div", { class: "driving-grid" }, fieldRow("Rayon de la zone (m)", num("radius", { min: "5", max: "300" })))),
+            h("div", { class: "card" }, h("div", { class: "crew-sub" }, "Fonctionnement"),
+                h("div", { class: "mode-list heal-toggles" },
+                    draftToggle(d, "command", "Commande /afk", "Aller dans la zone, puis /afk à nouveau pour revenir là où l'on était."),
+                    draftToggle(d, "autoSend", "Envoyer les inactifs", `Au lieu d'être expulsés, les inactifs (${minutes || "?"} min, réglage anti-AFK de Fonctionnalités) arrivent dans la zone.`),
+                    draftToggle(d, "invincible", "Invincible dans la zone", "Personne ne peut blesser un joueur AFK."))),
+            h("div", { class: "card" }, h("div", { class: "crew-sub" }, "Récompense"),
+                h("div", { class: "driving-grid" },
+                    fieldRow(`Montant (${currencySymbol()}, 0 = aucune)`, num("rewardAmount", { min: "0" })),
+                    fieldRow("Toutes les (min)", num("rewardMinutes", { min: "1", max: "120" }))),
+                h("p", { class: "hint-line" }, "Versée en banque aux joueurs présents dans la zone.")),
+            h("button", { class: "btn small ghost", style: "justify-self:start", onclick: () => go("features") }, icon("i-tool"), "Réglages anti-AFK (tuile Fonctionnalités)"))));
+}
+
+async function saveAfkZone() {
+    const { key, ...payload } = afkState.draft;
+    const res = await act("afkZone.save", payload, "Zone AFK enregistrée.");
+    if (!res) return;
+    untrackUnsaved("others");
+    afkState.draft = null;
+    await loadAfkZone();
+}
+
+// ---------- Tarifs mécano : pré-remplissage ----------
+
+const MECH_PRESET = {
+    engine: 2500, brakes: 1500, transmission: 2000, suspension: 1200, turbo: 5000, armor: 3500,
+    paint1: 500, paint2: 400, pearl: 750, wheels: 900, windowtint: 300, neon: 1200, tyresmoke: 400, xenon: 600,
+    spoiler: 800, frontbumper: 700, rearbumper: 700, skirts: 600, exhaust: 500, rollcage: 900, grille: 400, hood: 700, fenders: 600, roof: 600, livery: 1000, horn: 200,
+    interior: 400, dashboard: 350, dial: 250, seats: 600, steering: 300, shifter: 200, speakers: 450,
+    platecolor: 150, plateholder: 250,
+};
+// Coefficient par classe GTA (même ordre que MECH_CLASSES) ; 1 = prix du défaut
+const MECH_CLASS_FACTORS = [0.8, 0.9, 1.1, 1.1, 1.0, 1.3, 1.5, 2.0, 0.7, 1.0, 1.3, 1.0, 0.9, 0.3, 1.5, 2.5, 3.0, 1.0, 1.2, 2.0, 1.2, 1.0, 2.0];
+
+async function prefillMechanic() {
+    const yes = await confirmBox("Pré-remplir les tarifs ?", "Le défaut reçoit des prix de base et chaque classe GTA un prix ajusté (ex. Super ×2, Compactes ×0,8). Les modèles ne changent pas. Rien n'est enregistré avant « Enregistrer ».", "Pré-remplir", false);
+    if (!yes) return;
+    const d = mechanicState.draft;
+    d.default = { ...MECH_PRESET };
+    d.classes = {};
+    MECH_CLASS_FACTORS.forEach((factor, id) => {
+        if (factor === 1) return;
+        d.classes[id] = {};
+        for (const [part, price] of Object.entries(MECH_PRESET)) d.classes[id][part] = Math.round((price * factor) / 10) * 10;
+    });
+    paintMechanic();
+    paintUnsaved();
 }

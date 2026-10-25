@@ -15,5 +15,12 @@ RegisterNetEvent('lunatic_gameplay:afk', function()
         end
     end
 
+    -- Zone AFK avec « envoyer les inactifs » : le joueur y part au lieu d'être expulsé
+    local zone = GlobalState.lunaticAfkZone
+
+    if type(zone) == 'table' and zone.enabled and zone.autoSend and SendToAfk and not IsPlayerDown(src) and SendToAfk(src) then
+        return
+    end
+
     DropPlayer(src, 'Expulsé pour inactivité (AFK).')
 end)

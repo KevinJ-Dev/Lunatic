@@ -144,7 +144,8 @@ CreateThread(function()
 
         lastCoords = coords
 
-        if s.afk then
+        -- Dans la zone AFK (tuile Autres), on n'est jamais expulsé
+        if s.afk and not LocalPlayer.state.afkZone then
             local job = ESX.PlayerData and ESX.PlayerData.job
             local onDuty = job and job.name ~= 'unemployed' and job.onDuty
             local limit = (tonumber(s.afkMinutes) or 20) * 60000

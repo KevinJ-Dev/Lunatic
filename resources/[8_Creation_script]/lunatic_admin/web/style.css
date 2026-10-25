@@ -1516,3 +1516,6 @@ body.hidden.minimized .mini-pill { display: flex; }
 .mechanic-part .input { height: 32px; text-transform: none; }
 .heal-grid { grid-template-columns: minmax(0, 1fr); }
 .heal-grid .item-field { grid-template-columns: 130px minmax(0, 1fr); }
+
+.mechanic-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.afk-page { display: flex; flex-direction: column; flex: 1; min-height: 0; }

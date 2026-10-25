@@ -1798,6 +1798,7 @@ async function demoNui(name, data) {
     if (name === "action" && data && data.action === "healItems.list") return { ok: true,
         jobs: [{ name: "ambulance", label: "EMS" }],
         items: [{ item: "bread", heal: 25, armor: 0, revive: false, target: "both", duration: 4, access: "all", consume: true }, { item: "water", heal: 100, armor: 0, revive: true, target: "other", duration: 8, access: "medic", consume: true }] };
+    if (name === "action" && data && data.action === "afkZone.get") return { ok: true, afk: { minutes: 20 }, settings: { enabled: true, point: { x: -1037.5, y: -2737.2, z: 20.17, h: 330 }, radius: 30, command: true, autoSend: true, invincible: true, rewardAmount: 50, rewardMinutes: 15 } };
     if (name === "action" && data && data.action === "mechanic.get") return { ok: true, prices: { default: { engine: 2500, brakes: 1500, paint1: 500 }, classes: { 7: { engine: 6000 } }, models: { sultan: { turbo: 4000 } } } };
     if (name === "action" && data && data.action === "harvest.list") return { ok: true,
         jobs: [{ name: "unemployed", label: "Sans emploi" }, { name: "farmer", label: "Fermier" }],
