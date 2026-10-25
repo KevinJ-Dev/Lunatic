@@ -1,62 +1,64 @@
 "use strict";
 
-// Carte d'identité : modèles français, américain (San Andreas), belge et canadien
-
-const MODELS = {
-    fr: { title: "RÉPUBLIQUE FRANÇAISE", sub: "CARTE NATIONALE D'IDENTITÉ", foot: "IDFRA", labels: ["Nom", "Prénom(s)", "Sexe", "Taille", "Né(e) le", "N° du document", "Nationalité"] },
-    us: { title: "STATE OF SAN ANDREAS", sub: "DRIVER LICENSE", foot: "USA · LOS SANTOS DMV", labels: ["Last name", "First name", "Sex", "Height", "Date of birth", "DL number", "Nationality"] },
-    be: { title: "BELGIQUE · BELGIË · BELGIEN", sub: "CARTE D'IDENTITÉ · IDENTITEITSKAART", foot: "IDBEL", labels: ["Nom", "Prénoms", "Sexe", "Taille", "Date de naissance", "N° de carte", "Nationalité"] },
-    ca: { title: "CANADA", sub: "PERMIS DE CONDUIRE · DRIVER'S LICENCE", foot: "CAN", labels: ["Nom / Last name", "Prénom / First name", "Sexe / Sex", "Taille / Height", "Naissance / Birth", "N° / No.", "Nationalité"] },
-};
-
-// Permis de conduire : même modèle que la carte d'identité, autre en-tête
-const LICENSE_MODELS = {
-    fr: { title: "RÉPUBLIQUE FRANÇAISE", sub: "PERMIS DE CONDUIRE", foot: "D1FRA", cats: "Catégories" },
-    us: { title: "STATE OF SAN ANDREAS", sub: "DRIVER LICENSE", foot: "SA DMV · CLASS", cats: "Classes" },
-    be: { title: "BELGIQUE · BELGIË", sub: "PERMIS DE CONDUIRE · RIJBEWIJS", foot: "D1BEL", cats: "Catégories" },
-    ca: { title: "CANADA", sub: "PERMIS DE CONDUIRE · DRIVER'S LICENCE", foot: "DLCAN", cats: "Classes" },
-};
+// Documents de l'État de San Andreas : carte d'identité et permis de conduire (libellés américains)
 
 const $ = (id) => document.getElementById(id);
+const pad = (n) => String(n).padStart(2, "0");
+
+// JJ/MM/AAAA (identité ESX) -> MM/DD/YYYY
+function usDate(value) {
+    const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value || "");
+    return m ? `${pad(m[2])}/${pad(m[1])}/${m[3]}` : "—";
+}
+
+// Date de remise (secondes) -> MM/DD/YYYY, avec des années en plus pour l'expiration
+function stamp(seconds, years) {
+    if (!seconds) return "—";
+    const d = new Date(seconds * 1000);
+    d.setFullYear(d.getFullYear() + (years || 0));
+    return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()}`;
+}
+
+// Centimètres -> pieds et pouces (5'-11")
+function feet(cm) {
+    const inches = Math.round(Number(cm) / 2.54);
+    return inches ? `${Math.floor(inches / 12)}'-${pad(inches % 12)}"` : "—";
+}
 
 function show(identity) {
-    const model = MODELS[identity.model] ? identity.model : "fr";
-    const m = MODELS[model];
     const license = identity.kind === "license";
-    const header = license ? LICENSE_MODELS[model] : m;
     const card = $("card");
-    card.className = `card model-${model}${license ? " license" : ""}`;
-    $("title").textContent = header.title;
-    $("sub").textContent = header.sub;
-    $("foot").textContent = `${header.foot}<<${String(identity.lastName || "").toUpperCase()}<<${String(identity.firstName || "").toUpperCase()}<<<<<<${identity.number || ""}`;
-    // Permis : catégories obtenues à la place du sexe, de la taille et de la nationalité
-    $("rowBody").classList.toggle("hidden", license);
-    $("cellNation").classList.toggle("hidden", license);
-    $("cellCats").classList.toggle("hidden", !license);
-    if (license) {
-        $("lCats").textContent = header.cats;
-        $("cats").replaceChildren(...(identity.categories || []).map((c) => {
-            const chip = document.createElement("span");
-            chip.className = `cat${c.owned ? " on" : ""}`;
-            chip.title = c.label;
-            chip.textContent = c.code;
-            return chip;
-        }));
-    }
-    ["lLast", "lFirst", "lSex", "lHeight", "lBirth", "lNumber", "lNation"].forEach((id, i) => { $(id).textContent = m.labels[i]; });
-    $("last").textContent = String(identity.lastName || "—").toUpperCase();
+    card.className = `card${license ? " license" : ""}`;
+    $("doc").textContent = license ? "DRIVER LICENSE" : "IDENTIFICATION CARD";
+    $("lNumber").textContent = license ? "DL" : "ID";
+    $("number").textContent = `${license ? "D" : "I"}${String(identity.number || "").slice(-7)}`;
+    $("exp").textContent = stamp(identity.issued, license ? 5 : 8);
+    $("iss").textContent = stamp(identity.issued, 0);
+    $("last").textContent = identity.lastName || "—";
     $("first").textContent = identity.firstName || "—";
+    $("birth").textContent = usDate(identity.dateofbirth);
     $("sex").textContent = identity.sex === "m" ? "M" : identity.sex === "f" ? "F" : "—";
-    $("height").textContent = identity.height ? `${identity.height} cm` : "—";
-    $("birth").textContent = identity.dateofbirth || "—";
+    $("height").textContent = feet(identity.height);
     $("nation").textContent = identity.nationality || "—";
-    $("number").textContent = identity.number || "—";
-    const photo = $("photo");
-    photo.replaceChildren();
-    if (identity.photo) {
-        const img = document.createElement("img");
-        img.src = identity.photo;
-        photo.append(img);
+    $("sign").textContent = `${identity.firstName || ""} ${identity.lastName || ""}`.trim();
+
+    // Permis : classes (C voiture, M moto, A camion) et mentions (bateau, avion, hélico) à la place de la nationalité
+    $("rowNation").classList.toggle("hidden", license);
+    $("rowClass").classList.toggle("hidden", !license);
+    if (license) {
+        const owned = (identity.categories || []).filter((c) => c.owned);
+        $("classes").textContent = owned.filter((c) => c.kind !== "end").map((c) => c.code).join(" ") || "NONE";
+        $("ends").textContent = owned.filter((c) => c.kind === "end").map((c) => c.code).join(" ") || "NONE";
+    }
+
+    for (const id of ["photo", "ghost"]) {
+        const holder = $(id);
+        holder.replaceChildren();
+        if (identity.photo) {
+            const img = document.createElement("img");
+            img.src = identity.photo;
+            holder.append(img);
+        }
     }
 }
 

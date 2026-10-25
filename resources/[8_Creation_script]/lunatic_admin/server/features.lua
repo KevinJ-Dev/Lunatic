@@ -50,7 +50,7 @@ local SCHEMA = {
     effects_fentanyl = { enabled = bool(true), duration = num(150, 10, 900, 10), speed = num(1.0, 1, 1.49, 0.01), shake = num(1.0, 0, 3, 0.1), blur = bool(true), visual = bool(true), walk = bool(true) },
     effects_alcohol = { enabled = bool(true), duration = num(180, 10, 900, 10), speed = num(1.0, 1, 1.49, 0.01), shake = num(1.0, 0, 3, 0.1), blur = bool(false), visual = bool(true), walk = bool(true) },
     idcard = {
-        model = text('fr', 2, '^%l%l$'), delivery = text('police', 10, '^%a+$'), guide = bool(true),
+        delivery = text('police', 10, '^%a+$'), guide = bool(true),
         firstFree = bool(true), duplicatePrice = num(50, 0, 100000, 10), licensePrice = num(100, 0, 100000, 10), duration = num(10, 3, 60, 1), showRadius = num(3, 1, 15, 0.5),
     },
     misc = {

@@ -157,9 +157,6 @@ const FEATURE_SECTIONS = {
     idcard: {
         label: "Carte d'identité", icon: "i-player",
         fields: {
-            model: { label: "Modèle de carte", hint: "Affiché quand un joueur regarde ou montre sa carte (objet id_card)", options: [
-                { value: "fr", label: "Carte d'identité française" }, { value: "us", label: "Driver license américain (San Andreas)" },
-                { value: "be", label: "Carte d'identité belge" }, { value: "ca", label: "Permis canadien" }] },
             delivery: { label: "Remise de la carte", hint: "Au guichet (Autres → Guichets de documents) ou automatique à la connexion", options: [
                 { value: "police", label: "À retirer au guichet (poste de police)" }, { value: "auto", label: "Remise automatique à la connexion" }] },
             guide: { label: "Guider les nouveaux joueurs", hint: "Point GPS vers le guichet le plus proche tant que la carte n'a jamais été retirée" },

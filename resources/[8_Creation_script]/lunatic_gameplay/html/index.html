@@ -7,25 +7,36 @@
 </head>
 <body>
     <div class="card hidden" id="card">
-        <div class="head"><span class="title" id="title"></span><span class="sub" id="sub"></span></div>
-        <div class="main">
+        <header class="card-head">
+            <span class="state">San Andreas</span>
+            <span class="doc" id="doc">IDENTIFICATION CARD</span>
+            <span class="usa">USA</span>
+        </header>
+        <div class="card-body">
             <div class="photo" id="photo"></div>
             <div class="fields">
-                <div><small id="lLast">Nom</small><b id="last"></b></div>
-                <div><small id="lFirst">Prénom(s)</small><b id="first"></b></div>
-                <div class="row" id="rowBody">
-                    <div><small id="lSex">Sexe</small><b id="sex"></b></div>
-                    <div><small id="lHeight">Taille</small><b id="height"></b></div>
+                <div class="line"><small id="lNumber">ID</small><b id="number" class="red"></b></div>
+                <div class="line"><small>EXP</small><b id="exp"></b></div>
+                <div class="line"><small>LN</small><b id="last"></b></div>
+                <div class="line"><small>FN</small><b id="first"></b></div>
+                <div class="line"><small>DOB</small><b id="birth" class="red"></b></div>
+                <div class="pair">
+                    <span><small>SEX</small><b id="sex"></b></span>
+                    <span><small>HGT</small><b id="height"></b></span>
                 </div>
-                <div class="row">
-                    <div><small id="lBirth">Né(e) le</small><b id="birth"></b></div>
-                    <div id="cellNation"><small id="lNation">Nationalité</small><b id="nation"></b></div>
+                <div class="line" id="rowNation"><small>NAT</small><b id="nation"></b></div>
+                <div class="pair hidden" id="rowClass">
+                    <span><small>CLASS</small><b id="classes"></b></span>
+                    <span><small>END</small><b id="ends"></b></span>
                 </div>
-                <div><small id="lNumber">N° du document</small><b id="number" class="mono"></b></div>
-                <div class="hidden" id="cellCats"><small id="lCats">Catégories</small><div class="cats" id="cats"></div></div>
+                <div class="line"><small>ISS</small><b id="iss"></b></div>
+            </div>
+            <div class="side">
+                <div class="seal"><span>★</span><b>SA</b></div>
+                <div class="ghost" id="ghost"></div>
             </div>
         </div>
-        <div class="foot" id="foot"></div>
+        <footer class="card-foot"><span class="sign" id="sign"></span><span class="dmv">Department of Motor Vehicles · Los Santos</span></footer>
     </div>
     <div class="death hidden" id="death">
         <div class="death-shade hidden" id="death-shade"></div>

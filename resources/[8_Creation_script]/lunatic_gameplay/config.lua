@@ -56,20 +56,21 @@ Config.SafeZones = {
     { label = 'Hôpital de Paleto Bay', coords = vector3(-247.7, 6331.2, 32.4), radius = 30.0 },
 }
 
--- Carte d'identité : modèle, remise, prix du duplicata, durée d'affichage et rayon réglés dans le panel
+-- Carte d'identité (document de l'État de San Andreas) : remise, prix du duplicata, durée d'affichage et rayon réglés dans le panel
 -- (Fonctionnalités → Carte d'identité)
 Config.IdCardItem = 'id_card'
 
 -- Permis de conduire : objet remis à la réussite du premier examen (lunatic_driving), duplicata au guichet.
--- Catégories affichées sur la carte, dans cet ordre (type = permis ESX de la table user_licenses)
+-- Ce qui figure sur le permis (type = permis ESX de la table user_licenses), dans cet ordre :
+-- kind 'class' = classe américaine (CLASS), 'end' = mention (END)
 Config.DriverLicenseItem = 'driver_license'
 Config.DriverLicenseCategories = {
-    { type = 'drive_bike', code = 'A', label = 'Moto' },
-    { type = 'drive', code = 'B', label = 'Voiture' },
-    { type = 'drive_truck', code = 'C', label = 'Camion' },
-    { type = 'boat', code = 'BT', label = 'Bateau' },
-    { type = 'aircraft', code = 'AV', label = 'Avion' },
-    { type = 'helicopter', code = 'HE', label = 'Hélicoptère' },
+    { type = 'drive', code = 'C', label = 'Voiture', kind = 'class' },
+    { type = 'drive_bike', code = 'M', label = 'Moto', kind = 'class' },
+    { type = 'drive_truck', code = 'A', label = 'Camion', kind = 'class' },
+    { type = 'boat', code = 'BOAT', label = 'Bateau', kind = 'end' },
+    { type = 'aircraft', code = 'PILOT', label = 'Avion', kind = 'end' },
+    { type = 'helicopter', code = 'HELI', label = 'Hélicoptère', kind = 'end' },
 }
 
 -- Guichets de documents par défaut (postes de police) ; ceux réglés dans le panel (Autres → Guichets de documents)

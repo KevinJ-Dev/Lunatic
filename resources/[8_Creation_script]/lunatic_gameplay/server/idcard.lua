@@ -53,7 +53,7 @@ local function identityOf(xPlayer)
         dateofbirth = xPlayer.get('dateofbirth') or '', sex = xPlayer.get('sex') or '', height = xPlayer.get('height') or '',
         nationality = external('lunatic_creator', 'getNationality', xPlayer.identifier) or '',
         number = ('%09d'):format(tonumber(hash:sub(1, 7), 16) or 0):sub(1, 9),
-        model = settings().model or 'fr', photo = external('lunatic_admin', 'getMugshot', xPlayer.identifier),
+        photo = external('lunatic_admin', 'getMugshot', xPlayer.identifier),
     }
 end
 
@@ -96,17 +96,23 @@ local function licenseCategories(identifier)
     local list, any = {}, false
 
     for _, category in ipairs(Config.DriverLicenseCategories) do
-        list[#list + 1] = { code = category.code, label = category.label, owned = owned[category.type] == true }
+        list[#list + 1] = { code = category.code, label = category.label, kind = category.kind, owned = owned[category.type] == true }
         any = any or owned[category.type] == true
     end
 
     return list, any
 end
 
-local function licenseOf(xPlayer)
+-- Document à afficher : identité, date de remise (émission, expiration) et, pour le permis, ses catégories
+local function documentOf(xPlayer, kind)
     local data = identityOf(xPlayer)
-    data.kind = 'license'
-    data.categories = licenseCategories(xPlayer.identifier)
+    data.issued = tonumber(issuedAt(xPlayer.identifier, kind))
+
+    if kind == 'license' then
+        data.kind = 'license'
+        data.categories = licenseCategories(xPlayer.identifier)
+    end
+
     return data
 end
 
@@ -137,7 +143,7 @@ lib.callback.register('lunatic_gameplay:idcard', function(src)
         return nil
     end
 
-    return identityOf(xPlayer)
+    return documentOf(xPlayer, 'idcard')
 end)
 
 -- Montrer sa carte ou son permis : tous les joueurs proches (même instance) le voient
@@ -155,7 +161,7 @@ RegisterNetEvent('lunatic_gameplay:idcardShow', function(kind)
     local origin = GetEntityCoords(GetPlayerPed(src))
     local radius = tonumber(settings().showRadius) or 3.0
     local bucket = GetPlayerRoutingBucket(src)
-    local identity = kind == 'license' and licenseOf(xPlayer) or identityOf(xPlayer)
+    local identity = documentOf(xPlayer, kind)
     local count = 0
 
     for _, id in ipairs(GetPlayers()) do
@@ -248,7 +254,7 @@ lib.callback.register('lunatic_gameplay:license', function(src)
         return nil
     end
 
-    return licenseOf(xPlayer)
+    return documentOf(xPlayer, 'license')
 end)
 
 -- Premier permis obtenu à l'auto-école (lunatic_driving) : l'objet est remis gratuitement s'il ne l'a pas
