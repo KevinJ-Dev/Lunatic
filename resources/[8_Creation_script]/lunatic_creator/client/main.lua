@@ -278,7 +278,10 @@ local function open()
         action = 'open',
         appearance = appearance,
         options = options(),
-        config = { height = Config.Height, age = Config.Age, cameras = #Config.Cameras, spawns = spawnList(), clothes = clothesList(), mugshot = Config.MugshotSeconds },
+        config = {
+            height = Config.Height, age = Config.Age, cameras = #Config.Cameras, spawns = spawnList(), clothes = clothesList(),
+            mugshot = Config.MugshotSeconds, nationalities = Config.Nationalities, names = Config.RandomNames,
+        },
     })
 
     Wait(300)
@@ -393,7 +396,7 @@ RegisterNUICallback('spawn', function(data, cb)
     fade(false)
 end)
 
--- Fin de la création : identité (esx_identity), apparence (illenium-appearance), lieu de naissance, photo, arrivée
+-- Fin de la création : nationalité, identité (esx_identity), apparence (illenium-appearance), photo, arrivée
 RegisterNUICallback('finish', function(data, cb)
     local identity = type(data) == 'table' and data.identity
 
@@ -403,6 +406,11 @@ RegisterNUICallback('finish', function(data, cb)
 
     if not spawnIndex or not Config.Spawns[spawnIndex] then
         return cb({ ok = false, error = "Choisissez un lieu d'apparition." })
+    end
+
+    -- Nationalité d'abord : le serveur la vérifie avant que l'identité ne soit enregistrée
+    if not lib.callback.await('lunatic_creator:saveInfo', false, { nationality = identity.nationality }) then
+        return cb({ ok = false, error = 'Nationalité refusée : choisissez-en une dans la liste.' })
     end
 
     local ok = exports.esx_identity:registerIdentity({
@@ -415,7 +423,6 @@ RegisterNUICallback('finish', function(data, cb)
     end
 
     TriggerServerEvent('illenium-appearance:server:saveAppearance', appearanceApi():getPedAppearance(PlayerPedId()))
-    lib.callback.await('lunatic_creator:saveInfo', false, { birthplace = identity.birthplace or '' })
     cb({ ok = true })
 
     -- Photo d'identité : face à l'objectif, quelques secondes

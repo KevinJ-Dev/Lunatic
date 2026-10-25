@@ -96,7 +96,8 @@ let options = null;
 let settings = null;
 let stepIndex = 0;
 let openEditor = null; // calque déplié dans Apparence
-const identity = { lastname: "", firstname: "", dateofbirth: "", birthplace: "", height: 178 };
+const identity = { lastname: "", firstname: "", day: 0, month: 0, year: 2000, nationality: "", height: 178 };
+let identityErrors = {}; // section -> message, rempli quand l'identité est refusée
 
 let sendTimer = null;
 function pushAppearance() {
@@ -151,42 +152,137 @@ function setCamera(index) {
 
 // ---------- 1. Identité ----------
 
+const MONTHS = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+const NAME_RULE = /^[A-Za-zÀ-ÖØ-öø-ÿ]+(?:[ '-][A-Za-zÀ-ÖØ-öø-ÿ]+)*$/;
+let nationalityOpen = false;
+
+const pick = (list) => list[Math.floor(Math.random() * list.length)];
+const randomInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
+const pad = (n) => String(n).padStart(2, "0");
+const daysIn = (year, month) => new Date(year, month + 1, 0).getDate();
+const dateOfBirth = () => `${pad(identity.day)}/${pad(identity.month + 1)}/${identity.year}`;
+
+// Âge exact à aujourd'hui (même calcul que le serveur d'esx_identity)
+function ageAt(year, month, day) {
+    const now = new Date();
+    let age = now.getFullYear() - year;
+    if (now.getMonth() < month || (now.getMonth() === month && now.getDate() < day)) age -= 1;
+    return age;
+}
+const ageOk = (year, month, day) => { const age = ageAt(year, month, day); return age >= settings.age.min && age <= settings.age.max; };
+const yearBounds = () => { const now = new Date().getFullYear(); return { min: now - settings.age.max - 1, max: now - settings.age.min }; };
+
 function field(label, input) {
     return h("label", { class: "field" }, h("span", null, label), input);
 }
 
+// Une section de la fiche : titre, bouton Aléatoire, aide, contenu, message d'erreur
+function idSection(key, title, help, randomize, ...content) {
+    return h("section", { class: `id-section${identityErrors[key] ? " bad" : ""}`, "data-key": key },
+        h("header", null, h("h3", null, title), h("button", { class: "dice", onclick: async () => {
+            await randomize();
+            delete identityErrors[key];
+            paint();
+        } }, "Aléatoire")),
+        h("p", { class: "note" }, help),
+        content,
+        identityErrors[key] ? h("p", { class: "id-error" }, identityErrors[key]) : null);
+}
+
+// L'erreur d'une section disparaît dès qu'on la corrige
+function clearError(key, el) {
+    if (!identityErrors[key]) return;
+    delete identityErrors[key];
+    const section = el.closest(".id-section");
+    section.classList.remove("bad");
+    section.querySelector(".id-error")?.remove();
+}
+
+function spinner(label, onPrev, onNext, prevOff, nextOff, onLabel) {
+    return h("div", { class: "spin" },
+        h("button", { class: "spin-arrow", disabled: prevOff, onclick: onPrev }, "‹"),
+        onLabel ? h("button", { class: "spin-label", onclick: onLabel }, label) : h("b", { class: "spin-label" }, label),
+        h("button", { class: "spin-arrow", disabled: nextOff, onclick: onNext }, "›"));
+}
+
+function setBirth(year, month) {
+    const bounds = yearBounds();
+    identity.year = Math.min(bounds.max, Math.max(bounds.min, year));
+    identity.month = (month + 12) % 12;
+    if (identity.day > daysIn(identity.year, identity.month)) identity.day = 0;
+    if (identity.day && !ageOk(identity.year, identity.month, identity.day)) identity.day = 0;
+    paint();
+}
+
+function calendar() {
+    const bounds = yearBounds();
+    const offset = (new Date(identity.year, identity.month, 1).getDay() + 6) % 7; // semaine du lundi au dimanche
+    const cells = Array.from({ length: offset }, () => h("span"));
+    for (let day = 1; day <= daysIn(identity.year, identity.month); day += 1) {
+        cells.push(h("button", {
+            class: `day${identity.day === day ? " on" : ""}`, disabled: !ageOk(identity.year, identity.month, day),
+            onclick: (e) => { identity.day = day; clearError("birth", e.target); paint(); },
+        }, String(day)));
+    }
+    return h("div", { class: "calendar" },
+        h("div", { class: "cal-head" },
+            spinner(MONTHS[identity.month], () => setBirth(identity.year, identity.month - 1), () => setBirth(identity.year, identity.month + 1)),
+            spinner(String(identity.year), () => setBirth(identity.year - 1, identity.month), () => setBirth(identity.year + 1, identity.month),
+                identity.year <= bounds.min, identity.year >= bounds.max)),
+        h("div", { class: "cal-grid" }, ["L", "M", "M", "J", "V", "S", "D"].map((d) => h("small", null, d)), cells),
+        h("p", { class: "cal-picked" }, identity.day ? `Né(e) le ${identity.day} ${MONTHS[identity.month].toLowerCase()} ${identity.year} (${ageAt(identity.year, identity.month, identity.day)} ans)` : "Aucun jour choisi"));
+}
+
+function randomBirth() {
+    const bounds = yearBounds();
+    for (let tries = 0; tries < 50; tries += 1) {
+        const year = randomInt(Math.max(bounds.min, bounds.max - 30), bounds.max);
+        const month = randomInt(0, 11);
+        const day = randomInt(1, daysIn(year, month));
+        if (ageOk(year, month, day)) return Object.assign(identity, { year, month, day });
+    }
+}
+
+function nationalityPicker() {
+    const list = settings.nationalities;
+    const index = list.indexOf(identity.nationality);
+    const choose = (name) => { identity.nationality = name; nationalityOpen = false; delete identityErrors.nationality; paint(); };
+    return h("div", { class: "nationality" },
+        spinner(identity.nationality || "Choisir…",
+            () => choose(list[index <= 0 ? list.length - 1 : index - 1]),
+            () => choose(list[(index + 1) % list.length]),
+            false, false, () => { nationalityOpen = !nationalityOpen; paint(); }),
+        nationalityOpen ? h("div", { class: "nat-list" }, list.map((name) =>
+            h("button", { class: `nat${name === identity.nationality ? " on" : ""}`, onclick: () => choose(name) }, name))) : null);
+}
+
 function identityStep() {
-    const text = (key, placeholder, max) => {
-        const input = h("input", { maxlength: String(max), placeholder, value: identity[key] });
-        input.addEventListener("input", () => { identity[key] = input.value; });
+    const text = (key, placeholder) => {
+        const input = h("input", { maxlength: "19", placeholder, value: identity[key] });
+        input.addEventListener("input", () => { identity[key] = input.value; clearError("name", input); });
         return input;
     };
-    const dob = h("input", { placeholder: "JJ/MM/AAAA", maxlength: "10", value: identity.dateofbirth });
-    dob.addEventListener("input", () => {
-        const digits = dob.value.replace(/\D/g, "").slice(0, 8);
-        dob.value = [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean).join("/");
-        identity.dateofbirth = dob.value;
-    });
     const heightValue = h("b", null, `${identity.height} cm`);
     const height = h("input", { type: "range", min: String(settings.height.min), max: String(settings.height.max), value: String(identity.height) });
     height.addEventListener("input", () => { identity.height = Number(height.value); heightValue.textContent = `${identity.height} cm`; });
+    const gender = (sex, label) => h("button", { class: `gender${appearance.sex === sex ? " on" : ""}`, onclick: () => chooseSex(sex) }, label);
 
-    const sexCard = (sex, label, img) => h("button", { class: `choice${appearance.sex === sex ? " on" : ""}`, onclick: () => chooseSex(sex) },
-        portraitImg(img), h("span", null, label));
-
-    return h("div", { class: "stack" },
-        field("Nom", text("lastname", "Nom de famille", 19)),
-        field("Prénom", text("firstname", "Prénom", 19)),
-        field("Date de naissance", dob),
-        field("Lieu de naissance", text("birthplace", "Ville, pays", 60)),
-        h("div", { class: "field" }, h("span", null, "Taille"), h("div", { class: "slider" }, height, heightValue)),
-        h("div", { class: "field" }, h("span", null, "Choix du personnage"),
-            h("div", { class: "choices" }, sexCard("male", "Homme", 15), sexCard("female", "Femme", 29),
-                h("button", { class: "choice soon", onclick: () => toast("Les peds arrivent dans une prochaine partie.") }, h("span", null, "Peds")))));
+    return h("div", { class: "id-sheet" },
+        idSection("name", "Prénom et nom", "Le nom de votre personnage, tel qu'il figurera sur ses papiers.", () => {
+            identity.firstname = pick(settings.names[appearance.sex] || settings.names.male);
+            identity.lastname = pick(settings.names.last);
+        }, h("div", { class: "id-names" }, text("firstname", "Prénom"), text("lastname", "Nom"))),
+        idSection("birth", "Date de naissance", `Choisissez le mois, l'année puis le jour (de ${settings.age.min} à ${settings.age.max} ans).`, randomBirth, calendar()),
+        idSection("nationality", "Nationalité", "Le pays d'origine de votre personnage.", () => { identity.nationality = pick(settings.nationalities); nationalityOpen = false; }, nationalityPicker()),
+        idSection("gender", "Genre et taille", "Changer de genre remet l'apparence par défaut.", async () => {
+            identity.height = randomInt(Math.max(settings.height.min, 160), Math.min(settings.height.max, 195));
+            await chooseSex(Math.random() < 0.5 ? "male" : "female");
+        }, h("div", { class: "genders" }, gender("male", "Homme"), gender("female", "Femme")),
+            h("div", { class: "slider" }, height, heightValue)));
 }
 
 async function chooseSex(sex) {
-    if (appearance.sex === sex) return;
+    if (appearance.sex === sex) return paint();
     const res = await nui("sex", { sex });
     if (res && res.appearance) {
         appearance = res.appearance;
@@ -195,18 +291,27 @@ async function chooseSex(sex) {
     paint();
 }
 
+// Tout doit être rempli et valide pour passer à l'étape suivante
 function checkIdentity() {
-    const name = /^[A-Za-zÀ-ÖØ-öø-ÿ]+(?:[ '-][A-Za-zÀ-ÖØ-öø-ÿ]+)*$/;
-    identity.lastname = identity.lastname.trim();
-    identity.firstname = identity.firstname.trim();
-    if (identity.lastname.length < 2 || !name.test(identity.lastname)) { toast("Nom invalide : lettres, espaces et tirets, 2 caractères minimum."); return false; }
-    if (identity.firstname.length < 2 || !name.test(identity.firstname)) { toast("Prénom invalide : lettres, espaces et tirets, 2 caractères minimum."); return false; }
-    const m = identity.dateofbirth.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    const date = m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])) : null;
-    if (!date || date.getDate() !== Number(m[1]) || date.getMonth() !== Number(m[2]) - 1) { toast("Date de naissance invalide (JJ/MM/AAAA)."); return false; }
-    const age = (Date.now() - date.getTime()) / (365.25 * 86400000);
-    if (age < settings.age.min || age > settings.age.max) { toast(`Âge accepté : de ${settings.age.min} à ${settings.age.max} ans.`); return false; }
-    return true;
+    const errors = {};
+    identity.firstname = identity.firstname.trim().replace(/\s+/g, " ");
+    identity.lastname = identity.lastname.trim().replace(/\s+/g, " ");
+    if (!identity.firstname || !identity.lastname) errors.name = "Renseignez le prénom et le nom.";
+    else if (identity.firstname.length < 2 || !NAME_RULE.test(identity.firstname)) errors.name = "Prénom invalide : lettres, espaces, tirets ou apostrophes, 2 caractères minimum.";
+    else if (identity.lastname.length < 2 || !NAME_RULE.test(identity.lastname)) errors.name = "Nom invalide : lettres, espaces, tirets ou apostrophes, 2 caractères minimum.";
+    if (!identity.day) errors.birth = "Choisissez le jour de naissance dans le calendrier.";
+    else if (!ageOk(identity.year, identity.month, identity.day)) errors.birth = `Âge accepté : de ${settings.age.min} à ${settings.age.max} ans.`;
+    if (!settings.nationalities.includes(identity.nationality)) errors.nationality = "Choisissez une nationalité.";
+    if (!(identity.height >= settings.height.min && identity.height <= settings.height.max)) errors.gender = "Taille invalide.";
+
+    identityErrors = errors;
+    const count = Object.keys(errors).length;
+    if (!count) return true;
+    toast(count === 1 ? Object.values(errors)[0] : `Identité incomplète : ${count} informations à corriger.`);
+    stepIndex = 0;
+    paint();
+    $("step").querySelector(".id-section.bad")?.scrollIntoView({ block: "center" });
+    return false;
 }
 
 // ---------- 2. Héritage ----------
@@ -418,11 +523,11 @@ function mugshot(seconds) {
 $("prev").addEventListener("click", () => stepIndex > 0 && go(stepIndex - 1));
 $("next").addEventListener("click", async () => {
     if (stepIndex < lastStep()) return go(stepIndex + 1);
-    if (!checkIdentity()) { stepIndex = 0; paint(); return; }
+    if (!checkIdentity()) return;
     if (!spawnChoice) return toast("Choisissez un lieu d'apparition.");
     $("next").disabled = true;
     $("next").textContent = "Création…";
-    const res = await nui("finish", { identity });
+    const res = await nui("finish", { identity: { firstname: identity.firstname, lastname: identity.lastname, dateofbirth: dateOfBirth(), nationality: identity.nationality, height: identity.height } });
     $("next").disabled = false;
     if (!res || !res.ok) {
         paint();
@@ -447,7 +552,9 @@ window.addEventListener("message", (event) => {
         appearance = msg.appearance;
         options = msg.options;
         settings = msg.config;
-        identity.height = settings.height.default;
+        Object.assign(identity, { lastname: "", firstname: "", day: 0, month: 0, year: new Date().getFullYear() - settings.age.min - 7, nationality: "", height: settings.height.default });
+        identityErrors = {};
+        nationalityOpen = false;
         stepIndex = 0;
         camera = 2;
         spawnChoice = null;
@@ -479,6 +586,8 @@ if (!inGame) {
         appearance: { sex: "male", heritage: { father: 0, mother: 21, shape: 0.5, skin: 0.5 }, hair: { style: 0, color: 0, highlight: 0 }, eyeColor: 0, overlays: {}, features: {}, clothes: { components: { 11: [0, 0], 4: [0, 0] }, props: {} } },
         options: { hairStyles: 76, overlays: { 0: 24, 1: 29, 2: 34, 3: 15, 4: 75, 5: 7, 7: 11, 8: 10, 9: 18, 10: 17, 11: 12 }, hairColors: colors, makeupColors: colors },
         config: { height: { min: 150, max: 210, default: 178 }, age: { min: 18, max: 90 }, cameras: 3, mugshot: 4,
+            nationalities: ["Américaine", "Française", "Canadienne", "Mexicaine", "Britannique", "Italienne", "Espagnole", "Allemande", "Marocaine", "Brésilienne", "Japonaise", "Australienne"],
+            names: { male: ["James", "Lucas", "Hugo"], female: ["Emma", "Léa", "Mia"], last: ["Smith", "Garcia", "Dubois"] },
             clothes: [{ index: 1, label: "Chapeau", kind: "prop", id: 0, camera: 1 }, { index: 2, label: "Haut", kind: "component", id: 11, camera: 2, extra: [{ label: "Sous-haut", id: 8 }, { label: "Bras", id: 3 }] }, { index: 3, label: "Bas", kind: "component", id: 4, camera: 3 }, { index: 4, label: "Lunettes", kind: "prop", id: 1, camera: 1 }, { index: 5, label: "Cou", kind: "component", id: 7 }, { index: 6, label: "Sac", kind: "component", id: 5 }, { index: 7, label: "Chaussures", kind: "component", id: 6 }],
             spawns: [{ index: 1, group: "Los Santos", label: "Vespucci" }, { index: 2, group: "Los Santos", label: "Place des Cubes" }, { index: 3, group: "Los Santos", label: "Gouvernement" }, { index: 4, group: "Blaine County", label: "Sandy Shores" }, { index: 5, group: "Blaine County", label: "Paleto Bay" }, { index: 6, group: "Aéroport", label: "Aéroport international" }] },
     }, "*");

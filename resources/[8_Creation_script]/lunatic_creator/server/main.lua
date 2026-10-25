@@ -1,4 +1,4 @@
--- Création de personnage, côté serveur : instance privée pendant la création, lieu de naissance du personnage.
+-- Création de personnage, côté serveur : instance privée pendant la création, nationalité du personnage.
 -- L'identité est enregistrée par esx_identity (mêmes vérifications qu'avant), l'apparence par illenium-appearance.
 
 local creating = {}
@@ -7,11 +7,18 @@ MySQL.ready(function()
     MySQL.query.await([[
         CREATE TABLE IF NOT EXISTS `lunatic_character_info` (
             `identifier` VARCHAR(60) NOT NULL,
-            `birthplace` VARCHAR(60) NOT NULL DEFAULT '',
+            `nationality` VARCHAR(40) NOT NULL DEFAULT '',
             `created_at` BIGINT NOT NULL,
             PRIMARY KEY (`identifier`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ]])
+
+    -- Table créée avant la nationalité : on ajoute la colonne
+    local hasColumn = MySQL.scalar.await("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'lunatic_character_info' AND COLUMN_NAME = 'nationality'")
+
+    if tonumber(hasColumn) == 0 then
+        MySQL.query.await("ALTER TABLE `lunatic_character_info` ADD COLUMN `nationality` VARCHAR(40) NOT NULL DEFAULT ''")
+    end
 end)
 
 -- Instance privée : personne ne voit le personnage pendant sa création
@@ -47,33 +54,27 @@ AddEventHandler('playerDropped', function()
     creating[source] = nil
 end)
 
-local function cleanText(value, min, max)
-    if type(value) ~= 'string' then
-        return nil
-    end
-
-    local text = value:gsub('%c', ' '):gsub('%s+', ' '):match('^%s*(.-)%s*$')
-    local length = utf8.len(text)
-
-    return length and length >= min and length <= max and text or nil
+local nationalities = {}
+for _, name in ipairs(Config.Nationalities) do
+    nationalities[name] = true
 end
 
--- Lieu de naissance (esx_identity ne le garde pas)
+-- Nationalité (esx_identity ne la garde pas) : uniquement une valeur de la liste
 lib.callback.register('lunatic_creator:saveInfo', function(src, data)
     local xPlayer = ESX.GetPlayerFromId(src)
-    local birthplace = cleanText(type(data) == 'table' and data.birthplace or '', 0, 60)
+    local nationality = type(data) == 'table' and data.nationality
 
-    if not xPlayer or not creating[src] or not birthplace then
+    if not xPlayer or not creating[src] or type(nationality) ~= 'string' or not nationalities[nationality] then
         return false
     end
 
-    MySQL.query.await('INSERT INTO `lunatic_character_info` (`identifier`, `birthplace`, `created_at`) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `birthplace` = VALUES(`birthplace`)', {
-        xPlayer.getIdentifier(), birthplace, os.time(),
+    MySQL.query.await('INSERT INTO `lunatic_character_info` (`identifier`, `nationality`, `created_at`) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `nationality` = VALUES(`nationality`)', {
+        xPlayer.getIdentifier(), nationality, os.time(),
     })
 
     return true
 end)
 
-exports('getBirthplace', function(identifier)
-    return MySQL.scalar.await('SELECT `birthplace` FROM `lunatic_character_info` WHERE `identifier` = ?', { identifier })
+exports('getNationality', function(identifier)
+    return MySQL.scalar.await('SELECT `nationality` FROM `lunatic_character_info` WHERE `identifier` = ?', { identifier })
 end)

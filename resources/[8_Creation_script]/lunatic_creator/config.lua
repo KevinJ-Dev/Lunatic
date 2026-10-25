@@ -42,6 +42,22 @@ Config.Cameras = {
     { label = 'Corps', distance = 2.7, height = 0.0, fov = 50.0 },
 }
 
+-- Nationalités proposées (choix obligatoire ; le serveur refuse toute valeur hors de cette liste)
+Config.Nationalities = {
+    'Américaine', 'Française', 'Canadienne', 'Mexicaine', 'Britannique', 'Irlandaise', 'Belge', 'Suisse',
+    'Italienne', 'Espagnole', 'Portugaise', 'Allemande', 'Néerlandaise', 'Polonaise', 'Ukrainienne', 'Russe',
+    'Turque', 'Grecque', 'Libanaise', 'Marocaine', 'Algérienne', 'Tunisienne', 'Sénégalaise', 'Ivoirienne',
+    'Nigériane', 'Haïtienne', 'Jamaïcaine', 'Cubaine', 'Portoricaine', 'Colombienne', 'Brésilienne', 'Argentine',
+    'Chinoise', 'Japonaise', 'Coréenne', 'Vietnamienne', 'Philippine', 'Indienne', 'Australienne',
+}
+
+-- Noms tirés par le bouton « Aléatoire »
+Config.RandomNames = {
+    male = { 'James', 'Michael', 'David', 'Lucas', 'Hugo', 'Nathan', 'Carlos', 'Diego', 'Marcus', 'Tyler', 'Ethan', 'Liam', 'Noah', 'Mason', 'Logan', 'Jayden', 'Antonio', 'Victor', 'Malik', 'Ryan' },
+    female = { 'Emma', 'Olivia', 'Sophia', 'Mia', 'Chloe', 'Léa', 'Camila', 'Isabella', 'Jade', 'Zoe', 'Ava', 'Lily', 'Grace', 'Maya', 'Nina', 'Sarah', 'Elena', 'Aaliyah', 'Jasmine', 'Lucia' },
+    last = { 'Smith', 'Johnson', 'Williams', 'Brown', 'Garcia', 'Martinez', 'Rodriguez', 'Lopez', 'Miller', 'Davis', 'Wilson', 'Moore', 'Taylor', 'Anderson', 'Thomas', 'Jackson', 'White', 'Harris', 'Martin', 'Dubois', 'Moreau', 'Laurent', 'Rossi', 'Novak', 'Walker', 'Young', 'King', 'Wright', 'Scott', 'Green' },
+}
+
 -- Taille du personnage (cm) ; doit rester dans les bornes d'esx_identity (Config.MinHeight / MaxHeight)
 Config.Height = { min = 150, max = 210, default = 178 }
 
