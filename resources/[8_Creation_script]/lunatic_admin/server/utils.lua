@@ -58,9 +58,9 @@ function Util.position(value)
 end
 
 -- Plusieurs personnages par compte (lunatic_characters) : identifiant ESX « charN:<licence sans préfixe> ».
--- Licence du compte FiveM (« license:… ») d'un identifiant de personnage, avec ou sans « charN: »
+-- Licence du compte FiveM (« license:… ») d'un identifiant de personnage, avec ou sans « charN: » (ou « archT: », archivé)
 function Util.licenseOf(identifier)
-    local bare = tostring(identifier):gsub('^license:', ''):gsub('^char%d+:', '')
+    local bare = tostring(identifier):gsub('^license:', ''):gsub('^char%d+:', ''):gsub('^arch%d+:', '')
     return 'license:' .. bare
 end
 

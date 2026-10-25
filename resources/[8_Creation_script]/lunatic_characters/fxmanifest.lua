@@ -23,6 +23,7 @@ server_scripts {
     '@oxmysql/lib/MySQL.lua',
     'server/migration.lua',
     'server/main.lua',
+    'server/admin.lua',
 }
 
 client_scripts {

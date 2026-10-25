@@ -118,3 +118,17 @@
 .player-log .log-dot { margin-top: 5px; }
 .player-log .log-line { display: -webkit-box; overflow: hidden; white-space: normal; -webkit-line-clamp: 3; -webkit-box-orient: vertical; color: var(--ink-2); }
 
+
+/* Fiche joueur : carte Personnages (lunatic_characters) */
+.chars-body { display: grid; gap: 10px; }
+.char-list { display: grid; gap: 6px; }
+.char-row { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; row-gap: 8px; gap: 12px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: #0000002e; }
+.char-row.archived { opacity: .85; }
+.char-slot { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--surface-2); font-weight: 600; }
+.char-text { display: grid; gap: 1px; min-width: 0; }
+.char-text b { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.char-text .muted { font-size: 12px; }
+.char-row > .btn-row { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+.char-row select.input { height: 30px; font-size: 12px; }
+.chars-slots { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; font-size: 12.5px; }
+.chars-slots > span { grid-column: 1 / -1; color: var(--muted); }

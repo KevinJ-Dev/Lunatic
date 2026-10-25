@@ -132,7 +132,7 @@ function paintOfflineFiche() {
                 info.rank ? rankPill(info.rank) : null)),
         actions: [info.online ? h("div", { class: "banner info" }, icon("i-player"), "Ce joueur est connecté : ses données se modifient depuis sa fiche en ligne.") : null, ...actions],
         money: [moneyCards(info), locked ? null : offlineFormsNode(info)],
-        extra: [offlineLicensesCard(info, locked), info.online ? null : premiumCard(info, { identifier: info.identifier }, () => loadOfflineInfo())],
+        extra: [offlineLicensesCard(info, locked), info.online ? null : premiumCard(info, { identifier: info.identifier }, () => loadOfflineInfo()), charactersCard(info, {})],
         sanctions: { ban: reason("sanctions.ban") ? null : () => openBan({ identifier: info.identifier, name: info.name }), warn: null },
     });
 }
