@@ -5,9 +5,7 @@ Accounts = {}
 
 local playtime = {} -- licence -> minutes (joueurs connectés, pour la liste)
 
-local function now()
-    return os.time()
-end
+local now = Util.now
 
 table.insert(Panel.readyHooks, function()
     MySQL.query.await([[

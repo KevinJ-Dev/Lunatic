@@ -10,28 +10,13 @@ local BLIP_AFTER = Config.EventBlipMinutes * 60
 local active = {}
 local lastBlips = nil
 
-local function now()
-    return os.time()
-end
+local now = Util.now
 
 local function denied()
     return Panel.fail("Vous n'avez pas la permission de gérer les events.")
 end
 
-local function cleanText(value, min, max)
-    if value == nil then
-        value = ''
-    end
-
-    if type(value) ~= 'string' then
-        return nil
-    end
-
-    local text = value:gsub('%c', ' '):gsub('%s+', ' '):match('^%s*(.-)%s*$')
-    local length = utf8.len(text)
-
-    return length and length >= min and length <= max and text or nil
-end
+local cleanText = Util.cleanTextOrEmpty
 
 local function toEvent(row)
     return {

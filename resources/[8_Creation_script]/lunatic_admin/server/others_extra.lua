@@ -13,41 +13,11 @@ local function allowed(actor)
     return Ranks.hasPermission(actor, 'others.manage')
 end
 
-local function cleanText(value, min, max)
-    if type(value) ~= 'string' then
-        return nil
-    end
+local cleanText = Util.cleanText
 
-    local text = value:gsub('%c', ' '):gsub('%s+', ' '):match('^%s*(.-)%s*$')
-    local length = utf8.len(text)
+local whole = Util.whole
 
-    return length and length >= min and length <= max and text or nil
-end
-
-local function whole(value, min, max)
-    value = tonumber(value)
-
-    if not value or value ~= math.floor(value) or value < min or value > max then
-        return nil
-    end
-
-    return value
-end
-
-local function position(value)
-    if type(value) ~= 'table' then
-        return nil
-    end
-
-    local x, y, z, h = tonumber(value.x), tonumber(value.y), tonumber(value.z), tonumber(value.h) or 0.0
-
-    if not x or not y or not z or x < -5000 or x > 5000 or y < -5000 or y > 9000 or z < -300 or z > 3000 then
-        return nil
-    end
-
-    local r = function(n) return math.floor(n * 100 + 0.5) / 100 end
-    return { x = r(x), y = r(y), z = r(z), h = math.floor((h % 360) * 10 + 0.5) / 10 }
-end
+local position = Util.position
 
 local function jobExists(name)
     return name == '' or (ESX.GetJobs() or {})[name] ~= nil

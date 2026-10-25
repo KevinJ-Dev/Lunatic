@@ -12,26 +12,9 @@ local function denied()
     return Panel.fail("Vous n'avez pas la permission de gérer les récoltes.")
 end
 
-local function whole(value, min, max)
-    value = tonumber(value)
+local whole = Util.whole
 
-    if not value or value ~= math.floor(value) or value < min or value > max then
-        return nil
-    end
-
-    return value
-end
-
-local function cleanText(value, min, max)
-    if type(value) ~= 'string' then
-        return nil
-    end
-
-    local text = value:gsub('%c', ' '):gsub('%s+', ' '):match('^%s*(.-)%s*$')
-    local length = utf8.len(text)
-
-    return length and length >= min and length <= max and text or nil
-end
+local cleanText = Util.cleanText
 
 local function fromRow(row)
     local ok, data = pcall(json.decode, row.data or '{}')

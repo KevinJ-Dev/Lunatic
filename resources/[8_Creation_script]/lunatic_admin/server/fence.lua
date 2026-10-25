@@ -81,16 +81,7 @@ local function allowed(actor)
     return Ranks.hasPermission(actor, 'illegal.manage')
 end
 
-local function cleanText(value, min, max)
-    if type(value) ~= 'string' then
-        return nil
-    end
-
-    local text = value:gsub('%c', ' '):gsub('%s+', ' '):match('^%s*(.-)%s*$')
-    local length = utf8.len(text)
-
-    return length and length >= min and length <= max and text or nil
-end
+local cleanText = Util.cleanText
 
 local function positionOf(src)
     local ped = GetPlayerPed(src)

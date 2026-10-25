@@ -28,32 +28,15 @@ local PERKS = {
 
 local LIMITS = { banners = 6, text = 120, title = 60, notification = 200, url = 255, hours = 168 }
 
-local function copy(value)
-    return json.decode(json.encode(value))
-end
+local copy = Util.copy
 
 local function denied()
     return Panel.fail("Vous n'avez pas la permission de gérer la boutique.")
 end
 
-local function now()
-    return os.time()
-end
+local now = Util.now
 
-local function cleanText(value, min, max)
-    if value == nil then
-        value = ''
-    end
-
-    if type(value) ~= 'string' then
-        return nil
-    end
-
-    local text = value:gsub('%c', ' '):gsub('%s+', ' '):match('^%s*(.-)%s*$')
-    local length = utf8.len(text)
-
-    return length and length >= min and length <= max and text or nil
-end
+local cleanText = Util.cleanTextOrEmpty
 
 local function cleanUrl(value)
     local url = cleanText(value, 0, LIMITS.url)

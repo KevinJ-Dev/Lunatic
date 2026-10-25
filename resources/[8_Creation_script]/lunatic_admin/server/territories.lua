@@ -43,15 +43,7 @@ local function mapPosition(data)
     return { x = x, y = y, z = -200.0 }
 end
 
-local function whole(value, min, max)
-    value = tonumber(value)
-
-    if not value or value ~= math.floor(value) or value < min or value > max then
-        return nil
-    end
-
-    return value
-end
+local whole = Util.whole
 
 local function load()
     territories = {}

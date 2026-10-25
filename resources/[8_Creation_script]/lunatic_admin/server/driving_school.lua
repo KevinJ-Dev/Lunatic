@@ -40,49 +40,17 @@ local DEFAULTS = {
 
 local LIMITS = { errors = 20, engine = 1000, price = 1000000, speed = 500, points = 60, questions = 60, answers = 4, question = 200, answer = 100 }
 
-local function copy(value)
-    return json.decode(json.encode(value))
-end
+local copy = Util.copy
 
 local function denied()
     return Panel.fail("Vous n'avez pas la permission de gérer l'auto-école.")
 end
 
-local function whole(value, min, max)
-    value = tonumber(value)
+local whole = Util.whole
 
-    if not value or value ~= math.floor(value) or value < min or value > max then
-        return nil
-    end
+local cleanText = Util.cleanText
 
-    return value
-end
-
-local function cleanText(value, min, max)
-    if type(value) ~= 'string' then
-        return nil
-    end
-
-    local text = value:gsub('%c', ' '):gsub('%s+', ' '):match('^%s*(.-)%s*$')
-    local length = utf8.len(text)
-
-    return length and length >= min and length <= max and text or nil
-end
-
-local function position(value)
-    if type(value) ~= 'table' then
-        return nil
-    end
-
-    local x, y, z, h = tonumber(value.x), tonumber(value.y), tonumber(value.z), tonumber(value.h) or 0.0
-
-    if not x or not y or not z or x < -5000 or x > 5000 or y < -5000 or y > 9000 or z < -300 or z > 3000 then
-        return nil
-    end
-
-    local r = function(n) return math.floor(n * 100 + 0.5) / 100 end
-    return { x = r(x), y = r(y), z = r(z), h = math.floor((h % 360) * 10 + 0.5) / 10 }
-end
+local position = Util.position
 
 -- Complète les réglages enregistrés avec les valeurs par défaut
 local function merge(saved)

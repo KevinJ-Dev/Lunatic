@@ -139,10 +139,7 @@ local ox = exports.ox_inventory
 local settings = {}
 local daily = { date = '', counts = {} }
 
-local function whole(value, min, max)
-    local n = tonumber(value)
-    return n and n == math.floor(n) and n >= min and n <= max and math.floor(n) or nil
-end
+local whole = Util.whole
 
 local function maxLevel()
     return #Config.CrewLevels

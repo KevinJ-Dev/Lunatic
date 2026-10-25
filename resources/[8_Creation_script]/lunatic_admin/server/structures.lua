@@ -12,9 +12,7 @@ local KINDS = {
 ---@type table<string, table> fiche par nom de métier
 local byJob = {}
 
-local function now()
-    return os.time()
-end
+local now = Util.now
 
 -- Permission de la tuile qui gère ce métier (nil si le métier n'a pas de fiche)
 function Structures.permissionFor(jobName)
@@ -120,16 +118,7 @@ local function denied()
     return Panel.fail("Vous n'avez pas la permission.")
 end
 
-local function cleanText(value, min, max)
-    if type(value) ~= 'string' then
-        return nil
-    end
-
-    local text = value:gsub('%c', ' '):gsub('%s+', ' '):match('^%s*(.-)%s*$')
-    local length = utf8.len(text)
-
-    return length and length >= min and length <= max and text or nil
-end
+local cleanText = Util.cleanText
 
 -- '' ou une adresse http(s) de 255 caractères maximum
 local function cleanUrl(value)

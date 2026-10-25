@@ -19,10 +19,7 @@ local function denied()
     return Panel.fail("Vous n'avez pas la permission de gérer l'illégal.")
 end
 
-local function whole(value, min, max)
-    local n = tonumber(value)
-    return n and n == math.floor(n) and n >= min and n <= max and math.floor(n) or nil
-end
+local whole = Util.whole
 
 local function positionOf(src)
     local ped = GetPlayerPed(src)

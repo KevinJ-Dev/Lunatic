@@ -78,10 +78,7 @@ local function guard(actor)
     return Ranks.hasPermission(actor, 'blips.manage')
 end
 
-local function whole(value, min, max)
-    local n = tonumber(value)
-    return n and n == math.floor(n) and n >= min and n <= max and math.floor(n) or nil
-end
+local whole = Util.whole
 
 local function cleanText(value, max)
     local text = type(value) == 'string' and value:gsub('[%c<>]', ''):gsub('%s+', ' '):match('^%s*(.-)%s*$') or ''

@@ -21,20 +21,7 @@ local function denied()
     return Panel.fail("Vous n'avez pas la permission de gérer la boutique.")
 end
 
-local function cleanText(value, min, max)
-    if value == nil then
-        value = ''
-    end
-
-    if type(value) ~= 'string' then
-        return nil
-    end
-
-    local text = value:gsub('%c', ' '):gsub('%s+', ' '):match('^%s*(.-)%s*$')
-    local length = utf8.len(text)
-
-    return length and length >= min and length <= max and text or nil
-end
+local cleanText = Util.cleanTextOrEmpty
 
 local function cleanUrl(value)
     local url = cleanText(value, 0, LIMITS.url)
@@ -46,15 +33,7 @@ local function cleanUrl(value)
     return url:match('^https://[%w%-%.]+%.%a+/.*') and url or nil
 end
 
-local function whole(value, min, max)
-    value = tonumber(value)
-
-    if not value or value ~= math.floor(value) or value < min or value > max then
-        return nil
-    end
-
-    return value
-end
+local whole = Util.whole
 
 local function decode(value)
     local ok, data = pcall(json.decode, value or '{}')

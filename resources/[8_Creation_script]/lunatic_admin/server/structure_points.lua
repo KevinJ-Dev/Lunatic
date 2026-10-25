@@ -397,16 +397,7 @@ end
 -- Véhicules de service (groupe Véhicules de la fiche)
 ---------------------------------------------------------------------
 
-local function cleanText(value, min, max)
-    if type(value) ~= 'string' then
-        return nil
-    end
-
-    local text = value:gsub('%c', ' '):gsub('%s+', ' '):match('^%s*(.-)%s*$')
-    local length = utf8.len(text)
-
-    return length and length >= min and length <= max and text or nil
-end
+local cleanText = Util.cleanText
 
 -- Ajout (sans id) ou modification d'un véhicule du parc
 Panel.actions['structures.vehicleSave'] = function(src, actor, data)

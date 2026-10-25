@@ -41,9 +41,7 @@ for _, category in ipairs(CATEGORIES) do
     categoryIds[category.id] = true
 end
 
-local function now()
-    return os.time()
-end
+local now = Util.now
 
 local function denied()
     return Panel.fail("Vous n'avez pas la permission.")
@@ -111,16 +109,7 @@ publish()
 -- Outils
 ---------------------------------------------------------------------
 
-local function cleanText(value, min, max)
-    if type(value) ~= 'string' then
-        return nil
-    end
-
-    local text = value:gsub('%c', ' '):gsub('%s+', ' '):match('^%s*(.-)%s*$')
-    local length = utf8.len(text)
-
-    return length and length >= min and length <= max and text or nil
-end
+local cleanText = Util.cleanText
 
 -- Adresse http(s) d'une image, 500 caractères maximum
 local function cleanUrl(value)

@@ -175,16 +175,7 @@ local function denied()
     return Panel.fail("Vous n'avez pas la permission de gérer ce catalogue.")
 end
 
-local function cleanText(value, min, max)
-    if type(value) ~= 'string' then
-        return nil
-    end
-
-    local text = value:gsub('%c', ' '):gsub('%s+', ' '):match('^%s*(.-)%s*$')
-    local length = utf8.len(text)
-
-    return length and length >= min and length <= max and text or nil
-end
+local cleanText = Util.cleanText
 
 local function wholeNumber(value, min, max)
     local number = tonumber(value)

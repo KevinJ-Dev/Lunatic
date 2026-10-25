@@ -31,9 +31,7 @@ local function denied()
     return Panel.fail("Vous n'avez pas la permission.")
 end
 
-local function copy(value)
-    return json.decode(json.encode(value))
-end
+local copy = Util.copy
 
 -- Garde les clés connues et complète les manquantes par les valeurs par défaut
 local function merge(saved)

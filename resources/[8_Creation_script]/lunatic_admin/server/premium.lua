@@ -4,9 +4,7 @@
 ---@type table<string, {tier:string, expires:number|nil}> abonnements actifs par licence
 local premiums = {}
 
-local function now()
-    return os.time()
-end
+local now = Util.now
 
 local function denied()
     return Panel.fail("Vous n'avez pas la permission.")

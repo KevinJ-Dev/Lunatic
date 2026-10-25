@@ -46,25 +46,9 @@ local function denied()
     return Panel.fail("Vous n'avez pas la permission de gérer les items.")
 end
 
-local function whole(value, min, max)
-    local n = tonumber(value)
-    return n and n == math.floor(n) and n >= min and n <= max and math.floor(n) or nil
-end
+local whole = Util.whole
 
-local function cleanText(value, min, max)
-    if value == nil then
-        value = ''
-    end
-
-    if type(value) ~= 'string' then
-        return nil
-    end
-
-    local text = value:gsub('%c', ' '):gsub('%s+', ' '):match('^%s*(.-)%s*$')
-    local length = utf8.len(text)
-
-    return length and length >= min and length <= max and text or nil
-end
+local cleanText = Util.cleanTextOrEmpty
 
 local function drugItems()
     local list = {}

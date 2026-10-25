@@ -9,9 +9,7 @@ local banIndex = {}
 local recent = {}
 local loaded = false
 
-local function now()
-    return os.time()
-end
+local now = Util.now
 
 local function decodeList(raw)
     local ok, list = pcall(json.decode, raw or '[]')

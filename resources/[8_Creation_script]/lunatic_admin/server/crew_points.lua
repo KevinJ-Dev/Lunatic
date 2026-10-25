@@ -152,16 +152,7 @@ end)
 -- Panel
 ---------------------------------------------------------------------
 
-local function cleanText(value, min, max)
-    if type(value) ~= 'string' then
-        return nil
-    end
-
-    local text = value:gsub('%c', ' '):gsub('%s+', ' '):match('^%s*(.-)%s*$')
-    local length = utf8.len(text)
-
-    return length and length >= min and length <= max and text or nil
-end
+local cleanText = Util.cleanText
 
 local function staffPosition(src)
     local ped = GetPlayerPed(src)

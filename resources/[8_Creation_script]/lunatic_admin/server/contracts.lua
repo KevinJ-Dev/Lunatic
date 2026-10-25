@@ -37,10 +37,7 @@ local function denied()
     return Panel.fail("Vous n'avez pas la permission de gérer l'illégal.")
 end
 
-local function whole(value, min, max)
-    local n = tonumber(value)
-    return n and n == math.floor(n) and n >= min and n <= max and math.floor(n) or nil
-end
+local whole = Util.whole
 
 local function positionOf(src)
     local ped = GetPlayerPed(src)
@@ -53,9 +50,7 @@ local function positionOf(src)
     return { x = coords.x, y = coords.y, z = coords.z - 0.98, h = GetEntityHeading(ped) }
 end
 
-local function copy(value)
-    return json.decode(json.encode(value))
-end
+local copy = Util.copy
 
 local function load()
     settings, points = {}, {}
