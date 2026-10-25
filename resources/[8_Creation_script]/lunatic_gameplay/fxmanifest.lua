@@ -15,6 +15,7 @@ shared_scripts {
 }
 
 server_scripts {
+    '@oxmysql/lib/MySQL.lua',
     'server/common.lua',
     'server/death.lua',
     'server/fuel.lua',
@@ -51,6 +52,7 @@ files {
 
 dependencies {
     'es_extended',
+    'oxmysql',
     'ox_lib',
     'ox_inventory',
 }
