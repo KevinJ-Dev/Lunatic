@@ -34,17 +34,18 @@ local function stopDeath()
     SetNuiFocus(false, false)
 end
 
--- État de l'écran (temps restant, secouristes en service, appel déjà fait) : le serveur fait foi
-local function refreshDeath(action)
+-- État de l'écran (temps restant, secouristes en service, appel déjà fait) : le serveur fait foi ; true si reçu
+local function refreshDeath()
     local state = lib.callback.await('lunatic_gameplay:deathState', false)
 
     if not state or not dead then
-        return
+        return false
     end
 
     remaining = state.remaining or remaining
-    state.action = action or 'deathUpdate'
+    state.action = 'deathUpdate'
     SendNUIMessage(state)
+    return true
 end
 
 local function callMedic()
@@ -130,7 +131,7 @@ local function startDeath(skipEvent)
     dead = true
     AnimpostfxPlay('DeathFailOut', 0, true)
     remaining = 300
-    refreshDeath('death')
+    SendNUIMessage({ action = 'death', remaining = remaining, callMedic = FeaturesOf('death').callMedic ~= false })
 
     -- Souris pour les boutons ; le jeu garde le clavier (vocal, touches [G] et [E])
     SetNuiFocus(true, true)
@@ -139,14 +140,25 @@ local function startDeath(skipEvent)
     -- Compte à rebours, recalé sur le serveur toutes les 10 s (secouristes qui prennent ou quittent leur service)
     CreateThread(function()
         local tick = 0
+        local synced = false
+
+        -- Le serveur enregistre la mort juste après ce client : premiers essais rapprochés
+        for _ = 1, 10 do
+            Wait(300)
+            synced = refreshDeath()
+
+            if synced or not dead then
+                break
+            end
+        end
 
         while dead and remaining > 0 do
             Wait(1000)
             remaining = remaining - 1
             tick = tick + 1
 
-            if tick % 10 == 0 then
-                refreshDeath()
+            if not synced or tick % 10 == 0 then
+                synced = refreshDeath() or synced
             end
         end
 

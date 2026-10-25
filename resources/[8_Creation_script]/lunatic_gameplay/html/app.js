@@ -60,7 +60,9 @@ function updateDeath(state) {
     alert.classList.toggle("done", state.called === true);
     alert.querySelector("span").textContent = state.called ? "Secours alertés" : "Alerter les secours";
     const medics = Number(state.medics) || 0;
-    $("death-medics").innerHTML = medics > 0
+    // Pas encore de réponse du serveur : rien d'affiché sous le bouton
+    if (state.medics === undefined) $("death-medics").textContent = "";
+    else $("death-medics").innerHTML = medics > 0
         ? `<b>${medics}</b> secouriste${medics > 1 ? "s" : ""} en service`
         : "Aucun secouriste en service : délai réduit";
     paintDeath();
