@@ -144,7 +144,16 @@ local items = {
 		weight = 10,
 		stack = false,
 		close = true,
-		description = 'Regarder sa carte ou la montrer à la personne la plus proche.',
+		description = 'Regarder sa carte ou la montrer aux personnes proches.',
+	},
+
+	-- Lunatic : permis de conduire (lunatic_gameplay) : catégories obtenues à l'auto-école, lues en direct
+	['driver_license'] = {
+		label = 'Permis de conduire',
+		weight = 10,
+		stack = false,
+		close = true,
+		description = 'Regarder son permis ou le montrer aux personnes proches.',
 	},
 
 	['phone'] = {

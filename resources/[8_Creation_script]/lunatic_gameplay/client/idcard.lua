@@ -42,26 +42,58 @@ RegisterNetEvent('lunatic_gameplay:idcardMenu', function()
                 end
             end },
             { title = 'Montrer aux personnes proches', icon = 'hand', onSelect = function()
-                TriggerServerEvent('lunatic_gameplay:idcardShow')
+                TriggerServerEvent('lunatic_gameplay:idcardShow', 'idcard')
             end },
         },
     })
     lib.showContext('lg_idcard')
 end)
 
+RegisterNetEvent('lunatic_gameplay:licenseMenu', function()
+    lib.registerContext({
+        id = 'lg_license', title = 'Permis de conduire',
+        options = {
+            { title = 'Regarder mon permis', icon = 'id-card', onSelect = function()
+                local license = lib.callback.await('lunatic_gameplay:license', false)
+
+                if license then
+                    display(license)
+                end
+            end },
+            { title = 'Montrer aux personnes proches', icon = 'hand', onSelect = function()
+                TriggerServerEvent('lunatic_gameplay:idcardShow', 'license')
+            end },
+        },
+    })
+    lib.showContext('lg_license')
+end)
+
 ---------------------------------------------------------------------
 -- Guichets de documents
 ---------------------------------------------------------------------
 
-local function takeCard(index, account)
-    local result = lib.callback.await('lunatic_gameplay:officeIdcard', false, index, account)
+local function takeDocument(index, kind, account)
+    local result = lib.callback.await('lunatic_gameplay:officeDocument', false, index, kind, account)
 
     if not result or result.error then
         return Notify(result and result.error or 'Guichet indisponible.', 'error')
     end
 
-    Notify(result.price > 0 and ("Duplicata de carte d'identité remis (%d %s)."):format(result.price, GlobalState.lunaticCurrency or '$')
-        or "Voici votre carte d'identité.", 'success')
+    Notify(result.price > 0 and ('Duplicata remis : %s (%d %s).'):format(result.label, result.price, GlobalState.lunaticCurrency or '$')
+        or ('Voici votre %s.'):format(result.label), 'success')
+end
+
+-- Options d'un document au guichet : retrait gratuit, ou duplicata en liquide / par carte
+local function documentOptions(options, index, kind, name, price, info, currency)
+    if price <= 0 then
+        options[#options + 1] = { title = ('Retirer : %s'):format(name), description = 'Gratuit', icon = 'id-card', onSelect = function() takeDocument(index, kind, 'money') end }
+        return
+    end
+
+    options[#options + 1] = { title = ('Duplicata %s en liquide (%d %s)'):format(name, price, currency), description = ('Liquide : %d %s'):format(info.cash, currency),
+        icon = 'money-bill', disabled = info.cash < price, onSelect = function() takeDocument(index, kind, 'money') end }
+    options[#options + 1] = { title = ('Duplicata %s par carte (%d %s)'):format(name, price, currency), description = ('Banque : %d %s'):format(info.bank, currency),
+        icon = 'credit-card', disabled = info.bank < price, onSelect = function() takeDocument(index, kind, 'bank') end }
 end
 
 local function openOffice(index, office)
@@ -78,13 +110,17 @@ local function openOffice(index, office)
         options[1] = { title = "Carte d'identité", description = "Vous n'avez pas encore d'identité.", icon = 'id-card', disabled = true }
     elseif info.hasCard then
         options[1] = { title = "Carte d'identité", description = 'Vous avez déjà votre carte sur vous.', icon = 'id-card', disabled = true }
-    elseif info.price <= 0 then
-        options[1] = { title = "Retirer ma carte d'identité", description = 'Gratuit : première carte', icon = 'id-card', onSelect = function() takeCard(index, 'money') end }
     else
-        options[1] = { title = ('Duplicata en liquide (%d %s)'):format(info.price, currency), description = ('Liquide : %d %s'):format(info.cash, currency),
-            icon = 'money-bill', disabled = info.cash < info.price, onSelect = function() takeCard(index, 'money') end }
-        options[2] = { title = ('Duplicata par carte (%d %s)'):format(info.price, currency), description = ('Banque : %d %s'):format(info.bank, currency),
-            icon = 'credit-card', disabled = info.bank < info.price, onSelect = function() takeCard(index, 'bank') end }
+        documentOptions(options, index, 'idcard', "carte d'identité", info.price, info, currency)
+    end
+
+    -- Permis : seulement si au moins une catégorie a été obtenue à l'auto-école
+    if info.identity and info.anyLicense then
+        if info.hasLicense then
+            options[#options + 1] = { title = 'Permis de conduire', description = 'Vous avez déjà votre permis sur vous.', icon = 'car', disabled = true }
+        else
+            documentOptions(options, index, 'license', 'permis de conduire', info.licensePrice, info, currency)
+        end
     end
 
     lib.registerContext({ id = 'lg_office', title = office.label, options = options })

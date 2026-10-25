@@ -163,8 +163,9 @@ const FEATURE_SECTIONS = {
             delivery: { label: "Remise de la carte", hint: "Au guichet (Autres → Guichets de documents) ou automatique à la connexion", options: [
                 { value: "police", label: "À retirer au guichet (poste de police)" }, { value: "auto", label: "Remise automatique à la connexion" }] },
             guide: { label: "Guider les nouveaux joueurs", hint: "Point GPS vers le guichet le plus proche tant que la carte n'a jamais été retirée" },
-            firstFree: { label: "Première carte gratuite", hint: "Ensuite, chaque nouvelle carte est un duplicata payant" },
-            duplicatePrice: { label: "Prix du duplicata", hint: "Carte perdue ou volée", money: true },
+            firstFree: { label: "Premier document gratuit", hint: "Carte et permis : le premier est gratuit, ensuite c'est un duplicata payant (le permis est aussi remis à la réussite de l'auto-école)" },
+            duplicatePrice: { label: "Prix du duplicata de carte", hint: "Carte perdue ou volée", money: true },
+            licensePrice: { label: "Prix du duplicata de permis", hint: "Permis perdu ou volé (au guichet)", money: true },
             duration: { label: "Durée d'affichage", hint: "La carte disparaît ensuite (Retour arrière pour la fermer avant)", unit: "s" },
             showRadius: { label: "Rayon pour montrer la carte", hint: "Tous les joueurs à cette distance la voient", unit: "m" },
         },

@@ -205,6 +205,8 @@ local function endExam(src, passed, reason)
 
     if passed and xPlayer then
         grantLicense(xPlayer.identifier, session.license)
+        -- Premier permis : lunatic_gameplay remet l'objet « Permis de conduire »
+        TriggerEvent('lunatic_driving:licenseGranted', src, session.license)
     end
 
     if GetPlayerPing(src) > 0 then

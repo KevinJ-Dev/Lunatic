@@ -65,3 +65,8 @@ html, body { margin: 0; background: transparent; font-family: "Segoe UI", Arial,
 
 .death-title { margin-top: 4px; font-size: 30px; font-weight: 400; letter-spacing: .06em; text-transform: uppercase; text-shadow: 0 2px 6px #000, 0 4px 24px #000; }
 .death-title b { color: var(--red); font-weight: 700; }
+
+/* Permis de conduire : catégories obtenues (pâles si non obtenues) */
+.cats { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.cat { min-width: 26px; padding: 2px 6px; border: 1px solid #1c223040; border-radius: 5px; font-size: 11px; font-weight: 800; text-align: center; opacity: .3; }
+.cat.on { border-color: #1c2230; background: #1c22300f; opacity: 1; }

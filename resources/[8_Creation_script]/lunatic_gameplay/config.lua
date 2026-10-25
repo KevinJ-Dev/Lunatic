@@ -60,6 +60,18 @@ Config.SafeZones = {
 -- (Fonctionnalités → Carte d'identité)
 Config.IdCardItem = 'id_card'
 
+-- Permis de conduire : objet remis à la réussite du premier examen (lunatic_driving), duplicata au guichet.
+-- Catégories affichées sur la carte, dans cet ordre (type = permis ESX de la table user_licenses)
+Config.DriverLicenseItem = 'driver_license'
+Config.DriverLicenseCategories = {
+    { type = 'drive_bike', code = 'A', label = 'Moto' },
+    { type = 'drive', code = 'B', label = 'Voiture' },
+    { type = 'drive_truck', code = 'C', label = 'Camion' },
+    { type = 'boat', code = 'BT', label = 'Bateau' },
+    { type = 'aircraft', code = 'AV', label = 'Avion' },
+    { type = 'helicopter', code = 'HE', label = 'Hélicoptère' },
+}
+
 -- Guichets de documents par défaut (postes de police) ; ceux réglés dans le panel (Autres → Guichets de documents)
 -- les remplacent. ped : PNJ derrière le guichet ('' pour aucun).
 Config.DocumentOffices = {

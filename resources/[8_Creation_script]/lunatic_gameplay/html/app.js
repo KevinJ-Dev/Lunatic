@@ -9,16 +9,40 @@ const MODELS = {
     ca: { title: "CANADA", sub: "PERMIS DE CONDUIRE · DRIVER'S LICENCE", foot: "CAN", labels: ["Nom / Last name", "Prénom / First name", "Sexe / Sex", "Taille / Height", "Naissance / Birth", "N° / No.", "Nationalité"] },
 };
 
+// Permis de conduire : même modèle que la carte d'identité, autre en-tête
+const LICENSE_MODELS = {
+    fr: { title: "RÉPUBLIQUE FRANÇAISE", sub: "PERMIS DE CONDUIRE", foot: "D1FRA", cats: "Catégories" },
+    us: { title: "STATE OF SAN ANDREAS", sub: "DRIVER LICENSE", foot: "SA DMV · CLASS", cats: "Classes" },
+    be: { title: "BELGIQUE · BELGIË", sub: "PERMIS DE CONDUIRE · RIJBEWIJS", foot: "D1BEL", cats: "Catégories" },
+    ca: { title: "CANADA", sub: "PERMIS DE CONDUIRE · DRIVER'S LICENCE", foot: "DLCAN", cats: "Classes" },
+};
+
 const $ = (id) => document.getElementById(id);
 
 function show(identity) {
     const model = MODELS[identity.model] ? identity.model : "fr";
     const m = MODELS[model];
+    const license = identity.kind === "license";
+    const header = license ? LICENSE_MODELS[model] : m;
     const card = $("card");
-    card.className = `card model-${model}`;
-    $("title").textContent = m.title;
-    $("sub").textContent = m.sub;
-    $("foot").textContent = `${m.foot}<<${String(identity.lastName || "").toUpperCase()}<<${String(identity.firstName || "").toUpperCase()}<<<<<<${identity.number || ""}`;
+    card.className = `card model-${model}${license ? " license" : ""}`;
+    $("title").textContent = header.title;
+    $("sub").textContent = header.sub;
+    $("foot").textContent = `${header.foot}<<${String(identity.lastName || "").toUpperCase()}<<${String(identity.firstName || "").toUpperCase()}<<<<<<${identity.number || ""}`;
+    // Permis : catégories obtenues à la place du sexe, de la taille et de la nationalité
+    $("rowBody").classList.toggle("hidden", license);
+    $("cellNation").classList.toggle("hidden", license);
+    $("cellCats").classList.toggle("hidden", !license);
+    if (license) {
+        $("lCats").textContent = header.cats;
+        $("cats").replaceChildren(...(identity.categories || []).map((c) => {
+            const chip = document.createElement("span");
+            chip.className = `cat${c.owned ? " on" : ""}`;
+            chip.title = c.label;
+            chip.textContent = c.code;
+            return chip;
+        }));
+    }
     ["lLast", "lFirst", "lSex", "lHeight", "lBirth", "lNumber", "lNation"].forEach((id, i) => { $(id).textContent = m.labels[i]; });
     $("last").textContent = String(identity.lastName || "—").toUpperCase();
     $("first").textContent = identity.firstName || "—";

@@ -1,6 +1,7 @@
--- Carte d'identité : objet utilisable (regarder, montrer aux joueurs proches), retirée à un guichet de documents
--- (poste de police : première carte gratuite, puis duplicata payant) ou remise à la connexion, selon le panel
--- (Fonctionnalités → Carte d'identité). Identité ESX, nationalité (lunatic_creator), photo (tuile Images).
+-- Documents : carte d'identité et permis de conduire, objets utilisables (regarder, montrer aux joueurs proches).
+-- Carte retirée à un guichet de documents (poste de police : première gratuite, puis duplicata payant) ou remise à la
+-- connexion ; permis remis à la réussite du premier examen (lunatic_driving), duplicata au guichet. Réglages du panel :
+-- Fonctionnalités → Carte d'identité. Identité ESX, nationalité (lunatic_creator), photo (tuile Images).
 
 local ox = exports.ox_inventory
 local lastShow = {} -- joueur -> dernier « montrer » (anti-spam)
@@ -14,7 +15,14 @@ MySQL.ready(function()
             PRIMARY KEY (`identifier`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ]])
+    MySQL.query.await('ALTER TABLE `lunatic_documents` ADD COLUMN IF NOT EXISTS `license_at` BIGINT NULL DEFAULT NULL')
 end)
+
+-- Documents gérés : objet, colonne de première remise, réglage du prix du duplicata
+local DOCUMENTS = {
+    idcard = { item = Config.IdCardItem, column = 'idcard_at', price = 'duplicatePrice', label = "carte d'identité" },
+    license = { item = Config.DriverLicenseItem, column = 'license_at', price = 'licensePrice', label = 'permis de conduire' },
+}
 
 local function settings()
     return FeaturesOf('idcard')
@@ -49,27 +57,57 @@ local function identityOf(xPlayer)
     }
 end
 
+local function hasItem(src, kind)
+    return (ox:Search(src, 'count', DOCUMENTS[kind].item) or 0) > 0
+end
+
 local function hasCard(src)
-    return (ox:Search(src, 'count', Config.IdCardItem) or 0) > 0
+    return hasItem(src, 'idcard')
 end
 
-local function issuedAt(identifier)
-    return MySQL.scalar.await('SELECT `idcard_at` FROM `lunatic_documents` WHERE `identifier` = ?', { identifier })
+local function issuedAt(identifier, kind)
+    return MySQL.scalar.await(('SELECT `%s` FROM `lunatic_documents` WHERE `identifier` = ?'):format(DOCUMENTS[kind or 'idcard'].column), { identifier })
 end
 
-local function markIssued(identifier)
-    MySQL.query.await('INSERT INTO `lunatic_documents` (`identifier`, `idcard_at`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `idcard_at` = VALUES(`idcard_at`)', { identifier, os.time() })
+local function markIssued(identifier, kind)
+    local column = DOCUMENTS[kind or 'idcard'].column
+    MySQL.query.await(('INSERT INTO `lunatic_documents` (`identifier`, `%s`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `%s` = VALUES(`%s`)'):format(column, column, column), { identifier, os.time() })
 end
 
--- Prix d'une carte : la première est gratuite (si réglé), ensuite c'est un duplicata
-local function cardPrice(identifier)
+-- Prix d'un document : le premier est gratuit (si réglé), ensuite c'est un duplicata
+local function documentPrice(identifier, kind)
     local s = settings()
 
-    if not issuedAt(identifier) and s.firstFree ~= false then
+    if not issuedAt(identifier, kind) and s.firstFree ~= false then
         return 0
     end
 
-    return tonumber(s.duplicatePrice) or 50
+    return tonumber(s[DOCUMENTS[kind].price]) or 50
+end
+
+-- Catégories de permis obtenues (permis ESX de user_licenses), dans l'ordre de la config
+local function licenseCategories(identifier)
+    local owned = {}
+
+    for _, row in ipairs(MySQL.query.await('SELECT `type` FROM `user_licenses` WHERE `owner` = ?', { identifier }) or {}) do
+        owned[row.type] = true
+    end
+
+    local list, any = {}, false
+
+    for _, category in ipairs(Config.DriverLicenseCategories) do
+        list[#list + 1] = { code = category.code, label = category.label, owned = owned[category.type] == true }
+        any = any or owned[category.type] == true
+    end
+
+    return list, any
+end
+
+local function licenseOf(xPlayer)
+    local data = identityOf(xPlayer)
+    data.kind = 'license'
+    data.categories = licenseCategories(xPlayer.identifier)
+    return data
 end
 
 exports('getDefaultOffices', function()
@@ -102,13 +140,14 @@ lib.callback.register('lunatic_gameplay:idcard', function(src)
     return identityOf(xPlayer)
 end)
 
--- Montrer sa carte : tous les joueurs proches (même instance) la voient
-RegisterNetEvent('lunatic_gameplay:idcardShow', function()
+-- Montrer sa carte ou son permis : tous les joueurs proches (même instance) le voient
+RegisterNetEvent('lunatic_gameplay:idcardShow', function(kind)
     local src = source
     local xPlayer = ESX.GetPlayerFromId(src)
     local now = os.time()
+    kind = kind == 'license' and 'license' or 'idcard'
 
-    if not xPlayer or not hasCard(src) or (lastShow[src] or 0) > now - 3 then
+    if not xPlayer or not hasItem(src, kind) or (lastShow[src] or 0) > now - 3 then
         return
     end
 
@@ -116,7 +155,7 @@ RegisterNetEvent('lunatic_gameplay:idcardShow', function()
     local origin = GetEntityCoords(GetPlayerPed(src))
     local radius = tonumber(settings().showRadius) or 3.0
     local bucket = GetPlayerRoutingBucket(src)
-    local identity = identityOf(xPlayer)
+    local identity = kind == 'license' and licenseOf(xPlayer) or identityOf(xPlayer)
     local count = 0
 
     for _, id in ipairs(GetPlayers()) do
@@ -133,7 +172,7 @@ RegisterNetEvent('lunatic_gameplay:idcardShow', function()
         return Notify(src, 'Personne à côté de vous.', 'error')
     end
 
-    Notify(src, ("Vous montrez votre carte d'identité (%d personne%s)."):format(count, count > 1 and 's' or ''), 'info')
+    Notify(src, ('Vous montrez votre %s (%d personne%s).'):format(DOCUMENTS[kind].label, count, count > 1 and 's' or ''), 'info')
 end)
 
 -- Guichet : état de la carte du joueur et prix
@@ -144,18 +183,22 @@ lib.callback.register('lunatic_gameplay:officeInfo', function(src, index)
         return nil
     end
 
+    local _, anyLicense = licenseCategories(xPlayer.identifier)
+
     return {
-        hasCard = hasCard(src), identity = xPlayer.get('firstName') ~= nil, price = cardPrice(xPlayer.identifier),
+        hasCard = hasCard(src), identity = xPlayer.get('firstName') ~= nil, price = documentPrice(xPlayer.identifier, 'idcard'),
+        hasLicense = hasItem(src, 'license'), anyLicense = anyLicense, licensePrice = documentPrice(xPlayer.identifier, 'license'),
         cash = xPlayer.getAccount('money').money, bank = xPlayer.getAccount('bank').money,
     }
 end)
 
--- Guichet : retrait de la carte (première gratuite, duplicata payé en liquide ou par carte)
-lib.callback.register('lunatic_gameplay:officeIdcard', function(src, index, account)
+-- Guichet : retrait d'un document (premier gratuit, duplicata payé en liquide ou par carte)
+lib.callback.register('lunatic_gameplay:officeDocument', function(src, index, kind, account)
     local xPlayer = ESX.GetPlayerFromId(src)
     local office = officeAt(src, index)
+    local document = DOCUMENTS[kind]
 
-    if not xPlayer or not office then
+    if not xPlayer or not office or not document then
         return { error = 'Vous êtes trop loin du guichet.' }
     end
 
@@ -163,15 +206,19 @@ lib.callback.register('lunatic_gameplay:officeIdcard', function(src, index, acco
         return { error = "Vous n'avez pas encore d'identité." }
     end
 
-    if hasCard(src) then
-        return { error = 'Vous avez déjà votre carte sur vous.' }
+    if kind == 'license' and not select(2, licenseCategories(xPlayer.identifier)) then
+        return { error = "Vous n'avez aucun permis : passez-le à l'auto-école." }
     end
 
-    if not ox:CanCarryItem(src, Config.IdCardItem, 1) then
+    if hasItem(src, kind) then
+        return { error = ('Vous avez déjà votre %s sur vous.'):format(document.label) }
+    end
+
+    if not ox:CanCarryItem(src, document.item, 1) then
         return { error = "Vous n'avez pas de place dans votre inventaire." }
     end
 
-    local price = cardPrice(xPlayer.identifier)
+    local price = documentPrice(xPlayer.identifier, kind)
     account = account == 'bank' and 'bank' or 'money'
 
     if price > 0 then
@@ -179,14 +226,43 @@ lib.callback.register('lunatic_gameplay:officeIdcard', function(src, index, acco
             return { error = account == 'bank' and 'Solde bancaire insuffisant.' or "Vous n'avez pas assez de liquide." }
         end
 
-        xPlayer.removeAccountMoney(account, price, "Duplicata de carte d'identité")
+        xPlayer.removeAccountMoney(account, price, ('Duplicata : %s'):format(document.label))
     end
 
-    ox:AddItem(src, Config.IdCardItem, 1)
-    markIssued(xPlayer.identifier)
-    GameLog('players', 'info', src, 'player.idcard', office.label, { price = price })
+    ox:AddItem(src, document.item, 1)
+    markIssued(xPlayer.identifier, kind)
+    GameLog('players', 'info', src, 'player.document', office.label, { document = kind, price = price })
 
-    return { ok = true, price = price }
+    return { ok = true, price = price, label = document.label }
+end)
+
+-- Permis de conduire : objet utilisable, regarder ou montrer comme la carte
+ESX.RegisterUsableItem(Config.DriverLicenseItem, function(source)
+    TriggerClientEvent('lunatic_gameplay:licenseMenu', source)
+end)
+
+lib.callback.register('lunatic_gameplay:license', function(src)
+    local xPlayer = ESX.GetPlayerFromId(src)
+
+    if not xPlayer or not hasItem(src, 'license') then
+        return nil
+    end
+
+    return licenseOf(xPlayer)
+end)
+
+-- Premier permis obtenu à l'auto-école (lunatic_driving) : l'objet est remis gratuitement s'il ne l'a pas
+AddEventHandler('lunatic_driving:licenseGranted', function(src)
+    local xPlayer = ESX.GetPlayerFromId(src)
+
+    if not xPlayer or hasItem(src, 'license') then
+        return
+    end
+
+    if ox:AddItem(src, Config.DriverLicenseItem, 1) then
+        markIssued(xPlayer.identifier, 'license')
+        Notify(src, 'Félicitations : voici votre permis de conduire (inventaire).', 'success')
+    end
 end)
 
 -- Arrivée en ville : carte remise automatiquement, ou point GPS vers le guichet tant qu'elle n'a jamais été retirée
