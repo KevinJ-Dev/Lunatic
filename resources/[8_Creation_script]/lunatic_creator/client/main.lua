@@ -340,13 +340,6 @@ local function openCreator()
     undressed, armsUp = false, false
     setHud(false)
 
-    -- L'écran d'entrée de novyra_spawn se ferme tout seul quand la création démarre
-    local timeout = GetGameTimer() + 3000
-
-    while GetResourceState('novyra_spawn') == 'started' and exports.novyra_spawn:isOpen() and GetGameTimer() < timeout do
-        Wait(100)
-    end
-
     fade(true)
     TriggerServerEvent('lunatic_creator:enter')
 

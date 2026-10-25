@@ -35,11 +35,20 @@ function toast(text) {
     toast.timer = setTimeout(() => el.classList.remove("on"), 3500);
 }
 
-let data = null;   // { characters, slots, tiers }
+let data = null;   // { characters, slots, tiers, serverId }
 let selected = null; // emplacement choisi
 let busy = false;
 
 const money = (n) => `${Math.round(n).toLocaleString("fr-FR")} $`;
+const lastSeen = (time) => (time ? new Date(time * 1000).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : "—");
+
+// Choix d'un emplacement : le jeu montre ce personnage sur le décor
+function choose(slot) {
+    if (selected === slot) return;
+    selected = slot;
+    nui("preview", { slot });
+    paint();
+}
 
 // Abonnement nécessaire pour un emplacement verrouillé
 function lockLabel(slot) {
@@ -64,14 +73,29 @@ function paint() {
         else if (!name) sub = h("small", null, "Création à terminer");
         else sub = h("small", null, `${character.job}${character.grade ? ` · ${character.grade}` : ""} · ${money(character.money + character.bank)}`);
 
-        return h("button", { class: `slot${selected === slot ? " on" : ""}`, disabled: locked, onclick: () => { selected = slot; paint(); } },
-            h("span", { class: "avatar" }, character ? (name ? name[0] : "?") : "+"),
+        const avatar = character && character.mugshot
+            ? h("img", { src: character.mugshot, alt: "" })
+            : (character ? (name ? name[0] : "?") : "+");
+        return h("button", { class: `slot${selected === slot ? " on" : ""}`, disabled: locked, onclick: () => choose(slot) },
+            h("span", { class: "avatar" }, avatar),
             h("span", { class: "info" }, h("b", null, name || (character ? "Personnage sans identité" : "Nouveau personnage")), sub));
     }));
 
     const character = bySlot.get(selected);
     const name = character && character.firstname ? character : null;
     $("name").replaceChildren(...(name ? [h("span", null, `${name.firstname} `), name.lastname] : []));
+
+    // Fiche du personnage choisi
+    const row = (label, value) => h("div", { class: "detail" }, h("small", null, label), h("b", null, value));
+    $("details").classList.toggle("hidden", !name);
+    $("details").replaceChildren(...(name ? [
+        row("Métier", `${character.job}${character.grade ? ` · ${character.grade}` : ""}`),
+        row("Liquide", money(character.money)),
+        row("Banque", money(character.bank)),
+        row("Naissance", character.dateofbirth || "—"),
+        row("Nationalité", character.nationality || "—"),
+        row("Dernière connexion", lastSeen(character.lastSeen)),
+    ] : []));
     $("play").disabled = busy || selected === null;
     $("play").textContent = character ? "Jouer" : "Créer ce personnage";
 }
@@ -92,9 +116,11 @@ window.addEventListener("message", (event) => {
     const msg = event.data || {};
     if (msg.action === "open") {
         data = { characters: msg.characters || [], slots: msg.slots || 1, tiers: msg.tiers };
+        $("server-id").replaceChildren("ID ", h("b", null, String(msg.serverId || "")));
         // Premier personnage existant, sinon premier emplacement libre
-        selected = data.characters.length ? data.characters[0].slot : 1;
+        selected = null;
         busy = false;
+        choose(data.characters.length ? data.characters[0].slot : 1);
         $("select").classList.remove("hidden");
         paint();
     }
@@ -113,9 +139,10 @@ if (!inGame) {
         action: "open",
         slots: 2,
         tiers: { default: 1, premium: 2, premium_plus: 3, max: 5 },
+        serverId: 2,
         characters: [
-            { slot: 1, firstname: "Denzel", lastname: "Washington", job: "Chômeur", money: 390, bank: 143650 },
-            { slot: 2, firstname: "Camembet", lastname: "Adriana", job: "Mécano", grade: "Apprenti", money: 120, bank: 5400 },
+            { slot: 1, firstname: "Denzel", lastname: "Washington", job: "Chômeur", money: 390, bank: 143650, dateofbirth: "12/04/1992", nationality: "Américaine", lastSeen: 1792000000 },
+            { slot: 2, firstname: "Camembet", lastname: "Adriana", job: "Mécano", grade: "Apprenti", money: 120, bank: 5400, dateofbirth: "03/09/1998", nationality: "Française", lastSeen: 1791500000 },
         ],
     }, "*");
 }

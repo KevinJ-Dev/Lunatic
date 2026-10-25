@@ -1935,7 +1935,6 @@ async function demoNui(name, data) {
         categories: [{ id: "logo", label: "Logo" }, { id: "banner", label: "Bannière" }, { id: "header", label: "Headers" }, { id: "notification", label: "Notifications" }, { id: "character", label: "Création perso" }, { id: "other", label: "Autres" }],
         images: [
             { key: "panel_logo", slot: true, category: "logo", label: "Logo du panel staff", description: "Barre du haut et pastille du panel réduit", url: "logo.png", default: "logo.png", changed: false, order: 1 },
-            { key: "spawn_emblem", slot: true, category: "logo", label: "Petit logo de l'écran de spawn", description: "En haut à gauche de l'entrée en ville (novyra_spawn)", url: "nui://novyra_spawn/ui/img/emblem.png", default: "nui://novyra_spawn/ui/img/emblem.png", changed: false, order: 2 },
             { key: "tablet_logo", slot: true, category: "header", label: "Logo de la tablette illégale", description: "En haut à gauche de la tablette des crews (vide : pas de logo)", url: "", default: "", changed: false, order: 4 },
             { key: "img_1", slot: false, category: "banner", label: "Bannière Burger Shot", description: "Fiche de l'entreprise", url: "https://placehold.co/600x200/png", order: 1000 },
         ] };

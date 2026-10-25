@@ -128,7 +128,7 @@ end
 -- Ouvre la création de personnage au joueur
 local function start(playerId, countdown)
     Identity.pending[playerId] = true
-    -- Lu par lunatic_admin (pas de photo automatique) et novyra_spawn (pas d'écran d'entrée)
+    -- Lu par lunatic_admin (pas de photo automatique) et esx_status (faim et soif en pause)
     Player(playerId).state:set('lunaticCreating', true, true)
     TriggerClientEvent('lunatic_creator:start', playerId, countdown == true)
 end

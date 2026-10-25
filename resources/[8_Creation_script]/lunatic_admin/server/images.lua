@@ -2,7 +2,7 @@
 -- Deux sortes d'images :
 --   - emplacements prévus par nos scripts (SLOTS) : seule l'URL change, « Supprimer » remet l'image d'origine ;
 --   - images ajoutées par le staff : réutilisables dans les fiches (logos, bannières), supprimables.
--- Diffusé dans GlobalState.lunaticImages (clé -> URL) : appliqué en direct par le panel, novyra_spawn et lunatic_illegal.
+-- Diffusé dans GlobalState.lunaticImages (clé -> URL) : appliqué en direct par le panel, lunatic_creator et lunatic_illegal.
 -- Mugshots : photo du visage prise par le client du joueur (client/mugshots.lua), enregistrée en base (table lunatic_mugshots).
 
 local CATEGORIES = {
@@ -16,8 +16,6 @@ local CATEGORIES = {
 
 local SLOTS = {
     { key = 'panel_logo', category = 'logo', label = 'Logo du panel staff', description = 'Barre du haut et pastille du panel réduit', default = 'nui://lunatic_admin/web/logo.png' },
-    { key = 'spawn_emblem', category = 'logo', label = "Petit logo de l'écran de spawn", description = "En haut à gauche de l'entrée en ville (novyra_spawn)", default = 'nui://novyra_spawn/ui/img/emblem.png' },
-    { key = 'spawn_logo', category = 'logo', label = "Grand logo de l'écran de spawn", description = "Au centre de l'entrée en ville (novyra_spawn)", default = 'nui://novyra_spawn/ui/img/logo.png' },
     { key = 'creator_logo', category = 'character', label = 'Logo du créateur de personnage', description = 'En haut du panneau de création (lunatic_creator) ; masquable dans Autres > Création perso', default = 'nui://lunatic_creator/html/logo.png' },
     { key = 'creator_banner', category = 'character', label = 'Bannière du créateur de personnage', description = 'Fond du haut du panneau de création (vide : pas de bannière)', default = '' },
     { key = 'tablet_logo', category = 'header', label = 'Logo de la tablette illégale', description = 'En haut à gauche de la tablette des crews (vide : pas de logo)', default = '' },

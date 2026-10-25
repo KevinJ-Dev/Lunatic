@@ -25,7 +25,20 @@ local function slotCount(src)
     return math.max(1, math.min(Config.Slots.max, slots + (tonumber(extra) or 0)))
 end
 
--- Personnages du compte (emplacement, nom, métier, argent)
+-- Photo d'identité (lunatic_admin) et nationalité (lunatic_creator) d'un personnage, si ces ressources tournent
+local function extra(resource, export, identifier)
+    if GetResourceState(resource) ~= 'started' then
+        return nil
+    end
+
+    local ok, value = pcall(function()
+        local api = exports[resource]
+        return api[export](api, identifier)
+    end)
+    return ok and value or nil
+end
+
+-- Personnages du compte (emplacement, nom, métier, argent, apparence pour l'aperçu, photo)
 local function characters(src)
     local license = licenseOf(src)
 
@@ -34,7 +47,7 @@ local function characters(src)
     end
 
     local rows = MySQL.query.await(
-        'SELECT `identifier`, `firstname`, `lastname`, `sex`, `dateofbirth`, `job`, `job_grade`, `accounts` FROM `users` WHERE `identifier` LIKE ?',
+        'SELECT `identifier`, `firstname`, `lastname`, `sex`, `dateofbirth`, `job`, `job_grade`, `accounts`, `skin`, UNIX_TIMESTAMP(`last_seen`) AS `last_seen` FROM `users` WHERE `identifier` LIKE ?',
         { 'char%:' .. license }
     ) or {}
 
@@ -50,12 +63,17 @@ local function characters(src)
             accounts = ok and type(accounts) == 'table' and accounts or {}
             local job = jobs[row.job]
             local grade = job and job.grades and job.grades[tostring(row.job_grade)]
+            local okSkin, skin = pcall(json.decode, row.skin or '')
 
             list[#list + 1] = {
                 slot = slot,
                 firstname = row.firstname, lastname = row.lastname, sex = row.sex, dateofbirth = row.dateofbirth,
                 job = job and job.label or row.job, grade = grade and grade.label or nil,
                 money = tonumber(accounts.money) or 0, bank = tonumber(accounts.bank) or 0,
+                lastSeen = tonumber(row.last_seen),
+                skin = okSkin and type(skin) == 'table' and skin.model and skin or nil,
+                mugshot = extra('lunatic_admin', 'getMugshot', row.identifier),
+                nationality = extra('lunatic_creator', 'getNationality', row.identifier),
             }
         end
     end

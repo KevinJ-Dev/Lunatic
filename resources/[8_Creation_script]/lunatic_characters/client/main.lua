@@ -1,8 +1,10 @@
--- Sélection de personnage, côté client : écran à la connexion et après /personnages, puis apparition du personnage
--- choisi (en mode multi-personnages, ESX ne fait plus apparaître le joueur lui-même).
+-- Sélection de personnage, côté client : écran à la connexion et après /personnages, aperçu du personnage choisi
+-- sur un décor, puis apparition à sa dernière position (en mode multi-personnages, ESX ne fait plus apparaître le joueur).
 
 local open = false
 local cam = nil
+local characters = {} -- [emplacement] = personnage (avec son apparence enregistrée)
+local previewToken = 0
 
 local function shutdownLoadingScreen()
     ShutdownLoadingScreen()
@@ -17,23 +19,65 @@ local function stopCamera()
     end
 end
 
--- Joueur caché et figé sur le décor, caméra fixe
-local function placeScene()
-    local ped = PlayerPedId()
-    local scene = Config.Scene
+-- Heure du serveur (lunatic_world) après la sélection
+local function restoreClock()
+    local clock = GlobalState.lunaticClock
 
-    RequestCollisionAtCoord(scene.ped.x, scene.ped.y, scene.ped.z)
-    SetEntityCoordsNoOffset(ped, scene.ped.x, scene.ped.y, scene.ped.z, false, false, false)
-    SetEntityHeading(ped, scene.ped.w)
+    if type(clock) == 'table' then
+        NetworkOverrideClockTime(tonumber(clock.h) or 12, tonumber(clock.m) or 0, 0)
+    else
+        NetworkClearClockTimeOverride()
+    end
+end
+
+-- Personnage posé sur le décor, figé (le joueur est seul dans son instance)
+local function placePed(visible)
+    local ped = PlayerPedId()
+    local spot = Config.Scene.ped
+
+    SetEntityCoordsNoOffset(ped, spot.x, spot.y, spot.z - 0.98, false, false, false)
+    SetEntityHeading(ped, spot.w)
     FreezeEntityPosition(ped, true)
-    SetEntityVisible(ped, false, false)
     SetEntityInvincible(ped, true)
+    SetEntityVisible(ped, visible, false)
+    ResetEntityAlpha(ped)
+    ClearPedTasksImmediately(ped)
+end
+
+-- Caméra face au personnage, décalée pour qu'il apparaisse à droite du panneau
+local function sceneCamera()
+    local spot, settings = Config.Scene.ped, Config.Scene.camera
+    local angle = math.rad(spot.w)
+    local forward = vector3(-math.sin(angle), math.cos(angle), 0.0)
+    local right = vector3(math.cos(angle), math.sin(angle), 0.0)
+    local halfWidth = settings.distance * math.tan(math.rad(settings.fov) / 2) * GetAspectRatio(false)
+    local base = vector3(spot.x, spot.y, spot.z) + right * (halfWidth * settings.shift)
+    local position = base + forward * settings.distance + vector3(0.0, 0.0, settings.height)
 
     stopCamera()
-    cam = CreateCamWithParams('DEFAULT_SCRIPTED_CAMERA', scene.camera.x, scene.camera.y, scene.camera.z, 0.0, 0.0, 0.0, scene.fov, false, 2)
-    PointCamAtCoord(cam, scene.lookAt.x, scene.lookAt.y, scene.lookAt.z)
+    cam = CreateCamWithParams('DEFAULT_SCRIPTED_CAMERA', position.x, position.y, position.z, 0.0, 0.0, 0.0, settings.fov, false, 2)
+    PointCamAtCoord(cam, base.x, base.y, base.z + settings.aim)
     SetCamActive(cam, true)
     RenderScriptCams(true, false, 0, true, true)
+end
+
+-- Aperçu : le personnage de l'emplacement avec son apparence enregistrée (rien pour un emplacement vide)
+local function preview(slot)
+    previewToken = previewToken + 1
+    local token = previewToken
+    local character = characters[slot]
+
+    if not character or not character.skin or GetResourceState('illenium-appearance') ~= 'started' then
+        SetEntityVisible(PlayerPedId(), false, false)
+        return
+    end
+
+    pcall(function() exports['illenium-appearance']:setPlayerAppearance(character.skin) end)
+
+    -- Un autre personnage a été choisi pendant le chargement du modèle
+    if token == previewToken and open then
+        placePed(true)
+    end
 end
 
 local function showSelection()
@@ -49,24 +93,48 @@ local function showSelection()
     end
 
     TriggerServerEvent('lunatic_characters:open')
-    placeScene()
+
+    local spot = Config.Scene.ped
+    RequestCollisionAtCoord(spot.x, spot.y, spot.z)
+    placePed(false)
+    sceneCamera()
     DisplayRadar(false)
 
-    local data = lib.callback.await('lunatic_characters:list', false)
+    local data = lib.callback.await('lunatic_characters:list', false) or {}
+    local list = {}
+    characters = {}
+
+    -- La page n'a pas besoin des apparences (gardées ici pour l'aperçu)
+    for _, character in ipairs(data.characters or {}) do
+        characters[character.slot] = character
+        local entry = {}
+
+        for key, value in pairs(character) do
+            if key ~= 'skin' then
+                entry[key] = value
+            end
+        end
+
+        list[#list + 1] = entry
+    end
+
     shutdownLoadingScreen()
 
     SetNuiFocus(true, true)
-    SendNUIMessage({ action = 'open', characters = data and data.characters or {}, slots = data and data.slots or 1, tiers = data and data.tiers or Config.Slots })
-    DoScreenFadeIn(600)
+    SendNUIMessage({ action = 'open', characters = list, slots = data.slots or 1, tiers = data.tiers or Config.Slots, serverId = GetPlayerServerId(PlayerId()) })
 
-    -- Pas de HUD ni d'actions pendant la sélection
+    -- Pas de HUD ni d'actions pendant la sélection ; décor en plein jour
     CreateThread(function()
         while open do
             HideHudAndRadarThisFrame()
             DisableAllControlActions(0)
+            NetworkOverrideClockTime(Config.Scene.clockHour, 0, 0)
             Wait(0)
         end
     end)
+
+    Wait(400)
+    DoScreenFadeIn(600)
 end
 
 local function closeSelection()
@@ -74,6 +142,14 @@ local function closeSelection()
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'close' })
 end
+
+RegisterNUICallback('preview', function(data, cb)
+    cb({})
+
+    if open then
+        preview(tonumber(data.slot))
+    end
+end)
 
 RegisterNUICallback('play', function(data, cb)
     if not open then
@@ -91,7 +167,7 @@ RegisterNUICallback('play', function(data, cb)
     closeSelection()
 end)
 
--- Personnage chargé par ESX : on le fait apparaître (position enregistrée, apparence, équipement)
+-- Personnage chargé par ESX : il apparaît à sa dernière position, avec son apparence et son équipement
 RegisterNetEvent('esx:playerLoaded', function(xPlayer, _, skin)
     open = false
     SetNuiFocus(false, false)
@@ -102,6 +178,7 @@ RegisterNetEvent('esx:playerLoaded', function(xPlayer, _, skin)
 
     ESX.SpawnPlayer(skin, xPlayer.coords, function()
         stopCamera()
+        restoreClock()
 
         -- Ce que fait ESX hors mode multi-personnages (Core.FreezePlayer(false)) : contrôles et collisions rendus
         local ped = PlayerPedId()
@@ -170,6 +247,7 @@ AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() and open then
         SetNuiFocus(false, false)
         stopCamera()
+        restoreClock()
         DisplayRadar(true)
         DoScreenFadeIn(0)
     end
