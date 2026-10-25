@@ -36,20 +36,17 @@ function show(identity) {
 }
 
 // ---------- Écran de mort ----------
-// Le jeu envoie l'état (temps restant, secouristes en service) ; les boutons renvoient au jeu, qui décide.
+// Le jeu envoie l'état (temps restant, secours, secouriste en route) ; les touches [G] et [E] sont lues par le jeu.
 
 const death = { remaining: 0, timer: null };
 
-async function post(name, payload) {
-    try {
-        await fetch(`https://${GetParentResourceName()}/${name}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload || {}) });
-    } catch { /* aperçu navigateur */ }
-}
+// Distance du secouriste : en mètres sous 1 km, sinon en kilomètres
+const distanceText = (m) => (m < 1000 ? `${Math.max(0, Math.round(m / 10) * 10)} m` : `${(m / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} km`);
 
 function paintDeath() {
     const left = Math.max(0, death.remaining);
     $("death-time").textContent = `${String(Math.floor(left / 60)).padStart(2, "0")}:${String(left % 60).padStart(2, "0")}`;
-    $("death-rise").disabled = left > 0;
+    $("death-rise").classList.toggle("ready", left <= 0);
     $("death-rise-label").textContent = left > 0 ? "Se relever" : "Se relever à l'hôpital";
 }
 
@@ -59,12 +56,14 @@ function updateDeath(state) {
     alert.classList.toggle("hidden", state.callMedic === false);
     alert.classList.toggle("done", state.called === true);
     alert.querySelector("span").textContent = state.called ? "Secours alertés" : "Alerter les secours";
+
+    const info = $("death-info");
     const medics = Number(state.medics) || 0;
-    // Pas encore de réponse du serveur : rien d'affiché sous le bouton
-    if (state.medics === undefined) $("death-medics").textContent = "";
-    else $("death-medics").innerHTML = medics > 0
-        ? `<b>${medics}</b> secouriste${medics > 1 ? "s" : ""} en service`
-        : "Aucun secouriste en service : délai réduit";
+    info.classList.toggle("coming", !!state.responder);
+    if (state.responder) info.innerHTML = `Un EMS a pris votre appel · <b>à ${distanceText(state.responder.distance)}</b>`;
+    else if (state.medics === undefined) info.textContent = ""; // pas encore de réponse du serveur
+    else if (state.called) info.innerHTML = medics > 0 ? `Secours alertés : en attente d'un EMS (<b>${medics}</b> en service)` : "Secours alertés : aucun EMS en service";
+    else info.innerHTML = medics > 0 ? `<b>${medics}</b> secouriste${medics > 1 ? "s" : ""} en service` : "Aucun secouriste en service : délai réduit";
     paintDeath();
 }
 
@@ -79,9 +78,6 @@ function hideDeath() {
     clearInterval(death.timer);
     $("death").classList.add("hidden");
 }
-
-$("death-alert").addEventListener("click", () => { if (!$("death-alert").classList.contains("done")) post("deathAlert"); });
-$("death-rise").addEventListener("click", () => { if (!$("death-rise").disabled) post("deathRise"); });
 
 window.addEventListener("message", (event) => {
     const msg = event.data || {};

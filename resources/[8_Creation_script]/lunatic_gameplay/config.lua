@@ -12,6 +12,10 @@ Config.Hospitals = {
 Config.DeathKeepItems = { 'phone', 'id_card' } -- objets gardés quand l'inventaire est vidé au respawn
 Config.ReviveDistance = 3.0     -- distance maximale pour réanimer quelqu'un (/reanimer)
 Config.MedicCallCooldown = 60   -- secondes entre deux appels aux secours d'un même joueur
+Config.TakeCallKey = 'Y'        -- touche des secouristes pour prendre le dernier appel (modifiable dans les touches de GTA)
+Config.TakeCallSeconds = 120    -- durée pendant laquelle un appel reçu peut être pris avec cette touche
+-- Contrôles gardés pendant l'inconscience : caméra (souris, manette), vocal, menu Échap
+Config.DeathAllowedControls = { 1, 2, 3, 4, 5, 6, 199, 200, 249 }
 Config.MedicTypes = { medic = true } -- types de services publics (tuile Services publics) qui peuvent réanimer
 Config.EventRespawnDelay = 5     -- secondes avant le respawn dans la zone d'un event (règle « Respawn », lunatic_admin)
 

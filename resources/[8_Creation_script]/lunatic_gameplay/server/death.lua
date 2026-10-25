@@ -5,8 +5,15 @@
 
 local ox = exports.ox_inventory
 
-local deaths = {}    -- joueur -> { at, coords }
-local lastCall = {}  -- joueur -> dernier appel aux secours
+local deaths = {}     -- joueur -> { at, coords }
+local lastCall = {}   -- joueur -> dernier appel aux secours
+local responders = {} -- joueur inconscient -> secouriste qui a pris son appel
+
+-- Fin de l'inconscience (réveil, réanimation, déconnexion) : plus de mort ni de secouriste en route
+local function clearDeath(src)
+    deaths[src] = nil
+    responders[src] = nil
+end
 
 RegisterNetEvent('esx:onPlayerDeath', function()
     local src = source
@@ -18,12 +25,20 @@ RegisterNetEvent('esx:onPlayerDeath', function()
 end)
 
 RegisterNetEvent('esx:onPlayerSpawn', function()
-    deaths[source] = nil
+    clearDeath(source)
 end)
 
 AddEventHandler('playerDropped', function()
-    deaths[source] = nil
-    lastCall[source] = nil
+    local src = source
+    clearDeath(src)
+    lastCall[src] = nil
+
+    -- Secouriste déconnecté : ses appels redeviennent libres
+    for victim, medic in pairs(responders) do
+        if medic == src then
+            responders[victim] = nil
+        end
+    end
 end)
 
 local isMedic -- défini plus bas (secours)
@@ -109,7 +124,7 @@ lib.callback.register('lunatic_gameplay:respawn', function(src)
         ox:ClearInventory(src, keep)
     end
 
-    deaths[src] = nil
+    clearDeath(src)
     local hospital = nearestHospital(death.coords)
     local c = hospital.coords
 
@@ -118,6 +133,19 @@ lib.callback.register('lunatic_gameplay:respawn', function(src)
 end)
 
 -- Temps restant (affichage) : le serveur fait foi
+-- Secouriste qui a pris l'appel : distance jusqu'au joueur inconscient (mètres), ou nil
+local function responderOf(src, death)
+    local medic = responders[src]
+    local ped = medic and GetPlayerPed(medic) or 0
+
+    if ped == 0 then
+        responders[src] = nil
+        return nil
+    end
+
+    return { distance = math.floor(#(GetEntityCoords(ped) - death.coords)) }
+end
+
 lib.callback.register('lunatic_gameplay:deathState', function(src)
     local death = deaths[src]
 
@@ -133,6 +161,7 @@ lib.callback.register('lunatic_gameplay:deathState', function(src)
         medics = medics,
         callMedic = settings.callMedic ~= false,
         called = lastCall[src] ~= nil and os.time() - lastCall[src] < Config.MedicCallCooldown,
+        responder = responderOf(src, death),
     }
 end)
 
@@ -145,7 +174,7 @@ lib.callback.register('lunatic_gameplay:eventRevive', function(src)
         return { ok = false }
     end
 
-    deaths[src] = nil
+    clearDeath(src)
     GameLog('players', 'info', src, 'player.eventRevive', event.label, { respawn = not event.noKO })
 
     if event.noKO then
@@ -177,7 +206,7 @@ function RevivePlayer(src, by)
         return false
     end
 
-    deaths[src] = nil
+    clearDeath(src)
     TriggerClientEvent('lunatic_gameplay:revived', src)
     GameLog('players', 'success', by, 'player.revive', GetPlayerName(src), { target = src, item = true })
     Notify(src, 'Vous avez été réanimé.', 'success')
@@ -210,6 +239,37 @@ RegisterNetEvent('lunatic_gameplay:callMedic', function()
     Notify(src, count > 0 and 'Les secours ont été prévenus.' or 'Aucun médecin en service pour le moment.', count > 0 and 'success' or 'error')
 end)
 
+RegisterNetEvent('lunatic_gameplay:acceptCall', function(victim)
+    local src = source
+    local xPlayer = ESX.GetPlayerFromId(src)
+    victim = tonumber(victim)
+
+    if not xPlayer or not isMedic(xPlayer) then
+        return
+    end
+
+    if not victim or not deaths[victim] then
+        return Notify(src, "Cet appel n'est plus actif.", 'error')
+    end
+
+    local current = responders[victim]
+
+    if current and current ~= src and GetPlayerName(current) then
+        return Notify(src, 'Un autre secouriste a déjà pris cet appel.', 'error')
+    end
+
+    responders[victim] = src
+    Notify(src, ("Vous avez pris l'appel (ID %d) : le point GPS est placé."):format(victim), 'success')
+    Notify(victim, 'Un EMS a pris votre appel.', 'success')
+    GameLog('players', 'info', src, 'player.medicCall', GetPlayerName(victim), { target = victim })
+
+    for _, other in pairs(ESX.GetExtendedPlayers()) do
+        if other.source ~= src and isMedic(other) then
+            TriggerClientEvent('lunatic_gameplay:medicCallTaken', other.source, { id = victim, by = xPlayer.getName() })
+        end
+    end
+end)
+
 lib.callback.register('lunatic_gameplay:revive', function(src, targetId)
     local xPlayer = ESX.GetPlayerFromId(src)
     targetId = tonumber(targetId)
@@ -232,7 +292,7 @@ lib.callback.register('lunatic_gameplay:revive', function(src, targetId)
         return { ok = false, error = 'Rapprochez-vous de la personne.' }
     end
 
-    deaths[targetId] = nil
+    clearDeath(targetId)
     TriggerClientEvent('lunatic_gameplay:revived', targetId)
     GameLog('players', 'success', src, 'player.revive', GetPlayerName(targetId), { target = targetId })
     Notify(targetId, 'Vous avez été réanimé.', 'success')

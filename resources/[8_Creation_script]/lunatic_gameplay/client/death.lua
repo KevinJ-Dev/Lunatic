@@ -3,6 +3,7 @@
 
 local dead = false
 local remaining = 0
+local responding = false -- un secouriste a pris l'appel : distance mise à jour plus souvent
 
 local function resurrect(x, y, z, h)
     local ped = PlayerPedId()
@@ -29,9 +30,8 @@ end
 local function stopDeath()
     dead = false
     AnimpostfxStop('DeathFailOut')
+    responding = false
     SendNUIMessage({ action = 'deathHide' })
-    SetNuiFocusKeepInput(false)
-    SetNuiFocus(false, false)
 end
 
 -- État de l'écran (temps restant, secouristes en service, appel déjà fait) : le serveur fait foi ; true si reçu
@@ -43,6 +43,7 @@ local function refreshDeath()
     end
 
     remaining = state.remaining or remaining
+    responding = state.responder ~= nil
     state.action = 'deathUpdate'
     SendNUIMessage(state)
     return true
@@ -133,10 +134,6 @@ local function startDeath(skipEvent)
     remaining = 300
     SendNUIMessage({ action = 'death', remaining = remaining, callMedic = FeaturesOf('death').callMedic ~= false })
 
-    -- Souris pour les boutons ; le jeu garde le clavier (vocal, touches [G] et [E])
-    SetNuiFocus(true, true)
-    SetNuiFocusKeepInput(true)
-
     -- Compte à rebours, recalé sur le serveur toutes les 10 s (secouristes qui prennent ou quittent leur service)
     CreateThread(function()
         local tick = 0
@@ -157,7 +154,7 @@ local function startDeath(skipEvent)
             remaining = remaining - 1
             tick = tick + 1
 
-            if not synced or tick % 10 == 0 then
+            if not synced or tick % (responding and 3 or 10) == 0 then
                 synced = refreshDeath() or synced
             end
         end
@@ -170,17 +167,18 @@ local function startDeath(skipEvent)
 
     CreateThread(function()
         while dead do
-            -- Pas de caméra ni d'attaque à la souris pendant que le curseur est affiché
-            DisableControlAction(0, 1, true)
-            DisableControlAction(0, 2, true)
-            DisableControlAction(0, 24, true)
-            DisableControlAction(0, 25, true)
+            -- Inconscient : on peut seulement tourner la caméra, parler et ouvrir le menu Échap
+            DisableAllControlActions(0)
 
-            if remaining <= 0 and IsControlJustReleased(0, 38) then
+            for _, control in ipairs(Config.DeathAllowedControls) do
+                EnableControlAction(0, control, true)
+            end
+
+            if remaining <= 0 and IsDisabledControlJustReleased(0, 38) then
                 respawn()
             end
 
-            if FeaturesOf('death').callMedic ~= false and IsControlJustReleased(0, 47) then
+            if FeaturesOf('death').callMedic ~= false and IsDisabledControlJustReleased(0, 47) then
                 CreateThread(callMedic)
             end
 
@@ -188,22 +186,6 @@ local function startDeath(skipEvent)
         end
     end)
 end
-
-RegisterNUICallback('deathAlert', function(_, cb)
-    cb({})
-
-    if dead and FeaturesOf('death').callMedic ~= false then
-        callMedic()
-    end
-end)
-
-RegisterNUICallback('deathRise', function(_, cb)
-    cb({})
-
-    if dead and remaining <= 0 then
-        respawn()
-    end
-end)
 
 AddEventHandler('esx:onPlayerDeath', function()
     startDeath(false)
@@ -231,9 +213,11 @@ end)
 -- Médecins : appels et réanimation
 ---------------------------------------------------------------------
 
+local incoming = nil -- dernier appel reçu par ce secouriste : { id, x, y, expires }
+
 RegisterNetEvent('lunatic_gameplay:medicCall', function(call)
-    Notify(('Appel aux secours : personne inconsciente (ID %d). Point GPS ajouté.'):format(call.id), 'info')
-    SetNewWaypoint(call.x + 0.0, call.y + 0.0)
+    incoming = { id = call.id, x = call.x, y = call.y, expires = GetGameTimer() + Config.TakeCallSeconds * 1000 }
+    Notify(("Appel aux secours : personne inconsciente (ID %d). [%s] pour prendre l'appel."):format(call.id, Config.TakeCallKey), 'info')
 
     local blip = AddBlipForCoord(call.x, call.y, call.z)
     SetBlipSprite(blip, 153)
@@ -244,6 +228,30 @@ RegisterNetEvent('lunatic_gameplay:medicCall', function(call)
     EndTextCommandSetBlipName(blip)
     SetTimeout(180000, function() RemoveBlip(blip) end)
 end)
+
+-- Appel pris par un autre secouriste
+RegisterNetEvent('lunatic_gameplay:medicCallTaken', function(call)
+    if incoming and incoming.id == call.id then
+        incoming = nil
+    end
+
+    Notify(('Appel ID %d pris par %s.'):format(call.id, call.by or 'un collègue'), 'info')
+end)
+
+lib.addKeybind({
+    name = 'lunatic_take_medic_call',
+    description = 'Secours : prendre le dernier appel reçu',
+    defaultKey = Config.TakeCallKey,
+    onReleased = function()
+        if not incoming or GetGameTimer() > incoming.expires then
+            return
+        end
+
+        TriggerServerEvent('lunatic_gameplay:acceptCall', incoming.id)
+        SetNewWaypoint(incoming.x + 0.0, incoming.y + 0.0)
+        incoming = nil
+    end,
+})
 
 local function closestDeadPlayer()
     local myPed = PlayerPedId()
@@ -294,10 +302,5 @@ TriggerEvent('chat:addSuggestion', '/reanimer', 'Réanimer la personne inconscie
 AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
         AnimpostfxStop('DeathFailOut')
-
-        if dead then
-            SetNuiFocusKeepInput(false)
-            SetNuiFocus(false, false)
-        end
     end
 end)

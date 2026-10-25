@@ -25,15 +25,15 @@
     </div>
     <div class="death hidden" id="death">
         <div class="death-shade"></div>
-        <aside class="death-side">
+        <div class="death-stack">
             <div class="death-timer"><b id="death-time">00:00</b><small>Temps restant</small></div>
-            <div class="death-actions">
-                <button class="death-btn alert" id="death-alert"><span>Alerter les secours</span><kbd>G</kbd></button>
-                <p class="death-info" id="death-medics"></p>
+            <p class="death-info" id="death-info"></p>
+            <div class="death-keys">
+                <div class="death-key alert" id="death-alert"><kbd>G</kbd><span>Alerter les secours</span></div>
+                <div class="death-key rise" id="death-rise"><kbd>E</kbd><span id="death-rise-label">Se relever</span></div>
             </div>
-            <button class="death-btn rise" id="death-rise" disabled><span id="death-rise-label">Se relever</span><kbd>E</kbd></button>
-        </aside>
-        <div class="death-title">Vous êtes <b>inconscient</b></div>
+            <div class="death-title">Vous êtes <b>inconscient</b></div>
+        </div>
     </div>
     <script src="app.js"></script>
 </body>
