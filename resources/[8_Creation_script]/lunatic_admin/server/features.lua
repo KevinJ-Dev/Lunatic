@@ -34,7 +34,15 @@ local SCHEMA = {
     -- Systèmes de lunatic_gameplay
     death = {
         enabled = bool(true), delay = num(300, 30, 1800, 10), delayNoMedic = num(150, 30, 1800, 10), fee = num(500, 0, 100000, 50),
-        clearInventory = bool(false), keepCash = bool(true), callMedic = bool(true), medicRevive = bool(true),
+        clearInventory = bool(false), keepCash = bool(true), keepItems = text('phone,id_card', 200, '^[%w_,]*$'),
+        callMedic = bool(true), callCooldown = num(60, 10, 600, 5), takeCallSeconds = num(120, 15, 900, 15),
+        medicRevive = bool(true), reviveDistance = num(3, 1, 10, 0.5), medicTypes = text('medic', 100, '^[%w_,]*$'),
+        eventRespawnDelay = num(5, 0, 60, 1),
+    },
+    -- Écran de mort (lunatic_gameplay/html) : titre, informations affichées, caméra et vocal
+    deathScreen = {
+        title = text('Vous êtes inconscient', 40), showMedics = bool(true), showDistance = bool(true),
+        responderRefresh = num(3, 1, 30, 1), freeCamera = bool(true), voice = bool(true), effect = bool(false), shade = bool(false),
     },
     effects_cannabis = { enabled = bool(true), duration = num(120, 10, 900, 10), speed = num(1.0, 1, 1.49, 0.01), shake = num(0.3, 0, 3, 0.1), blur = bool(false), visual = bool(true), walk = bool(true) },
     effects_cocaine = { enabled = bool(true), duration = num(90, 10, 900, 10), speed = num(1.25, 1, 1.49, 0.01), shake = num(0.2, 0, 3, 0.1), blur = bool(true), visual = bool(true), walk = bool(false) },

@@ -57,13 +57,33 @@ function updateDeath(state) {
     alert.classList.toggle("done", state.called === true);
     alert.querySelector("span").textContent = state.called ? "Secours alertés" : "Alerter les secours";
 
+    $("death-shade").classList.toggle("hidden", state.shade !== true);
+
+    // Titre réglé dans le panel : le dernier mot en rouge
+    if (typeof state.title === "string" && state.title.trim()) {
+        const words = state.title.trim().split(/\s+/);
+        const last = words.pop();
+        const red = document.createElement("b");
+        red.textContent = last;
+        $("death-title").replaceChildren(words.length ? `${words.join(" ")} ` : "", red);
+    }
+
+    // Ligne au-dessus des touches : EMS en route, sinon état des secours (nombre d'EMS si le panel l'autorise)
     const info = $("death-info");
     const medics = Number(state.medics) || 0;
+    const count = state.showMedics !== false;
     info.classList.toggle("coming", !!state.responder);
-    if (state.responder) info.innerHTML = `Un EMS a pris votre appel · <b>à ${distanceText(state.responder.distance)}</b>`;
-    else if (state.medics === undefined) info.textContent = ""; // pas encore de réponse du serveur
-    else if (state.called) info.innerHTML = medics > 0 ? `Secours alertés : en attente d'un EMS (<b>${medics}</b> en service)` : "Secours alertés : aucun EMS en service";
-    else info.innerHTML = medics > 0 ? `<b>${medics}</b> secouriste${medics > 1 ? "s" : ""} en service` : "Aucun secouriste en service : délai réduit";
+    if (state.responder) {
+        info.innerHTML = state.showDistance !== false ? `Un EMS a pris votre appel · <b>à ${distanceText(state.responder.distance)}</b>` : "Un EMS a pris votre appel";
+    } else if (state.medics === undefined) {
+        info.textContent = ""; // pas encore de réponse du serveur
+    } else if (state.called) {
+        info.innerHTML = medics === 0 ? "Secours alertés : aucun EMS en service" : count ? `Secours alertés : en attente d'un EMS (<b>${medics}</b> en service)` : "Secours alertés : en attente d'un EMS";
+    } else if (medics === 0) {
+        info.textContent = "Aucun secouriste en service : délai réduit";
+    } else {
+        info.innerHTML = count ? `<b>${medics}</b> secouriste${medics > 1 ? "s" : ""} en service` : "";
+    }
     paintDeath();
 }
 

@@ -69,10 +69,45 @@ local function deathDelay(settings)
     return tonumber(settings.delayNoMedic) or 150
 end
 
+-- Liste « a,b,c » d'un réglage du panel -> ensemble { a = true, … }
+local function listSetting(value, fallback)
+    local set = {}
+
+    for name in tostring(value or fallback):gmatch('[^,%s]+') do
+        set[name] = true
+    end
+
+    return set
+end
+
+-- Hôpitaux actifs réglés dans le panel (Autres → Hôpitaux), sinon ceux de la config
+local function hospitals()
+    local list = {}
+
+    for _, entry in ipairs(GlobalState.lunaticHospitals or {}) do
+        if entry.enabled ~= false then
+            list[#list + 1] = { label = entry.label, coords = vector4(entry.x + 0.0, entry.y + 0.0, entry.z + 0.0, (entry.h or 0) + 0.0) }
+        end
+    end
+
+    return #list > 0 and list or Config.Hospitals
+end
+
+exports('getDefaultHospitals', function()
+    local list = {}
+
+    for _, hospital in ipairs(Config.Hospitals) do
+        local c = hospital.coords
+        list[#list + 1] = { label = hospital.label, x = c.x, y = c.y, z = c.z, h = c.w, enabled = true }
+    end
+
+    return list
+end)
+
 local function nearestHospital(coords)
     local best, bestDistance
 
-    for _, hospital in ipairs(Config.Hospitals) do
+    for _, hospital in ipairs(hospitals()) do
         local distance = #(coords - hospital.coords.xyz)
 
         if not bestDistance or distance < bestDistance then
@@ -113,7 +148,7 @@ lib.callback.register('lunatic_gameplay:respawn', function(src)
     if settings.enabled ~= false and settings.clearInventory then
         local keep = {}
 
-        for _, name in ipairs(Config.DeathKeepItems) do
+        for name in pairs(listSetting(settings.keepItems, 'phone,id_card')) do
             keep[#keep + 1] = name
         end
 
@@ -160,7 +195,7 @@ lib.callback.register('lunatic_gameplay:deathState', function(src)
         remaining = math.max(0, death.at + deathDelay(settings) - os.time()),
         medics = medics,
         callMedic = settings.callMedic ~= false,
-        called = lastCall[src] ~= nil and os.time() - lastCall[src] < Config.MedicCallCooldown,
+        called = lastCall[src] ~= nil and os.time() - lastCall[src] < (tonumber(settings.callCooldown) or 60),
         responder = responderOf(src, death),
     }
 end)
@@ -190,7 +225,7 @@ end)
 
 function isMedic(xPlayer)
     local structure = StructureOf(xPlayer)
-    return structure ~= nil and structure.kind == 'public' and Config.MedicTypes[structure.type] == true
+    return structure ~= nil and structure.kind == 'public' and listSetting(FeaturesOf('death').medicTypes, 'medic')[structure.type] == true
 end
 
 -- Partagé avec les objets de soin (server/healitems.lua)
@@ -222,7 +257,7 @@ RegisterNetEvent('lunatic_gameplay:callMedic', function()
         return
     end
 
-    if lastCall[src] and now - lastCall[src] < Config.MedicCallCooldown then
+    if lastCall[src] and now - lastCall[src] < (tonumber(FeaturesOf('death').callCooldown) or 60) then
         return Notify(src, 'Les secours ont déjà été prévenus.', 'info')
     end
 
@@ -288,7 +323,7 @@ lib.callback.register('lunatic_gameplay:revive', function(src, targetId)
 
     local me, target = GetPlayerPed(src), GetPlayerPed(targetId)
 
-    if me == 0 or target == 0 or #(GetEntityCoords(me) - GetEntityCoords(target)) > Config.ReviveDistance + 1.0 then
+    if me == 0 or target == 0 or #(GetEntityCoords(me) - GetEntityCoords(target)) > (tonumber(FeaturesOf('death').reviveDistance) or 3.0) + 1.0 then
         return { ok = false, error = 'Rapprochez-vous de la personne.' }
     end
 

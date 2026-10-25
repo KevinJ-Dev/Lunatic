@@ -557,4 +557,74 @@ Panel.actions['creator.photos'] = function(src, actor, data)
     return { ok = true, silent = true }
 end
 
-print('[lunatic_admin] Modules Ascenseurs, Heal Items, Tarifs mécano, Zone AFK et Création perso chargés.')
+---------------------------------------------------------------------
+-- Hôpitaux : réveil après l'inconscience au plus proche (KVP 'hospitals', GlobalState.lunaticHospitals,
+-- lu par lunatic_gameplay). Sans hôpital actif ici, ceux de sa config servent.
+---------------------------------------------------------------------
+
+local HOSPITALS_MAX = 20
+local savedHospitals = GetResourceKvpString('hospitals')
+local hospitalList = savedHospitals and json.decode(savedHospitals) or {}
+
+local function publishHospitals()
+    GlobalState.lunaticHospitals = hospitalList
+end
+
+publishHospitals()
+
+local function defaultHospitals()
+    if GetResourceState('lunatic_gameplay') ~= 'started' then
+        return {}
+    end
+
+    local ok, list = pcall(function() return exports.lunatic_gameplay:getDefaultHospitals() end)
+    return ok and type(list) == 'table' and list or {}
+end
+
+Panel.actions['hospitals.get'] = function(_, actor)
+    if not allowed(actor) then
+        return denied()
+    end
+
+    return { ok = true, silent = true, hospitals = hospitalList, defaults = defaultHospitals() }
+end
+
+Panel.actions['hospitals.save'] = function(src, actor, data)
+    if not allowed(actor) then
+        return denied()
+    end
+
+    if type(data) ~= 'table' or type(data.hospitals) ~= 'table' or #data.hospitals > HOSPITALS_MAX then
+        return Panel.fail(('Hôpitaux : %d au maximum.'):format(HOSPITALS_MAX))
+    end
+
+    local list, active = {}, 0
+
+    for index, hospital in ipairs(data.hospitals) do
+        local label = type(hospital) == 'table' and cleanText(hospital.label, 2, 40)
+        local point = type(hospital) == 'table' and position(hospital)
+
+        if not label then
+            return Panel.fail(('Hôpital %d : nom de 2 à 40 caractères.'):format(index))
+        elseif not point then
+            return Panel.fail(('Hôpital %d : position invalide (« Définir position » en jeu).'):format(index))
+        end
+
+        local enabled = hospital.enabled ~= false
+        active = active + (enabled and 1 or 0)
+        list[#list + 1] = { label = label, x = point.x, y = point.y, z = point.z, h = point.h, enabled = enabled }
+    end
+
+    if #list > 0 and active == 0 then
+        return Panel.fail('Activez au moins un hôpital.')
+    end
+
+    hospitalList = list
+    SetResourceKvp('hospitals', json.encode(hospitalList))
+    publishHospitals()
+
+    Logs.add(src, 'hospitals.save', nil, { count = #list })
+    return { ok = true, silent = true }
+end
+
+print('[lunatic_admin] Modules Ascenseurs, Heal Items, Tarifs mécano, Zone AFK, Création perso et Hôpitaux chargés.')

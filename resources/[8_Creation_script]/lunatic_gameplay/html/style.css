@@ -44,8 +44,8 @@ html, body { margin: 0; background: transparent; font-family: "Segoe UI", Arial,
 /* Bloc en bas à droite : temps restant, secours, touches, titre */
 .death-stack { position: absolute; right: 48px; bottom: 44px; display: grid; justify-items: end; gap: 12px; text-align: right; }
 .death-timer { display: grid; justify-items: end; }
-.death-timer b { font-size: 64px; font-weight: 700; line-height: 1; letter-spacing: .02em; font-variant-numeric: tabular-nums; text-shadow: 0 6px 30px #000c; }
-.death-timer small { margin-top: 4px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+.death-timer b { font-size: 64px; font-weight: 700; line-height: 1; letter-spacing: .02em; font-variant-numeric: tabular-nums; text-shadow: 0 2px 8px #000, 0 6px 30px #000c; }
+.death-timer small { margin-top: 4px; color: #ffffffc0; font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; text-shadow: 0 1px 4px #000; }
 
 .death-info { margin: 4px 0 0; padding: 7px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); font-size: 13px; }
 .death-info:empty { display: none; }
@@ -63,5 +63,5 @@ html, body { margin: 0; background: transparent; font-family: "Segoe UI", Arial,
 .death-key.rise.ready { border-color: transparent; background: linear-gradient(90deg, #2f9e6c, var(--ok)); color: #06210f; }
 .death-key.rise.ready kbd { background: #06210f26; }
 
-.death-title { margin-top: 4px; font-size: 30px; font-weight: 400; letter-spacing: .06em; text-transform: uppercase; text-shadow: 0 4px 24px #000; }
+.death-title { margin-top: 4px; font-size: 30px; font-weight: 400; letter-spacing: .06em; text-transform: uppercase; text-shadow: 0 2px 6px #000, 0 4px 24px #000; }
 .death-title b { color: var(--red); font-weight: 700; }

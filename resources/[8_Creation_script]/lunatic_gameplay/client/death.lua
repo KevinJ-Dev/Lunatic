@@ -4,6 +4,58 @@
 local dead = false
 local remaining = 0
 local responding = false -- un secouriste a pris l'appel : distance mise à jour plus souvent
+local deathCam = nil
+
+-- Caméra libre autour du personnage inconscient (souris : tourner, molette : zoom) ; GTA bloque la sienne à la mort
+local function startDeathCamera()
+    local ped = PlayerPedId()
+    local heading, pitch, distance = GetEntityHeading(ped) + 180.0, 20.0, 3.5
+
+    deathCam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
+    RenderScriptCams(true, true, 600, true, true)
+
+    CreateThread(function()
+        while deathCam do
+            ped = PlayerPedId()
+            heading = heading - GetDisabledControlNormal(0, 1) * 6.0
+            pitch = math.max(-5.0, math.min(70.0, pitch + GetDisabledControlNormal(0, 2) * 6.0))
+
+            if IsDisabledControlPressed(0, 241) then distance = math.max(1.5, distance - 0.15) end
+            if IsDisabledControlPressed(0, 242) then distance = math.min(7.0, distance + 0.15) end
+
+            local target = GetEntityCoords(ped) + vector3(0.0, 0.0, 0.3)
+            local h, p = math.rad(heading), math.rad(pitch)
+            local wanted = target + vector3(-math.sin(h) * math.cos(p) * distance, math.cos(h) * math.cos(p) * distance, math.sin(p) * distance)
+
+            -- Pas de caméra dans les murs : on s'arrête avant l'obstacle
+            local ray = StartExpensiveSynchronousShapeTestLosProbe(target.x, target.y, target.z, wanted.x, wanted.y, wanted.z, 1 + 16, ped, 4)
+            local _, hit, hitCoords = GetShapeTestResult(ray)
+            local position = hit == 1 and (target + (hitCoords - target) * 0.9) or wanted
+
+            SetCamCoord(deathCam, position.x, position.y, position.z)
+            PointCamAtCoord(deathCam, target.x, target.y, target.z)
+            Wait(0)
+        end
+    end)
+end
+
+local function stopDeathCamera()
+    if deathCam then
+        RenderScriptCams(false, true, 400, true, true)
+        DestroyCam(deathCam, false)
+        deathCam = nil
+    end
+end
+
+-- Réglages de l'écran (panel : Fonctionnalités → Gameplay → Écran de mort), joints à chaque envoi à la page
+local function screenSettings(state)
+    local screen = FeaturesOf('deathScreen')
+    state.title = screen.title
+    state.showMedics = screen.showMedics ~= false
+    state.showDistance = screen.showDistance ~= false
+    state.shade = screen.shade == true
+    return state
+end
 
 local function resurrect(x, y, z, h)
     local ped = PlayerPedId()
@@ -31,6 +83,7 @@ local function stopDeath()
     dead = false
     AnimpostfxStop('DeathFailOut')
     responding = false
+    stopDeathCamera()
     SendNUIMessage({ action = 'deathHide' })
 end
 
@@ -45,7 +98,7 @@ local function refreshDeath()
     remaining = state.remaining or remaining
     responding = state.responder ~= nil
     state.action = 'deathUpdate'
-    SendNUIMessage(state)
+    SendNUIMessage(screenSettings(state))
     return true
 end
 
@@ -89,7 +142,7 @@ local function eventRevive(event, fallback)
     dead = true
 
     CreateThread(function()
-        local untilAt = GetGameTimer() + (event.noKO and 1500 or Config.EventRespawnDelay * 1000)
+        local untilAt = GetGameTimer() + (event.noKO and 1500 or (tonumber(FeaturesOf('death').eventRespawnDelay) or 5) * 1000)
 
         while GetGameTimer() < untilAt do
             if not event.noKO then
@@ -130,9 +183,17 @@ local function startDeath(skipEvent)
     end
 
     dead = true
-    AnimpostfxPlay('DeathFailOut', 0, true)
     remaining = 300
-    SendNUIMessage({ action = 'death', remaining = remaining, callMedic = FeaturesOf('death').callMedic ~= false })
+
+    -- Effet sombre de GTA : désactivé par défaut pour voir le jeu normalement (panel : Écran de mort)
+    if FeaturesOf('deathScreen').effect == true then
+        AnimpostfxPlay('DeathFailOut', 0, true)
+    end
+    SendNUIMessage(screenSettings({ action = 'death', remaining = remaining, callMedic = FeaturesOf('death').callMedic ~= false }))
+
+    if FeaturesOf('deathScreen').freeCamera ~= false then
+        startDeathCamera()
+    end
 
     -- Compte à rebours, recalé sur le serveur toutes les 10 s (secouristes qui prennent ou quittent leur service)
     CreateThread(function()
@@ -154,7 +215,7 @@ local function startDeath(skipEvent)
             remaining = remaining - 1
             tick = tick + 1
 
-            if not synced or tick % (responding and 3 or 10) == 0 then
+            if not synced or tick % (responding and (tonumber(FeaturesOf('deathScreen').responderRefresh) or 3) or 10) == 0 then
                 synced = refreshDeath() or synced
             end
         end
@@ -167,11 +228,13 @@ local function startDeath(skipEvent)
 
     CreateThread(function()
         while dead do
-            -- Inconscient : on peut seulement tourner la caméra, parler et ouvrir le menu Échap
+            -- Inconscient : seulement la caméra (lue à part), le vocal (si autorisé) et le menu Échap
             DisableAllControlActions(0)
+            EnableControlAction(0, 199, true)
+            EnableControlAction(0, 200, true)
 
-            for _, control in ipairs(Config.DeathAllowedControls) do
-                EnableControlAction(0, control, true)
+            if FeaturesOf('deathScreen').voice ~= false then
+                EnableControlAction(0, 249, true)
             end
 
             if remaining <= 0 and IsDisabledControlJustReleased(0, 38) then
@@ -216,7 +279,7 @@ end)
 local incoming = nil -- dernier appel reçu par ce secouriste : { id, x, y, expires }
 
 RegisterNetEvent('lunatic_gameplay:medicCall', function(call)
-    incoming = { id = call.id, x = call.x, y = call.y, expires = GetGameTimer() + Config.TakeCallSeconds * 1000 }
+    incoming = { id = call.id, x = call.x, y = call.y, expires = GetGameTimer() + (tonumber(FeaturesOf('death').takeCallSeconds) or 120) * 1000 }
     Notify(("Appel aux secours : personne inconsciente (ID %d). [%s] pour prendre l'appel."):format(call.id, Config.TakeCallKey), 'info')
 
     local blip = AddBlipForCoord(call.x, call.y, call.z)
@@ -264,7 +327,7 @@ local function closestDeadPlayer()
         if ped ~= myPed and (IsEntityDead(ped) or IsPedFatallyInjured(ped)) then
             local distance = #(GetEntityCoords(ped) - myCoords)
 
-            if distance <= Config.ReviveDistance and (not bestDistance or distance < bestDistance) then
+            if distance <= (tonumber(FeaturesOf('death').reviveDistance) or 3.0) and (not bestDistance or distance < bestDistance) then
                 best, bestDistance = GetPlayerServerId(player), distance
             end
         end
@@ -302,5 +365,6 @@ TriggerEvent('chat:addSuggestion', '/reanimer', 'Réanimer la personne inconscie
 AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
         AnimpostfxStop('DeathFailOut')
+        stopDeathCamera()
     end
 end)

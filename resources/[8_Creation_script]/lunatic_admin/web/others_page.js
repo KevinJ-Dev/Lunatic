@@ -18,6 +18,7 @@ const OTHERS_TILES = [
     { id: "mechanic", label: "Prix custom (mécano)", icon: "i-tool", show: () => can("others.manage") },
     { id: "afk", label: "Zone AFK", icon: "i-clock", show: () => can("others.manage") },
     { id: "creator", label: "Création perso", icon: "i-player", show: () => can("others.manage") },
+    { id: "hospitals", label: "Hôpitaux", icon: "i-heart", show: () => can("others.manage") },
 ];
 
 const DRIVING_EXAMS = [["car", "Voiture"], ["bike", "Moto"], ["truck", "Camion"], ["plane", "Avion"], ["heli", "Hélicoptère"], ["boat", "Bateau"]];
@@ -30,6 +31,7 @@ function renderOthers() {
     if (othersState.page === "mechanic") return renderMechanic(root);
     if (othersState.page === "afk") return renderAfkZone(root);
     if (othersState.page === "creator") return renderCreatorSettings(root);
+    if (othersState.page === "hospitals") return renderHospitals(root);
     if (othersState.page === "driving") {
         if (drivingState.data && root.querySelector(".driving-page")) return;
         paintDriving();
@@ -59,6 +61,7 @@ function closeOthersPage() {
         mechanicState.draft = null;
         afkState.draft = null;
         creatorState.draft = null;
+        hospitalState.draft = null;
         othersState.page = null;
         renderOthers();
     });
