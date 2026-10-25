@@ -68,6 +68,9 @@ Config.Photos = {
     delay = 250,      -- attente (ms) entre l'application d'un style et le portrait
 }
 
+-- Micro coupé pendant la création (vocal basé sur Mumble, ex. pma-voice) ; chaque joueur est déjà seul dans son instance
+Config.MuteVoice = true
+
 -- Compte à rebours (secondes) quand le staff renvoie un joueur à la création (« Recréer »)
 Config.ReturnCountdown = 5
 

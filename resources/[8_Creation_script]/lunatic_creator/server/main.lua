@@ -43,6 +43,11 @@ RegisterNetEvent('lunatic_creator:enter', function()
     SetPlayerRoutingBucket(src, 5000 + src)
     -- Lu par lunatic_admin : pas de photo automatique pendant la création
     Player(src).state:set('lunaticCreating', true, true)
+
+    -- Micro coupé : personne ne l'entend pendant sa création (scripts vocaux basés sur Mumble, ex. pma-voice)
+    if Config.MuteVoice then
+        MumbleSetPlayerMuted(src, true)
+    end
 end)
 
 RegisterNetEvent('lunatic_creator:leave', function()
@@ -53,6 +58,10 @@ RegisterNetEvent('lunatic_creator:leave', function()
         Identity.arrival[src] = nil
         SetPlayerRoutingBucket(src, 0)
         Player(src).state:set('lunaticCreating', nil, true)
+
+        if Config.MuteVoice then
+            MumbleSetPlayerMuted(src, false)
+        end
     end
 end)
 
