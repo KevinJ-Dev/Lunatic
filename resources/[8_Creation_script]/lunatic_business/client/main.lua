@@ -935,6 +935,38 @@ local function openRental(target)
     end)
 end
 
+-- Compte à rebours de la location en cours, en petit à droite de la minimap
+local rentalTimer = nil -- { label, endsAt }
+
+-- Bord droit et bas de la minimap (fractions de l'écran), selon la zone de sécurité et le format d'écran
+local function minimapCorner()
+    local safezone = GetSafeZoneSize()
+    local margin = (1.0 / 20.0) * (math.abs(safezone - 1.0) * 10)
+    local width = 1.0 / (4 * GetAspectRatio(false))
+    return margin + width, 1.0 - margin
+end
+
+RegisterNetEvent('lunatic_business:rentalTimer', function(timer)
+    rentalTimer = timer and { label = timer.label, endsAt = GetGameTimer() + timer.remaining * 1000 } or nil
+
+    if not rentalTimer then
+        return SendNUIMessage({ action = 'rentalTimer' })
+    end
+
+    CreateThread(function()
+        local current = rentalTimer
+
+        while rentalTimer == current do
+            local right, bottom = minimapCorner()
+            SendNUIMessage({
+                action = 'rentalTimer', label = current.label, remaining = math.floor((current.endsAt - GetGameTimer()) / 1000),
+                left = right, bottom = bottom, hidden = IsRadarHidden() or IsPauseMenuActive(),
+            })
+            Wait(1000)
+        end
+    end)
+end)
+
 RegisterNUICallback('rentalPreview', function(data, cb)
     cb({})
 

@@ -135,8 +135,23 @@ $("stage").addEventListener("wheel", (e) => nui("rentalRotate", { zoom: e.deltaY
 $("close").addEventListener("click", () => nui("rentalClose"));
 window.addEventListener("keydown", (e) => { if (e.key === "Escape" && data) nui("rentalClose"); });
 
+// Compte à rebours de la location en cours (placé par le jeu à droite de la minimap)
+function paintTimer(msg) {
+    const timer = $("timer");
+    if (!msg.label || msg.hidden) return timer.classList.add("hidden");
+    const left = Math.max(0, msg.remaining);
+    timer.classList.remove("hidden");
+    timer.classList.toggle("late", left <= 60);
+    timer.title = msg.label;
+    timer.querySelector("small").textContent = left > 0 ? "Location" : "À rendre";
+    $("timer-time").textContent = `${String(Math.floor(left / 60)).padStart(2, "0")}:${String(left % 60).padStart(2, "0")}`;
+    timer.style.left = `calc(${msg.left * 100}% + 8px)`;
+    timer.style.top = `${msg.bottom * 100}%`;
+}
+
 window.addEventListener("message", (event) => {
     const msg = event.data || {};
+    if (msg.action === "rentalTimer") paintTimer(msg);
     if (msg.action === "rentalOpen") {
         data = msg;
         state.category = null;

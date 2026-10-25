@@ -1016,6 +1016,7 @@ lib.callback.register('lunatic_business:rent', function(src, slug, index, vehicl
     TaskWarpPedIntoVehicle(GetPlayerPed(src), vehicle, -1)
 
     rentals[src] = { vehicle = vehicle, plate = plate, label = offer.label, location = location, expiresAt = os.time() + duration * 60, warned = {} }
+    TriggerClientEvent('lunatic_business:rentalTimer', src, { label = offer.label, remaining = duration * 60 })
     GameLog('vehicles', 'info', src, 'vehicle.rent', offer.label, { plate = plate, price = price, duration = duration, periods = periods })
     return { ok = true, label = offer.label, plate = plate, duration = duration, price = price, account = account }
 end)
@@ -1042,6 +1043,7 @@ lib.callback.register('lunatic_business:rentReturn', function(src, slug, index)
     end
 
     rentals[src] = nil
+    TriggerClientEvent('lunatic_business:rentalTimer', src, nil)
     GameLog('vehicles', 'info', src, 'vehicle.rent_return', rental.label, { plate = rental.plate })
     return { ok = true, label = rental.label }
 end)
@@ -1069,6 +1071,7 @@ CreateThread(function()
 
             if not DoesEntityExist(rental.vehicle) then
                 rentals[src] = nil
+                TriggerClientEvent('lunatic_business:rentalTimer', src, nil)
                 notify(src, ('Votre location (%s) est terminée : le véhicule a disparu.'):format(rental.label), 'info')
             elseif remaining > 0 then
                 for _, mark in ipairs(Config.RentalWarnings) do
@@ -1080,6 +1083,7 @@ CreateThread(function()
             elseif not hasOccupant(rental.vehicle) or remaining <= -Config.RentalGrace then
                 DeleteEntity(rental.vehicle)
                 rentals[src] = nil
+                TriggerClientEvent('lunatic_business:rentalTimer', src, nil)
                 notify(src, ("Location terminée : %s a été repris par l'agence."):format(rental.label), 'info')
             elseif not rental.warned.ended then
                 rental.warned.ended = true
