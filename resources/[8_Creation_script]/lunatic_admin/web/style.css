@@ -1460,3 +1460,10 @@ body.hidden.minimized .mini-pill { display: flex; }
 .driving-answer .input, .driving-question-head .input { height: 30px; }
 .driving-good { width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); }
 .driving-good.on { border-color: transparent; background: var(--ok); color: #06180f; font-weight: 800; }
+
+/* Autres → Récoltes (liste, carte, fiche comme la tuile Blips) */
+#view-others.on { display: flex; }
+.harvest-page { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.harvest-body { flex: 1; border-top: 1px solid var(--line); }
+.harvest-new { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.harvest-new .btn { justify-content: center; padding: 0 8px; }

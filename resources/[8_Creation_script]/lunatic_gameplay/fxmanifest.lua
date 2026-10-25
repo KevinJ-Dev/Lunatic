@@ -4,7 +4,7 @@ lua54 'yes'
 
 name 'lunatic_gameplay'
 author 'Lunatic RP'
-description "Systèmes de gameplay réglés dans le panel staff (tuile Fonctionnalités) : mort et respawn, carburant, effets, arme dans le dos, zones sécurisées, anti-AFK, carte d'identité"
+description "Systèmes de gameplay réglés dans le panel staff (tuile Fonctionnalités) : mort et respawn, carburant, effets, arme dans le dos, zones sécurisées, anti-AFK, carte d'identité ; récoltes (tuile Autres)"
 version '0.1.0'
 
 shared_scripts {
@@ -20,6 +20,7 @@ server_scripts {
     'server/effects.lua',
     'server/misc.lua',
     'server/idcard.lua',
+    'server/harvest.lua',
 }
 
 client_scripts {
@@ -29,6 +30,7 @@ client_scripts {
     'client/effects.lua',
     'client/misc.lua',
     'client/idcard.lua',
+    'client/harvest.lua',
 }
 
 ui_page 'html/index.html'

@@ -12,7 +12,7 @@ const drivingState = { data: null, draft: null, saved: "", exam: "car", question
 const OTHERS_TILES = [
     { id: "logs", label: "Logs", icon: "i-list", go: "logs", show: () => can("logs.view") || can("logs.chat") },
     { id: "driving", label: "Auto-école", icon: "i-car", show: () => can("others.manage") },
-    { id: "harvest", label: "Récoltes", icon: "i-briefcase", soon: true, show: () => can("others.manage") },
+    { id: "harvest", label: "Récoltes", icon: "i-briefcase", show: () => can("others.manage") },
     { id: "elevators", label: "Ascenseurs", icon: "i-layers", soon: true, show: () => can("others.manage") },
     { id: "heal", label: "Heal Items (EMS)", icon: "i-heart", soon: true, show: () => can("others.manage") },
     { id: "mechanic", label: "Prix custom (mécano)", icon: "i-tool", soon: true, show: () => can("others.manage") },
@@ -23,6 +23,7 @@ const DRIVING_EXAMS = [["car", "Voiture"], ["bike", "Moto"], ["truck", "Camion"]
 
 function renderOthers() {
     const root = $("view-others");
+    if (othersState.page === "harvest") return renderHarvest(root);
     if (othersState.page === "driving") {
         if (drivingState.data && root.querySelector(".driving-page")) return;
         paintDriving();
@@ -46,6 +47,7 @@ function closeOthersPage() {
     guardUnsaved("others", () => {
         untrackUnsaved("others");
         drivingState.draft = null;
+        harvestState.draft = null;
         othersState.page = null;
         renderOthers();
     });

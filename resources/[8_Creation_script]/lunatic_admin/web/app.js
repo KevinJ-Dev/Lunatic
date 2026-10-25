@@ -1790,6 +1790,13 @@ async function demoNui(name, data) {
             cat(12, "Armes automatiques", []), cat(13, "Fusils à pompe", []), cat(14, "Armes lourdes", []), cat(15, "Armes blanches", []),
         ] };
     }
+    if (name === "action" && data && data.action === "harvest.list") return { ok: true,
+        jobs: [{ name: "unemployed", label: "Sans emploi" }, { name: "farmer", label: "Fermier" }],
+        points: [
+            { id: 1, kind: "harvest", label: "Vergers de Grapeseed", x: 2312.5, y: 4987.2, z: 42.6, radius: 4, active: true, blip: true, data: { item: "apple", min: 1, max: 3, duration: 5, limit: 120, tool: "", job: "" } },
+            { id: 2, kind: "harvest", label: "Champ de blé", x: 2001.2, y: 4845.8, z: 43.3, radius: 6, active: true, blip: true, data: { item: "wheat", min: 2, max: 4, duration: 6, limit: 0, tool: "sickle", job: "farmer" } },
+            { id: 3, kind: "process", label: "Pressoir", x: 1687.1, y: 4925.3, z: 42.1, radius: 2, active: false, blip: true, data: { inputs: [{ item: "apple", count: 4 }], item: "apple_juice", count: 1, duration: 8, job: "" } },
+        ] };
     if (name === "action" && data && data.action === "driving.info") {
         const exam = (label, license, price, model, speed, active, points) => ({ label, license, price, model, speed, active, spawn: points.length ? { x: 213.63, y: -1388.45, z: 30.58, h: 175.2 } : null, points });
         return { ok: true, types: ["car", "bike", "truck", "plane", "heli", "boat"],
