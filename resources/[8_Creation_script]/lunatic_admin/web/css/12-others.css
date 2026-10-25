@@ -83,3 +83,5 @@
 /* Autres > Création perso */
 .creator-spawn-head { display: flex; align-items: center; gap: 6px; }
 .creator-spawn-head b { flex: 1; }
+.creator-spawn-toggle { min-width: 220px; }
+.creator-spawn-toggle .perm { padding: 4px 10px; }

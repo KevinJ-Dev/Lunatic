@@ -54,12 +54,20 @@ end
 -- Application sur le personnage
 ---------------------------------------------------------------------
 
+local undressed = false -- bouton « Vêtements » : on retire la tenue pour voir le corps
+local armsUp = false    -- bouton « Bras levés » : vérifier les trous des vêtements
+
 local function applyClothes(ped)
     for component, drawable in pairs(Config.Undress[appearance.sex] or {}) do
         SetPedComponentVariation(ped, component, drawable, 0, 0)
     end
 
     ClearAllPedProps(ped)
+
+    if undressed then
+        return
+    end
+
     local clothes = appearance.clothes or {}
 
     for id, value in pairs(clothes.components or {}) do
@@ -285,12 +293,52 @@ local function branding()
     }
 end
 
-local function open()
+-- HUD des autres scripts (novyra_hud, esx_status) masqué pendant la création
+local function setHud(visible)
+    if GetResourceState('novyra_hud') == 'started' then
+        pcall(function() exports.novyra_hud:setVisible(visible) end)
+    end
+
+    TriggerEvent('esx_status:setDisplay', visible and 0.5 or 0.0)
+end
+
+-- Ferme tout ce qui pourrait garder la souris ou bloquer le joueur (inventaire, menus, panel staff, véhicule)
+local function closeEverything()
+    if GetResourceState('ox_inventory') == 'started' then
+        pcall(function() exports.ox_inventory:closeInventory() end)
+    end
+
+    pcall(lib.hideContext, false)
+    pcall(lib.hideMenu, false)
+    pcall(lib.closeInputDialog)
+    pcall(lib.closeAlertDialog)
+    pcall(lib.hideTextUI)
+    pcall(lib.cancelProgress)
+
+    if ESX.UI and ESX.UI.Menu and ESX.UI.Menu.CloseAll then
+        pcall(ESX.UI.Menu.CloseAll)
+    end
+
+    TriggerEvent('lunatic_admin:closePanel')
+
+    local ped = PlayerPedId()
+
+    if IsPedInAnyVehicle(ped, false) then
+        TaskLeaveVehicle(ped, GetVehiclePedIsIn(ped, false), 16)
+        Wait(300)
+    end
+
+    ClearPedTasksImmediately(ped)
+end
+
+local function openCreator()
     if active then
         return
     end
 
     active = true
+    undressed, armsUp = false, false
+    setHud(false)
 
     -- L'écran d'entrée de novyra_spawn se ferme tout seul quand la création démarre
     local timeout = GetGameTimer() + 3000
@@ -366,6 +414,19 @@ local function open()
     end)
 end
 
+local function open()
+    local ok, err = pcall(openCreator)
+
+    if not ok then
+        print(('^1[lunatic_creator] Ouverture impossible : %s^0'):format(tostring(err)))
+        active = false
+        SetNuiFocus(false, false)
+        stopCamera(false)
+        setHud(true)
+        DoScreenFadeIn(500)
+    end
+end
+
 -- Heure du serveur (lunatic_world) une fois la création terminée
 local function restoreClock()
     local clock = GlobalState.lunaticClock
@@ -403,18 +464,35 @@ local function arrive()
     end
 
     DisplayRadar(true)
+    setHud(true)
     active = false
     restoreClock()
 end
 
 -- Ouverte par le serveur (server/identity.lua) : première connexion sans identité ou « Recréer » du panel
-RegisterNetEvent('lunatic_creator:start', function()
-    -- Attend la fin de l'écran de chargement et que le personnage soit en vie
-    while GetIsLoadingScreenActive() or not ESX.PlayerLoaded or ESX.PlayerData.dead do
-        Wait(200)
+local spawned = ESX.PlayerLoaded == true -- resource relancée en jeu : le joueur est déjà apparu
+
+AddEventHandler('esx:onPlayerSpawn', function()
+    spawned = true
+end)
+
+RegisterNetEvent('lunatic_creator:start', function(countdown)
+    -- Attend qu'ESX ait fini de faire apparaître le joueur, la fin de l'écran de chargement et un personnage en vie
+    local timeout = GetGameTimer() + 60000
+
+    while (not spawned or not ESX.PlayerLoaded or GetIsLoadingScreenActive() or IsScreenFadedOut() or ESX.PlayerData.dead) and GetGameTimer() < timeout do
+        Wait(250)
     end
 
-    Wait(500)
+    Wait(1500)
+
+    -- Renvoyé par le staff (« Recréer ») : compte à rebours avant le départ
+    if countdown then
+        SendNUIMessage({ action = 'countdown', seconds = Config.ReturnCountdown })
+        Wait(Config.ReturnCountdown * 1000)
+    end
+
+    closeEverything()
     open()
 end)
 
@@ -457,6 +535,29 @@ end)
 -- Nombre de modèles / couleurs d'un vêtement
 RegisterNUICallback('clothesCounts', function(data, cb)
     cb(clothesCounts(data.kind == 'prop' and 'prop' or 'component', tonumber(data.id) or 0, tonumber(data.drawable) or 0))
+end)
+
+RegisterNUICallback('undress', function(data, cb)
+    cb({})
+    undressed = data.on == true
+
+    if active then
+        applyAll()
+    end
+end)
+
+RegisterNUICallback('armsUp', function(data, cb)
+    cb({})
+    armsUp = data.on == true
+    local ped = PlayerPedId()
+
+    if not armsUp then
+        ClearPedTasks(ped)
+        return
+    end
+
+    lib.requestAnimDict(Config.ArmsUp.dict)
+    TaskPlayAnim(ped, Config.ArmsUp.dict, Config.ArmsUp.anim, 8.0, -8.0, -1, 1, 0.0, false, false, false)
 end)
 
 -- Panneau de droite ouvert ou fermé : le personnage reste centré dans l'espace libre
@@ -544,14 +645,18 @@ RegisterNUICallback('finish', function(data, cb)
     TriggerServerEvent('illenium-appearance:server:saveAppearance', appearanceApi():getPedAppearance(PlayerPedId()))
     cb({ ok = true })
 
-    -- Photo d'identité : face à l'objectif, quelques secondes
+    -- Photo d'identité : vêtements remis, bras baissés, visage au centre de l'écran face à l'objectif
+    undressed, armsUp = false, false
+    applyAll()
+    ClearPedTasks(PlayerPedId())
     heading = anchor.w
     SetEntityHeading(PlayerPedId(), heading)
+    cameraShift = 0.0
     setCamera(1, false)
     SendNUIMessage({ action = 'mugshot', seconds = Config.MugshotSeconds })
-    Wait(1200)
+    Wait(Config.MugshotSeconds * 1000)
     lib.callback.await('lunatic_creator:mugshot', false)
-    Wait(math.max(0, Config.MugshotSeconds * 1000 - 1200))
+    Wait(800)
 
     SetNuiFocus(false, false)
     stopCamera(false)
@@ -691,6 +796,7 @@ end)
 
 AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() and active then
+        setHud(true)
         SetNuiFocus(false, false)
         stopCamera(false)
         FreezeEntityPosition(PlayerPedId(), false)

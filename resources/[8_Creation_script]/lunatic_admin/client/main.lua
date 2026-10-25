@@ -16,6 +16,9 @@ end
 
 -- Utilisé par client/players.lua (le panel se ferme pendant l'observation d'un joueur)
 ClosePanel = close
+
+-- Fermeture demandée par un autre script (ex. lunatic_creator avant la création de personnage)
+AddEventHandler('lunatic_admin:closePanel', close)
 IsPanelOpen = function()
     return isOpen
 end

@@ -444,13 +444,15 @@ function paintCreatorSettings() {
     if (!creatorState.data) return root.replaceChildren(h("div", { class: "content creator-page" }, othersHead("Création perso"), h("div", { class: "empty" }, icon("i-clock"), "Chargement…")));
     if (!creatorState.draft) {
         creatorState.draft = { key: "creator", ...JSON.parse(JSON.stringify(creatorState.data.settings)) };
-        creatorState.draft.spawns = creatorState.draft.spawns || [];
+        creatorState.draft.spawns = creatorState.draft.spawns && creatorState.draft.spawns.length
+            ? creatorState.draft.spawns
+            : JSON.parse(JSON.stringify(creatorState.data.defaults || []));
+        for (const spawn of creatorState.draft.spawns) if (spawn.enabled === undefined) spawn.enabled = true;
         creatorState.draft.clothesImages = creatorState.draft.clothesImages || { component: "", prop: "" };
         creatorState.saved = JSON.stringify(creatorState.draft);
         othersTrack("Création perso", creatorState, saveCreatorSettings, paintCreatorSettings);
     }
     const d = creatorState.draft;
-    const defaults = creatorState.data.defaults || [];
 
     const text = (spawn, key, placeholder, max) => {
         const input = h("input", { class: "input", placeholder, maxlength: String(max), value: spawn[key] || "" });
@@ -462,6 +464,7 @@ function paintCreatorSettings() {
         const image = text(spawn, "image", "https://… (facultatif)", 300);
         return h("div", { class: "card creator-spawn" },
             h("div", { class: "creator-spawn-head" }, h("b", null, `Lieu ${index + 1}`),
+                h("div", { class: "creator-spawn-toggle" }, draftToggle(spawn, "enabled", "Actif", "Proposé aux joueurs")),
                 h("button", { class: "btn small ghost sq-btn", title: "Monter", disabled: index === 0, onclick: () => { d.spawns.splice(index - 1, 0, d.spawns.splice(index, 1)[0]); paintCreatorSettings(); } }, "↑"),
                 h("button", { class: "btn small ghost sq-btn", title: "Descendre", disabled: index === d.spawns.length - 1, onclick: () => { d.spawns.splice(index + 1, 0, d.spawns.splice(index, 1)[0]); paintCreatorSettings(); } }, "↓"),
                 h("button", { class: "btn small danger", onclick: () => { d.spawns.splice(index, 1); paintCreatorSettings(); } }, icon("i-trash"), "Retirer")),
@@ -497,16 +500,13 @@ function paintCreatorSettings() {
                     h("button", { class: "btn small primary", onclick: () => creatorPhotos("male") }, icon("i-image"), "Photographier (homme)"),
                     h("button", { class: "btn small primary", onclick: () => creatorPhotos("female") }, icon("i-image"), "Photographier (femme)"))),
             h("div", { class: "card" }, h("div", { class: "crew-sub" }, "Lieux d'apparition"),
-                h("p", { class: "hint-line", style: "margin:0" }, d.spawns.length
-                    ? "Proposés à la fin de la création, regroupés par groupe, dans cet ordre. Placez-vous en jeu puis « Définir position »."
-                    : `Aucun lieu réglé ici : les ${defaults.length} lieux de la config de lunatic_creator sont proposés.`),
+                h("p", { class: "hint-line", style: "margin:0" }, "Les lieux actifs sont proposés à la fin de la création, regroupés par groupe, dans cet ordre. Placez-vous en jeu puis « Définir position »."),
                 h("div", { class: "btn-row" },
                     h("button", { class: "btn small primary", onclick: () => {
                         if (d.spawns.length >= 20) return toast("20 lieux au maximum.", "error");
-                        d.spawns.push({ group: d.spawns.length ? d.spawns[d.spawns.length - 1].group : "Los Santos", label: "", image: "" });
+                        d.spawns.push({ group: d.spawns.length ? d.spawns[d.spawns.length - 1].group : "Los Santos", label: "", image: "", enabled: true });
                         paintCreatorSettings();
-                    } }, icon("i-plus"), "Ajouter un lieu"),
-                    !d.spawns.length && defaults.length ? h("button", { class: "btn small ghost", onclick: () => { d.spawns = JSON.parse(JSON.stringify(defaults)); paintCreatorSettings(); } }, icon("i-copy"), "Reprendre ceux de la config") : null)),
+                    } }, icon("i-plus"), "Ajouter un lieu"))),
             d.spawns.map(spawnCard))));
 }
 

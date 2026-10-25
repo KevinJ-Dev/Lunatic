@@ -68,8 +68,14 @@ Config.Photos = {
     delay = 250,      -- attente (ms) entre l'application d'un style et le portrait
 }
 
+-- Compte à rebours (secondes) quand le staff renvoie un joueur à la création (« Recréer »)
+Config.ReturnCountdown = 5
+
+-- Animation du bouton « Bras levés » (vérifier les trous des vêtements)
+Config.ArmsUp = { dict = 'missminuteman_1ig_2', anim = 'handsup_base' }
+
 -- Temps laissé à la photo d'identité (mugshot) avant l'arrivée en ville
-Config.MugshotSeconds = 4
+Config.MugshotSeconds = 3
 
 -- Caméras (en haut à droite) : distance devant le personnage, hauteur visée, champ de vision
 Config.Cameras = {

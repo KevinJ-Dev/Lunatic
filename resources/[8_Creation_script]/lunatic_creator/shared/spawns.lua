@@ -11,11 +11,13 @@ function CreatorSpawns()
     local list = {}
 
     for _, spawn in ipairs(custom) do
-        list[#list + 1] = {
-            group = spawn.group, label = spawn.label, image = spawn.image,
-            coords = vector4(spawn.x + 0.0, spawn.y + 0.0, spawn.z + 0.0, (spawn.h or 0) + 0.0),
-        }
+        if spawn.enabled ~= false then
+            list[#list + 1] = {
+                group = spawn.group, label = spawn.label, image = spawn.image,
+                coords = vector4(spawn.x + 0.0, spawn.y + 0.0, spawn.z + 0.0, (spawn.h or 0) + 0.0),
+            }
+        end
     end
 
-    return list
+    return #list > 0 and list or Config.Spawns
 end

@@ -498,7 +498,19 @@ Panel.actions['creator.save'] = function(src, actor, data)
             return Panel.fail(('Lieu %d : image invalide (lien https:// ou nui://).'):format(index))
         end
 
-        spawns[#spawns + 1] = { label = label, group = group, x = point.x, y = point.y, z = point.z, h = point.h, image = image }
+        spawns[#spawns + 1] = { label = label, group = group, x = point.x, y = point.y, z = point.z, h = point.h, image = image, enabled = spawn.enabled ~= false }
+    end
+
+    local active = 0
+
+    for _, spawn in ipairs(spawns) do
+        if spawn.enabled then
+            active = active + 1
+        end
+    end
+
+    if #spawns > 0 and active == 0 then
+        return Panel.fail("Activez au moins un lieu d'apparition.")
     end
 
     local images = type(data.clothesImages) == 'table' and data.clothesImages or {}

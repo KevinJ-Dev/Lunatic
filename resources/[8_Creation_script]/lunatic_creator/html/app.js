@@ -76,6 +76,22 @@ let thumbs = {}; // miniatures disponibles : { male: { hair: Set }, ... } (thumb
 const identity = { lastname: "", firstname: "", day: 0, month: 0, year: 2000, nationality: "", height: 178 };
 let identityErrors = {}; // section -> message, rempli quand l'identité est refusée
 
+const asObject = (value) => {
+    if (!value || typeof value !== "object") return {};
+    if (!Array.isArray(value)) return value;
+    const out = {};
+    value.forEach((entry, index) => { if (entry !== null && entry !== undefined) out[String(index)] = entry; });
+    return out;
+};
+function normalizeAppearance(a) {
+    a.features = asObject(a.features);
+    a.overlays = asObject(a.overlays);
+    a.clothes = a.clothes && typeof a.clothes === "object" ? a.clothes : {};
+    a.clothes.components = asObject(a.clothes.components);
+    a.clothes.props = asObject(a.clothes.props);
+    return a;
+}
+
 let sendTimer = null;
 function pushAppearance() {
     clearTimeout(sendTimer);
@@ -105,7 +121,7 @@ function paint() {
     $("prev").style.visibility = stepIndex === 0 ? "hidden" : "visible";
     $("next").textContent = stepIndex === lastStep() ? "Terminer" : "Suivant";
 
-    $("cams").replaceChildren(...Array.from({ length: settings.cameras }, (_, i) => h("button", { class: `cam${camera === i + 1 ? " on" : ""}`, title: ["Visage", "Buste", "Corps"][i], onclick: () => setCamera(i + 1) }, String(i + 1))));
+    paintTools();
 }
 
 const lastStep = () => STEPS.length - 1;
@@ -150,6 +166,21 @@ function applyBranding(branding) {
     banner.classList.toggle("with-image", !!(branding && branding.banner));
     logo.classList.toggle("hidden", !(branding && branding.logo));
     if (branding && branding.logo) logo.src = branding.logo;
+}
+
+// Barre du bas : plans de caméra, tenue retirée, bras levés
+const CAMERAS = [["Visage", "face"], ["Buste", "shirt"], ["Corps", "body"]];
+const tools = { undressed: false, armsUp: false };
+
+function paintTools() {
+    const toggle = (key, label, icon, callback) => h("button", {
+        class: `tool${tools[key] ? " on" : ""}`, title: label, onclick: () => { tools[key] = !tools[key]; nui(callback, { on: tools[key] }); paintTools(); },
+    }, svg(ICONS[icon]), h("span", null, label));
+    $("cams").replaceChildren(
+        ...CAMERAS.slice(0, settings.cameras).map(([label, icon], i) => h("button", { class: `tool${camera === i + 1 ? " on" : ""}`, onclick: () => setCamera(i + 1) }, svg(ICONS[icon]), h("span", null, label))),
+        h("span", { class: "tool-sep" }),
+        toggle("undressed", "Sans vêtements", "shirt", "undress"),
+        toggle("armsUp", "Bras levés", "arms", "armsUp"));
 }
 
 let camera = 2;
@@ -295,7 +326,7 @@ async function chooseSex(sex) {
     if (appearance.sex === sex) return paint();
     const res = await nui("sex", { sex });
     if (res && res.appearance) {
-        appearance = res.appearance;
+        appearance = normalizeAppearance(res.appearance);
         options = res.options || options;
         starterOutfit = JSON.parse(JSON.stringify(appearance.clothes));
     }
@@ -379,6 +410,8 @@ const ICONS = {
     bag: "M5 8h14l-1 13H6zM9 8V6a3 3 0 0 1 6 0v2",
     earring: "M12 3v6M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
     watch: "M9 3h6l1 4M9 3 8 7M8 17l1 4h6l1-4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 10v2l1 1",
+    body: "M12 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 9h8l-1 6h-1l-1 7h-2l-1-7H9z",
+    arms: "M12 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM5 3l3 7h8l3-7M9 10l1 12M15 10l-1 12",
 };
 
 // Apparence : parents, yeux et traits du visage (index GTA des traits)
@@ -607,15 +640,18 @@ function clothesEditor(entry) {
     const value = clothesValue(entry.kind, entry.id);
     const isProp = entry.kind === "prop";
     const total = clothesCounts[countsKey(entry.kind, entry.id, 0)];
-    const worn = value[0] >= 0 ? clothesCounts[countsKey(entry.kind, entry.id, value[0])] : { textures: 0 };
 
-    // Comptes pas encore lus : chargement puis nouveau rendu
-    if (!total || !worn) {
-        Promise.all([loadCounts(entry.kind, entry.id, 0), value[0] >= 0 ? loadCounts(entry.kind, entry.id, value[0]) : null]).then(() => paint());
+    // Nombre de modèles pas encore lu : chargement puis nouveau rendu
+    if (!total) {
+        loadCounts(entry.kind, entry.id, 0).then(() => paint());
         return { content: [h("p", { class: "note" }, "Chargement des styles…")], randomize: () => {}, reset: () => {} };
     }
 
-    const textures = worn.textures || 0;
+    // Textures du modèle porté : lues en arrière-plan, la grille reste en place
+    const worn = value[0] >= 0 ? clothesCounts[countsKey(entry.kind, entry.id, value[0])] : { textures: 0 };
+    if (!worn) loadCounts(entry.kind, entry.id, value[0]).then(() => paint());
+
+    const textures = (worn && worn.textures) || 0;
     let texture = null;
     if (textures > 1) {
         const shown = h("b", null, `${value[1] + 1} / ${textures}`);
@@ -670,8 +706,28 @@ function mugshot(seconds) {
     const timer = setInterval(() => {
         n -= 1;
         left.textContent = n > 0 ? String(n) : "";
-        if (n === Math.floor(seconds / 2)) screen.classList.add("flashing");
-        if (n <= 0) clearInterval(timer);
+        if (n > 0) return;
+        clearInterval(timer);
+        screen.classList.add("flashing");
+        setTimeout(() => {
+            screen.remove();
+            $("creator").classList.add("hidden");
+        }, 650);
+    }, 1000);
+}
+
+// Renvoi à la création par le staff : compte à rebours avant le départ
+function countdown(seconds) {
+    const left = h("b", null, String(seconds));
+    const screen = h("div", { class: "countdown" }, h("span", null, "Retour à la création de personnage"), h("small", null, "Le staff vous renvoie à la création de votre personnage."), left);
+    document.body.append(screen);
+    let n = seconds;
+    const timer = setInterval(() => {
+        n -= 1;
+        left.textContent = String(Math.max(n, 0));
+        if (n > 0) return;
+        clearInterval(timer);
+        screen.remove();
     }, 1000);
 }
 
@@ -706,7 +762,9 @@ window.addEventListener("mousemove", (e) => {
 window.addEventListener("message", (event) => {
     const msg = event.data || {};
     if (msg.action === "open") {
-        appearance = msg.appearance;
+        appearance = normalizeAppearance(msg.appearance);
+        tools.undressed = false;
+        tools.armsUp = false;
         options = msg.options;
         settings = msg.config;
         Object.assign(identity, { lastname: "", firstname: "", day: 0, month: 0, year: new Date().getFullYear() - settings.age.min - 7, nationality: "", height: settings.height.default });
@@ -724,11 +782,12 @@ window.addEventListener("message", (event) => {
         loadThumbs();
         if (msg.draft) restoreDraft(msg.draft);
         identityErrors = {};
-        $("creator").classList.remove("hidden");
+        $("creator").classList.remove("hidden", "shooting");
         paint();
         stepCamera();
     }
-    if (msg.action === "mugshot") mugshot(msg.seconds || 4);
+    if (msg.action === "mugshot") mugshot(msg.seconds || 3);
+    if (msg.action === "countdown") countdown(msg.seconds || 5);
     if (msg.action === "thumbCapture" && typeof msg.url === "string") captureThumb(msg.url);
     if (msg.action === "close") {
         $("creator").classList.add("hidden");

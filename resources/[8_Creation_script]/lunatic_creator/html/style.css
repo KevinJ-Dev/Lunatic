@@ -88,9 +88,12 @@ input[type="range"]::-webkit-slider-thumb { appearance: none; width: 18px; heigh
 .stage { position: relative; flex: 1; cursor: grab; }
 .stage:active { cursor: grabbing; }
 .stage-foot { position: absolute; bottom: 22px; left: 50%; display: grid; justify-items: center; gap: 8px; transform: translateX(-50%); }
-.cams { display: flex; align-items: flex-end; gap: 6px; }
-.cam { width: 42px; height: 40px; border: 0; background: #1c1726; color: var(--muted); font-weight: 700; clip-path: polygon(50% 0, 100% 38%, 82% 100%, 18% 100%, 0 38%); }
-.cam.on { width: 50px; height: 48px; background: var(--accent-2); color: #fff; }
+.cams { display: flex; align-items: center; gap: 2px; padding: 4px; border: 1px solid var(--glass-line); border-radius: 999px; background: var(--panel); box-shadow: 0 20px 40px -20px #000c; }
+.tool { display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 13px; border: 0; border-radius: 999px; background: none; color: var(--muted); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.tool svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tool:hover { color: var(--ink); }
+.tool.on { background: var(--accent); color: #fff; box-shadow: 0 8px 20px -10px rgba(var(--accent-rgb), .9); }
+.tool-sep { width: 1px; height: 20px; margin: 0 4px; background: var(--line); }
 .hint { border: 1px solid var(--glass-line); padding: 6px 12px; border-radius: 20px; background: #0008; color: #ffffffb0; font-size: 12px; pointer-events: none; }
 
 .toast { position: fixed; bottom: 30px; left: 450px; padding: 10px 16px; border: 1px solid var(--glass-line); border-left: 3px solid #f2c26b; border-radius: 10px; background: var(--panel); opacity: 0; transition: opacity .2s; pointer-events: none; }
@@ -103,9 +106,9 @@ input[type="range"]::-webkit-slider-thumb { appearance: none; width: 18px; heigh
 .spawn-card.on { outline: 2px solid var(--accent-2); color: #fff; font-weight: 700; box-shadow: inset 0 0 0 999px rgba(var(--accent-rgb), .35); }
 
 /* Photo d'identité */
-.creator.shooting .panel, .creator.shooting .cams, .creator.shooting .hint { display: none; }
+.creator.shooting .panel, .creator.shooting .side, .creator.shooting .steps, .creator.shooting .stage-foot { display: none; }
 .mugshot { position: fixed; inset: 0; pointer-events: none; }
-.mugshot-frame { position: absolute; top: 12%; left: 50%; width: 30vh; height: 40vh; transform: translateX(-50%); border: 2px solid #ffffffb0; border-radius: 12px; box-shadow: 0 0 0 9999px #00000070; }
+.mugshot-frame { position: absolute; top: 47%; left: 50%; width: 36vh; height: 48vh; transform: translate(-50%, -50%); border: 2px solid #ffffffb0; border-radius: 12px; box-shadow: 0 0 0 9999px #00000070; }
 .mugshot-text { position: absolute; bottom: 12%; left: 50%; display: grid; justify-items: center; gap: 4px; transform: translateX(-50%); text-shadow: 0 2px 8px #000; }
 .mugshot-text span { font-size: 22px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .mugshot-text small { color: #ffffffc0; font-size: 14px; }
@@ -196,3 +199,9 @@ button.spin-label:hover { color: var(--accent-2); }
 .style-cell:hover .style-dot { box-shadow: inset 0 0 0 1px #ffffff40; }
 .style-cell.on { color: var(--accent-2); font-weight: 600; }
 .style-cell.on .style-dot { background: radial-gradient(70% 70% at 50% 35%, rgba(var(--accent-rgb), .7), rgba(var(--accent-rgb), .25)); box-shadow: 0 0 0 2px var(--accent-2), 0 10px 26px -10px rgba(var(--accent-rgb), .9); color: #fff; }
+
+/* Renvoi à la création par le staff */
+.countdown { position: fixed; top: 50%; left: 50%; display: grid; justify-items: center; gap: 6px; padding: 24px 34px; transform: translate(-50%, -50%); border: 1px solid var(--glass-line); border-radius: 18px; background: var(--panel); box-shadow: 0 30px 60px -20px #000; text-align: center; }
+.countdown span { font-size: 18px; font-weight: 700; }
+.countdown small { color: var(--muted); font-size: 13px; }
+.countdown b { margin-top: 6px; color: var(--accent-2); font-size: 44px; }

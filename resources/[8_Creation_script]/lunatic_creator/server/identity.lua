@@ -126,11 +126,11 @@ local function needsIdentity(identifier)
 end
 
 -- Ouvre la création de personnage au joueur
-local function start(playerId)
+local function start(playerId, countdown)
     Identity.pending[playerId] = true
     -- Lu par lunatic_admin (pas de photo automatique) et novyra_spawn (pas d'écran d'entrée)
     Player(playerId).state:set('lunaticCreating', true, true)
-    TriggerClientEvent('lunatic_creator:start', playerId)
+    TriggerClientEvent('lunatic_creator:start', playerId, countdown == true)
 end
 
 local function checkPlayer(playerId, xPlayer)
@@ -311,7 +311,7 @@ exports('resetIdentity', function(playerId)
 
     setPlayerData(xPlayer, nil)
     deleteDraft(xPlayer.getIdentifier())
-    start(playerId)
+    start(playerId, true)
     return true
 end)
 
@@ -320,7 +320,7 @@ exports('getDefaultSpawns', function()
     local list = {}
 
     for _, spawn in ipairs(Config.Spawns) do
-        list[#list + 1] = { group = spawn.group, label = spawn.label, image = spawn.image or '', x = spawn.coords.x, y = spawn.coords.y, z = spawn.coords.z, h = spawn.coords.w }
+        list[#list + 1] = { group = spawn.group, label = spawn.label, image = spawn.image or '', enabled = true, x = spawn.coords.x, y = spawn.coords.y, z = spawn.coords.z, h = spawn.coords.w }
     end
 
     return list
