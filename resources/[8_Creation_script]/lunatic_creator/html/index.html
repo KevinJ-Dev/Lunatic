@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <title>Lunatic - Création de personnage</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="creator hidden" id="creator">
+        <aside class="panel">
+            <header class="banner">
+                <span class="banner-title">Nouveau Personnage</span>
+                <span class="banner-art"></span>
+            </header>
+            <nav class="steps" id="steps"></nav>
+            <main class="step" id="step"></main>
+            <footer class="foot">
+                <button class="btn ghost" id="prev">Précédent</button>
+                <button class="btn go" id="next">Suivant</button>
+            </footer>
+        </aside>
+        <div class="stage" id="stage">
+            <div class="cams" id="cams"></div>
+            <div class="hint">Maintenez le clic et glissez pour tourner le personnage</div>
+        </div>
+        <div class="toast" id="toast"></div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

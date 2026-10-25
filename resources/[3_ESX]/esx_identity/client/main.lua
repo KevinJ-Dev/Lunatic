@@ -73,6 +73,20 @@ RegisterNetEvent("esx_identity:showRegisterIdentity", function()
             loadingScreenFinished = true
         end
 
+        -- Ajout Lunatic : la création de personnage maison (lunatic_creator) remplace cet écran quand elle est lancée ;
+        -- l'identité y est validée par le même callback (export registerIdentity ci-dessous)
+        if GetResourceState("lunatic_creator") == "started" then
+            while not loadingScreenFinished do
+                Wait(100)
+            end
+
+            if not ESX.PlayerData.dead then
+                TriggerEvent("lunatic_creator:open")
+            end
+
+            return
+        end
+
         -- Ajout Lunatic : relance l'interface toutes les 2 s tant qu'elle n'a pas signalé être prête,
         -- et n'écrit le message d'attente qu'une fois (il remplissait la console en boucle)
         local waited = 0
@@ -118,4 +132,17 @@ xLib.nui.register("register", function(data, reply)
             end
         end)
         return xLib.nui.defer
+end)
+
+-- Ajout Lunatic : enregistrement de l'identité depuis la création de personnage (lunatic_creator), avec les mêmes
+-- vérifications serveur que l'écran d'origine ; true si l'identité est acceptée
+exports("registerIdentity", function(data)
+    local ok, result = pcall(xLib.callback.await, "esx_identity:registerIdentity", false, data)
+
+    if ok and result then
+        ESX.ShowNotification(TranslateCap("thank_you_for_registering"))
+        return true
+    end
+
+    return false
 end)
