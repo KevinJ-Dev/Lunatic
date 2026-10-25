@@ -1,7 +1,7 @@
--- Création de personnage, côté serveur : instance privée pendant la création, nationalité du personnage.
--- L'identité est enregistrée par esx_identity (mêmes vérifications qu'avant), l'apparence par illenium-appearance.
+-- Création de personnage, côté serveur : table de la nationalité, instance privée pendant la création, photo d'identité.
+-- L'identité est gérée par server/identity.lua (chargé avant ce fichier), l'apparence par illenium-appearance.
 
-local creating = {}
+local creating = Identity.creating
 
 MySQL.ready(function()
     MySQL.query.await([[
@@ -21,9 +21,14 @@ MySQL.ready(function()
     end
 end)
 
--- Instance privée : personne ne voit le personnage pendant sa création
+-- Instance privée : personne ne voit le personnage pendant sa création (seulement si le serveur l'a ouverte)
 RegisterNetEvent('lunatic_creator:enter', function()
     local src = source
+
+    if not Identity.pending[src] then
+        return
+    end
+
     creating[src] = true
     SetPlayerRoutingBucket(src, 5000 + src)
     -- Lu par lunatic_admin : pas de photo automatique pendant la création
@@ -52,29 +57,4 @@ end)
 
 AddEventHandler('playerDropped', function()
     creating[source] = nil
-end)
-
-local nationalities = {}
-for _, name in ipairs(Config.Nationalities) do
-    nationalities[name] = true
-end
-
--- Nationalité (esx_identity ne la garde pas) : uniquement une valeur de la liste
-lib.callback.register('lunatic_creator:saveInfo', function(src, data)
-    local xPlayer = ESX.GetPlayerFromId(src)
-    local nationality = type(data) == 'table' and data.nationality
-
-    if not xPlayer or not creating[src] or type(nationality) ~= 'string' or not nationalities[nationality] then
-        return false
-    end
-
-    MySQL.query.await('INSERT INTO `lunatic_character_info` (`identifier`, `nationality`, `created_at`) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `nationality` = VALUES(`nationality`)', {
-        xPlayer.getIdentifier(), nationality, os.time(),
-    })
-
-    return true
-end)
-
-exports('getNationality', function(identifier)
-    return MySQL.scalar.await('SELECT `nationality` FROM `lunatic_character_info` WHERE `identifier` = ?', { identifier })
 end)

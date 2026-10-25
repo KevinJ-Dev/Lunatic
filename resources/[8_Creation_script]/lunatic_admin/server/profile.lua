@@ -205,8 +205,8 @@ Panel.actions['player.wipe'] = function(src, actor, data)
         return Panel.fail(('La raison doit faire au moins %d caractères.'):format(Config.SanctionReasonMin))
     end
 
-    if GetResourceState('esx_identity') ~= 'started' then
-        return Panel.fail("esx_identity n'est pas démarré.")
+    if GetResourceState('lunatic_creator') ~= 'started' then
+        return Panel.fail("lunatic_creator n'est pas démarré.")
     end
 
     local identifier = xPlayer.getIdentifier()
@@ -250,7 +250,7 @@ Panel.actions['player.wipe'] = function(src, actor, data)
 
     -- Identité et apparence effacées, retour à la création de personnage
     local ok, done = pcall(function()
-        return exports.esx_identity:resetIdentity(target)
+        return exports.lunatic_creator:resetIdentity(target)
     end)
 
     Logs.add(src, 'player.wipe', name, { serverId = target, reason = reason, before = snapshot })

@@ -58,10 +58,13 @@ Config.RandomNames = {
     last = { 'Smith', 'Johnson', 'Williams', 'Brown', 'Garcia', 'Martinez', 'Rodriguez', 'Lopez', 'Miller', 'Davis', 'Wilson', 'Moore', 'Taylor', 'Anderson', 'Thomas', 'Jackson', 'White', 'Harris', 'Martin', 'Dubois', 'Moreau', 'Laurent', 'Rossi', 'Novak', 'Walker', 'Young', 'King', 'Wright', 'Scott', 'Green' },
 }
 
--- Taille du personnage (cm) ; doit rester dans les bornes d'esx_identity (Config.MinHeight / MaxHeight)
+-- Prénom et nom : nombre de caractères accepté
+Config.NameLength = { min = 2, max = 19 }
+
+-- Taille du personnage (cm)
 Config.Height = { min = 150, max = 210, default = 178 }
 
--- Âge accepté (esx_identity revérifie avec ses propres bornes)
+-- Âge accepté (revérifié par le serveur)
 Config.Age = { min = 18, max = 90 }
 
 -- Tenue pendant la création, avant le choix des vêtements (composants GTA : 3 bras, 4 bas, 6 chaussures, 8 sous-haut, 11 haut)

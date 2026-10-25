@@ -162,7 +162,7 @@ const pad = (n) => String(n).padStart(2, "0");
 const daysIn = (year, month) => new Date(year, month + 1, 0).getDate();
 const dateOfBirth = () => `${pad(identity.day)}/${pad(identity.month + 1)}/${identity.year}`;
 
-// Âge exact à aujourd'hui (même calcul que le serveur d'esx_identity)
+// Âge exact à aujourd'hui (même calcul que le serveur)
 function ageAt(year, month, day) {
     const now = new Date();
     let age = now.getFullYear() - year;

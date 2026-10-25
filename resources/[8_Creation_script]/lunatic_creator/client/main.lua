@@ -1,7 +1,7 @@
 -- Création de personnage, côté client : pièce privée, caméras, aperçu en direct (héritage, pilosité, yeux,
 -- maquillage, détails, traits du visage, vêtements), aperçu du lieu d'apparition, puis enregistrement
--- (identité par esx_identity, apparence par illenium-appearance), photo d'identité et arrivée avec l'animation GTA.
--- Ouverte par esx_identity (« lunatic_creator:open ») à la première connexion ou après « Recréer » dans le panel.
+-- (identité par server/identity.lua, apparence par illenium-appearance), photo d'identité et arrivée avec l'animation GTA.
+-- Ouverte par le serveur (« lunatic_creator:start ») à la première connexion ou après « Recréer » dans le panel.
 
 local active = false
 local cam = nil
@@ -326,7 +326,25 @@ local function arrive()
     active = false
 end
 
-AddEventHandler('lunatic_creator:open', open)
+-- Ouverte par le serveur (server/identity.lua) : première connexion sans identité ou « Recréer » du panel
+RegisterNetEvent('lunatic_creator:start', function()
+    -- Attend la fin de l'écran de chargement et que le personnage soit en vie
+    while GetIsLoadingScreenActive() or not ESX.PlayerLoaded or ESX.PlayerData.dead do
+        Wait(200)
+    end
+
+    Wait(500)
+    open()
+end)
+
+-- Identité enregistrée (ou effacée) par le serveur : données ESX du client à jour
+RegisterNetEvent('lunatic_creator:setPlayerData', function(identity, name)
+    ESX.SetPlayerData('name', name)
+
+    for _, key in ipairs({ 'firstName', 'lastName', 'dateofbirth', 'sex', 'height' }) do
+        ESX.SetPlayerData(key, identity and identity[key] or nil)
+    end
+end)
 
 ---------------------------------------------------------------------
 -- Interface
@@ -396,7 +414,7 @@ RegisterNUICallback('spawn', function(data, cb)
     fade(false)
 end)
 
--- Fin de la création : nationalité, identité (esx_identity), apparence (illenium-appearance), photo, arrivée
+-- Fin de la création : identité et nationalité, apparence (illenium-appearance), photo, arrivée
 RegisterNUICallback('finish', function(data, cb)
     local identity = type(data) == 'table' and data.identity
 
@@ -408,18 +426,14 @@ RegisterNUICallback('finish', function(data, cb)
         return cb({ ok = false, error = "Choisissez un lieu d'apparition." })
     end
 
-    -- Nationalité d'abord : le serveur la vérifie avant que l'identité ne soit enregistrée
-    if not lib.callback.await('lunatic_creator:saveInfo', false, { nationality = identity.nationality }) then
-        return cb({ ok = false, error = 'Nationalité refusée : choisissez-en une dans la liste.' })
-    end
-
-    local ok = exports.esx_identity:registerIdentity({
+    -- Le serveur revérifie tout (nom, date, taille, genre, nationalité) avant d'enregistrer
+    local result = lib.callback.await('lunatic_creator:registerIdentity', false, {
         firstname = identity.firstname, lastname = identity.lastname, dateofbirth = identity.dateofbirth,
-        sex = appearance.sex == 'female' and 'f' or 'm', height = tonumber(identity.height),
+        sex = appearance.sex == 'female' and 'f' or 'm', height = tonumber(identity.height), nationality = identity.nationality,
     })
 
-    if not ok then
-        return cb({ ok = false, error = "Identité refusée : vérifiez le nom, le prénom et la date de naissance." })
+    if type(result) ~= 'table' or not result.ok then
+        return cb({ ok = false, error = type(result) == 'table' and result.error or 'Identité refusée.' })
     end
 
     TriggerServerEvent('illenium-appearance:server:saveAppearance', appearanceApi():getPedAppearance(PlayerPedId()))

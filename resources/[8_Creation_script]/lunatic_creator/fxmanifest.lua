@@ -4,8 +4,8 @@ lua54 'yes'
 
 name 'lunatic_creator'
 author 'Lunatic RP'
-description "Création de personnage : identité, héritage, apparence, visage (puis vêtements, lieu d'apparition, mugshot)"
-version '0.1.0'
+description "Création de personnage : identité (remplace esx_identity), héritage, apparence, visage, vêtements, lieu d'apparition, mugshot"
+version '0.2.0'
 
 dependencies {
     'es_extended',
@@ -22,6 +22,7 @@ shared_scripts {
 
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
+    'server/identity.lua',
     'server/main.lua',
 }
 

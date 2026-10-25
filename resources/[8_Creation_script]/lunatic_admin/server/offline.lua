@@ -303,7 +303,7 @@ Panel.actions['offline.license'] = function(src, actor, data)
     return { ok = true, silent = true }
 end
 
--- Efface l'identité et l'apparence : esx_identity affichera la création de personnage à la prochaine connexion
+-- Efface l'identité et l'apparence : lunatic_creator ouvrira la création de personnage à la prochaine connexion
 Panel.actions['offline.recreate'] = function(src, actor, data)
     local identifier, row, err = offlineTarget(actor, data, 'players.recreate')
 

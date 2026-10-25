@@ -124,7 +124,7 @@ Chaque opération est enregistrée dans `lunatic_admin_logs` avec l'ancienne et 
 | Apparence (menu complet illenium-appearance, gratuit, comme `/pedmenu`) | Fiche, Personnage | `players.appearance` |
 | Recréer (identité + apparence effacées, retour à la création ; argent, inventaire et métier conservés) | Fiche, Personnage | `players.recreate` |
 
-« Recréer » utilise l'export `resetIdentity` ajouté à **esx_identity** (modification locale à reporter lors des mises à jour d'ESX).
+« Recréer » et le wipe utilisent l'export `resetIdentity` de **lunatic_creator** (esx_identity a été retiré : lunatic_creator gère toute l'identité).
 
 ## Prison staff (lot C)
 

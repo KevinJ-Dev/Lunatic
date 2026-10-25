@@ -420,7 +420,7 @@ Panel.actions['player.appearance'] = function(src, actor, data)
     return { ok = true, silent = true }
 end
 
--- Renvoie le joueur à la création de personnage (identité puis apparence), via l'export ajouté à esx_identity
+-- Renvoie le joueur à la création de personnage (identité puis apparence), via l'export de lunatic_creator
 Panel.actions['player.recreate'] = function(src, actor, data)
     local target, err = check(src, actor, data, 'players.recreate', { protect = true })
 
@@ -434,18 +434,18 @@ Panel.actions['player.recreate'] = function(src, actor, data)
         return Panel.fail(('La raison doit faire entre %d et %d caractères.'):format(Config.KickReasonMin, Config.KickReasonMax))
     end
 
-    if GetResourceState('esx_identity') ~= 'started' then
-        return Panel.fail("esx_identity n'est pas démarré.")
+    if GetResourceState('lunatic_creator') ~= 'started' then
+        return Panel.fail("lunatic_creator n'est pas démarré.")
     end
 
     local name = Staff.displayName(target)
     local ok, done = pcall(function()
-        return exports.esx_identity:resetIdentity(target)
+        return exports.lunatic_creator:resetIdentity(target)
     end)
 
     if not ok or not done then
         print(('[lunatic_admin] resetIdentity a échoué : %s'):format(tostring(done)))
-        return Panel.fail("La remise à zéro a échoué (esx_identity est-il à jour ? voir la console).")
+        return Panel.fail("La remise à zéro a échoué (voir la console).")
     end
 
     Logs.add(src, 'player.recreate', name, { serverId = target, reason = reason })

@@ -256,7 +256,8 @@ RegisterNetEvent('esx:playerLoaded', function(xPlayer, isNew)
     State.loaded = false
 
     -- Nouveau personnage : on laisse la création de personnage se faire
-    if isNew then
+    -- (lunaticCreating : posé par lunatic_creator quand l'identité est à créer, ex. après « Recréer »)
+    if isNew or LocalPlayer.state.lunaticCreating then
         State.loaded = true
         return
     end
@@ -268,6 +269,12 @@ RegisterNetEvent('esx:playerLoaded', function(xPlayer, isNew)
             Wait(100)
         end
         Wait(Config.OpenDelay or 1000)
+
+        -- Le serveur peut avoir ouvert la création de personnage entre-temps
+        if LocalPlayer.state.lunaticCreating then
+            State.loaded = true
+            return
+        end
 
         ESX.TriggerServerCallback('novyra_spawn:getInfo', function(info)
             open(info or {})
