@@ -140,7 +140,7 @@ Panel.actions['server.restart'] = function(src, actor, data)
     end
 
     if restart then
-        return Panel.fail('Un redémarrage est déjà programmé : annulez-le d\'abord.')
+        return Panel.fail("Un redémarrage est déjà programmé : annulez-le d'abord.")
     end
 
     local minutes = tonumber(data.minutes)

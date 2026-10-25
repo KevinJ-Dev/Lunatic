@@ -128,7 +128,7 @@ CreateThread(function()
                 event.reminded = true
                 MySQL.update('UPDATE `lunatic_admin_events` SET `reminded` = 1 WHERE `id` = ?', { id })
                 announce(('Rappel : « %s » commence dans %d minutes (%s)%s.%s'):format(event.title, math.max(1, math.floor((event.startsAt - t) / 60 + 0.5)),
-                    dateToken(event.startsAt), where(event), event.coords and ' Un point est ajouté sur votre carte (/eventgps pour l\'itinéraire).' or ''))
+                    dateToken(event.startsAt), where(event), event.coords and " Un point est ajouté sur votre carte (/eventgps pour l'itinéraire)." or ''))
             end
 
             if event.status == 'scheduled' and t >= event.startsAt then
@@ -310,8 +310,8 @@ Panel.actions['events.cancel'] = function(src, actor, data)
 
     if data.announce ~= false then
         announce(event.status == 'started'
-            and ('L\'event « %s » est terminé. Merci à tous !'):format(event.title)
-            or ('L\'event « %s » prévu le %s est annulé.'):format(event.title, dateToken(event.startsAt)))
+            and ("L'event « %s » est terminé. Merci à tous !"):format(event.title)
+            or ("L'event « %s » prévu le %s est annulé."):format(event.title, dateToken(event.startsAt)))
     end
 
     Logs.add(src, event.status == 'started' and 'events.finish' or 'events.cancel', nil, { id = id, title = event.title, startsAt = event.startsAt })

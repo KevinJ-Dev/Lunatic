@@ -4,7 +4,7 @@ lua54 'yes'
 
 name 'lunatic_illegal'
 author 'Lunatic RP'
-description 'Illégal : crews, recelleur, drogues, territoires, craft d\'armes, tablette et marché noir'
+description "Illégal : crews, recelleur, drogues, territoires, craft d'armes, tablette et marché noir"
 version '0.12.0'
 
 shared_scripts {

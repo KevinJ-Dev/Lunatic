@@ -113,7 +113,7 @@ local cleanText = Util.cleanText
 
 -- Adresse http(s) d'une image, 500 caractères maximum
 local function cleanUrl(value)
-    if type(value) ~= 'string' or #value > 500 or not value:match('^https?://[%w%-%._~:/%?#%[%]@!%$&\'%(%)%*%+,;=%%]+$') then
+    if type(value) ~= 'string' or #value > 500 or not value:match("^https?://[%w%-%._~:/%?#%[%]@!%$&'%(%)%*%+,;=%%]+$") then
         return nil
     end
 

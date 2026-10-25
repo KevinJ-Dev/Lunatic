@@ -127,7 +127,7 @@ Panel.actions['economy.money'] = function(src, actor, data)
         xPlayer.addAccountMoney(data.account, amount, logReason)
     elseif operation == 'remove' then
         if amount > before then
-            return Panel.fail(('Le joueur n\'a que %s en %s.'):format(formatMoney(before), account.label))
+            return Panel.fail(("Le joueur n'a que %s en %s."):format(formatMoney(before), account.label))
         end
 
         xPlayer.removeAccountMoney(data.account, amount, logReason)
@@ -321,7 +321,7 @@ Panel.actions['economy.giveItem'] = function(src, actor, data)
     local success, response = ox:AddItem(target, item, count)
 
     if not success then
-        return Panel.fail(('Impossible de donner l\'objet (%s).'):format(tostring(response)))
+        return Panel.fail(("Impossible de donner l'objet (%s)."):format(tostring(response)))
     end
 
     Logs.add(src, 'economy.giveItem', Staff.displayName(target), { serverId = target, item = item, count = count })

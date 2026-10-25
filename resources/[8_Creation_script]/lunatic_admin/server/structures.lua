@@ -126,7 +126,7 @@ local function cleanUrl(value)
         return ''
     end
 
-    if type(value) ~= 'string' or #value > 255 or not value:match('^https?://[%w%-%._~:/%?#%[%]@!%$&\'%(%)%*%+,;=%%]+$') then
+    if type(value) ~= 'string' or #value > 255 or not value:match("^https?://[%w%-%._~:/%?#%[%]@!%$&'%(%)%*%+,;=%%]+$") then
         return nil
     end
 

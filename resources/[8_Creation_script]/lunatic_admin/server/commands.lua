@@ -128,7 +128,7 @@ Panel.actions['vehicle.give'] = function(src, actor, data)
     end
 
     if not info.ok then
-        return Panel.fail(('Le modèle « %s » n\'existe pas.'):format(model))
+        return Panel.fail(("Le modèle « %s » n'existe pas."):format(model))
     end
 
     local plate = newPlate()

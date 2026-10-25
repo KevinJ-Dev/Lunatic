@@ -127,7 +127,7 @@ lib.callback.register('lunatic_illegal:invite', function(src, targetId)
     end
 
     if admin:getCrewOf(target.identifier) then
-        return fail('Ce joueur fait déjà partie d\'un crew.')
+        return fail("Ce joueur fait déjà partie d'un crew.")
     end
 
     invites[target.source] = { crew = view.id, from = xPlayer.getName(), expires = os.time() + Config.InviteTimeout }

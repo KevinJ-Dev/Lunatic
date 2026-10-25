@@ -731,7 +731,7 @@ Panel.actions['crews.xp'] = function(src, actor, data)
     local amount = tonumber(data.amount)
 
     if not amount or amount ~= math.floor(amount) or amount == 0 or math.abs(amount) > 1000000 then
-        return Panel.fail('Montant d\'XP invalide (entier non nul).')
+        return Panel.fail("Montant d'XP invalide (entier non nul).")
     end
 
     Crews.addXp(crew.id, amount)

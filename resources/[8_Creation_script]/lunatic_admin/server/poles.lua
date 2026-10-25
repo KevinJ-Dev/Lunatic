@@ -366,7 +366,7 @@ Panel.actions['poles.delete'] = function(src, actor, data)
     local members = countMembers(job.name)
 
     if members > 0 then
-        return Panel.fail(('Ce métier a encore %d membre(s) : renvoyez-les d\'abord.'):format(members))
+        return Panel.fail(("Ce métier a encore %d membre(s) : renvoyez-les d'abord."):format(members))
     end
 
     MySQL.transaction.await({

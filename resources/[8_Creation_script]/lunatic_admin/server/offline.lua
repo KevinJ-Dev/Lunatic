@@ -231,7 +231,7 @@ Panel.actions['offline.money'] = function(src, actor, data)
         after = before + amount
     elseif operation == 'remove' then
         if amount > before then
-            return Panel.fail(('Le joueur n\'a que %s en %s.'):format(formatMoney(before), account.label))
+            return Panel.fail(("Le joueur n'a que %s en %s."):format(formatMoney(before), account.label))
         end
 
         after = before - amount

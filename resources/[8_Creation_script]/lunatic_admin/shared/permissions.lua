@@ -48,7 +48,7 @@ Permissions.List = {
     { id = 'poles.manage', family = 'server', label = 'Pôle emploi : métiers, grades, salaires et membres' },
 
     -- Illégal
-    { id = 'illegal.manage', family = 'illegal', label = 'Illégal : recelleur, puis drogues, territoires, craft d\'armes, tablette, missions' },
+    { id = 'illegal.manage', family = 'illegal', label = "Illégal : recelleur, puis drogues, territoires, craft d'armes, tablette, missions" },
     { id = 'crews.manage', family = 'illegal', label = 'Crews : créer et gérer les crews (type, rangs, membres, XP)' },
 
     -- Lot E1 : entreprises et services publics
@@ -77,7 +77,7 @@ Permissions.List = {
     { id = 'economy.job',         family = 'economy', label = 'Changer le métier et le grade' },
     { id = 'economy.items',       family = 'economy', label = "Voir l'inventaire, donner et retirer des objets" },
     { id = 'economy.clear',       family = 'economy', label = "Vider l'inventaire d'un joueur" },
-    { id = 'vehicles.give',       family = 'economy', label = 'Give un véhicule : ajouter un véhicule au garage d\'un joueur (/givecar)' },
+    { id = 'vehicles.give',       family = 'economy', label = "Give un véhicule : ajouter un véhicule au garage d'un joueur (/givecar)" },
 
     -- Lot 4 : outils staff
     { id = 'tools.noclip',    family = 'tools', label = 'Noclip (vol libre, invisible et invincible)' },
@@ -98,7 +98,7 @@ Permissions.List = {
     { id = 'sanctions.revoke',        family = 'sanctions', label = 'Révoquer une sanction (rang inférieur ou soi-même)' },
 
     { id = 'contextmenu.use', family = 'manage', label = "Menu contextuel : options Staff d'ox_target sur les joueurs et véhicules (Alt)" },
-    { id = 'contextmenu.dev', family = 'manage', label = 'Menu contextuel dev : copier coordonnées et modèle, geler, supprimer, infos d\'une entité' },
+    { id = 'contextmenu.dev', family = 'manage', label = "Menu contextuel dev : copier coordonnées et modèle, geler, supprimer, infos d'une entité" },
     { id = 'panel.open',   family = 'manage', label = 'Ouvrir le panel staff' },
     { id = 'ranks.view',   family = 'manage', label = 'Voir les rangs et leurs permissions' },
     { id = 'ranks.manage', family = 'manage', label = 'Créer, modifier et supprimer les rangs inférieurs' },

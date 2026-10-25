@@ -110,7 +110,7 @@ function Panel.checkPed(src, model)
     end
 
     if not valid then
-        return nil, Panel.fail(('Le modèle de PNJ « %s » n\'existe pas.'):format(model))
+        return nil, Panel.fail(("Le modèle de PNJ « %s » n'existe pas."):format(model))
     end
 
     return model

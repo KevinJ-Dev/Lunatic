@@ -34,7 +34,7 @@ local function createPed(location)
     local model = joaat(location.ped)
 
     if not IsModelInCdimage(model) or not IsModelAPed(model) then
-        print(('[lunatic_illegal] Recelleur %d : le modèle « %s » n\'existe pas.'):format(location.id, location.ped))
+        print(("[lunatic_illegal] Recelleur %d : le modèle « %s » n'existe pas."):format(location.id, location.ped))
         return
     end
 
@@ -148,7 +148,7 @@ local function openFence(location)
     for _, offer in ipairs(data.offers) do
         options[#options + 1] = {
             title = ('%s × %d'):format(offer.label, offer.count),
-            description = ('%s l\'unité · %s'):format(money(offer.price), offer.category),
+            description = ("%s l'unité · %s"):format(money(offer.price), offer.category),
             image = ('nui://ox_inventory/web/images/%s.png'):format(offer.item),
             icon = 'sack-dollar',
             onSelect = function()

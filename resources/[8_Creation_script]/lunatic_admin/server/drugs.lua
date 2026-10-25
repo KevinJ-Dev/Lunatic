@@ -109,7 +109,7 @@ local function seedOnce()
     local created, missing = seedMissing()
 
     if #missing > 0 then
-        print(('[lunatic_admin] Drogues de départ : objets absents d\'ox_inventory (%s). Envoyez ox_inventory/data/items.lua et redémarrez le serveur.'):format(table.concat(missing, ', ')))
+        print(("[lunatic_admin] Drogues de départ : objets absents d'ox_inventory (%s). Envoyez ox_inventory/data/items.lua et redémarrez le serveur."):format(table.concat(missing, ', ')))
     else
         SetResourceKvp('drugs_seeded', '1')
     end

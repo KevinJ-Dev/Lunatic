@@ -680,7 +680,7 @@ Panel.actions['shops.addVehicle'] = function(src, actor, data)
     end
 
     if not info.ok or not VEHICLE_TYPES[info.type] then
-        return Panel.fail(('Le modèle « %s » n\'existe pas.'):format(model))
+        return Panel.fail(("Le modèle « %s » n'existe pas."):format(model))
     end
 
     MySQL.insert.await('INSERT INTO `lunatic_shop_vehicles` (`shop_id`, `model`, `label`, `type`, `price`, `duration`, `position`, `category`, `image`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', {

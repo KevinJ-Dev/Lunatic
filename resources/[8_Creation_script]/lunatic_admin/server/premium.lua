@@ -214,7 +214,7 @@ Panel.actions['premium.set'] = function(src, actor, data)
     local target = Staff.sourceOf(license)
 
     if target then
-        Panel.notify(target, expires and ('Vous êtes %s jusqu\'au %s.'):format(label, os.date('%d/%m/%Y', expires)) or ('Vous êtes %s à vie.'):format(label), 'success')
+        Panel.notify(target, expires and ("Vous êtes %s jusqu'au %s."):format(label, os.date('%d/%m/%Y', expires)) or ('Vous êtes %s à vie.'):format(label), 'success')
     end
 
     Logs.add(src, 'premium.set', name, { license = license, tier = data.tier, days = data.days, expires = expires })
@@ -368,7 +368,7 @@ Panel.actions['credits.change'] = function(src, actor, data)
     local after, before = changeCredits(license, amount, reason, Staff.displayName(src))
 
     if not after then
-        return Panel.fail(('Solde insuffisant : le joueur n\'a que %d %s.'):format(before, Shop.creditsName()))
+        return Panel.fail(("Solde insuffisant : le joueur n'a que %d %s."):format(before, Shop.creditsName()))
     end
 
     local target = Staff.sourceOf(license)

@@ -574,7 +574,7 @@ RegisterNetEvent('lunatic_business:ring', function(pointId)
         end
     end
 
-    notify(src, reached > 0 and 'Vous avez sonné. Quelqu\'un va venir.' or "Personne n'est disponible pour le moment.", reached > 0 and 'success' or 'info')
+    notify(src, reached > 0 and "Vous avez sonné. Quelqu'un va venir." or "Personne n'est disponible pour le moment.", reached > 0 and 'success' or 'info')
 end)
 
 -- Point Custom : n'importe quel script peut écouter AddEventHandler('lunatic_business:custom', function(src, point) ... end)
@@ -946,7 +946,7 @@ lib.callback.register('lunatic_business:rent', function(src, slug, index, vehicl
     end
 
     if rentals[src] then
-        return fail('Vous avez déjà une location en cours : rendez-la d\'abord.')
+        return fail("Vous avez déjà une location en cours : rendez-la d'abord.")
     end
 
     local offer
@@ -1067,7 +1067,7 @@ CreateThread(function()
             elseif not hasOccupant(rental.vehicle) or remaining <= -Config.RentalGrace then
                 DeleteEntity(rental.vehicle)
                 rentals[src] = nil
-                notify(src, ('Location terminée : %s a été repris par l\'agence.'):format(rental.label), 'info')
+                notify(src, ("Location terminée : %s a été repris par l'agence."):format(rental.label), 'info')
             elseif not rental.warned.ended then
                 rental.warned.ended = true
                 notify(src, ('Location terminée : rendez %s, il sera repris dans %d minutes.'):format(rental.label, math.ceil(Config.RentalGrace / 60)), 'error')

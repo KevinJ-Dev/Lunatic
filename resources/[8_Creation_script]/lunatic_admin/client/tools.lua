@@ -402,7 +402,7 @@ RegisterNUICallback('vehicleSpawn', function(data, cb)
     local hash = joaat(model)
 
     if model == '' or not IsModelInCdimage(hash) or not IsModelAVehicle(hash) then
-        return cb({ ok = false, error = ('Le modèle « %s » n\'existe pas.'):format(model) })
+        return cb({ ok = false, error = ("Le modèle « %s » n'existe pas."):format(model) })
     end
 
     local result = ask('vehicle.spawn', { model = model, type = vehicleType(model, hash) })
