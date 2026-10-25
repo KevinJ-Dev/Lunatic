@@ -46,6 +46,12 @@ local function tiers()
 end
 
 lib.callback.register('lunatic_store:open', function(src)
+    -- lunatic_admin (crédits, catalogues) en cours de redémarrage : boutique fermée un instant
+    if GetResourceState('lunatic_admin') ~= 'started' then
+        TriggerClientEvent('esx:showNotification', src, 'La boutique est indisponible pour le moment.', 'error')
+        return nil
+    end
+
     local settings = shop()
     local banners = {}
 
@@ -246,6 +252,10 @@ local function buy(src, request)
 end
 
 lib.callback.register('lunatic_store:buy', function(src, request)
+    if GetResourceState('lunatic_admin') ~= 'started' then
+        return fail('La boutique est indisponible pour le moment.')
+    end
+
     if busy[src] then
         return fail('Un achat est déjà en cours.')
     end

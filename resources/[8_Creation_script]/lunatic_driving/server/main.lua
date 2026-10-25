@@ -9,8 +9,14 @@ local function now()
     return os.time()
 end
 
+-- nil pendant un redémarrage de lunatic_admin (il n'est pas une dépendance déclarée)
 local function settings()
-    return admin:getDrivingSchool()
+    if GetResourceState('lunatic_admin') ~= 'started' then
+        return nil
+    end
+
+    local ok, s = pcall(function() return admin:getDrivingSchool() end)
+    return ok and s or nil
 end
 
 local function notify(src, text, kind)
@@ -70,7 +76,7 @@ lib.callback.register('lunatic_driving:menu', function(src)
     local xPlayer = ESX.GetPlayerFromId(src)
     local s = settings()
 
-    if not xPlayer or distanceTo(src, s.school) > Config.SchoolDistance then
+    if not xPlayer or not s or distanceTo(src, s.school) > Config.SchoolDistance then
         return nil
     end
 
@@ -99,6 +105,10 @@ end)
 lib.callback.register('lunatic_driving:startTheory', function(src)
     local xPlayer = ESX.GetPlayerFromId(src)
     local s = settings()
+
+    if not s then
+        return { ok = false, error = "L'auto-école est fermée pour le moment." }
+    end
 
     if not xPlayer or distanceTo(src, s.school) > Config.SchoolDistance then
         return { ok = false, error = "Vous êtes trop loin de l'auto-école." }
@@ -199,7 +209,9 @@ local function endExam(src, passed, reason)
 
     if GetPlayerPing(src) > 0 then
         TriggerClientEvent('lunatic_driving:examEnded', src, { passed = passed, reason = reason, label = session.label })
-        TriggerClientEvent('lunatic_admin:teleport', src, vector3(s.finalTp.x, s.finalTp.y, s.finalTp.z))
+        if s then
+            TriggerClientEvent('lunatic_admin:teleport', src, vector3(s.finalTp.x, s.finalTp.y, s.finalTp.z))
+        end
     end
 
     log(src, passed and 'driving.exam_pass' or 'driving.exam_fail', session.label, { errors = session.errors, reason = reason })
@@ -208,6 +220,11 @@ end
 lib.callback.register('lunatic_driving:startExam', function(src, id)
     local xPlayer = ESX.GetPlayerFromId(src)
     local s = settings()
+
+    if not s then
+        return { ok = false, error = "L'auto-école est fermée pour le moment." }
+    end
+
     local exam = type(id) == 'string' and s.exams[id]
 
     if not xPlayer or distanceTo(src, s.school) > Config.SchoolDistance then

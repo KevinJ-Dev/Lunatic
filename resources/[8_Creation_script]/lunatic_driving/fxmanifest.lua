@@ -11,8 +11,9 @@ dependencies {
     'es_extended',
     'oxmysql',
     'ox_lib',
-    'lunatic_admin',
 }
+
+-- lunatic_admin n'est pas une dépendance déclarée : sinon chaque « ensure lunatic_admin » arrêterait cette resource
 
 shared_scripts {
     '@es_extended/imports.lua',
