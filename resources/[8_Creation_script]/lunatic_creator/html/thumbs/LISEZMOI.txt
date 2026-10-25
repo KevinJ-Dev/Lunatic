@@ -1,0 +1,5 @@
+Miniatures des styles du créateur de personnage, faites en jeu par l'outil photo staff
+(panel lunatic_admin : Autres > Création perso > Photographier les styles).
+
+Fichiers : <sexe>-<catégorie>-<style>.webp et index.json (liste des styles photographiés).
+Ils sont écrits sur le serveur ; faire « ensure lunatic_creator » ensuite pour que les joueurs les reçoivent.

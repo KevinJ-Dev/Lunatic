@@ -485,6 +485,11 @@ function paintCreatorSettings() {
                     draftToggle(d, "showBanner", "Afficher la bannière", "Image de fond du haut du panneau de création."),
                     draftToggle(d, "showLogo", "Afficher le logo", "Logo à gauche du titre « Nouveau personnage ».")),
                 h("button", { class: "btn small ghost", style: "justify-self:start", onclick: () => go("images") }, icon("i-image"), "Changer la bannière et le logo (tuile Images, catégorie Création perso)")),
+            h("div", { class: "card" }, h("div", { class: "crew-sub" }, "Miniatures des styles"),
+                h("p", { class: "hint-line", style: "margin:0" }, "Votre personnage prend tour à tour chaque coupe, barbe, sourcils, maquillage… le temps d'un portrait (une dizaine de minutes, restez immobile). Ensuite : « ensure lunatic_creator » pour que les joueurs reçoivent les images."),
+                h("div", { class: "btn-row" },
+                    h("button", { class: "btn small primary", onclick: () => creatorPhotos("male") }, icon("i-image"), "Photographier (homme)"),
+                    h("button", { class: "btn small primary", onclick: () => creatorPhotos("female") }, icon("i-image"), "Photographier (femme)"))),
             h("div", { class: "card" }, h("div", { class: "crew-sub" }, "Lieux d'apparition"),
                 h("p", { class: "hint-line", style: "margin:0" }, d.spawns.length
                     ? "Proposés à la fin de la création, regroupés par groupe, dans cet ordre. Placez-vous en jeu puis « Définir position »."
@@ -497,6 +502,11 @@ function paintCreatorSettings() {
                     } }, icon("i-plus"), "Ajouter un lieu"),
                     !d.spawns.length && defaults.length ? h("button", { class: "btn small ghost", onclick: () => { d.spawns = JSON.parse(JSON.stringify(defaults)); paintCreatorSettings(); } }, icon("i-copy"), "Reprendre ceux de la config") : null)),
             d.spawns.map(spawnCard))));
+}
+
+async function creatorPhotos(sex) {
+    const yes = await confirmBox("Lancer la séance photo ?", "Votre personnage change de modèle pendant les photos puis reprend son apparence. Fermez le panel et ne bougez pas jusqu'à la fin (compteur en bas de l'écran).", "Lancer", false);
+    if (yes) act("creator.photos", { sex }, "Séance photo lancée : fermez le panel.");
 }
 
 async function saveCreatorSettings() {

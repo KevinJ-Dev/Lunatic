@@ -55,36 +55,11 @@ function portrait(id) {
 
 const EYE_COLORS = [["Vert", "#3f7a3a"], ["Émeraude", "#2d8c62"], ["Bleu clair", "#7fb4d8"], ["Bleu océan", "#2f6aa3"], ["Brun clair", "#9a6b3b"], ["Brun foncé", "#5a3a22"], ["Noisette", "#8a6a2c"], ["Gris foncé", "#5c6066"], ["Gris clair", "#9aa1a8"], ["Rose", "#c98aa3"], ["Jaune", "#c9b13a"], ["Violet", "#7a4fa8"], ["Noir", "#151515"], ["Gris", "#7d7d7d"]];
 
-// Calques du visage (index GTA) : libellé, palette (hair / makeup) ou aucune
-const PILOSITY = [
-    { key: "hair", label: "Cheveux" },
-    { key: "1", label: "Barbe", palette: "hair" },
-    { key: "2", label: "Sourcils", palette: "hair" },
-    { key: "10", label: "Torse", palette: "hair" },
-];
-const MAKEUP = [{ key: "4", label: "Yeux" }, { key: "8", label: "Lèvres", palette: "makeup" }];
-const DETAILS = [
-    { key: "0", label: "Taches cutanées" }, { key: "9", label: "Taches de rousseur" }, { key: "11", label: "Cicatrices" },
-    { key: "5", label: "Rougeurs", palette: "makeup" }, { key: "7", label: "Marques de la peau" }, { key: "3", label: "Rides" },
-];
-const FEATURES = [
-    ["Nez", [[0, "Largeur"], [1, "Hauteur du bout"], [2, "Longueur"], [3, "Hauteur de l'arête"], [4, "Pointe"], [5, "Déviation"]]],
-    ["Sourcils", [[6, "Hauteur"], [7, "Profondeur"]]],
-    ["Pommettes", [[8, "Hauteur"], [9, "Largeur"]]],
-    ["Joues", [[10, "Épaisseur"]]],
-    ["Yeux", [[11, "Ouverture"]]],
-    ["Lèvres", [[12, "Épaisseur"]]],
-    ["Mâchoire", [[13, "Largeur"], [14, "Profondeur"]]],
-    ["Menton", [[15, "Hauteur"], [16, "Avancée"], [17, "Largeur"], [18, "Fossette"]]],
-    ["Cou", [[19, "Épaisseur"]]],
-];
-
 // Étapes de la création
 const STEPS = [
     { id: "identity", label: "Identité", icon: "M12 3a7 7 0 0 0-7 7v3M19 10a7 7 0 0 0-7-7M8.5 21c.6-2 1-4.3 1-7a2.5 2.5 0 0 1 5 0c0 1.5-.1 3-.4 4.4M5 16c.4-1.2.6-2.6.6-4M12 10v4c0 2.6-.4 5-1.2 7M18.6 17c.3-1.6.4-3.3.4-5" },
-    { id: "heritage", label: "Héritage", icon: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" },
-    { id: "appearance", label: "Apparence", icon: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" },
-    { id: "face", label: "Visage", icon: "M18 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM8.6 13.5l6.8 4M15.4 6.5l-6.8 4" },
+    { id: "look", label: "Apparence", icon: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" },
+    { id: "style", label: "Coiffure et style", icon: "M5 13c0-5 3-9 7-9s7 4 7 9v6M5 13v6M9 8c1 2 4 3 8 3" },
     { id: "clothes", label: "Vêtements", icon: "M8 3 3 6l2 4 2-1v12h10V9l2 1 2-4-5-3a4 4 0 0 1-8 0z" },
     { id: "spawn", label: "Lieu d'apparition", icon: "M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12zM12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" },
 ];
@@ -95,7 +70,8 @@ let appearance = null;
 let options = null;
 let settings = null;
 let stepIndex = 0;
-let openEditor = null; // calque déplié dans Apparence
+const category = { look: "parents", style: "hair" }; // catégorie ouverte dans chaque étape à panneaux
+let thumbs = {}; // miniatures disponibles : { male: { hair: Set }, ... } (thumbs/index.json, outil photo staff)
 const identity = { lastname: "", firstname: "", day: 0, month: 0, year: 2000, nationality: "", height: 178 };
 let identityErrors = {}; // section -> message, rempli quand l'identité est refusée
 
@@ -116,12 +92,15 @@ const svg = (path) => {
 
 function paint() {
     $("steps").replaceChildren(...STEPS.map((s, i) => h("span", {
-        class: `tab${i === stepIndex ? " on" : ""}${i < stepIndex ? " done" : ""}`, title: s.label,
-    }, svg(s.icon))));
+        class: `tab${i === stepIndex ? " on" : ""}${i < stepIndex ? " done" : ""}`,
+    }, svg(s.icon), h("b", null, s.label))));
 
     const step = STEPS[stepIndex];
-    const body = { identity: identityStep, heritage: heritageStep, appearance: appearanceStep, face: faceStep, clothes: clothesStep, spawn: spawnStep }[step.id]();
-    $("step").replaceChildren(h("h2", null, step.label === "Visage" ? "Traits du visage" : step.label), body);
+    const stepScroll = $("step").scrollTop;
+    const body = { identity: identityStep, look: lookStep, style: styleStep, clothes: clothesStep, spawn: spawnStep }[step.id]();
+    $("step").replaceChildren(h("h2", null, step.label), body);
+    $("step").scrollTop = stepScroll;
+    paintSide();
     $("prev").style.visibility = stepIndex === 0 ? "hidden" : "visible";
     $("next").textContent = stepIndex === lastStep() ? "Terminer" : "Suivant";
 
@@ -133,7 +112,6 @@ const lastStep = () => STEPS.length - 1;
 function go(index) {
     if (index > stepIndex && stepIndex === 0 && !checkIdentity()) return;
     stepIndex = index;
-    openEditor = null;
     paint();
     $("step").scrollTop = 0;
     stepCamera();
@@ -142,7 +120,7 @@ function go(index) {
 
 function stepCamera() {
     const id = STEPS[stepIndex].id;
-    if (id === "face" || id === "heritage") setCamera(1);
+    if (id === "look" || id === "style") setCamera(categoryOf(id).camera || 1);
     if (id === "clothes") setCamera(3);
 }
 
@@ -346,40 +324,7 @@ function checkIdentity() {
     return false;
 }
 
-// ---------- 2. Héritage ----------
-
-const parentStart = { father: 0, mother: 0 };
-
-function heritageStep() {
-    const h0 = appearance.heritage;
-    const preview = h("div", { class: "parents" },
-        portraitImg(h0.father), portraitImg(h0.mother));
-
-    const row = (key, list, label) => {
-        const visible = 4;
-        const max = Math.max(0, list.length - visible);
-        parentStart[key] = Math.min(parentStart[key], max);
-        const cells = list.slice(parentStart[key], parentStart[key] + visible).map(([name, id]) => h("button", {
-            class: `parent${h0[key] === id ? " on" : ""}`, onclick: () => { h0[key] = id; pushAppearance(); paint(); },
-        }, portraitImg(id), h("span", null, name)));
-        return h("div", { class: "field" }, h("span", null, label),
-            h("div", { class: "carousel" },
-                h("button", { class: "arrow", disabled: parentStart[key] === 0, onclick: () => { parentStart[key] = Math.max(0, parentStart[key] - visible); paint(); } }, "‹"),
-                h("div", { class: "parent-row" }, cells),
-                h("button", { class: "arrow", disabled: parentStart[key] >= max, onclick: () => { parentStart[key] = Math.min(max, parentStart[key] + visible); paint(); } }, "›")));
-    };
-
-    const slider = (key, label) => {
-        const input = h("input", { type: "range", min: "0", max: "1", step: "0.01", value: String(h0[key]) });
-        input.addEventListener("input", () => { h0[key] = Number(input.value); pushAppearance(); });
-        return h("div", { class: "field" }, h("span", null, label), h("div", { class: "slider" }, input));
-    };
-
-    return h("div", { class: "stack" }, preview, row("father", FATHERS, "Parent 1"), row("mother", MOTHERS, "Parent 2"),
-        slider("shape", "Ressemblance (Parent 1 ↔ Parent 2)"), slider("skin", "Peau (Parent 1 ↔ Parent 2)"));
-}
-
-// ---------- 3. Apparence ----------
+// ---------- Outils communs ----------
 
 function palette(colors, current, onPick) {
     return h("div", { class: "palette" }, colors.map(([r, g, b], i) => {
@@ -397,63 +342,208 @@ function stepper(value, min, max, onChange, labelOf) {
         h("button", { onclick: () => set(value >= max ? min : value + 1) }, "›"));
 }
 
-function overlayEditor(entry) {
+function rangeField(label, value, min, max, step, onInput) {
+    const input = h("input", { type: "range", min: String(min), max: String(max), step: String(step), value: String(value) });
+    input.addEventListener("input", () => onInput(Number(input.value)));
+    return h("div", { class: "field" }, h("span", null, label), h("div", { class: "slider" }, input));
+}
+
+const randomFloat = (min, max) => Math.round((min + Math.random() * (max - min)) * 100) / 100;
+
+// Icônes des catégories (remplacées par une miniature quand l'outil photo en a fait une)
+const ICONS = {
+    parents: "M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 20c0-3 3-5 6-5s6 2 6 5M14 15c3 0 8 1 8 5",
+    eyes: "M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
+    nose: "M12 4v9l-3 3c1 1.3 5 1.3 6 0",
+    brows: "M3 10c2-2 5-2 7-1M14 9c2-1 5-1 7 1",
+    cheeks: "M4 12a8 9 0 1 0 16 0 8 9 0 1 0-16 0M7 14h.01M17 14h.01",
+    lips: "M3 12c3-3 6-4 9-2 3-2 6-1 9 2-3 4-6 5-9 5s-6-1-9-5zM3 12h18",
+    jaw: "M5 7c0 7 3 13 7 13s7-6 7-13",
+    chin: "M8 15c0 3 2 5 4 5s4-2 4-5M6 6c0 5 2 9 6 9s6-4 6-9",
+    neck: "M9 3v8c0 2-3 3-5 5M15 3v8c0 2 3 3 5 5",
+    hair: "M5 13c0-5 3-9 7-9s7 4 7 9v6M5 13v6M9 8c1 2 4 3 8 3",
+    beard: "M6 8v4a6 6 0 0 0 12 0V8M9 14c1 1 5 1 6 0M9 18l3 3 3-3",
+    chest: "M4 5c3 2 13 2 16 0v15H4zM12 9v7M9 12h6",
+    makeup: "M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6zM5 7l2 2M12 4v3M19 7l-2 2",
+    face: "M12 3a8 9 0 1 0 0 18 8 9 0 1 0 0-18zM9 10h.01M15 10h.01M9 15c2 1 4 1 6 0",
+};
+
+// Apparence : parents, yeux et traits du visage (index GTA des traits)
+const LOOK = [
+    { key: "parents", label: "Parents", icon: "parents" },
+    { key: "eyes", label: "Yeux", icon: "eyes", features: [[11, "Ouverture"]] },
+    { key: "nose", label: "Nez", icon: "nose", features: [[0, "Largeur"], [1, "Hauteur du bout"], [2, "Longueur"], [3, "Hauteur de l'arête"], [4, "Pointe"], [5, "Déviation"]] },
+    { key: "brow", label: "Arcades", icon: "brows", features: [[6, "Hauteur"], [7, "Profondeur"]] },
+    { key: "cheeks", label: "Pommettes et joues", icon: "cheeks", features: [[8, "Hauteur des pommettes"], [9, "Largeur des pommettes"], [10, "Épaisseur des joues"]] },
+    { key: "lips", label: "Lèvres", icon: "lips", features: [[12, "Épaisseur"]] },
+    { key: "jaw", label: "Mâchoire", icon: "jaw", features: [[13, "Largeur"], [14, "Profondeur"]] },
+    { key: "chin", label: "Menton", icon: "chin", features: [[15, "Hauteur"], [16, "Avancée"], [17, "Largeur"], [18, "Fossette"]] },
+    { key: "neck", label: "Cou", icon: "neck", camera: 2, features: [[19, "Épaisseur"]] },
+];
+
+// Coiffure et style : cheveux et calques du visage (index GTA des calques), palette de couleurs éventuelle
+const STYLE = [
+    { key: "hair", label: "Cheveux", icon: "hair", thumb: "hair" },
+    { key: "1", label: "Barbe", icon: "beard", palette: "hair" },
+    { key: "2", label: "Sourcils", icon: "brows", palette: "hair" },
+    { key: "10", label: "Pilosité du torse", icon: "chest", palette: "hair", camera: 2 },
+    { key: "4", label: "Maquillage", icon: "makeup" },
+    { key: "5", label: "Blush", icon: "cheeks", palette: "makeup" },
+    { key: "8", label: "Rouge à lèvres", icon: "lips", palette: "makeup" },
+    { key: "0", label: "Imperfections", icon: "face" },
+    { key: "9", label: "Taches de rousseur", icon: "face" },
+    { key: "3", label: "Rides", icon: "face" },
+    { key: "6", label: "Teint", icon: "face" },
+    { key: "7", label: "Marques du soleil", icon: "face" },
+    { key: "11", label: "Marques du corps", icon: "chest", camera: 2 },
+];
+
+const thumbKey = (entry) => (entry.key === "hair" ? "hair" : `overlay-${entry.key}`);
+const categoriesOf = (stepId) => (stepId === "look" ? LOOK : STYLE);
+const categoryOf = (stepId) => categoriesOf(stepId).find((c) => c.key === category[stepId]) || categoriesOf(stepId)[0];
+
+// Miniature d'un style (outil photo staff), sinon null
+function thumbUrl(key, index) {
+    const list = thumbs[appearance.sex] && thumbs[appearance.sex][key];
+    return list && list.has(index) ? `thumbs/${appearance.sex}-${key}-${index}.webp` : null;
+}
+
+// Cartes des catégories (panneau de gauche)
+function categoryCards(stepId) {
+    return h("div", { class: "cat-grid" }, categoriesOf(stepId).map((entry) => {
+        const current = category[stepId] === entry.key;
+        let visual;
+        if (entry.key === "parents") visual = h("div", { class: "cat-parents" }, portraitImg(appearance.heritage.father), portraitImg(appearance.heritage.mother));
+        else {
+            const url = stepId === "style" ? thumbUrl(thumbKey(entry), entry.key === "hair" ? 4 : 2) : null;
+            visual = url ? h("img", { src: url, alt: "" }) : svg(ICONS[entry.icon]);
+        }
+        return h("button", { class: `cat-card${current ? " on" : ""}`, onclick: () => {
+            category[stepId] = entry.key;
+            setCamera(entry.camera || 1);
+            paint();
+            $("side-body").scrollTop = 0;
+        } }, h("span", { class: "cat-visual" }, visual), h("span", { class: "cat-label" }, entry.label));
+    }));
+}
+
+function lookStep() {
+    return h("div", { class: "stack" }, categoryCards("look"), h("p", { class: "note" }, "Choisissez une catégorie : ses réglages s'ouvrent à droite."));
+}
+
+function styleStep() {
+    return h("div", { class: "stack" }, categoryCards("style"), h("p", { class: "note" }, "Les couleurs et l'intensité se règlent sous les styles, à droite."));
+}
+
+// ---------- Panneau de droite ----------
+
+let sideShown = null; // dernier état envoyé au jeu (cadrage de la caméra)
+function setSideShown(shown) {
+    if (sideShown === shown) return;
+    sideShown = shown;
+    nui("layout", { side: shown });
+}
+
+function paintSide() {
+    const stepId = STEPS[stepIndex].id;
+    const side = $("side");
+    if (stepId !== "look" && stepId !== "style") {
+        side.classList.add("hidden");
+        setSideShown(false);
+        return;
+    }
+    const entry = categoryOf(stepId);
+    const body = $("side-body");
+    const scroll = body.dataset.key === `${stepId}:${entry.key}` ? body.scrollTop : 0;
+    const { content, randomize, reset } = stepId === "look" ? lookEditor(entry) : styleEditor(entry);
+
+    $("side-head").replaceChildren(h("h3", null, entry.label),
+        h("button", { class: "dice", onclick: () => { randomize(); pushAppearance(); paint(); } }, "Aléatoire"),
+        h("button", { class: "reset", title: "Revenir au réglage par défaut", onclick: () => { reset(); pushAppearance(); paint(); } }, "↺ Réinitialiser"));
+    body.replaceChildren(...[content].flat(Infinity).filter(Boolean));
+    body.dataset.key = `${stepId}:${entry.key}`;
+    body.scrollTop = scroll;
+    side.classList.remove("hidden");
+    setSideShown(true);
+}
+
+// Grille de styles en cercles : miniature si elle existe, sinon numéro
+function styleGrid(key, count, current, withNone, onPick) {
+    const cells = [];
+    if (withNone) cells.push(h("button", { class: `style-cell${current < 0 ? " on" : ""}`, onclick: () => onPick(-1) }, h("span", { class: "style-dot none" }, "∅"), h("small", null, "Aucun")));
+    for (let i = 0; i < count; i += 1) {
+        const url = thumbUrl(key, i);
+        cells.push(h("button", { class: `style-cell${current === i ? " on" : ""}`, onclick: () => onPick(i) },
+            h("span", { class: "style-dot" }, url ? h("img", { src: url, alt: "", loading: "lazy" }) : String(i + 1)),
+            h("small", null, `Style ${i + 1}`)));
+    }
+    return h("div", { class: "style-grid" }, cells);
+}
+
+function lookEditor(entry) {
+    const h0 = appearance.heritage;
+    if (entry.key === "parents") {
+        const parentGrid = (key, list) => h("div", { class: "style-grid" }, list.map(([name, id]) =>
+            h("button", { class: `style-cell${h0[key] === id ? " on" : ""}`, onclick: () => { h0[key] = id; pushAppearance(); paint(); } },
+                h("span", { class: "style-dot portrait" }, portraitImg(id)), h("small", null, name))));
+        return {
+            content: [h("div", { class: "side-sub" }, "Parent 1"), parentGrid("father", FATHERS), h("div", { class: "side-sub" }, "Parent 2"), parentGrid("mother", MOTHERS),
+                h("div", { class: "side-sub" }, "Mélange"),
+                rangeField("Ressemblance (Parent 1 ↔ Parent 2)", h0.shape, 0, 1, 0.01, (v) => { h0.shape = v; pushAppearance(); }),
+                rangeField("Peau (Parent 1 ↔ Parent 2)", h0.skin, 0, 1, 0.01, (v) => { h0.skin = v; pushAppearance(); })],
+            randomize: () => { h0.father = pick(FATHERS)[1]; h0.mother = pick(MOTHERS)[1]; h0.shape = randomFloat(0.1, 0.9); h0.skin = randomFloat(0.1, 0.9); },
+            reset: () => { Object.assign(h0, { father: 0, mother: 21, shape: appearance.sex === "female" ? 0.8 : 0.5, skin: 0.5 }); },
+        };
+    }
+    const features = (entry.features || []).map(([index, label]) => {
+        const input = h("input", { type: "range", min: "-1", max: "1", step: "0.05", value: String(appearance.features[index] || 0) });
+        input.addEventListener("input", () => { appearance.features[index] = Number(input.value); pushAppearance(); });
+        input.addEventListener("dblclick", () => { input.value = "0"; appearance.features[index] = 0; pushAppearance(); });
+        return h("div", { class: "field" }, h("span", null, label), h("div", { class: "slider" }, input));
+    });
+    const eyes = entry.key === "eyes" ? [h("div", { class: "side-sub" }, "Couleur"), h("div", { class: "palette eyes" }, EYE_COLORS.map(([label, color], i) => {
+        const swatch = h("button", { class: `swatch${appearance.eyeColor === i ? " on" : ""}`, title: label, onclick: () => { appearance.eyeColor = i; pushAppearance(); paint(); } });
+        swatch.style.background = color;
+        return swatch;
+    })), h("div", { class: "side-sub" }, "Forme")] : [];
+    return {
+        content: [eyes, features, h("p", { class: "note" }, "Double-cliquez sur une barre pour la remettre au milieu.")],
+        randomize: () => {
+            for (const [index] of entry.features || []) appearance.features[index] = randomFloat(-0.6, 0.6);
+            if (entry.key === "eyes") appearance.eyeColor = randomInt(0, 7);
+        },
+        reset: () => {
+            for (const [index] of entry.features || []) appearance.features[index] = 0;
+            if (entry.key === "eyes") appearance.eyeColor = 0;
+        },
+    };
+}
+
+function styleEditor(entry) {
     if (entry.key === "hair") {
         const hair = appearance.hair;
-        return h("div", { class: "editor" },
-            h("div", { class: "field" }, h("span", null, "Coupe"), stepper(hair.style, 0, Math.max(0, options.hairStyles - 1), (v) => { hair.style = v; pushAppearance(); }, (v) => `${v + 1} / ${options.hairStyles}`)),
-            h("div", { class: "field" }, h("span", null, "Couleur"), palette(options.hairColors, hair.color, (i) => { hair.color = i; pushAppearance(); paint(); })),
-            h("div", { class: "field" }, h("span", null, "Reflets"), palette(options.hairColors, hair.highlight, (i) => { hair.highlight = i; pushAppearance(); paint(); })));
+        return {
+            content: [h("div", { class: "side-sub" }, "Couleur"), palette(options.hairColors, hair.color, (i) => { hair.color = i; pushAppearance(); paint(); }),
+                h("div", { class: "side-sub" }, "Reflets"), palette(options.hairColors, hair.highlight, (i) => { hair.highlight = i; pushAppearance(); paint(); }),
+                h("div", { class: "side-sub" }, "Coupes"), styleGrid("hair", options.hairStyles, hair.style, false, (i) => { hair.style = i; pushAppearance(); paint(); })],
+            randomize: () => { hair.style = randomInt(0, Math.max(0, options.hairStyles - 1)); hair.color = randomInt(0, Math.min(options.hairColors.length - 1, 20)); hair.highlight = hair.color; },
+            reset: () => Object.assign(hair, { style: 0, color: 0, highlight: 0 }),
+        };
     }
     const count = options.overlays[entry.key] || 0;
     const o = appearance.overlays[entry.key] || (appearance.overlays[entry.key] = { style: -1, opacity: 1, color: 0 });
-    const opacity = h("input", { type: "range", min: "0", max: "1", step: "0.05", value: String(o.opacity) });
-    opacity.addEventListener("input", () => { o.opacity = Number(opacity.value); pushAppearance(); });
-    return h("div", { class: "editor" },
-        h("div", { class: "field" }, h("span", null, "Style"), stepper(o.style, -1, count - 1, (v) => { o.style = v; pushAppearance(); }, (v) => (v < 0 ? "Aucun" : `${v + 1} / ${count}`))),
-        h("div", { class: "field" }, h("span", null, "Intensité"), h("div", { class: "slider" }, opacity)),
-        entry.palette ? h("div", { class: "field" }, h("span", null, "Couleur"),
-            palette(entry.palette === "hair" ? options.hairColors : options.makeupColors, o.color, (i) => { o.color = i; pushAppearance(); paint(); })) : null);
-}
-
-function overlayList(entries) {
-    return h("div", { class: "list" }, entries.map((entry) => [
-        h("button", { class: `row${openEditor === entry.key ? " on" : ""}`, onclick: () => { openEditor = openEditor === entry.key ? null : entry.key; paint(); } }, entry.label),
-        openEditor === entry.key ? overlayEditor(entry) : null,
-    ]));
-}
-
-function appearanceStep() {
-    const cards = h("div", { class: "cards" }, PILOSITY.map((entry) => h("button", {
-        class: `card${openEditor === entry.key ? " on" : ""}`, onclick: () => { openEditor = openEditor === entry.key ? null : entry.key; paint(); },
-    }, h("span", null, entry.label))));
-    const pilosityEditor = PILOSITY.find((e) => e.key === openEditor);
-
-    return h("div", { class: "stack" },
-        h("div", { class: "field" }, h("span", null, "Pilosité"), cards, pilosityEditor ? overlayEditor(pilosityEditor) : null),
-        h("div", { class: "field" }, h("span", null, "Yeux"),
-            h("div", { class: "list" },
-                h("button", { class: `row${openEditor === "eyes" ? " on" : ""}`, onclick: () => { openEditor = openEditor === "eyes" ? null : "eyes"; paint(); } }, "Couleurs"),
-                openEditor === "eyes" ? h("div", { class: "editor" }, h("div", { class: "palette eyes" }, EYE_COLORS.map(([label, color], i) => {
-                    const swatch = h("button", { class: `swatch${appearance.eyeColor === i ? " on" : ""}`, title: label, onclick: () => { appearance.eyeColor = i; pushAppearance(); paint(); } });
-                    swatch.style.background = color;
-                    return swatch;
-                }))) : null)),
-        h("div", { class: "field" }, h("span", null, "Maquillage"), overlayList(MAKEUP)),
-        h("div", { class: "field" }, h("span", null, "Détails"), overlayList(DETAILS)));
-}
-
-// ---------- 4. Traits du visage ----------
-
-function faceStep() {
-    return h("div", { class: "stack" }, FEATURES.map(([group, list]) => h("div", { class: "field" }, h("span", null, group),
-        list.map(([index, label]) => {
-            const input = h("input", { type: "range", min: "-1", max: "1", step: "0.05", value: String(appearance.features[index] || 0) });
-            input.addEventListener("input", () => { appearance.features[index] = Number(input.value); pushAppearance(); });
-            input.addEventListener("dblclick", () => { input.value = "0"; appearance.features[index] = 0; pushAppearance(); });
-            return h("div", { class: "feature" }, h("small", null, label), input);
-        }))),
-        h("p", { class: "note" }, "Double-cliquez sur une barre pour la remettre au milieu."));
+    const colors = entry.palette === "hair" ? options.hairColors : options.makeupColors;
+    return {
+        content: [o.style >= 0 ? rangeField("Intensité", o.opacity, 0, 1, 0.05, (v) => { o.opacity = v; pushAppearance(); }) : null,
+            o.style >= 0 && entry.palette ? [h("div", { class: "side-sub" }, "Couleur"), palette(colors, o.color, (i) => { o.color = i; pushAppearance(); paint(); })] : null,
+            h("div", { class: "side-sub" }, "Styles"), styleGrid(thumbKey(entry), count, o.style, true, (i) => { o.style = i; pushAppearance(); paint(); })],
+        randomize: () => {
+            o.style = randomInt(-1, count - 1);
+            o.opacity = randomFloat(0.5, 1);
+            if (entry.palette) o.color = randomInt(0, Math.min(colors.length - 1, 20));
+        },
+        reset: () => Object.assign(o, { style: -1, opacity: 1, color: 0 }),
+    };
 }
 
 // ---------- 5. Vêtements ----------
@@ -591,7 +681,11 @@ window.addEventListener("message", (event) => {
         camera = 2;
         spawnChoice = null;
         clothesOpen = null;
+        sideShown = null;
         applyBranding(msg.branding);
+        category.look = "parents";
+        category.style = "hair";
+        loadThumbs();
         if (msg.draft) restoreDraft(msg.draft);
         identityErrors = {};
         $("creator").classList.remove("hidden");
@@ -599,12 +693,48 @@ window.addEventListener("message", (event) => {
         stepCamera();
     }
     if (msg.action === "mugshot") mugshot(msg.seconds || 4);
+    if (msg.action === "thumbCapture" && typeof msg.url === "string") captureThumb(msg.url);
     if (msg.action === "close") {
         $("creator").classList.add("hidden");
         $("creator").classList.remove("shooting");
         document.querySelectorAll(".mugshot").forEach((el) => el.remove());
     }
 });
+
+// Outil photo staff : portrait GTA (fond transparent) converti en miniature webp, renvoyé au jeu
+function captureThumb(url) {
+    const send = (payload) => nui("thumbData", payload).catch(() => null);
+    const img = new Image();
+    img.onload = () => {
+        try {
+            const canvas = document.createElement("canvas");
+            canvas.width = 160;
+            canvas.height = 160;
+            canvas.getContext("2d").drawImage(img, 0, 0, 160, 160);
+            send({ image: canvas.toDataURL("image/webp", 0.85) });
+        } catch (e) {
+            send({ error: String((e && e.message) || e).slice(0, 120) });
+        }
+    };
+    img.onerror = () => send({ error: "portrait introuvable" });
+    img.src = url;
+}
+
+// Index des miniatures prises par l'outil photo staff (absent tant qu'aucune photo n'a été faite)
+async function loadThumbs() {
+    try {
+        const res = await fetch("thumbs/index.json");
+        const data = await res.json();
+        thumbs = {};
+        for (const [sex, list] of Object.entries(data || {})) {
+            thumbs[sex] = {};
+            for (const [key, indexes] of Object.entries(list || {})) thumbs[sex][key] = new Set(indexes);
+        }
+        if (settings) paint();
+    } catch {
+        thumbs = {};
+    }
+}
 
 // ---------- Aperçu navigateur ----------
 

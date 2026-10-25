@@ -25,6 +25,7 @@ server_scripts {
     '@oxmysql/lib/MySQL.lua',
     'server/identity.lua',
     'server/main.lua',
+    'server/photos.lua',
 }
 
 client_scripts {
@@ -39,4 +40,5 @@ files {
     'html/app.js',
     'html/logo.png',
     'html/fonts/*.woff2',
+    'html/thumbs/*',
 }

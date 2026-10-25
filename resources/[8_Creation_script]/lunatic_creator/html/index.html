@@ -15,7 +15,6 @@
                     <span class="banner-sub">Création de personnage</span>
                 </div>
             </header>
-            <nav class="steps" id="steps"></nav>
             <main class="step" id="step"></main>
             <footer class="foot">
                 <button class="btn ghost" id="prev">Précédent</button>
@@ -23,9 +22,16 @@
             </footer>
         </aside>
         <div class="stage" id="stage">
-            <div class="cams" id="cams"></div>
-            <div class="hint">Maintenez le clic et glissez pour tourner le personnage</div>
+            <nav class="steps" id="steps"></nav>
+            <div class="stage-foot">
+                <div class="cams" id="cams"></div>
+                <div class="hint">Clic maintenu et glisser : tourner le personnage</div>
+            </div>
         </div>
+        <aside class="side hidden" id="side">
+            <header class="side-head" id="side-head"></header>
+            <div class="side-body" id="side-body"></div>
+        </aside>
         <div class="toast" id="toast"></div>
     </div>
     <script src="app.js"></script>

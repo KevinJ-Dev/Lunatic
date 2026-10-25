@@ -10,6 +10,7 @@ local anchor = Config.Room   -- position du personnage (la pièce, puis l'aperç
 local heading = Config.Room.w
 local spawnIndex = nil
 local spawns = {}            -- lieux d'apparition figés à l'ouverture (panel staff ou config)
+local cameraShift = Config.CameraShift -- décalage du personnage selon les panneaux affichés
 
 local MODELS = { male = `mp_m_freemode_01`, female = `mp_f_freemode_01` }
 -- Type de couleur de chaque calque du visage : 1 = couleurs des cheveux, 2 = maquillage
@@ -185,7 +186,7 @@ local function setCamera(index, instant)
     local right = vector3(math.cos(angle), math.sin(angle), 0.0)
     -- Le panneau occupe la gauche de l'écran : caméra et visée glissent sur le côté pour centrer le personnage à droite
     local halfWidth = settings.distance * math.tan(math.rad(settings.fov) / 2) * GetAspectRatio(false)
-    local base = vector3(anchor.x, anchor.y, anchor.z) + right * (halfWidth * Config.CameraShift)
+    local base = vector3(anchor.x, anchor.y, anchor.z) + right * (halfWidth * cameraShift)
     local position = base + forward * settings.distance + vector3(0.0, 0.0, settings.height)
 
     local new = CreateCamWithParams('DEFAULT_SCRIPTED_CAMERA', position.x, position.y, position.z, 0.0, 0.0, 0.0, settings.fov, false, 2)
@@ -302,6 +303,7 @@ local function open()
     TriggerServerEvent('lunatic_creator:enter')
 
     spawns = CreatorSpawns()
+    cameraShift = Config.CameraShift
     anchor, heading, spawnIndex = Config.Room, Config.Room.w, nil
 
     -- Création interrompue (crash, déconnexion) : on reprend l'étape et les choix enregistrés
@@ -456,6 +458,20 @@ RegisterNUICallback('clothesCounts', function(data, cb)
     cb(clothesCounts(data.kind == 'prop' and 'prop' or 'component', tonumber(data.id) or 0, tonumber(data.drawable) or 0))
 end)
 
+-- Panneau de droite ouvert ou fermé : le personnage reste centré dans l'espace libre
+RegisterNUICallback('layout', function(data, cb)
+    cb({})
+    local shift = data.side == true and Config.CameraShiftBoth or Config.CameraShift
+
+    if shift ~= cameraShift then
+        cameraShift = shift
+
+        if active then
+            setCamera(cameraIndex, false)
+        end
+    end
+end)
+
 RegisterNUICallback('camera', function(data, cb)
     local index = tonumber(data.index)
 
@@ -539,6 +555,137 @@ RegisterNUICallback('finish', function(data, cb)
     SetNuiFocus(false, false)
     stopCamera(false)
     arrive()
+end)
+
+---------------------------------------------------------------------
+-- Outil photo staff : miniatures des styles (cheveux et calques du visage), lancé depuis le panel
+-- (Autres > Création perso). Le personnage du staff prend chaque style le temps d'un portrait GTA.
+---------------------------------------------------------------------
+
+local photoRunning = false
+local photoReply = nil
+
+RegisterNUICallback('thumbData', function(data, cb)
+    cb({})
+    photoReply = type(data) == 'table' and data or { error = 'réponse vide' }
+end)
+
+-- Portrait GTA sur fond transparent, converti par la page puis envoyé au serveur ; true si réussi
+local function takeThumb(sex, key, index)
+    local ped = PlayerPedId()
+    local handle = RegisterPedheadshotTransparent(ped)
+    local timeout = GetGameTimer() + 5000
+
+    while (not IsPedheadshotReady(handle) or not IsPedheadshotValid(handle)) and GetGameTimer() < timeout do
+        Wait(20)
+    end
+
+    if not IsPedheadshotReady(handle) or not IsPedheadshotValid(handle) then
+        UnregisterPedheadshot(handle)
+        return false
+    end
+
+    local txd = GetPedheadshotTxdString(handle)
+    photoReply = nil
+    SendNUIMessage({ action = 'thumbCapture', url = ('https://nui-img/%s/%s'):format(txd, txd) })
+
+    timeout = GetGameTimer() + 5000
+
+    while not photoReply and GetGameTimer() < timeout do
+        Wait(20)
+    end
+
+    UnregisterPedheadshot(handle)
+
+    if not photoReply or type(photoReply.image) ~= 'string' then
+        return false
+    end
+
+    TriggerLatentServerEvent('lunatic_creator:thumb', 100000, sex, key, index, photoReply.image)
+    return true
+end
+
+-- Base neutre des photos : pas de calque, sourcils légers, cheveux courts
+local function photoBase(sex)
+    local base = defaults(sex)
+    base.hair = { style = 0, color = Config.Photos.hairColor, highlight = Config.Photos.hairColor }
+    base.overlays = { ['2'] = { style = 0, opacity = 0.6, color = Config.Photos.hairColor } }
+    return base
+end
+
+RegisterNetEvent('lunatic_creator:photoTool', function(sex)
+    if active or photoRunning or (sex ~= 'male' and sex ~= 'female') then
+        return
+    end
+
+    photoRunning = true
+    local api = appearanceApi()
+    local saved = api:getPedAppearance(PlayerPedId())
+
+    FreezeEntityPosition(PlayerPedId(), true)
+    appearance = photoBase(sex)
+    api:setPlayerModel(MODELS[sex])
+    applyAll()
+
+    -- Liste des photos : toutes les coupes, puis chaque style des calques visibles sur un portrait
+    local ped = PlayerPedId()
+    local jobs = {}
+
+    for index = 0, GetNumberOfPedDrawableVariations(ped, 2) - 1 do
+        jobs[#jobs + 1] = { key = 'hair', index = index }
+    end
+
+    for _, overlay in ipairs(Config.Photos.overlays) do
+        for index = 0, GetPedHeadOverlayNum(overlay) - 1 do
+            jobs[#jobs + 1] = { key = 'overlay-' .. overlay, overlay = overlay, index = index }
+        end
+    end
+
+    local done, failed = 0, 0
+
+    for number, job in ipairs(jobs) do
+        if not photoRunning then
+            break
+        end
+
+        lib.showTextUI(('Photos des styles (%s) : %d / %d'):format(sex == 'male' and 'homme' or 'femme', number, #jobs))
+        appearance = photoBase(sex)
+
+        if job.key == 'hair' then
+            appearance.hair.style = job.index
+        else
+            appearance.overlays[tostring(job.overlay)] = {
+                style = job.index, opacity = 1.0,
+                color = OVERLAY_COLOR_TYPE[job.overlay] == 2 and Config.Photos.makeupColor or Config.Photos.hairColor,
+            }
+        end
+
+        applyAll()
+        Wait(Config.Photos.delay)
+
+        if takeThumb(sex, job.key, job.index) then
+            done = done + 1
+        else
+            failed = failed + 1
+        end
+    end
+
+    TriggerServerEvent('lunatic_creator:thumbsDone', sex, done, failed)
+    lib.hideTextUI()
+
+    -- Retour à l'apparence du staff
+    api:setPlayerAppearance(saved)
+    FreezeEntityPosition(PlayerPedId(), false)
+    appearance = nil
+    photoRunning = false
+end)
+
+AddEventHandler('onResourceStop', function(resource)
+    if resource == GetCurrentResourceName() and photoRunning then
+        photoRunning = false
+        lib.hideTextUI()
+        FreezeEntityPosition(PlayerPedId(), false)
+    end
 end)
 
 AddEventHandler('onResourceStop', function(resource)

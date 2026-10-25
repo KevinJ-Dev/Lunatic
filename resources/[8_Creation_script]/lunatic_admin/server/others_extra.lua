@@ -490,4 +490,30 @@ Panel.actions['creator.save'] = function(src, actor, data)
     return { ok = true, silent = true }
 end
 
+-- Outil photo : le personnage du staff prend chaque style du créateur pour en faire les miniatures
+Panel.actions['creator.photos'] = function(src, actor, data)
+    if not allowed(actor) then
+        return denied()
+    end
+
+    local sex = type(data) == 'table' and (data.sex == 'female' and 'female' or data.sex == 'male' and 'male') or nil
+
+    if not sex then
+        return Panel.fail('Choisissez homme ou femme.')
+    end
+
+    if GetResourceState('lunatic_creator') ~= 'started' then
+        return Panel.fail("lunatic_creator n'est pas démarré.")
+    end
+
+    local ok, started = pcall(function() return exports.lunatic_creator:startPhotoSession(src, sex) end)
+
+    if not ok or not started then
+        return Panel.fail('Séance photo impossible (déjà en création de personnage ?).')
+    end
+
+    Logs.add(src, 'creator.photos', nil, { sex = sex })
+    return { ok = true, silent = true }
+end
+
 print('[lunatic_admin] Modules Ascenseurs, Heal Items, Tarifs mécano, Zone AFK et Création perso chargés.')

@@ -16,6 +16,8 @@ Config.ClockHour = 13
 
 -- Décalage du personnage vers la droite de l'écran (0 = centré, 0.25 = un quart de demi-écran), pour le panneau de gauche
 Config.CameraShift = 0.25
+-- Même décalage quand le panneau des styles est ouvert à droite (les deux panneaux encadrent le personnage)
+Config.CameraShiftBoth = 0.03
 
 -- Lieux d'apparition proposés à la fin de la création (aperçu en direct sur place, arrivée avec l'animation GTA).
 -- image : lien https (facultatif), affiché derrière le nom.
@@ -43,6 +45,14 @@ Config.Clothes = {
 Config.StarterOutfit = {
     male = { components = { [11] = { 0, 0 }, [8] = { 15, 0 }, [3] = { 0, 0 }, [4] = { 0, 0 }, [6] = { 1, 0 } }, props = {} },
     female = { components = { [11] = { 0, 0 }, [8] = { 2, 0 }, [3] = { 0, 0 }, [4] = { 0, 0 }, [6] = { 0, 0 } }, props = {} },
+}
+
+-- Outil photo staff (panel : Autres > Création perso) : miniatures des styles prises en jeu
+Config.Photos = {
+    overlays = { 1, 2, 4, 5, 8, 0, 9, 3, 6, 7 }, -- calques visibles sur un portrait (barbe, sourcils, maquillage, blush, lèvres, peau)
+    hairColor = 2,    -- couleur des cheveux, barbe et sourcils sur les photos
+    makeupColor = 7,  -- couleur du blush et du rouge à lèvres sur les photos
+    delay = 250,      -- attente (ms) entre l'application d'un style et le portrait
 }
 
 -- Temps laissé à la photo d'identité (mugshot) avant l'arrivée en ville
