@@ -1790,6 +1790,15 @@ async function demoNui(name, data) {
             cat(12, "Armes automatiques", []), cat(13, "Fusils à pompe", []), cat(14, "Armes lourdes", []), cat(15, "Armes blanches", []),
         ] };
     }
+    if (name === "action" && data && data.action === "elevators.list") return { ok: true,
+        jobs: [{ name: "police", label: "LSPD" }, { name: "ambulance", label: "EMS" }],
+        elevators: [{ id: 1, label: "Hôpital Pillbox", job: "", active: true, floors: [
+            { label: "Rez-de-chaussée", x: 332.32, y: -595.6, z: 43.28, h: 70 }, { label: "Toit (héliport)", x: 338.53, y: -583.85, z: 74.16, h: 250 },
+        ] }] };
+    if (name === "action" && data && data.action === "healItems.list") return { ok: true,
+        jobs: [{ name: "ambulance", label: "EMS" }],
+        items: [{ item: "bread", heal: 25, armor: 0, revive: false, target: "both", duration: 4, access: "all", consume: true }, { item: "water", heal: 100, armor: 0, revive: true, target: "other", duration: 8, access: "medic", consume: true }] };
+    if (name === "action" && data && data.action === "mechanic.get") return { ok: true, prices: { default: { engine: 2500, brakes: 1500, paint1: 500 }, classes: { 7: { engine: 6000 } }, models: { sultan: { turbo: 4000 } } } };
     if (name === "action" && data && data.action === "harvest.list") return { ok: true,
         jobs: [{ name: "unemployed", label: "Sans emploi" }, { name: "farmer", label: "Fermier" }],
         points: [

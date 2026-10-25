@@ -13,9 +13,9 @@ const OTHERS_TILES = [
     { id: "logs", label: "Logs", icon: "i-list", go: "logs", show: () => can("logs.view") || can("logs.chat") },
     { id: "driving", label: "Auto-école", icon: "i-car", show: () => can("others.manage") },
     { id: "harvest", label: "Récoltes", icon: "i-briefcase", show: () => can("others.manage") },
-    { id: "elevators", label: "Ascenseurs", icon: "i-layers", soon: true, show: () => can("others.manage") },
-    { id: "heal", label: "Heal Items (EMS)", icon: "i-heart", soon: true, show: () => can("others.manage") },
-    { id: "mechanic", label: "Prix custom (mécano)", icon: "i-tool", soon: true, show: () => can("others.manage") },
+    { id: "elevators", label: "Ascenseurs", icon: "i-layers", show: () => can("others.manage") },
+    { id: "heal", label: "Heal Items (EMS)", icon: "i-heart", show: () => can("others.manage") },
+    { id: "mechanic", label: "Prix custom (mécano)", icon: "i-tool", show: () => can("others.manage") },
     { id: "afk", label: "Zone AFK", icon: "i-clock", go: "features", show: () => can("features.manage") },
 ];
 
@@ -24,6 +24,9 @@ const DRIVING_EXAMS = [["car", "Voiture"], ["bike", "Moto"], ["truck", "Camion"]
 function renderOthers() {
     const root = $("view-others");
     if (othersState.page === "harvest") return renderHarvest(root);
+    if (othersState.page === "elevators") return renderElevators(root);
+    if (othersState.page === "heal") return renderHealItems(root);
+    if (othersState.page === "mechanic") return renderMechanic(root);
     if (othersState.page === "driving") {
         if (drivingState.data && root.querySelector(".driving-page")) return;
         paintDriving();
@@ -48,6 +51,9 @@ function closeOthersPage() {
         untrackUnsaved("others");
         drivingState.draft = null;
         harvestState.draft = null;
+        elevatorState.draft = null;
+        healState.draft = null;
+        mechanicState.draft = null;
         othersState.page = null;
         renderOthers();
     });

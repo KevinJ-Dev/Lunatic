@@ -1493,3 +1493,26 @@ body.hidden.minimized .mini-pill { display: flex; }
 .zone-item-row { grid-template-columns: minmax(0, 1fr) 90px auto; }
 .ingredient-row, .ingredient-row.loot-row { align-items: center; }
 .ingredient-row .item-choose, .zone-item-row .item-choose { min-height: 38px; }
+
+/* Autres : ascenseurs, objets de soin, tarifs mécano */
+.elevators-page, .heal-page, .mechanic-page { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.others-split { display: grid; grid-template-columns: 280px minmax(0, 1fr); flex: 1; min-height: 0; border-top: 1px solid var(--line); }
+.others-split > * { min-height: 0; }
+.others-split .sidebar { width: auto; }
+.others-editor { display: grid; gap: 12px; align-content: start; }
+.others-editor .card { display: grid; gap: 10px; }
+.elevator-floor { display: grid; grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr) auto auto auto auto auto; gap: 6px; align-items: center; padding: 4px 8px; border-radius: 8px; background: #0000002e; font-size: 12px; }
+.elevator-floor .input { height: 30px; }
+.heal-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 12px; }
+.heal-card-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.heal-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; }
+.heal-grid .item-field { grid-template-columns: 110px minmax(0, 1fr); }
+.heal-toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.mechanic-nav { overflow-y: auto; padding: 12px 10px; }
+.mechanic-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; padding: 6px 4px 2px; }
+.mechanic-add .input { height: 30px; }
+.mechanic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px 12px; }
+.mechanic-part { display: grid; gap: 4px; color: var(--muted); font-size: 11.5px; letter-spacing: .03em; text-transform: uppercase; }
+.mechanic-part .input { height: 32px; text-transform: none; }
+.heal-grid { grid-template-columns: minmax(0, 1fr); }
+.heal-grid .item-field { grid-template-columns: 130px minmax(0, 1fr); }

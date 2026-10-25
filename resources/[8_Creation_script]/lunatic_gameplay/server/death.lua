@@ -131,6 +131,26 @@ local function isMedic(xPlayer)
     return structure ~= nil and structure.kind == 'public' and Config.MedicTypes[structure.type] == true
 end
 
+-- Partagé avec les objets de soin (server/healitems.lua)
+IsMedic = isMedic
+
+function IsPlayerDown(src)
+    return deaths[src] ~= nil
+end
+
+-- Réanimation sur place (objet de soin) : le joueur se relève là où il est tombé
+function RevivePlayer(src, by)
+    if not deaths[src] then
+        return false
+    end
+
+    deaths[src] = nil
+    TriggerClientEvent('lunatic_gameplay:revived', src)
+    GameLog('players', 'success', by, 'player.revive', GetPlayerName(src), { target = src, item = true })
+    Notify(src, 'Vous avez été réanimé.', 'success')
+    return true
+end
+
 RegisterNetEvent('lunatic_gameplay:callMedic', function()
     local src = source
     local death = deaths[src]
