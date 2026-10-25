@@ -1,0 +1,51 @@
+/* Carte de Los Santos (Leaflet) */
+.map-pane { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 16px 18px 18px; border-left: 1px solid var(--line); }
+.map-head { display: flex; align-items: center; gap: 8px; min-height: 30px; }
+.map-head b { flex: 1; overflow: hidden; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
+.gta-map { flex: 1; min-height: 0; border: 1px solid var(--line-strong); border-radius: 14px; background: #143d5a; isolation: isolate; }
+.gta-map.picking, .gta-map.picking .leaflet-interactive { cursor: crosshair; }
+.gta-map .leaflet-control-zoom a { background: #17121f; color: var(--ink); border-color: var(--line); }
+.gta-map .leaflet-control-zoom a:hover { background: #241c31; }
+.gta-map .leaflet-control-attribution { background: #0b0812b3; color: var(--muted); font-size: 10px; }
+.gta-map .leaflet-control-attribution a { color: var(--muted); }
+.gta-map-tip { border: 1px solid var(--line-strong); border-radius: 8px; background: #17121f; color: var(--ink); font: 600 12px var(--font); box-shadow: none; }
+.gta-map-tip::before { display: none; }
+
+/* Page Permissions (façon Vision) : en-tête, blocs Permissions (3 colonnes) et Accès, boutons en bas */
+.perm-page { gap: 14px; padding: 18px 22px; min-height: 0; }
+.rank-head { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 14px; background: #ffffff05; }
+.rank-dot { width: 16px; height: 16px; flex: none; padding: 0; border: 2px solid #ffffff30; border-radius: 50%; cursor: pointer; }
+.rank-dot:disabled { cursor: default; }
+.rank-name { flex: 1; min-width: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+.rank-name b { font-size: 18px; letter-spacing: .03em; text-transform: uppercase; }
+.rank-tag { color: var(--muted-2); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.rank-sub { flex-basis: 100%; color: var(--muted); font-size: 12px; }
+.rank-field { display: flex; align-items: center; gap: 8px; color: var(--muted-2); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.rank-field .input { width: 190px; height: 32px; }
+.rank-field.small .input { width: 90px; }
+.pv-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 14px; }
+.pv-panel { display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--line); border-radius: 14px; background: #ffffff05; }
+.pv-panel-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.pv-panel-head b { flex: 1; font-size: 14px; }
+.pv-panel-head svg.i { width: 14px; height: 14px; color: var(--muted); }
+.pv-search { width: 170px; height: 30px; }
+.pv-search input { width: 100%; }
+.pv-cols { flex: 1; min-height: 0; overflow-y: auto; display: grid; gap: 0 12px; padding: 8px 12px 12px; align-content: start; }
+.pv-cols.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.pv-cols.access .pv-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+.pv-col { min-width: 0; }
+.pv-col-head { position: sticky; top: -8px; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; margin-bottom: 4px; background: #1a1424; color: var(--muted-2); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.pv-bulk { display: flex; gap: 2px; }
+.pv-bulk .btn { width: 24px; height: 22px; padding: 0; justify-content: center; }
+.pv-bulk svg.i { width: 12px; height: 12px; }
+.pv-row { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 4px 6px; border-bottom: 1px solid #ffffff08; border-radius: 6px; cursor: pointer; font-size: 12.5px; color: var(--ink-2); }
+.pv-row:hover { background: var(--surface); }
+.pv-row.locked { cursor: default; opacity: .5; }
+.pv-row .pv-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-row .switch { flex: none; }
+.pv-row.on .switch { background: var(--accent); }
+.pv-row.on .switch::after { transform: translateX(16px); }
+.pv-members { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
+.pv-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pv-footer .grow { flex: 1; }
+

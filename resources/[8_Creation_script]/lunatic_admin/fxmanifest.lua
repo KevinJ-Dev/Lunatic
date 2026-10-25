@@ -89,7 +89,7 @@ ui_page 'web/index.html'
 
 files {
     'web/index.html',
-    'web/style.css',
+    'web/css/*.css',
     'web/app.js',
     'web/sanctions.js',
     'web/tools.js',

@@ -1,0 +1,81 @@
+/* Tuile Autres et Auto-école */
+.others-tiles { max-width: 1000px; }
+.driving-head { display: flex; align-items: center; gap: 12px; padding: 18px 24px 10px; }
+.driving-head .page-title { margin: 0; }
+.driving-body { display: grid; gap: 14px; align-content: start; }
+.driving-body .card { display: grid; gap: 10px; }
+.driving-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 18px; }
+.driving-grid .item-field { grid-template-columns: 170px minmax(0, 1fr); }
+.driving-spot { display: grid; grid-template-columns: 200px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: #0000002e; font-size: 12.5px; }
+.driving-exam { display: grid; gap: 10px; }
+.driving-points-head { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; font-size: 13px; }
+.driving-points { display: grid; gap: 4px; }
+.driving-point { display: grid; grid-template-columns: 24px minmax(0, 1fr) 80px 36px auto auto auto auto; gap: 6px; align-items: center; padding: 4px 8px; border-radius: 8px; background: #0000002e; font-size: 12px; }
+.driving-point .input { height: 28px; }
+.driving-fold { margin-top: 0; }
+.driving-questions { display: grid; gap: 10px; margin-top: 8px; }
+.driving-question { display: grid; gap: 4px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #0000002e; }
+.driving-question-head { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.driving-answer { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 6px; align-items: center; padding-left: 30px; }
+.driving-answer .input, .driving-question-head .input { height: 30px; }
+.driving-good { width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); }
+.driving-good.on { border-color: transparent; background: var(--ok); color: #06180f; font-weight: 800; }
+
+/* Autres → Récoltes (liste, carte, fiche comme la tuile Blips) */
+#view-others.on { display: flex; }
+.harvest-page { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.harvest-body { flex: 1; border-top: 1px solid var(--line); }
+.harvest-new { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.harvest-new .btn { justify-content: center; padding: 0 8px; }
+
+/* Choix d'un objet en image (bouton + grille) */
+.item-choose { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 5px 10px 5px 6px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); color: var(--ink); text-align: left; }
+.item-choose:hover { border-color: rgba(var(--accent-rgb), .7); }
+.item-choose.empty { border-style: dashed; color: var(--muted); }
+.item-choose > svg.i { width: 14px; height: 14px; margin-left: auto; color: var(--muted); }
+.item-choose-pic { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 8px; background: #0000002e; }
+.item-choose-pic .item-img { max-width: 30px; max-height: 30px; }
+.item-choose-pic svg.i { width: 16px; height: 16px; color: var(--muted); }
+.item-choose-text { display: grid; min-width: 0; line-height: 1.2; }
+.item-choose-text b { overflow: hidden; font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+.item-choose-text small { color: var(--muted); font-size: 10.5px; }
+.modal.item-choose-modal { width: min(860px, 92%); }
+.item-choose-body { grid-template-rows: auto minmax(0, 1fr); }
+.item-choose-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; align-content: start; overflow-y: auto; max-height: 52vh; }
+.item-choose-cell { display: grid; justify-items: center; gap: 4px; padding: 10px 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); text-align: center; }
+.item-choose-cell:hover { border-color: rgba(var(--accent-rgb), .7); }
+.item-choose-cell.on { border-color: var(--accent); background: rgba(var(--accent-rgb), .15); }
+.item-choose-cell .item-choose-pic { width: 52px; height: 52px; }
+.item-choose-cell .item-choose-pic .item-img { max-width: 46px; max-height: 46px; }
+.item-choose-cell b { overflow: hidden; max-width: 100%; font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
+.item-choose-cell small { overflow: hidden; max-width: 100%; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.store-line .item-choose { min-height: 36px; }
+.zone-item-row { grid-template-columns: minmax(0, 1fr) 90px auto; }
+.ingredient-row, .ingredient-row.loot-row { align-items: center; }
+.ingredient-row .item-choose, .zone-item-row .item-choose { min-height: 38px; }
+
+/* Autres : ascenseurs, objets de soin, tarifs mécano */
+.elevators-page, .heal-page, .mechanic-page { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.others-split { display: grid; grid-template-columns: 280px minmax(0, 1fr); flex: 1; min-height: 0; border-top: 1px solid var(--line); }
+.others-split > * { min-height: 0; }
+.others-split .sidebar { width: auto; }
+.others-editor { display: grid; gap: 12px; align-content: start; }
+.others-editor .card { display: grid; gap: 10px; }
+.elevator-floor { display: grid; grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr) auto auto auto auto auto; gap: 6px; align-items: center; padding: 4px 8px; border-radius: 8px; background: #0000002e; font-size: 12px; }
+.elevator-floor .input { height: 30px; }
+.heal-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 12px; }
+.heal-card-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.heal-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; }
+.heal-grid .item-field { grid-template-columns: 110px minmax(0, 1fr); }
+.heal-toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.mechanic-nav { overflow-y: auto; padding: 12px 10px; }
+.mechanic-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; padding: 6px 4px 2px; }
+.mechanic-add .input { height: 30px; }
+.mechanic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px 12px; }
+.mechanic-part { display: grid; gap: 4px; color: var(--muted); font-size: 11.5px; letter-spacing: .03em; text-transform: uppercase; }
+.mechanic-part .input { height: 32px; text-transform: none; }
+.heal-grid { grid-template-columns: minmax(0, 1fr); }
+.heal-grid .item-field { grid-template-columns: 130px minmax(0, 1fr); }
+
+.mechanic-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.afk-page { display: flex; flex-direction: column; flex: 1; min-height: 0; }
