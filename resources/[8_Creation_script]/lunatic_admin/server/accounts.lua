@@ -105,9 +105,9 @@ function Accounts.profile(license, identifier)
         if row.discord then
             for _, other in ipairs(MySQL.query.await('SELECT `license`, `name`, `last_seen` FROM `lunatic_player_accounts` WHERE `discord` = ? AND `license` <> ? ORDER BY `last_seen` DESC LIMIT 10', { row.discord, license }) or {}) do
                 local id = other.license:gsub('^license:', '')
-                local user = MySQL.single.await('SELECT `firstname`, `lastname` FROM `users` WHERE `identifier` = ?', { id })
+                local user = MySQL.single.await("SELECT `identifier`, `firstname`, `lastname` FROM `users` WHERE `identifier` = ? OR SUBSTRING_INDEX(`identifier`, ':', -1) = ? ORDER BY `last_seen` DESC LIMIT 1", { id, id })
                 profile.linked[#profile.linked + 1] = {
-                    identifier = id, license = other.license, lastSeen = tonumber(other.last_seen),
+                    identifier = user and user.identifier or id, license = other.license, lastSeen = tonumber(other.last_seen),
                     name = user and user.firstname and ('%s %s'):format(user.firstname, user.lastname or '') or other.name,
                 }
             end

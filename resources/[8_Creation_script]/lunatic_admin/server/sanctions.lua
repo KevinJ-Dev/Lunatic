@@ -429,19 +429,19 @@ Panel.actions['sanction.ban'] = function(src, actor, data)
             return Panel.fail("Vous n'avez pas la permission d'agir sur les joueurs hors ligne.")
         end
 
-        local identifier = data.identifier:gsub('^license:', '')
-        local row = identifier:match('^%x+$') and MySQL.single.await('SELECT `firstname`, `lastname` FROM `users` WHERE `identifier` = ?', { identifier })
+        local identifier = Util.resolveCharacter(Util.characterId(data.identifier))
+        local row = identifier and MySQL.single.await('SELECT `firstname`, `lastname` FROM `users` WHERE `identifier` = ?', { identifier })
 
         if not row then
             return Panel.fail('Joueur introuvable en base.')
         end
 
-        if Staff.sourceOf('license:' .. identifier) then
+        if Staff.sourceOf(Util.licenseOf(identifier)) then
             return Panel.fail('Ce joueur est connecté : bannissez-le depuis sa fiche en ligne.')
         end
 
         target = {
-            license = 'license:' .. identifier,
+            license = Util.licenseOf(identifier),
             name = row.firstname and ('%s %s'):format(row.firstname, row.lastname or '') or identifier,
             identifiers = {},
             tokens = {},

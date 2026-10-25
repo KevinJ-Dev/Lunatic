@@ -201,9 +201,9 @@ Panel.actions['poles.info'] = function(src, actor, data)
             perGrade[member.grade] = (perGrade[member.grade] or 0) + 1
 
             -- Membre du staff de rang égal ou supérieur : non modifiable (soi-même autorisé)
-            local staff = Staff.get('license:' .. member.identifier)
+            local staff = Staff.get(Util.licenseOf(member.identifier))
             local rank = staff and Ranks.get(staff.rankId)
-            member.protected = rank ~= nil and rank.level >= actor.level and 'license:' .. member.identifier ~= myLicense
+            member.protected = rank ~= nil and rank.level >= actor.level and Util.licenseOf(member.identifier) ~= myLicense
         end
 
         table.sort(members, function(a, b)
@@ -517,16 +517,16 @@ end
 -- Cible par identifiant ESX ; refuse un membre du staff de rang égal ou supérieur (soi-même autorisé)
 ---@return string|nil identifier, number|nil source, string|nil name, table|nil error
 local function memberTarget(src, actor, data)
-    local identifier = type(data.identifier) == 'string' and data.identifier:gsub('^license:', '') or nil
+    local identifier = Util.characterId(data.identifier)
 
-    if not identifier or not identifier:match('^%x+$') or #identifier > 60 then
+    if not identifier then
         return nil, nil, nil, Panel.fail('Joueur introuvable.')
     end
 
-    local target = Staff.sourceOf('license:' .. identifier)
+    local target = Util.sourceOfCharacter(identifier)
 
     if target ~= src then
-        local staff = Staff.get('license:' .. identifier)
+        local staff = Staff.get(Util.licenseOf(identifier))
         local rank = staff and Ranks.get(staff.rankId)
 
         if rank and rank.level >= actor.level then

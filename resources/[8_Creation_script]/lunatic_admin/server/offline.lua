@@ -11,19 +11,12 @@ local function denied()
     return Panel.fail("Vous n'avez pas la permission.")
 end
 
--- Identifiant ESX (table users) = licence Rockstar sans le préfixe « license: »
+-- Identifiant ESX (table users) d'un personnage : « charN:<licence> » (un ancien lien sans « charN: » vise le plus récent)
 local function cleanIdentifier(value)
-    if type(value) ~= 'string' then
-        return nil
-    end
-
-    local identifier = value:gsub('^license:', '')
-    return identifier:match('^%x+$') and #identifier <= 60 and identifier or nil
+    return Util.resolveCharacter(Util.characterId(value))
 end
 
-local function licenseOf(identifier)
-    return 'license:' .. identifier
-end
+local licenseOf = Util.licenseOf
 
 local function rpName(row)
     if row.firstname and row.firstname ~= '' then
@@ -71,8 +64,8 @@ local function offlineTarget(actor, data, permission)
         return nil, nil, Panel.fail('Joueur introuvable en base.')
     end
 
-    if Staff.sourceOf(licenseOf(identifier)) then
-        return nil, nil, Panel.fail('Ce joueur est connecté : utilisez sa fiche dans « En ligne ».')
+    if Util.sourceOfCharacter(identifier) then
+        return nil, nil, Panel.fail('Ce personnage est connecté : utilisez sa fiche dans « En ligne ».')
     end
 
     local member = Staff.get(licenseOf(identifier))
@@ -128,7 +121,7 @@ Panel.actions['offline.search'] = function(_, actor, data)
             identifier = row.identifier,
             name = rpName(row),
             lastSeen = tonumber(row.last_seen),
-            online = Staff.sourceOf(licenseOf(row.identifier)),
+            online = Util.sourceOfCharacter(row.identifier),
         }
     end
 
@@ -176,7 +169,7 @@ Panel.actions['offline.info'] = function(_, actor, data)
             job = { name = row.job, label = job and job.label or row.job, grade = grade and grade.label or tostring(row.job_grade), level = tonumber(row.job_grade) },
             lastSeen = tonumber(row.last_seen),
             createdAt = tonumber(row.created_at),
-            online = Staff.sourceOf(license),
+            online = Util.sourceOfCharacter(identifier),
             rank = rank and { name = rank.name, color = rank.color } or nil,
             protected = rank ~= nil and rank.level >= actor.level,
             licenses = Panel.licensesOf and Panel.licensesOf(identifier) or {},

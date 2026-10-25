@@ -56,3 +56,40 @@ function Util.position(value)
     local r = function(n) return math.floor(n * 100 + 0.5) / 100 end
     return { x = r(x), y = r(y), z = r(z), h = math.floor((h % 360) * 10 + 0.5) / 10 }
 end
+
+-- Plusieurs personnages par compte (lunatic_characters) : identifiant ESX « charN:<licence sans préfixe> ».
+-- Licence du compte FiveM (« license:… ») d'un identifiant de personnage, avec ou sans « charN: »
+function Util.licenseOf(identifier)
+    local bare = tostring(identifier):gsub('^license:', ''):gsub('^char%d+:', '')
+    return 'license:' .. bare
+end
+
+-- Identifiant de personnage reçu de l'interface (« charN:hex », ou ancien format « hex »), sinon nil
+function Util.characterId(value)
+    if type(value) ~= 'string' then
+        return nil
+    end
+
+    local id = value:gsub('^license:', '')
+
+    if #id <= 60 and (id:match('^char%d+:%x+$') or id:match('^%x+$')) then
+        return id
+    end
+
+    return nil
+end
+
+-- Identifiant sans « charN: » (ancien lien, licence) : personnage le plus récent de ce compte
+function Util.resolveCharacter(id)
+    if not id or id:find(':', 1, true) then
+        return id
+    end
+
+    return MySQL.scalar.await("SELECT `identifier` FROM `users` WHERE `identifier` = ? OR SUBSTRING_INDEX(`identifier`, ':', -1) = ? ORDER BY `last_seen` DESC LIMIT 1", { id, id }) or id
+end
+
+-- Source du joueur si ce personnage précis est chargé (un même compte peut jouer un autre personnage)
+function Util.sourceOfCharacter(identifier)
+    local xPlayer = identifier and ESX.GetPlayerFromIdentifier(identifier)
+    return xPlayer and xPlayer.source or nil
+end

@@ -476,6 +476,11 @@ AddEventHandler('esx:onPlayerSpawn', function()
     spawned = true
 end)
 
+-- Changement de personnage (lunatic_characters) : le prochain devra de nouveau apparaître avant la création
+RegisterNetEvent('esx:onPlayerLogout', function()
+    spawned = false
+end)
+
 RegisterNetEvent('lunatic_creator:start', function(countdown)
     -- Attend qu'ESX ait fini de faire apparaître le joueur, la fin de l'écran de chargement et un personnage en vie
     local timeout = GetGameTimer() + 60000

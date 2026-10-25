@@ -172,7 +172,7 @@ local function nameOf(identifier)
         return nil
     end
 
-    local src = Staff.sourceOf('license:' .. identifier)
+    local src = Util.sourceOfCharacter(identifier)
 
     if src then
         return Staff.displayName(src)
@@ -391,9 +391,9 @@ Panel.actions['structures.save'] = function(src, actor, data)
     local lead = nil
 
     if structure.kind == 'public' and type(data.lead) == 'string' and data.lead ~= '' then
-        lead = data.lead:gsub('^license:', '')
+        lead = Util.characterId(data.lead)
 
-        if not lead:match('^%x+$') or #lead > 60 then
+        if not lead then
             return Panel.fail('Lead invalide.')
         end
     end

@@ -181,7 +181,7 @@ end)
 -- Ajoute, déplace ou retire (crewId = nil) un membre
 ---@return boolean ok, string|nil error
 function Crews.setMember(identifier, crewId, rank)
-    if type(identifier) ~= 'string' or not identifier:match('^%x+$') then
+    if not Util.characterId(identifier) then
         return false, 'Joueur introuvable.'
     end
 
@@ -633,7 +633,7 @@ Panel.actions['crews.addMember'] = function(src, actor, data)
         return err
     end
 
-    local identifier = type(data.identifier) == 'string' and data.identifier:gsub('^license:', '') or nil
+    local identifier = Util.characterId(data.identifier)
     local query = type(data.query) == 'string' and data.query:match('^%s*(.-)%s*$') or ''
 
     if not identifier then

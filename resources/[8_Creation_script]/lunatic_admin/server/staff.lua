@@ -13,11 +13,6 @@ local members = {}
 ---@type table<number, string> source -> licence des joueurs connectés
 local licenseBySource = {}
 
--- Identifiant ESX (table users) d'une licence : la licence sans le préfixe "license:"
-local function esxIdentifier(license)
-    return (license:gsub('^license:', ''))
-end
-
 local function rpName(firstname, lastname)
     if type(firstname) == 'string' and firstname ~= '' and type(lastname) == 'string' and lastname ~= '' then
         return ('%s %s'):format(firstname, lastname)
@@ -46,15 +41,15 @@ function Staff.load()
 
     for _, row in ipairs(rows or {}) do
         members[row.license] = { license = row.license, rankId = row.rank_id, name = row.name, addedAt = row.added_at }
-        identifiers[#identifiers + 1] = esxIdentifier(row.license)
+        identifiers[#identifiers + 1] = (row.license:gsub('^license:', ''))
     end
 
-    -- Remplace les noms enregistrés par le nom RP du personnage (table users d'ESX)
+    -- Remplace les noms enregistrés par le nom RP du personnage le plus récent du compte (table users d'ESX)
     if #identifiers > 0 then
-        local users = MySQL.query.await('SELECT `identifier`, `firstname`, `lastname` FROM `users` WHERE `identifier` IN (?)', { identifiers })
+        local users = MySQL.query.await("SELECT `identifier`, `firstname`, `lastname` FROM `users` WHERE SUBSTRING_INDEX(`identifier`, ':', -1) IN (?) ORDER BY `last_seen`", { identifiers })
 
         for _, user in ipairs(users or {}) do
-            local member = members['license:' .. user.identifier]
+            local member = members[Util.licenseOf(user.identifier)]
 
             if member then
                 saveName(member, rpName(user.firstname, user.lastname))
