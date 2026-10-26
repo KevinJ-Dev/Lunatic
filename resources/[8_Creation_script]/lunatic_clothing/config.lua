@@ -87,18 +87,34 @@ Config.CameraShift = 0.25
 -- Animation du bouton « Bras levés » (vérifier les trous des vêtements)
 Config.ArmsUp = { dict = 'missminuteman_1ig_2', anim = 'handsup_base' }
 
--- Gestion du catalogue (staff, ouverte depuis le panel) : photo d'une pièce avec screenshot-basic, cadrée par ces vues
--- (sans décalage), recadrée en carré puis enregistrée dans html/clothes/ ; « ensure lunatic_clothing » l'envoie aux joueurs
+-- Gestion du catalogue (staff, ouverte depuis le panel) : photos avec screenshot-basic, une pièce ou toute une série.
+-- La pièce est portée seule sur une tenue de base, devant un écran vert (détouré : fond transparent), cadrée par ces
+-- vues, recadrée autour de la pièce puis enregistrée dans html/clothes/ ; « ensure lunatic_clothing » l'envoie aux joueurs.
 Config.Capture = {
     size = 256,          -- côté de la miniature (pixels)
-    crop = 0.8,          -- part de la hauteur de l'écran gardée au centre
-    quality = 0.85,
+    crop = 0.8,          -- part de la hauteur de l'écran gardée au centre avant le détourage
+    quality = 0.9,
+    behind = 1.3,        -- distance de l'écran vert derrière le personnage (mètres)
+    wait = 150,          -- attente (ms) après le chargement d'une pièce, avant la photo
+    -- Tenue de base pendant les photos (composant GTA = modèle) : torse nu, sous-vêtements, pieds nus, cheveux courts
+    base = {
+        male = { [1] = 0, [2] = 0, [3] = 15, [4] = 61, [5] = 0, [6] = 34, [7] = 0, [8] = 15, [9] = 0, [10] = 0, [11] = 15 },
+        female = { [1] = 0, [2] = 0, [3] = 15, [4] = 17, [5] = 0, [6] = 35, [7] = 0, [8] = 14, [9] = 0, [10] = 0, [11] = 18 },
+    },
     cameras = {
         head = { distance = 0.75, height = 0.65, fov = 30.0 },
         torso = { distance = 1.35, height = 0.25, fov = 40.0 },
         legs = { distance = 1.45, height = -0.5, fov = 42.0 },
         feet = { distance = 1.0, height = -0.85, fov = 36.0 },
     },
+}
+
+-- Images du Lunatic Clothes Renderer (option « Numéros du jeu ») : copiez les dossiers male/ et female/ de sa sortie
+-- dans html/renderer/ puis « ensure lunatic_clothing ». Elles passent avant les photos prises en jeu ; une image absente
+-- laisse la place à la suivante. {sex}, {id} = numéro GTA, {drawable}. Vérifiez le nom des dossiers des accessoires.
+Config.RendererImages = {
+    component = 'renderer/{sex}/{id}/{drawable}.png',
+    prop = 'renderer/{sex}/p{id}/{drawable}.png',
 }
 
 -- Images des vêtements : liens réglés dans le panel (Autres → Création perso), sinon ceux-ci.

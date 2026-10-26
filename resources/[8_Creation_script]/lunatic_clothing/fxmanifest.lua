@@ -39,5 +39,6 @@ files {
     'html/app.js',
     'html/catalogue.js',
     'html/clothes/*.webp',
+    'html/renderer/**/*.png',
     'html/fonts/*.woff2',
 }

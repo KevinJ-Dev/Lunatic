@@ -34,14 +34,10 @@ function toolGroupOpen(key) {
     paintTool();
 }
 
-function toolImage(c, drawable) {
+// Images d'une pièce : photo qui vient d'être prise, puis l'ordre du magasin (fiche, Renderer, photo, lien général)
+function toolSources(c, drawable) {
     const preview = tool.previews[`${tool.data.sex}:${c.key}:${drawable}`];
-    if (preview) return preview;
-    const item = toolItem(c, drawable);
-    if (item && item.image) return item.image;
-    const template = c.kind === "prop" ? tool.data.images.prop : tool.data.images.component;
-    if (!template) return null;
-    return template.replaceAll("{sex}", tool.data.sex).replaceAll("{id}", String(c.id)).replaceAll("{drawable}", String(drawable)).replaceAll("{texture}", "0");
+    return [preview, ...pieceSources(tool.data, c, drawable, toolItem(c, drawable), 0)].filter(Boolean);
 }
 
 async function toolCounts(c, drawable) {
@@ -78,11 +74,10 @@ function toolLeft() {
     const cells = [];
     for (let i = 0; i < total.drawables; i += 1) {
         const item = toolItem(c, i);
-        const url = toolImage(c, i);
         cells.push(h("button", { class: `cell${tool.selected === i ? " on" : ""}${item && item.banned ? " banned" : ""}`, onclick: () => toolSelect(c, i) },
             item && item.banned ? h("span", { class: "badge-ban" }, "Bannie") : null,
             item && item.price != null ? h("span", { class: "badge-price" }, `${item.price} ${tool.data.currency}`) : null,
-            url ? h("img", { src: url, alt: "", loading: "lazy", onerror: (e) => e.target.replaceWith(h("span", { class: "num" }, String(i))) }) : h("span", { class: "num" }, String(i)),
+            pieceImage(toolSources(c, i), i),
             h("small", null, (item && item.label) || `N° ${i}`)));
     }
 
@@ -115,12 +110,11 @@ function toolRight() {
         h("small", null, "Prix des pièces sans prix propre (multiplié par le coefficient de chaque enseigne)."));
 
     if (tool.selected === null) {
-        return [sexes, defaultPrice, h("div", { class: "box" }, h("p", { class: "empty" }, "Choisissez une pièce dans la grille pour modifier sa fiche."))];
+        return [sexes, defaultPrice, batchBox(c), h("div", { class: "box" }, h("p", { class: "empty" }, "Choisissez une pièce dans la grille pour modifier sa fiche."))];
     }
 
     const drawable = tool.selected;
     const item = toolItem(c, drawable) || {};
-    const url = toolImage(c, drawable);
     const form = { label: item.label || "", price: item.price != null ? String(item.price) : "", banned: !!item.banned, image: item.image || "" };
 
     const label = h("input", { class: "input", maxlength: "40", placeholder: `N° ${drawable}`, value: form.label });
@@ -156,7 +150,7 @@ function toolRight() {
     return [sexes, defaultPrice,
         h("div", { class: "box" }, h("div", { class: "box-head" }, "Aperçu"),
             h("div", { class: "preview" },
-                h("div", { class: "preview-img" }, url ? h("img", { src: url, alt: "", onerror: (e) => e.target.replaceWith(h("span", { class: "num" }, String(drawable))) }) : h("span", { class: "num" }, String(drawable))),
+                h("div", { class: "preview-img" }, pieceImage(toolSources(c, drawable), drawable)),
                 h("div", null, h("b", null, form.label || `N° ${drawable}`), h("small", null, `${c.label} · ID ${drawable}`)))),
         h("div", { class: "box" }, h("div", { class: "box-head" }, "Informations"),
             h("div", { class: "form" },
@@ -166,7 +160,34 @@ function toolRight() {
                 h("span", null, "Image"), image,
                 h("span", null, "Photo"), h("button", { class: "btn small ghost", disabled: !tool.data.screenshot || tool.busy, title: tool.data.screenshot ? "" : "screenshot-basic absent du serveur", onclick: capture }, tool.busy ? "Photo en cours…" : "Prendre la photo")),
             !tool.data.screenshot ? h("small", { class: "warn" }, "Photo indisponible : installez et démarrez screenshot-basic.") : null,
-            h("button", { class: "btn save", onclick: save }, "Sauvegarder"))];
+            h("button", { class: "btn save", onclick: save }, "Sauvegarder")), batchBox(c)];
+}
+
+// Photos en série : la catégorie affichée ou tout le catalogue (sexe affiché), une pièce à la fois
+function batchBox(c) {
+    const skip = h("button", { class: `switch${tool.skip ? " on ok" : ""}`, onclick: () => { tool.skip = !tool.skip; skip.classList.toggle("on", tool.skip); skip.classList.toggle("ok", tool.skip); } }, h("i"));
+    const run = async (scope) => {
+        const res = await nui("batch", { scope, key: c.key, skip: tool.skip });
+        if (!res || !res.ok) return toast((res && res.error) || "Série impossible.");
+        batchShow({ index: 0, total: res.total, done: 0, failed: 0, label: "Préparation…" });
+    };
+    return h("div", { class: "box" }, h("div", { class: "box-head" }, "Photos en série"),
+        h("small", null, "Chaque pièce portée seule, sur fond transparent, rangée dans sa fiche. Les images du Clothes Renderer restent prioritaires."),
+        h("div", { class: "inline" }, skip, h("small", null, "Garder les photos déjà prises (reprise)")),
+        h("div", { class: "pay" },
+            h("button", { class: "btn small", disabled: !tool.data.screenshot, onclick: () => run("category") }, `Tout « ${c.label} »`),
+            h("button", { class: "btn small", disabled: !tool.data.screenshot, onclick: () => run("all") }, "Tout le catalogue")),
+        !tool.data.screenshot ? h("small", { class: "warn" }, "Indisponible : screenshot-basic ne tourne pas.") : null);
+}
+
+// Progression de la série (hors de l'écran de gestion, caché pendant les photos)
+function batchShow(p) {
+    const bar = $("batch");
+    bar.classList.remove("hidden");
+    bar.replaceChildren(
+        h("div", null, h("b", null, `Photos : ${p.index} / ${p.total}`), h("small", null, `${p.label} · ${p.done} réussies${p.failed ? `, ${p.failed} ratées` : ""}`)),
+        h("button", { class: "btn small ghost", onclick: () => nui("batchStop") }, "Arrêter"),
+        h("div", { class: "bar" }, h("i", { style: `width:${p.total ? (p.index / p.total) * 100 : 0}%` })));
 }
 
 async function toolSex(sex) {
@@ -180,18 +201,47 @@ async function toolSex(sex) {
     toolGroupOpen(tool.group);
 }
 
-// Photo : l'image plein écran (screenshot-basic) est recadrée en carré au centre, puis renvoyée au jeu
+// Photo : centre de l'écran (screenshot-basic) détouré (fond vert rendu transparent, reflets verts retirés),
+// recadré autour de la pièce puis réduit en carré, renvoyé au jeu
 function cropShot(msg) {
     const send = (payload) => nui("cropped", payload).catch(() => null);
     const img = new Image();
     img.onload = () => {
         try {
-            const side = Math.min(img.width, img.height * msg.crop);
-            const canvas = document.createElement("canvas");
-            canvas.width = msg.size;
-            canvas.height = msg.size;
-            canvas.getContext("2d").drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, msg.size, msg.size);
-            send({ image: canvas.toDataURL("image/webp", msg.quality) });
+            const side = Math.round(Math.min(img.width, img.height * msg.crop));
+            const work = document.createElement("canvas");
+            work.width = side;
+            work.height = side;
+            const ctx = work.getContext("2d");
+            ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, side, side);
+            const pixels = ctx.getImageData(0, 0, side, side);
+            const p = pixels.data;
+            let minX = side, minY = side, maxX = -1, maxY = -1;
+            for (let i = 0; i < p.length; i += 4) {
+                const r = p[i], g = p[i + 1], b = p[i + 2];
+                const other = Math.max(r, b);
+                const green = g - other;
+                if (green > 70) p[i + 3] = 0;
+                else if (green > 25) { p[i + 3] = Math.round(255 * (1 - (green - 25) / 45)); p[i + 1] = other; }
+                else if (green > 0) p[i + 1] = other;
+                if (p[i + 3] > 24) {
+                    const x = (i / 4) % side, y = Math.floor(i / 4 / side);
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                }
+            }
+            if (maxX < 0) return send({ error: "pièce invisible sur la photo" });
+            ctx.putImageData(pixels, 0, 0);
+            const w = maxX - minX + 1, h2 = maxY - minY + 1;
+            const box = Math.max(w, h2) * 1.08;
+            const out = document.createElement("canvas");
+            out.width = msg.size;
+            out.height = msg.size;
+            const scale = msg.size / box;
+            out.getContext("2d").drawImage(work, minX, minY, w, h2, (msg.size - w * scale) / 2, (msg.size - h2 * scale) / 2, w * scale, h2 * scale);
+            send({ image: out.toDataURL("image/webp", msg.quality) });
         } catch (e) {
             send({ error: String((e && e.message) || e).slice(0, 120) });
         }
@@ -205,13 +255,21 @@ window.addEventListener("message", (event) => {
     if (msg.action === "tool") openTool(msg.data);
     else if (msg.action === "toolHide") $("tool").classList.toggle("ghosted", msg.hidden === true);
     else if (msg.action === "crop") cropShot(msg);
+    else if (msg.action === "batchProgress") batchShow(msg);
+    else if (msg.action === "batchDone") {
+        $("batch").classList.add("hidden");
+        tool.data = { ...tool.data, ...msg.data, items: msg.data.items || {} };
+        tool.previews = {};
+        toast(`Série terminée : ${msg.done} photos${msg.failed ? `, ${msg.failed} ratées` : ""}. « ensure lunatic_clothing » les envoie aux joueurs.`);
+        paintTool();
+    }
     else if (msg.action === "close") $("tool").classList.add("hidden");
 });
 
 // Aperçu hors jeu : index.html#tool
 if (!inGame && location.hash.includes("tool")) {
     openTool({
-        sex: "male", currency: "$", screenshot: false, images: { component: "", prop: "" },
+        sex: "male", currency: "$", screenshot: true, images: { component: "", prop: "" }, renderer: { component: "renderer/{sex}/{id}/{drawable}.png", prop: "renderer/{sex}/p{id}/{drawable}.png" },
         items: { jacket: { 2: { label: "Veste en jean", price: 90 }, 4: { banned: true } } },
         groups: [
             { key: "tops", label: "Hauts", icon: "shirt", camera: "torso", categories: [{ key: "jacket", label: "Hauts", kind: "component", id: 11, base: 60 }, { key: "undershirt", label: "Sous-hauts", kind: "component", id: 8, base: 30 }, { key: "arms", label: "Bras", kind: "component", id: 3, base: 0 }] },

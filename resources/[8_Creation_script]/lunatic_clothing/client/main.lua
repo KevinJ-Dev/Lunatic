@@ -262,7 +262,7 @@ local function openShop(index, store)
     SendNUIMessage({ action = 'open', data = {
         store = store.label, brand = { label = brand.label, color = brand.color, image = bannerImage(brand.image), showText = brand.showText ~= false },
         pages = pages, groups = groupsFor(brand), worn = wornAll(ped), sex = sex, currency = currency(), items = items, coef = tonumber(brand.coef) or 1.0,
-        images = (GlobalState.lunaticCreator or {}).clothesImages or Config.ClothesImages,
+        images = (GlobalState.lunaticCreator or {}).clothesImages or Config.ClothesImages, renderer = Config.RendererImages,
         ready = readyFor(brand.key, sex), outfits = profile.outfits or {}, maxOutfits = profile.max or 0,
         favorites = type(profile.favorites) == 'table' and profile.favorites[sex] or {},
     } })
@@ -439,7 +439,7 @@ local cropReply = nil     -- image recadrée par la page
 local function toolData(sex, screenshot)
     return {
         sex = sex, groups = groupsFor(nil), items = catalogueFor(sex), worn = wornAll(PlayerPedId()), currency = currency(),
-        images = (GlobalState.lunaticCreator or {}).clothesImages or Config.ClothesImages, screenshot = screenshot,
+        images = (GlobalState.lunaticCreator or {}).clothesImages or Config.ClothesImages, renderer = Config.RendererImages, screenshot = screenshot,
     }
 end
 
@@ -521,44 +521,238 @@ local function waitFor(getter, ms)
     return getter()
 end
 
--- Photo de la pièce portée : interface cachée, caméra cadrée sur la pièce, capture, recadrage par la page, envoi
-RegisterNUICallback('capture', function(data, cb)
-    if not shop or shop.mode ~= 'tool' or not shop.screenshot or GetResourceState('screenshot-basic') ~= 'started' then
-        return cb({ ok = false, error = 'screenshot-basic ne tourne pas sur le serveur.' })
+-- Écran vert (dessiné à chaque image tant que des photos sont en cours) : un mur derrière le personnage et le sol,
+-- détourés ensuite par la page pour un fond transparent
+local greenScreen = false
+
+local function quad(a, b, c, d)
+    for _, tri in ipairs({ { a, b, c }, { a, c, b }, { a, c, d }, { a, d, c } }) do
+        DrawPoly(tri[1].x, tri[1].y, tri[1].z, tri[2].x, tri[2].y, tri[2].z, tri[3].x, tri[3].y, tri[3].z, 0, 255, 0, 255)
+    end
+end
+
+local function startGreenScreen()
+    if greenScreen then
+        return
     end
 
-    local view = Config.Capture.cameras[data.view] and data.view or 'torso'
-    local previous = shop.view
-    SendNUIMessage({ action = 'toolHide', hidden = true })
-    setCamera(view, true, Config.Capture.cameras[view])
-    Wait(450)
+    greenScreen = true
 
+    CreateThread(function()
+        while greenScreen and shop do
+            local anchor = shop.anchor
+            local angle = math.rad(anchor.w)
+            local forward = vector3(-math.sin(angle), math.cos(angle), 0.0)
+            local right = vector3(math.cos(angle), math.sin(angle), 0.0)
+            local center = vector3(anchor.x, anchor.y, anchor.z)
+            local back = center - forward * Config.Capture.behind
+            local floor = anchor.z - 0.97
+            local up = vector3(0.0, 0.0, 1.0)
+            local bottom = vector3(back.x, back.y, floor)
+            local near = vector3(center.x, center.y, floor) + forward * 4.0
+
+            quad(bottom - right * 5.0, bottom + right * 5.0, bottom + right * 5.0 + up * 4.0, bottom - right * 5.0 + up * 4.0)
+            quad(bottom - right * 5.0, bottom + right * 5.0, near + right * 5.0, near - right * 5.0)
+            Wait(0)
+        end
+
+        greenScreen = false
+    end)
+end
+
+-- Tenue de base des photos : la pièce photographiée est portée seule
+local function photoBase(ped, sex)
+    for component, drawable in pairs(Config.Capture.base[sex] or {}) do
+        SetPedComponentVariation(ped, component, drawable, 0, 0)
+    end
+
+    ClearAllPedProps(ped)
+end
+
+-- Pièce chargée avant d'être mise (sinon la photo partirait avec l'ancienne)
+local function wearForPhoto(ped, category, drawable)
+    if category.kind == 'prop' then
+        SetPedPreloadPropData(ped, category.id, drawable, 0)
+        waitFor(function() return HasPedPreloadPropDataFinished(ped) end, 3000)
+        SetPedPropIndex(ped, category.id, drawable, 0, true)
+        ReleasePedPreloadPropData(ped)
+    else
+        SetPedPreloadVariationData(ped, category.id, drawable, 0)
+        waitFor(function() return HasPedPreloadVariationDataFinished(ped) end, 3000)
+        SetPedComponentVariation(ped, category.id, drawable, 0, 0)
+        ReleasePedPreloadVariationData(ped)
+    end
+
+    Wait(Config.Capture.wait)
+end
+
+local function screenshot()
     local shot = promise.new()
-    exports['screenshot-basic']:requestScreenshot({ encoding = 'webp', quality = 0.95 }, function(image)
+    exports['screenshot-basic']:requestScreenshot({ encoding = 'png' }, function(image)
         shot:resolve(image)
     end)
-    local image = Citizen.Await(shot)
+    return Citizen.Await(shot)
+end
 
+-- Photo d'une pièce : tenue de base, pièce, caméra cadrée, capture, détourage par la page, envoi au serveur.
+-- batch = série en cours (le catalogue n'est republié qu'à la fin). Renvoie { ok, path, preview } ou { ok = false, error }.
+local function photograph(category, drawable, view, batch)
+    local ped = PlayerPedId()
+    local sex = sexOf(ped)
+    photoBase(ped, sex)
+    wearForPhoto(ped, category, drawable)
+    SetEntityHeading(ped, shop.anchor.w)
+    setCamera(view, true, Config.Capture.cameras[view])
+    Wait(80)
+
+    local image = screenshot()
     cropReply = nil
     SendNUIMessage({ action = 'crop', image = image, size = Config.Capture.size, crop = Config.Capture.crop, quality = Config.Capture.quality })
-    local cropped = waitFor(function() return cropReply end, 5000)
-
-    setCamera(previous or 'torso', true)
-    SendNUIMessage({ action = 'toolHide', hidden = false })
+    local cropped = waitFor(function() return cropReply end, 8000)
 
     if not cropped or type(cropped.image) ~= 'string' then
-        return cb({ ok = false, error = 'Recadrage impossible.' })
+        return { ok = false, error = cropped and cropped.error or 'Détourage impossible.' }
     end
 
     captureReply = nil
-    TriggerLatentServerEvent('lunatic_clothing:photo', 200000, sexOf(PlayerPedId()), data.key, data.drawable, cropped.image)
+    TriggerLatentServerEvent('lunatic_clothing:photo', 200000, sex, category.key, drawable, cropped.image, batch == true)
     local reply = waitFor(function() return captureReply end, 15000)
 
     if not reply or not reply.ok then
-        return cb({ ok = false, error = "Photo refusée par le serveur." })
+        return { ok = false, error = 'Photo refusée par le serveur.' }
     end
 
-    cb({ ok = true, path = reply.path, preview = cropped.image })
+    return { ok = true, path = reply.path, preview = cropped.image }
+end
+
+local function photoReady()
+    return shop and shop.mode == 'tool' and shop.screenshot and GetResourceState('screenshot-basic') == 'started'
+end
+
+-- Vue de la caméra d'une catégorie (celle de son groupe)
+local function photoView(key)
+    for _, group in ipairs(Config.Groups) do
+        for _, category in ipairs(group.categories) do
+            if category.key == key then
+                return Config.Capture.cameras[group.camera] and group.camera or 'torso'
+            end
+        end
+    end
+
+    return 'torso'
+end
+
+-- Une pièce (bouton « Prendre la photo ») ; la tenue d'avant revient ensuite
+RegisterNUICallback('capture', function(data, cb)
+    local category = ClothingCategory(data.key)
+    local drawable = math.tointeger(tonumber(data.drawable))
+
+    if not photoReady() then
+        return cb({ ok = false, error = 'screenshot-basic ne tourne pas sur le serveur.' })
+    end
+
+    if not category or not drawable then
+        return cb({ ok = false, error = 'Pièce invalide.' })
+    end
+
+    local ped = PlayerPedId()
+    local worn = wornAll(ped)
+    local previous = shop.view
+    SendNUIMessage({ action = 'toolHide', hidden = true })
+    startGreenScreen()
+    Wait(50)
+
+    local result = photograph(category, drawable, photoView(category.key), false)
+
+    greenScreen = false
+    applyPieces(worn)
+    applyPiece(ped, category, drawable, 0)
+    setCamera(previous or 'torso', true)
+    SendNUIMessage({ action = 'toolHide', hidden = false })
+    cb(result)
+end)
+
+-- Série : toutes les pièces d'une catégorie ou de tout le catalogue (sexe affiché), une à une ; skip = garder les
+-- pièces qui ont déjà une photo (reprise). Progression envoyée à la page, « Arrêter » met fin à la série.
+local batchRunning = false
+
+RegisterNUICallback('batchStop', function(_, cb)
+    batchRunning = false
+    cb({})
+end)
+
+RegisterNUICallback('batch', function(data, cb)
+    if not photoReady() then
+        return cb({ ok = false, error = 'screenshot-basic ne tourne pas sur le serveur.' })
+    end
+
+    if batchRunning then
+        return cb({ ok = false, error = 'Une série est déjà en cours.' })
+    end
+
+    local ped = PlayerPedId()
+    local sex = sexOf(ped)
+    local items = catalogueFor(sex)
+    local jobs = {}
+
+    for _, group in ipairs(Config.Groups) do
+        for _, category in ipairs(group.categories) do
+            if data.scope == 'all' or category.key == data.key then
+                for drawable = 0, counts(category, 0).drawables - 1 do
+                    local item = items[category.key] and items[category.key][tostring(drawable)]
+                    local photo = item and type(item.image) == 'string' and item.image:sub(1, 8) == 'clothes/'
+
+                    if not (data.skip and photo) then
+                        jobs[#jobs + 1] = { category = category, drawable = drawable, view = photoView(category.key) }
+                    end
+                end
+            end
+        end
+    end
+
+    if #jobs == 0 then
+        return cb({ ok = false, error = 'Aucune pièce à photographier (toutes ont déjà une photo).' })
+    end
+
+    cb({ ok = true, total = #jobs })
+    batchRunning = true
+
+    CreateThread(function()
+        local worn = wornAll(ped)
+        local previous = shop.view
+        local done, failed = 0, 0
+        SendNUIMessage({ action = 'toolHide', hidden = true })
+        startGreenScreen()
+        Wait(50)
+
+        for index, job in ipairs(jobs) do
+            if not batchRunning or not shop then
+                break
+            end
+
+            local result = photograph(job.category, job.drawable, job.view, true)
+
+            if result.ok then
+                done = done + 1
+            else
+                failed = failed + 1
+            end
+
+            SendNUIMessage({ action = 'batchProgress', index = index, total = #jobs, done = done, failed = failed, label = ('%s n° %d'):format(job.category.label, job.drawable) })
+        end
+
+        batchRunning = false
+        greenScreen = false
+        TriggerServerEvent('lunatic_clothing:photosDone')
+
+        if shop then
+            applyPieces(worn)
+            setCamera(previous or 'torso', true)
+            catalogueCache = { version = nil }
+            SendNUIMessage({ action = 'toolHide', hidden = false })
+            SendNUIMessage({ action = 'batchDone', done = done, failed = failed, data = toolData(sexOf(PlayerPedId()), shop.screenshot) })
+        end
+    end)
 end)
 
 ---------------------------------------------------------------------

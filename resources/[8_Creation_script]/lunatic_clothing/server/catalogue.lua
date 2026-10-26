@@ -102,7 +102,8 @@ local function validPiece(sex, key, drawable)
     return (sex == 'male' or sex == 'female') and category and drawable and drawable >= 0 and drawable <= 3000, drawable
 end
 
-local function storeItem(sex, key, drawable, item)
+-- quiet = photo d'une série : le catalogue n'est republié qu'à la fin (lunatic_clothing:photosDone)
+local function storeItem(sex, key, drawable, item, quiet)
     local empty = not item.label and not item.price and not item.banned and not item.image
     items[sex][key] = items[sex][key] or {}
 
@@ -117,7 +118,9 @@ local function storeItem(sex, key, drawable, item)
         ]], { sex, key, drawable, item.label, item.price, item.banned and 1 or 0, item.image })
     end
 
-    publishVersion()
+    if not quiet then
+        publishVersion()
+    end
 end
 
 -- Fiche modifiée : nom, prix (vide = prix de la catégorie), bannie (cachée des magasins), image (lien ou photo)
@@ -204,7 +207,7 @@ local function decodeBase64(data)
     return table.concat(out)
 end
 
-RegisterNetEvent('lunatic_clothing:photo', function(sex, key, drawable, image)
+RegisterNetEvent('lunatic_clothing:photo', function(sex, key, drawable, image, batch)
     local src = source
     local ok
     ok, drawable = validPiece(sex, key, drawable)
@@ -223,8 +226,14 @@ RegisterNetEvent('lunatic_clothing:photo', function(sex, key, drawable, image)
 
     local item = ClothingItem(sex, key, drawable) or {}
     item.image = path
-    storeItem(sex, key, drawable, item)
+    storeItem(sex, key, drawable, item, batch == true)
     TriggerClientEvent('lunatic_clothing:captured', src, true, path)
+end)
+
+RegisterNetEvent('lunatic_clothing:photosDone', function()
+    if staff(source) then
+        publishVersion()
+    end
 end)
 
 AddEventHandler('playerDropped', function()

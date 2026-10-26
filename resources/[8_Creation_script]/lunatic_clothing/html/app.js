@@ -168,7 +168,6 @@ function openGroup(key) {
 }
 
 function pieceCell(c, drawable, texture, on, extra) {
-    const url = drawable >= 0 ? imageOf(c, drawable, texture) : null;
     const item = drawable >= 0 ? itemOf(c, drawable) : null;
     const fav = `${c.key}:${drawable}:${texture}`;
     const starred = favorites.includes(fav);
@@ -178,8 +177,7 @@ function pieceCell(c, drawable, texture, on, extra) {
     }, starred ? "★" : "☆") : null;
     return h("button", { class: `cell${on ? " on" : ""}${extra || ""}`, onclick: () => pick(c, drawable, texture) }, star,
         drawable < 0 ? h("span", { class: "none" }, "✕")
-            : url ? h("img", { src: url, alt: "", loading: "lazy", onerror: (e) => e.target.replaceWith(h("span", { class: "num" }, String(drawable))) })
-                : h("span", { class: "num" }, String(drawable)),
+            : pieceImage(pieceSources(data, c, drawable, itemOf(c, drawable), texture), drawable),
         h("small", null, drawable < 0 ? "Aucun" : (item && item.label) || `N° ${drawable}`));
 }
 
@@ -237,13 +235,36 @@ async function loadCounts(c, drawable) {
     return countsCache[key];
 }
 
-function imageOf(c, drawable, texture) {
-    const item = itemOf(c, drawable);
-    if (item && item.image) return item.image;
-    const template = c.kind === "prop" ? data.images.prop : data.images.component;
-    if (!template) return null;
-    return template.replaceAll("{sex}", data.sex).replaceAll("{id}", String(c.id))
-        .replaceAll("{drawable}", String(drawable)).replaceAll("{texture}", String(texture));
+// Images d'une pièce, par ordre de préférence : lien de sa fiche, Clothes Renderer (html/renderer/), photo prise en
+// jeu (html/clothes/), lien général (panel). cfg = { sex, images, renderer }.
+function fillTemplate(template, cfg, c, drawable, texture) {
+    return template ? template.replaceAll("{sex}", cfg.sex).replaceAll("{id}", String(c.id))
+        .replaceAll("{drawable}", String(drawable)).replaceAll("{texture}", String(texture || 0)) : null;
+}
+
+function pieceSources(cfg, c, drawable, item, texture) {
+    const kind = c.kind === "prop" ? "prop" : "component";
+    const image = item && item.image;
+    const photo = image && image.startsWith("clothes/");
+    return [
+        image && !photo ? image : null,
+        fillTemplate(cfg.renderer && cfg.renderer[kind], cfg, c, drawable, texture),
+        photo ? image : null,
+        fillTemplate(cfg.images && cfg.images[kind], cfg, c, drawable, texture),
+    ].filter(Boolean);
+}
+
+// Image qui passe à la source suivante si elle est absente, puis au numéro
+function pieceImage(sources, drawable) {
+    if (!sources.length) return h("span", { class: "num" }, String(drawable));
+    let index = 0;
+    const img = h("img", { src: sources[0], alt: "", loading: "lazy" });
+    img.addEventListener("error", () => {
+        index += 1;
+        if (index < sources.length) img.src = sources[index];
+        else img.replaceWith(h("span", { class: "num" }, String(drawable)));
+    });
+    return img;
 }
 
 function pick(c, drawable, texture) {

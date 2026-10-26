@@ -1,0 +1,3 @@
+Images du Lunatic Clothes Renderer (option « Numéros du jeu »).
+Copiez ici les dossiers male/ et female/ de la sortie du logiciel (ex. male/11/42.png), puis « ensure lunatic_clothing ».
+Elles passent avant les photos prises en jeu. Le chemin des images se règle dans config.lua (Config.RendererImages).
