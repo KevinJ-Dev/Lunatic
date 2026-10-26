@@ -1,17 +1,24 @@
 Config = {}
 
-Config.StoreDistance = 2.0 -- distance du [E] au point du magasin (le serveur revérifie)
+-- Zone d'un magasin par défaut (réglable magasin par magasin dans le panel) : rayon du [E] autour du point (un grand
+-- rayon couvre tout le magasin), marqueur au sol, PNJ au point ('' pour aucun). Le serveur revérifie la distance.
+Config.StoreDefaults = { radius = 2.0, marker = true, ped = '' }
 Config.Marker = { 150, 80, 255, 110 } -- couleur du marqueur au sol (couleur du panel)
 
--- Enseignes : nom de la bannière, couleur de la bannière, couleur du blip (si le blip est activé dans le panel)
+-- Enseignes (modifiables et complétées dans le panel) : nom de la bannière, couleur, image de bannière (lien https ou
+-- clé de la tuile Images, vide : couleur seule), nom affiché sur la bannière ou non, couleur du blip
 Config.Brands = {
-    binco = { label = 'binco', color = '#f7931e', blip = 47 },
-    suburban = { label = 'SUBURBAN', color = '#1f6fd1', blip = 3 },
-    ponsonbys = { label = 'PONSONBYS', color = '#1b1b1f', blip = 40 },
-    discount = { label = 'Discount Store', color = '#2e9e4f', blip = 2 },
+    binco = { label = 'binco', color = '#f7931e', image = '', showText = true, blip = 47 },
+    suburban = { label = 'SUBURBAN', color = '#1f6fd1', image = '', showText = true, blip = 3 },
+    ponsonbys = { label = 'PONSONBYS', color = '#1b1b1f', image = '', showText = true, blip = 40 },
+    discount = { label = 'Discount Store', color = '#2e9e4f', image = '', showText = true, blip = 2 },
 }
 Config.BrandOrder = { 'binco', 'suburban', 'ponsonbys', 'discount' }
 Config.Blip = { sprite = 73, scale = 0.7 }
+
+-- Mes tenues : nombre de tenues enregistrées par personnage (réglable dans le panel) ; Favoris : pièces par sexe
+Config.MaxOutfits = 10
+Config.MaxFavorites = 60
 
 -- Pages proposées à l'accueil du magasin (activées magasin par magasin dans le panel)
 Config.Pages = { 'catalogue', 'ready', 'outfits', 'favorites' }

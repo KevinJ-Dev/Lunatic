@@ -1,7 +1,34 @@
--- Magasins de vêtements, côté serveur : achat du panier. Le prix est recalculé ici à partir de la tenue enregistrée
--- (users.skin, format illenium-appearance) : seules les pièces réellement changées sont payées puis enregistrées.
+-- Magasins de vêtements, côté serveur. Tout part de la tenue enregistrée (users.skin, format illenium-appearance) :
+--   - panier : seules les pièces réellement changées sont payées puis enregistrées ;
+--   - prêt-à-porter : tenue du staff payée à son prix ;
+--   - mes tenues : copie des pièces déjà enregistrées (donc payées), remise gratuitement ;
+--   - favoris : liste de pièces par sexe.
 
 local MAX_DRAWABLE, MAX_TEXTURE = 3000, 255
+local lastAction = {} -- joueur -> dernière action (anti-spam)
+local lastFavorites = {} -- joueur -> dernier enregistrement des favoris
+
+MySQL.ready(function()
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `lunatic_outfits` (
+            `id` INT NOT NULL AUTO_INCREMENT,
+            `identifier` VARCHAR(60) NOT NULL,
+            `label` VARCHAR(40) NOT NULL,
+            `sex` VARCHAR(6) NOT NULL,
+            `pieces` LONGTEXT NOT NULL,
+            `created` BIGINT NOT NULL,
+            PRIMARY KEY (`id`),
+            INDEX `identifier` (`identifier`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ]])
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `lunatic_clothing_favorites` (
+            `identifier` VARCHAR(60) NOT NULL,
+            `favorites` LONGTEXT NOT NULL,
+            PRIMARY KEY (`identifier`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ]])
+end)
 
 local function log(src, action, target, details)
     if GetResourceState('lunatic_admin') == 'started' then
@@ -15,28 +42,42 @@ exports('getDefaults', function()
 
     for _, key in ipairs(Config.BrandOrder) do
         local brand = Config.Brands[key]
-        brands[#brands + 1] = { key = key, label = brand.label, color = brand.color }
+        brands[#brands + 1] = { key = key, label = brand.label, color = brand.color, image = brand.image or '', showText = brand.showText ~= false, blip = brand.blip }
     end
 
     for _, group in ipairs(Config.Groups) do
         for _, category in ipairs(group.categories) do
-            categories[#categories + 1] = { key = category.key, label = category.label, group = group.label }
+            categories[#categories + 1] = { key = category.key, label = category.label, group = group.label, kind = category.kind }
             prices[category.key] = category.price
         end
     end
 
-    return { stores = Config.Stores, brands = brands, categories = categories, prices = prices, pages = Config.Pages }
+    return {
+        stores = Config.Stores, brands = brands, categories = categories, prices = prices, pages = Config.Pages,
+        storeDefaults = Config.StoreDefaults, maxOutfits = Config.MaxOutfits,
+    }
 end)
 
 local function storeNear(src, index)
     local store = ClothingStores()[tonumber(index) or 0]
     local ped = GetPlayerPed(src)
 
-    if not store or ped == 0 or #(GetEntityCoords(ped) - vector3(store.x, store.y, store.z)) > Config.StoreDistance + 3.0 then
+    if not store or ped == 0 or #(GetEntityCoords(ped) - vector3(store.x, store.y, store.z)) > store.radius + 3.0 then
         return nil
     end
 
     return store
+end
+
+local function busy(src)
+    local now = GetGameTimer()
+
+    if (lastAction[src] or 0) > now - 700 then
+        return true
+    end
+
+    lastAction[src] = now
+    return false
 end
 
 local function whole(value, min, max)
@@ -49,7 +90,19 @@ local function whole(value, min, max)
     return value
 end
 
--- Tenue enregistrée : pièces indexées par composant et par accessoire
+local function cleanLabel(value)
+    if type(value) ~= 'string' then
+        return nil
+    end
+
+    value = value:gsub('[%c<>]', ''):gsub('^%s+', ''):gsub('%s+$', '')
+    return #value >= 2 and #value <= 30 and value or nil
+end
+
+---------------------------------------------------------------------
+-- Tenue enregistrée
+---------------------------------------------------------------------
+
 local function savedSkin(identifier)
     local raw = MySQL.scalar.await('SELECT `skin` FROM `users` WHERE `identifier` = ?', { identifier })
     local skin = raw and json.decode(raw)
@@ -63,6 +116,14 @@ local function savedSkin(identifier)
     return skin
 end
 
+local function writeSkin(identifier, skin)
+    MySQL.update.await('UPDATE `users` SET `skin` = ? WHERE `identifier` = ?', { json.encode(skin), identifier })
+end
+
+local function sexOfSkin(skin)
+    return skin.model == 'mp_f_freemode_01' and 'female' or 'male'
+end
+
 local function findPiece(list, field, id)
     for _, piece in ipairs(list) do
         if tonumber(piece[field]) == id then
@@ -73,46 +134,136 @@ local function findPiece(list, field, id)
     return nil
 end
 
--- Achat : changes = { [clé de catégorie] = { drawable, texture } }, seulement les pièces modifiées en magasin
-lib.callback.register('lunatic_clothing:buy', function(src, index, changes, account)
+local function slotOf(skin, category)
+    if category.kind == 'prop' then
+        return skin.props, 'prop_id'
+    end
+
+    return skin.components, 'component_id'
+end
+
+-- Pièce valide : { modèle, couleur } (-1 = aucun accessoire)
+local function readPiece(category, value)
+    local drawable = type(value) == 'table' and whole(value[1], category.kind == 'prop' and -1 or 0, MAX_DRAWABLE)
+    local texture = drawable and whole(value[2] or 0, 0, MAX_TEXTURE)
+    return texture and { drawable, drawable < 0 and 0 or texture } or nil
+end
+
+-- Pièces d'une tenue (clé de catégorie -> pièce), invalides ignorées
+local function readPieces(pieces)
+    local list = {}
+
+    for key, value in pairs(type(pieces) == 'table' and pieces or {}) do
+        local category = type(key) == 'string' and ClothingCategory(key)
+        local piece = category and readPiece(category, value)
+
+        if piece then
+            list[key] = piece
+        end
+    end
+
+    return list
+end
+
+-- Pièces portées d'après la tenue enregistrée
+local function piecesOfSkin(skin)
+    local pieces = {}
+
+    for _, group in ipairs(Config.Groups) do
+        for _, category in ipairs(group.categories) do
+            local list, field = slotOf(skin, category)
+            local piece = findPiece(list, field, category.id)
+
+            if piece then
+                pieces[category.key] = { tonumber(piece.drawable) or 0, math.max(0, tonumber(piece.texture) or 0) }
+            end
+        end
+    end
+
+    return pieces
+end
+
+local function samePiece(skin, category, piece)
+    local list, field = slotOf(skin, category)
+    local current = findPiece(list, field, category.id)
+    return current and tonumber(current.drawable) == piece[1] and (piece[1] < 0 or tonumber(current.texture) == piece[2])
+end
+
+local function setPiece(skin, category, piece)
+    local list, field = slotOf(skin, category)
+    local current = findPiece(list, field, category.id)
+
+    if not current then
+        current = { [field] = category.id }
+        list[#list + 1] = current
+    end
+
+    current.drawable, current.texture = piece[1], piece[1] < 0 and -1 or piece[2]
+end
+
+local function pay(xPlayer, account, total, label)
+    account = account == 'bank' and 'bank' or 'money'
+
+    if total <= 0 then
+        return true
+    end
+
+    if xPlayer.getAccount(account).money < total then
+        return false, account == 'bank' and 'Solde bancaire insuffisant.' or "Vous n'avez pas assez de liquide."
+    end
+
+    xPlayer.removeAccountMoney(account, total, label)
+    return true
+end
+
+-- Joueur dans un magasin, tenue lue : renvoie xPlayer, magasin, tenue ou un message d'erreur
+local function context(src, index)
     local xPlayer = ESX.GetPlayerFromId(src)
     local store = storeNear(src, index)
 
     if not xPlayer or not store then
-        return { ok = false, error = 'Vous êtes trop loin du magasin.' }
-    end
-
-    if type(changes) ~= 'table' then
-        return { ok = false, error = 'Panier invalide.' }
+        return nil, 'Vous êtes trop loin du magasin.'
     end
 
     local skin = savedSkin(xPlayer.identifier)
 
     if not skin then
-        return { ok = false, error = "Votre tenue n'a pas pu être lue : prévenez le staff." }
+        return nil, "Votre tenue n'a pas pu être lue : prévenez le staff."
+    end
+
+    return xPlayer, store, skin
+end
+
+---------------------------------------------------------------------
+-- Panier
+---------------------------------------------------------------------
+
+-- changes = { [clé de catégorie] = { modèle, couleur } }, seulement les pièces modifiées en magasin
+lib.callback.register('lunatic_clothing:buy', function(src, index, changes, account)
+    if busy(src) then
+        return { ok = false, error = 'Patientez un instant.' }
+    end
+
+    local xPlayer, store, skin = context(src, index)
+
+    if not xPlayer then
+        return { ok = false, error = store }
     end
 
     local bought, total = {}, 0
 
-    for key, value in pairs(changes) do
+    for key, value in pairs(type(changes) == 'table' and changes or {}) do
         local category = type(key) == 'string' and ClothingCategory(key)
-        local prop = category and category.kind == 'prop'
-        local drawable = category and type(value) == 'table' and whole(value[1], prop and -1 or 0, MAX_DRAWABLE)
-        local texture = drawable and whole(value[2] or 0, 0, MAX_TEXTURE)
+        local piece = category and readPiece(category, value)
 
-        if not texture then
+        if not piece then
             return { ok = false, error = 'Panier invalide.' }
         end
 
-        local list, field = prop and skin.props or skin.components, prop and 'prop_id' or 'component_id'
-        local piece = findPiece(list, field, category.id)
-
-        local same = piece and tonumber(piece.drawable) == drawable and (drawable < 0 or tonumber(piece.texture) == texture)
-
-        if not same then
-            bought[#bought + 1] = { list = list, field = field, id = category.id, drawable = drawable, texture = drawable < 0 and -1 or texture, label = category.label }
+        if not samePiece(skin, category, piece) then
+            bought[#bought + 1] = { category = category, piece = piece }
             -- Retirer un accessoire est gratuit
-            total = total + (drawable < 0 and 0 or ClothingPrice(key))
+            total = total + (piece[1] < 0 and 0 or ClothingPrice(key))
         end
     end
 
@@ -120,32 +271,219 @@ lib.callback.register('lunatic_clothing:buy', function(src, index, changes, acco
         return { ok = true, total = 0, count = 0 }
     end
 
-    account = account == 'bank' and 'bank' or 'money'
+    local paid, err = pay(xPlayer, account, total, ('Vêtements : %s'):format(store.label))
 
-    if total > 0 then
-        if xPlayer.getAccount(account).money < total then
-            return { ok = false, error = account == 'bank' and 'Solde bancaire insuffisant.' or "Vous n'avez pas assez de liquide." }
-        end
-
-        xPlayer.removeAccountMoney(account, total, ('Vêtements : %s'):format(store.label))
+    if not paid then
+        return { ok = false, error = err }
     end
 
     local labels = {}
 
     for _, entry in ipairs(bought) do
-        local piece = findPiece(entry.list, entry.field, entry.id)
-
-        if not piece then
-            piece = { [entry.field] = entry.id }
-            entry.list[#entry.list + 1] = piece
-        end
-
-        piece.drawable, piece.texture = entry.drawable, entry.texture
-        labels[#labels + 1] = entry.label
+        setPiece(skin, entry.category, entry.piece)
+        labels[#labels + 1] = entry.category.label
     end
 
-    MySQL.update.await('UPDATE `users` SET `skin` = ? WHERE `identifier` = ?', { json.encode(skin), xPlayer.identifier })
-    log(src, 'clothing.buy', store.label, { total = total, account = account, items = table.concat(labels, ', ') })
-
+    writeSkin(xPlayer.identifier, skin)
+    log(src, 'clothing.buy', store.label, { total = total, items = table.concat(labels, ', ') })
     return { ok = true, total = total, count = #bought }
+end)
+
+---------------------------------------------------------------------
+-- Prêt-à-porter
+---------------------------------------------------------------------
+
+lib.callback.register('lunatic_clothing:buyReady', function(src, index, id, account)
+    if busy(src) then
+        return { ok = false, error = 'Patientez un instant.' }
+    end
+
+    local xPlayer, store, skin = context(src, index)
+
+    if not xPlayer then
+        return { ok = false, error = store }
+    end
+
+    local outfit
+
+    for _, entry in ipairs(ClothingReady()) do
+        if entry.id == id then
+            outfit = entry
+        end
+    end
+
+    if not outfit or not ClothingReadyIn(outfit, store.brand) then
+        return { ok = false, error = "Cette tenue n'est pas vendue ici." }
+    end
+
+    if outfit.sex ~= sexOfSkin(skin) then
+        return { ok = false, error = "Cette tenue n'est pas faite pour votre personnage." }
+    end
+
+    local price = math.max(0, math.floor(tonumber(outfit.price) or 0))
+    local paid, err = pay(xPlayer, account, price, ('Tenue %s : %s'):format(outfit.label, store.label))
+
+    if not paid then
+        return { ok = false, error = err }
+    end
+
+    local pieces = readPieces(outfit.pieces)
+
+    for key, piece in pairs(pieces) do
+        setPiece(skin, ClothingCategory(key), piece)
+    end
+
+    writeSkin(xPlayer.identifier, skin)
+    log(src, 'clothing.ready', store.label, { outfit = outfit.label, price = price })
+    return { ok = true, price = price, pieces = pieces }
+end)
+
+---------------------------------------------------------------------
+-- Mes tenues
+---------------------------------------------------------------------
+
+local function outfitsOf(identifier)
+    local rows = MySQL.query.await('SELECT `id`, `label`, `sex` FROM `lunatic_outfits` WHERE `identifier` = ? ORDER BY `id`', { identifier }) or {}
+    return rows
+end
+
+local function favoritesOf(identifier)
+    local raw = MySQL.scalar.await('SELECT `favorites` FROM `lunatic_clothing_favorites` WHERE `identifier` = ?', { identifier })
+    local value = raw and json.decode(raw)
+    return type(value) == 'table' and value or {}
+end
+
+-- À l'ouverture du magasin : tenues enregistrées, favoris, limite
+lib.callback.register('lunatic_clothing:profile', function(src)
+    local xPlayer = ESX.GetPlayerFromId(src)
+
+    if not xPlayer then
+        return nil
+    end
+
+    return { outfits = outfitsOf(xPlayer.identifier), favorites = favoritesOf(xPlayer.identifier), max = ClothingMaxOutfits() }
+end)
+
+-- Enregistre la tenue telle qu'elle est en base : les pièces essayées mais pas payées n'y sont pas
+lib.callback.register('lunatic_clothing:saveOutfit', function(src, index, label)
+    if busy(src) then
+        return { ok = false, error = 'Patientez un instant.' }
+    end
+
+    local xPlayer, store, skin = context(src, index)
+    label = cleanLabel(label)
+
+    if not xPlayer then
+        return { ok = false, error = store }
+    end
+
+    if not label then
+        return { ok = false, error = 'Nom de la tenue : de 2 à 30 caractères.' }
+    end
+
+    local count = tonumber(MySQL.scalar.await('SELECT COUNT(*) FROM `lunatic_outfits` WHERE `identifier` = ?', { xPlayer.identifier })) or 0
+
+    if count >= ClothingMaxOutfits() then
+        return { ok = false, error = ('%d tenues au maximum : supprimez-en une.'):format(ClothingMaxOutfits()) }
+    end
+
+    MySQL.insert.await('INSERT INTO `lunatic_outfits` (`identifier`, `label`, `sex`, `pieces`, `created`) VALUES (?, ?, ?, ?, ?)', {
+        xPlayer.identifier, label, sexOfSkin(skin), json.encode(piecesOfSkin(skin)), os.time(),
+    })
+
+    return { ok = true, outfits = outfitsOf(xPlayer.identifier) }
+end)
+
+lib.callback.register('lunatic_clothing:wearOutfit', function(src, index, id)
+    if busy(src) then
+        return { ok = false, error = 'Patientez un instant.' }
+    end
+
+    local xPlayer, store, skin = context(src, index)
+
+    if not xPlayer then
+        return { ok = false, error = store }
+    end
+
+    local row = MySQL.single.await('SELECT `sex`, `pieces` FROM `lunatic_outfits` WHERE `id` = ? AND `identifier` = ?', { tonumber(id) or 0, xPlayer.identifier })
+
+    if not row then
+        return { ok = false, error = 'Tenue introuvable.' }
+    end
+
+    if row.sex ~= sexOfSkin(skin) then
+        return { ok = false, error = "Cette tenue n'est pas faite pour votre personnage actuel." }
+    end
+
+    local pieces = readPieces(json.decode(row.pieces))
+
+    for key, piece in pairs(pieces) do
+        setPiece(skin, ClothingCategory(key), piece)
+    end
+
+    writeSkin(xPlayer.identifier, skin)
+    return { ok = true, pieces = pieces }
+end)
+
+lib.callback.register('lunatic_clothing:renameOutfit', function(src, id, label)
+    local xPlayer = ESX.GetPlayerFromId(src)
+    label = cleanLabel(label)
+
+    if not xPlayer or not label then
+        return { ok = false, error = 'Nom de la tenue : de 2 à 30 caractères.' }
+    end
+
+    MySQL.update.await('UPDATE `lunatic_outfits` SET `label` = ? WHERE `id` = ? AND `identifier` = ?', { label, tonumber(id) or 0, xPlayer.identifier })
+    return { ok = true, outfits = outfitsOf(xPlayer.identifier) }
+end)
+
+lib.callback.register('lunatic_clothing:deleteOutfit', function(src, id)
+    local xPlayer = ESX.GetPlayerFromId(src)
+
+    if not xPlayer then
+        return { ok = false }
+    end
+
+    MySQL.query.await('DELETE FROM `lunatic_outfits` WHERE `id` = ? AND `identifier` = ?', { tonumber(id) or 0, xPlayer.identifier })
+    return { ok = true, outfits = outfitsOf(xPlayer.identifier) }
+end)
+
+---------------------------------------------------------------------
+-- Favoris : { male = { "clé:modèle:couleur", … }, female = { … } }
+---------------------------------------------------------------------
+
+RegisterNetEvent('lunatic_clothing:favorites', function(favorites)
+    local src = source
+    local xPlayer = ESX.GetPlayerFromId(src)
+
+    local now = GetGameTimer()
+
+    if not xPlayer or type(favorites) ~= 'table' or (lastFavorites[src] or 0) > now - 1000 then
+        return
+    end
+
+    lastFavorites[src] = now
+
+    local clean = {}
+
+    for _, sex in ipairs({ 'male', 'female' }) do
+        clean[sex] = {}
+
+        for _, entry in ipairs(type(favorites[sex]) == 'table' and favorites[sex] or {}) do
+            local key, drawable, texture = tostring(entry):match('^([%a_]+):(%-?%d+):(%d+)$')
+
+            if key and ClothingCategory(key) and #clean[sex] < Config.MaxFavorites then
+                clean[sex][#clean[sex] + 1] = ('%s:%d:%d'):format(key, tonumber(drawable), tonumber(texture))
+            end
+        end
+    end
+
+    MySQL.query.await('INSERT INTO `lunatic_clothing_favorites` (`identifier`, `favorites`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `favorites` = VALUES(`favorites`)', {
+        xPlayer.identifier, json.encode(clean),
+    })
+end)
+
+AddEventHandler('playerDropped', function()
+    lastAction[source] = nil
+    lastFavorites[source] = nil
 end)

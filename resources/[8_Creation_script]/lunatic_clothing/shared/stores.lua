@@ -1,28 +1,58 @@
--- Magasins et prix communs au client et au serveur : réglages du panel (GlobalState.lunaticClothing), sinon la config.
+-- Réglages communs au client et au serveur : ceux du panel (GlobalState.lunaticClothing), sinon la config.
 
--- Magasins ouverts : ceux du panel s'il en a, sinon ceux de la config (tous ouverts, toutes les pages)
-function ClothingStores()
-    local saved = GlobalState.lunaticClothing
-    local list = {}
+local function saved()
+    local value = GlobalState.lunaticClothing
+    return type(value) == 'table' and value or {}
+end
 
-    if type(saved) == 'table' and type(saved.stores) == 'table' and #saved.stores > 0 then
-        for _, store in ipairs(saved.stores) do
-            if store.enabled ~= false then
-                list[#list + 1] = store
-            end
-        end
+-- Zone du magasin complétée des valeurs par défaut (rayon, marqueur, PNJ)
+local function withDefaults(store)
+    local copy = {}
 
-        return list
+    for key, value in pairs(store) do
+        copy[key] = value
     end
 
-    for _, store in ipairs(Config.Stores) do
-        list[#list + 1] = store
+    copy.radius = tonumber(store.radius) or Config.StoreDefaults.radius
+    copy.marker = store.marker == nil and Config.StoreDefaults.marker or store.marker == true
+    copy.ped = type(store.ped) == 'string' and store.ped or Config.StoreDefaults.ped
+    return copy
+end
+
+-- Magasins ouverts : ceux du panel s'il en a, sinon ceux de la config
+function ClothingStores()
+    local list = {}
+    local stores = type(saved().stores) == 'table' and #saved().stores > 0 and saved().stores or Config.Stores
+
+    for _, store in ipairs(stores) do
+        if store.enabled ~= false then
+            list[#list + 1] = withDefaults(store)
+        end
     end
 
     return list
 end
 
--- Catégorie par clé (jacket, pants…), avec son groupe
+-- Enseigne par clé : celles du panel s'il en a, sinon celles de la config
+function ClothingBrand(key)
+    local brands = saved().brands
+
+    if type(brands) == 'table' and #brands > 0 then
+        for _, brand in ipairs(brands) do
+            if brand.key == key then
+                return brand
+            end
+        end
+
+        return brands[1]
+    end
+
+    local brand = Config.Brands[key] and key or Config.BrandOrder[1]
+    local entry = Config.Brands[brand]
+    return { key = brand, label = entry.label, color = entry.color, image = entry.image or '', showText = entry.showText ~= false, blip = entry.blip }
+end
+
+-- Catégorie par clé (jacket, pants…)
 local categories = {}
 
 for _, group in ipairs(Config.Groups) do
@@ -37,8 +67,7 @@ end
 
 -- Prix d'une pièce : réglage du panel, sinon prix par défaut de la config
 function ClothingPrice(key)
-    local saved = GlobalState.lunaticClothing
-    local price = type(saved) == 'table' and type(saved.prices) == 'table' and tonumber(saved.prices[key])
+    local price = type(saved().prices) == 'table' and tonumber(saved().prices[key])
 
     if price then
         return math.max(0, math.floor(price))
@@ -50,4 +79,18 @@ end
 -- Page activée dans un magasin (toutes par défaut)
 function ClothingPageOn(store, page)
     return type(store.pages) ~= 'table' or store.pages[page] ~= false
+end
+
+-- Tenues prêt-à-porter créées par le staff
+function ClothingReady()
+    return type(saved().ready) == 'table' and saved().ready or {}
+end
+
+-- Tenue vendue dans cette enseigne (aucune enseigne cochée : partout)
+function ClothingReadyIn(outfit, brand)
+    return type(outfit.brands) ~= 'table' or next(outfit.brands) == nil or outfit.brands[brand] == true
+end
+
+function ClothingMaxOutfits()
+    return tonumber(saved().maxOutfits) or Config.MaxOutfits
 end

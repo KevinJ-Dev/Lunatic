@@ -13,6 +13,11 @@
 .driving-point { display: grid; grid-template-columns: 24px minmax(0, 1fr) 80px 36px auto auto auto auto auto; gap: 6px; align-items: center; padding: 4px 8px; border-radius: 8px; background: #0000002e; font-size: 12px; }
 .driving-point .input { height: 28px; }
 .driving-point .stop-on { background: #c8102e; color: #fff; }
+/* Magasins de vêtements : aperçu de la bannière d'une enseigne */
+.clothing-banner { display: grid; align-content: end; min-height: 74px; padding: 12px 18px 10px; border-radius: 12px; background-position: center; background-size: cover; color: #fff; }
+.clothing-banner b { font-size: 28px; line-height: 1; text-shadow: 0 2px 10px #0006; }
+.clothing-banner small { margin-top: 3px; color: #ffffffcc; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.clothing-color { width: 70px; padding: 2px; }
 .driving-fold { margin-top: 0; }
 .driving-questions { display: grid; gap: 10px; margin-top: 8px; }
 .driving-question { display: grid; gap: 4px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #0000002e; }

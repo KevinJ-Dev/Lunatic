@@ -1,7 +1,7 @@
 "use strict";
 
-// Magasins de vêtements (lunatic_clothing) : accueil, catalogue par groupe et catégorie, essayage en direct, panier.
-// L'interface ne fait qu'afficher : le jeu applique les pièces, le serveur recalcule le prix au paiement.
+// Magasins de vêtements (lunatic_clothing) : accueil, catalogue par groupe et catégorie, prêt-à-porter, mes tenues,
+// favoris et panier. L'interface ne fait qu'afficher : le jeu applique les pièces, le serveur vérifie et fait payer.
 
 const $ = (id) => document.getElementById(id);
 const inGame = typeof GetParentResourceName === "function";
@@ -37,7 +37,7 @@ function toast(text) {
     toast.timer = setTimeout(() => el.classList.remove("on"), 3500);
 }
 
-// Icônes (traits SVG, reprises de lunatic_creator)
+// Icônes (traits SVG, en partie reprises de lunatic_creator)
 const ICONS = {
     shirt: "M8 3 3 6l2 4 2-1v12h10V9l2 1 2-4-5-3a4 4 0 0 1-8 0z",
     pants: "M6 3h12l1 18h-5l-2-11-2 11H5z",
@@ -46,82 +46,131 @@ const ICONS = {
     watch: "M9 3h6l1 4M9 3 8 7M8 17l1 4h6l1-4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 10v2l1 1",
     bag: "M5 8h14l-1 13H6zM9 8V6a3 3 0 0 1 6 0v2",
     catalogue: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+    ready: "M12 3a2 2 0 0 1 2 2c0 1-1 1.5-2 2.5V9l9 7H3l9-7",
+    outfits: "M4 7h16v13H4zM9 7V4h6v3M4 12h16",
+    star: "M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z",
     back: "M15 6l-6 6 6 6",
     arms: "M12 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM5 3l3 7h8l3-7M9 10l1 12M15 10l-1 12",
 };
 const svg = (name) => h("span", { html: `<svg class="i" viewBox="0 0 24 24"><path d="${ICONS[name] || ICONS.shirt}"/></svg>` }).firstChild;
 
-// Pages de l'accueil (celles de la partie 2 s'ajouteront ici)
 const PAGES = [
     { id: "catalogue", label: "Catalogue", text: "Toutes les pièces, à essayer librement", icon: "catalogue" },
+    { id: "ready", label: "Prêt-à-porter", text: "Des tenues complètes, prêtes à porter", icon: "ready" },
+    { id: "outfits", label: "Mes tenues", text: "Vos tenues enregistrées, à remettre gratuitement", icon: "outfits" },
+    { id: "favorites", label: "Favoris", text: "Les pièces marquées d'une étoile", icon: "star" },
 ];
 const CAMERAS = [["head", "Visage"], ["torso", "Buste"], ["legs", "Jambes"], ["feet", "Pieds"], ["full", "Entier"]];
 
 let data = null;      // magasin ouvert (envoyé par le jeu)
 let worn = {};        // pièces portées : { clé: [modèle, couleur] }
-let original = {};    // tenue à l'ouverture (le panier = les différences)
+let original = {};    // tenue payée (le panier = les différences)
 let view = "home";
 let group = null;
 let category = null;
 let camera = "torso";
 let armsUp = false;
-let quitting = false;
+let tried = null;     // tenue prêt-à-porter essayée
+let favorites = [];   // "clé:modèle:couleur"
+let pending = false;
 const countsCache = {};
 
 const categories = () => data.groups.flatMap((g) => g.categories);
 const categoryOf = (key) => categories().find((c) => c.key === key);
 const groupOf = (key) => data.groups.find((g) => g.key === key);
 const money = (n) => `${n} ${data.currency}`;
+const copy = (o) => JSON.parse(JSON.stringify(o));
 
 // ---------- Ouverture ----------
 
 function open(payload) {
     data = payload;
-    worn = JSON.parse(JSON.stringify(payload.worn));
-    original = JSON.parse(JSON.stringify(payload.worn));
+    worn = copy(payload.worn);
+    original = copy(payload.worn);
+    favorites = Array.isArray(payload.favorites) ? payload.favorites.slice() : [];
     armsUp = false;
-    quitting = false;
+    tried = null;
     camera = "torso";
 
-    $("shop").style.setProperty("--brand", payload.brand.color);
+    // Bannière : couleur de l'enseigne, image éventuelle, nom affiché ou non
+    const banner = $("banner");
+    $("shop").style.setProperty("--brand", payload.brand.color || "#7a3cff");
+    banner.style.backgroundImage = payload.brand.image ? `linear-gradient(180deg, #0000 40%, #0008), url("${payload.brand.image}")` : "";
+    banner.classList.toggle("with-image", !!payload.brand.image);
     $("brand").textContent = payload.brand.label;
-    $("brand").className = `brand${payload.brand.label === payload.brand.label.toLowerCase() ? " binco" : ""}`;
+    $("brand").className = `brand${payload.brand.label === payload.brand.label.toLowerCase() ? " lower" : ""}`;
+    $("brand").classList.toggle("hidden", payload.brand.showText === false);
     $("storeName").textContent = payload.store;
     $("shop").classList.remove("hidden");
 
     const pages = availablePages();
     if (pages.length === 1 && pages[0].id === "catalogue") openGroup(data.groups[0].key);
+    else if (pages.length === 1) openPage(pages[0].id);
     else { view = "home"; paint(); }
 }
 
-function availablePages() {
-    return PAGES.filter((p) => data.pages[p.id] !== false);
-}
+const availablePages = () => PAGES.filter((p) => data.pages[p.id] !== false);
 
 // ---------- Rendu ----------
 
 function paint() {
-    $("view").replaceChildren(view === "home" ? homeView() : catalogueView());
+    const views = { home: homeView, catalogue: catalogueView, ready: readyView, outfits: outfitsView, favorites: favoritesView };
+    const grid = $("grid");
+    const scroll = grid ? grid.scrollTop : 0;
+    $("view").replaceChildren(views[view]());
+    if ($("grid")) $("grid").scrollTop = scroll;
     paintCart();
     paintBar();
     paintTools();
 }
 
+function openPage(id) {
+    if (id === "catalogue") return openGroup(data.groups[0].key);
+    view = id;
+    if ($("grid")) $("grid").scrollTop = 0;
+    setCamera(id === "favorites" ? "torso" : "full");
+    paint();
+}
+
+function viewHead(title) {
+    return h("div", { class: "view-head" },
+        availablePages().length > 1 ? h("button", { class: "back", title: "Accueil", onclick: () => { view = "home"; paint(); } }, svg("back")) : null,
+        h("b", null, title));
+}
+
 function homeView() {
     const pages = availablePages();
-    if (!pages.length) return h("div", { class: "home" }, h("p", { class: "muted" }, "Ce magasin est fermé pour le moment."));
-    return h("div", { class: "home" }, pages.map((p) => h("button", { class: "page-tile", onclick: () => p.id === "catalogue" && openGroup(data.groups[0].key) },
+    if (!pages.length) return h("div", { class: "home" }, h("p", { class: "empty" }, "Ce magasin est fermé pour le moment."));
+    return h("div", { class: "home" }, pages.map((p) => h("button", { class: "page-tile", onclick: () => openPage(p.id) },
         h("span", { class: "ico" }, svg(p.icon)), h("span", null, h("b", null, p.label), h("p", null, p.text)))));
 }
+
+// ---------- Catalogue ----------
 
 function openGroup(key) {
     const g = groupOf(key);
     if (!g) return;
+    if ($("grid")) $("grid").scrollTop = 0;
     view = "catalogue";
     group = g.key;
     category = g.categories[0].key;
     setCamera(g.camera);
     paint();
+}
+
+function pieceCell(c, drawable, texture, on, extra) {
+    const url = drawable >= 0 ? imageOf(c, drawable, texture) : null;
+    const fav = `${c.key}:${drawable}:${texture}`;
+    const starred = favorites.includes(fav);
+    const star = drawable >= 0 && data.pages.favorites !== false ? h("span", {
+        class: `star${starred ? " on" : ""}`, title: starred ? "Retirer des favoris" : "Ajouter aux favoris",
+        onclick: (e) => { e.stopPropagation(); toggleFavorite(fav); },
+    }, starred ? "★" : "☆") : null;
+    return h("button", { class: `cell${on ? " on" : ""}${extra || ""}`, onclick: () => pick(c, drawable, texture) }, star,
+        drawable < 0 ? h("span", { class: "none" }, "✕")
+            : url ? h("img", { src: url, alt: "", loading: "lazy", onerror: (e) => e.target.replaceWith(h("span", { class: "num" }, String(drawable))) })
+                : h("span", { class: "num" }, String(drawable)),
+        h("small", null, drawable < 0 ? "Aucun" : `N° ${drawable}`));
 }
 
 function catalogueView() {
@@ -130,31 +179,22 @@ function catalogueView() {
     const value = worn[c.key] || [0, 0];
     const total = countsCache[`${data.sex}:${c.key}:0`];
 
-    const head = h("div", { class: "view-head" },
-        availablePages().length > 1 ? h("button", { class: "back", title: "Accueil", onclick: () => { view = "home"; paint(); } }, svg("back")) : null,
-        h("b", null, g.label));
     const tabs = g.categories.length > 1 ? h("div", { class: "tabs" }, g.categories.map((entry) => h("button", {
-        class: `tab${entry.key === category ? " on" : ""}`, onclick: () => { category = entry.key; paint(); },
+        class: `tab${entry.key === category ? " on" : ""}`, onclick: () => { category = entry.key; if ($("grid")) $("grid").scrollTop = 0; paint(); },
     }, entry.label))) : null;
-    const price = h("div", { class: "price-line" }, h("span", null, c.label), h("span", null, c.price > 0 ? h("b", null, `${money(c.price)} la pièce`) : h("b", null, "Gratuit")));
+    const price = h("div", { class: "price-line" }, h("span", null, c.label), h("b", null, c.price > 0 ? `${money(c.price)} la pièce` : "Gratuit"));
 
     if (!total) {
         loadCounts(c, 0).then(() => paint());
-        return h("div", { class: "view" }, head, tabs, price, h("div", { class: "grid" }, h("p", null, "Chargement…")));
+        return h("div", { class: "view" }, viewHead(g.label), tabs, price, h("div", { class: "grid" }, h("p", { class: "empty" }, "Chargement…")));
     }
 
-    const isProp = c.kind === "prop";
+    const paid = (original[c.key] || [])[0];
     const cells = [];
-    if (isProp) cells.push(h("button", { class: `cell${value[0] < 0 ? " on" : ""}`, onclick: () => pick(c, -1, 0) }, h("span", { class: "none" }, "✕"), h("small", null, "Aucun")));
-    const wornAtOpen = (original[c.key] || [])[0];
-    for (let i = 0; i < total.drawables; i += 1) {
-        const url = imageOf(c, i, 0);
-        cells.push(h("button", { class: `cell${value[0] === i ? " on" : ""}${wornAtOpen === i ? " worn" : ""}`, onclick: () => pick(c, i, 0) },
-            url ? h("img", { src: url, alt: "", loading: "lazy", onerror: (e) => e.target.replaceWith(h("span", { class: "num" }, String(i))) }) : h("span", { class: "num" }, String(i)),
-            h("small", null, `N° ${i}`)));
-    }
+    if (c.kind === "prop") cells.push(pieceCell(c, -1, 0, value[0] < 0));
+    for (let i = 0; i < total.drawables; i += 1) cells.push(pieceCell(c, i, 0, value[0] === i, paid === i ? " worn" : ""));
 
-    return h("div", { class: "view" }, head, tabs, price, h("div", { class: "grid", id: "grid" }, cells), colorsRow(c, value));
+    return h("div", { class: "view" }, viewHead(g.label), tabs, price, h("div", { class: "grid", id: "grid" }, cells), colorsRow(c, value));
 }
 
 // Couleurs du modèle porté (lues dans le jeu)
@@ -167,7 +207,9 @@ function colorsRow(c, value) {
     }
     if (counts.textures <= 1) return null;
     const set = (texture) => pick(c, value[0], (texture + counts.textures) % counts.textures);
+    const fav = `${c.key}:${value[0]}:${value[1]}`;
     return h("div", { class: "colors" }, h("span", null, "Couleur"),
+        data.pages.favorites !== false ? h("button", { class: `arrow${favorites.includes(fav) ? " fav" : ""}`, title: "Favori (cette couleur)", onclick: () => toggleFavorite(fav) }, favorites.includes(fav) ? "★" : "☆") : null,
         h("button", { class: "arrow", onclick: () => set(value[1] - 1) }, "‹"),
         h("b", null, `${value[1] + 1} / ${counts.textures}`),
         h("button", { class: "arrow", onclick: () => set(value[1] + 1) }, "›"));
@@ -188,12 +230,138 @@ function imageOf(c, drawable, texture) {
 
 function pick(c, drawable, texture) {
     worn[c.key] = [drawable, texture];
-    quitting = false;
+    tried = null;
     nui("apply", { key: c.key, drawable, texture });
-    const grid = $("grid");
-    const scroll = grid ? grid.scrollTop : 0;
     paint();
-    if ($("grid")) $("grid").scrollTop = scroll;
+}
+
+// ---------- Prêt-à-porter ----------
+
+function readyView() {
+    const list = data.ready || [];
+    if (!list.length) return h("div", { class: "view" }, viewHead("Prêt-à-porter"), h("p", { class: "empty" }, "Aucune tenue prête dans ce magasin pour le moment."));
+    return h("div", { class: "view" }, viewHead("Prêt-à-porter"), h("div", { class: "list", id: "grid" }, list.map((o) => {
+        const on = tried === o.id;
+        return h("div", { class: `row${on ? " on" : ""}` },
+            h("div", { class: "row-main" }, h("b", null, o.label), h("small", null, o.price > 0 ? money(o.price) : "Gratuit")),
+            h("div", { class: "row-actions" }, on ? h("span", { class: "tag" }, "Essayée") : h("button", { class: "btn small ghost", onclick: () => tryReady(o) }, "Essayer")));
+    })));
+}
+
+async function tryReady(o) {
+    const res = await nui("tryPieces", { pieces: o.pieces });
+    if (res && res.worn) worn = res.worn;
+    tried = o.id;
+    paint();
+}
+
+async function buyReady(o, account) {
+    pending = true;
+    paint();
+    const res = await nui("buyReady", { id: o.id, account });
+    pending = false;
+    if (!res || !res.ok) { paint(); return toast((res && res.error) || "Paiement impossible."); }
+    worn = res.worn;
+    original = copy(res.worn);
+    tried = null;
+    toast(`Tenue « ${o.label} » achetée.`);
+    paint();
+}
+
+// ---------- Mes tenues ----------
+
+let editing = null;   // tenue en cours de renommage
+let deleting = null;  // tenue dont la suppression attend confirmation
+
+function outfitsView() {
+    const list = data.outfits || [];
+    const full = list.length >= data.maxOutfits;
+    const name = h("input", { class: "input", maxlength: "30", placeholder: "Nom de la tenue (ex. Soirée)" });
+    const save = async () => {
+        const res = await nui("saveOutfit", { label: name.value });
+        if (!res || !res.ok) return toast((res && res.error) || "Enregistrement impossible.");
+        data.outfits = res.outfits;
+        toast("Tenue enregistrée.");
+        paint();
+    };
+    name.addEventListener("keydown", (e) => { if (e.key === "Enter") save(); });
+
+    return h("div", { class: "view" }, viewHead("Mes tenues"),
+        h("div", { class: "save-box" },
+            h("div", { class: "save-row" }, name, h("button", { class: "btn small", disabled: full, onclick: save }, "Enregistrer")),
+            h("small", null, full ? `${data.maxOutfits} tenues au maximum : supprimez-en une.`
+                : `Enregistre la tenue que vous portez déjà (les pièces pas encore payées n'y sont pas). ${list.length} / ${data.maxOutfits}`)),
+        h("div", { class: "list", id: "grid" }, list.length ? list.map((o) => outfitRow(o)) : h("p", { class: "empty" }, "Aucune tenue enregistrée.")));
+}
+
+function outfitRow(o) {
+    const otherSex = o.sex !== data.sex;
+    if (editing === o.id) {
+        const input = h("input", { class: "input", maxlength: "30", value: o.label });
+        const done = async () => {
+            const res = await nui("renameOutfit", { id: o.id, label: input.value });
+            if (!res || !res.ok) return toast((res && res.error) || "Nom invalide.");
+            data.outfits = res.outfits;
+            editing = null;
+            paint();
+        };
+        input.addEventListener("keydown", (e) => { if (e.key === "Enter") done(); });
+        setTimeout(() => input.focus(), 0);
+        return h("div", { class: "row on" }, input, h("div", { class: "row-actions" },
+            h("button", { class: "btn small", onclick: done }, "OK"), h("button", { class: "btn small ghost", onclick: () => { editing = null; paint(); } }, "Annuler")));
+    }
+    return h("div", { class: "row" },
+        h("div", { class: "row-main" }, h("b", null, o.label), h("small", null, otherSex ? "Pour l'autre sexe" : "Gratuit à remettre")),
+        h("div", { class: "row-actions" },
+            h("button", { class: "btn small", disabled: otherSex || pending, onclick: () => wearOutfit(o) }, "Mettre"),
+            h("button", { class: "btn small ghost", title: "Renommer", onclick: () => { editing = o.id; deleting = null; paint(); } }, "✎"),
+            h("button", { class: `btn small ${deleting === o.id ? "danger" : "ghost"}`, title: "Supprimer", onclick: () => removeOutfit(o) }, deleting === o.id ? "Confirmer" : "🗑")));
+}
+
+async function wearOutfit(o) {
+    pending = true;
+    const res = await nui("wearOutfit", { id: o.id });
+    pending = false;
+    if (!res || !res.ok) { paint(); return toast((res && res.error) || "Tenue indisponible."); }
+    worn = res.worn;
+    original = copy(res.worn);
+    tried = null;
+    toast(`Vous portez « ${o.label} ».`);
+    paint();
+}
+
+async function removeOutfit(o) {
+    if (deleting !== o.id) { deleting = o.id; paint(); return; }
+    const res = await nui("deleteOutfit", { id: o.id });
+    deleting = null;
+    if (res && res.ok) data.outfits = res.outfits;
+    paint();
+}
+
+// ---------- Favoris ----------
+
+function toggleFavorite(fav) {
+    const index = favorites.indexOf(fav);
+    if (index >= 0) favorites.splice(index, 1);
+    else if (favorites.length >= 60) return toast("60 favoris au maximum.");
+    else favorites.push(fav);
+    nui("favorites", { list: favorites });
+    paint();
+}
+
+function favoritesView() {
+    const entries = favorites.map((fav) => {
+        const [key, d, t] = fav.split(":");
+        const c = categoryOf(key);
+        return c ? { c, drawable: Number(d), texture: Number(t) } : null;
+    }).filter(Boolean);
+    if (!entries.length) return h("div", { class: "view" }, viewHead("Favoris"), h("p", { class: "empty" }, "Touchez l'étoile d'une pièce dans le catalogue pour la retrouver ici."));
+    return h("div", { class: "view" }, viewHead("Favoris"), h("div", { class: "grid", id: "grid" }, entries.map((e) => {
+        const value = worn[e.c.key] || [];
+        const cell = pieceCell(e.c, e.drawable, e.texture, value[0] === e.drawable && value[1] === e.texture);
+        cell.querySelector("small").textContent = `${e.c.label} · ${e.drawable}${e.texture ? `/${e.texture + 1}` : ""}`;
+        return cell;
+    })));
 }
 
 // ---------- Panier ----------
@@ -206,19 +374,30 @@ function cartLines() {
 }
 
 function paintCart() {
+    // Tenue prêt-à-porter essayée : payée à son prix, pas pièce par pièce
+    const outfit = tried && (data.ready || []).find((o) => o.id === tried);
+    if (outfit) {
+        $("cart").replaceChildren(
+            h("div", { class: "cart-head" }, h("span", null, `Tenue « ${outfit.label} »`), h("b", null, money(outfit.price))),
+            h("div", { class: "pay" },
+                h("button", { class: "btn", disabled: pending, onclick: () => buyReady(outfit, "money") }, outfit.price > 0 ? "Payer en liquide" : "Prendre la tenue"),
+                outfit.price > 0 ? h("button", { class: "btn", disabled: pending, onclick: () => buyReady(outfit, "bank") }, "Payer par carte") : h("span"),
+                h("button", { class: "btn ghost wide", onclick: quit }, "Quitter sans acheter")));
+        return;
+    }
     const lines = cartLines();
     const total = lines.reduce((sum, l) => sum + l.price, 0);
     const undo = (c) => { pick(c, original[c.key][0], original[c.key][1]); };
 
-    $("cart").replaceChildren(
+    $("cart").replaceChildren(...[
         h("div", { class: "cart-head" }, h("span", null, lines.length ? `Panier · ${lines.length} pièce${lines.length > 1 ? "s" : ""}` : "Panier vide"), h("b", null, money(total))),
         lines.length ? h("div", { class: "cart-list" }, lines.map((l) => h("span", { class: "chip" }, l.c.label, h("i", null, l.price ? money(l.price) : "gratuit"),
             h("button", { title: "Remettre la pièce d'avant", onclick: () => undo(l.c) }, "✕")))) : null,
-        lines.length ? h("div", { class: "pay" },
-            h("button", { class: "btn", onclick: () => buy("money") }, total ? "Payer en liquide" : "Valider"),
-            total ? h("button", { class: "btn", onclick: () => buy("bank") }, "Payer par carte") : null,
-            h("button", { class: "btn ghost wide", onclick: quit }, "Quitter sans acheter"))
-            : h("div", { class: "pay" }, h("button", { class: "btn ghost wide", onclick: quit }, "Quitter le magasin")));
+        h("div", { class: "pay" },
+            lines.length ? h("button", { class: "btn", onclick: () => buy("money") }, total ? "Payer en liquide" : "Valider") : null,
+            lines.length && total ? h("button", { class: "btn", onclick: () => buy("bank") }, "Payer par carte") : null,
+            h("button", { class: "btn ghost wide", onclick: quit }, lines.length ? "Quitter sans acheter" : "Quitter le magasin")),
+    ].filter(Boolean));
 }
 
 async function buy(account) {
@@ -229,11 +408,8 @@ async function buy(account) {
     $("shop").classList.add("hidden");
 }
 
+// Quitter : direct, les pièces non payées sont retirées par le jeu
 function quit() {
-    if (cartLines().length && !quitting) {
-        quitting = true;
-        return toast("Les pièces non payées seront retirées : recliquez (ou Échap) pour quitter.");
-    }
     $("shop").classList.add("hidden");
     nui("close");
 }
@@ -241,6 +417,9 @@ function quit() {
 // ---------- Barre des groupes et caméras ----------
 
 function paintBar() {
+    const show = data.pages.catalogue !== false;
+    $("bar").classList.toggle("hidden", !show);
+    if (!show) return;
     $("bar").replaceChildren(...data.groups.map((g) => h("button", { class: view === "catalogue" && g.key === group ? "on" : "", onclick: () => openGroup(g.key) }, svg(g.icon), g.label)));
 }
 
@@ -269,7 +448,7 @@ document.addEventListener("mousemove", (e) => {
 });
 
 document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && data && !$("shop").classList.contains("hidden")) quit();
+    if (e.key === "Escape" && data && !$("shop").classList.contains("hidden") && document.activeElement.tagName !== "INPUT") quit();
 });
 
 window.addEventListener("message", (event) => {
@@ -282,14 +461,22 @@ window.addEventListener("message", (event) => {
 
 function demo(name, payload) {
     if (name === "counts") return Promise.resolve({ drawables: 24, textures: payload.drawable >= 0 ? 6 : 0 });
-    if (name === "buy") return Promise.resolve({ ok: false, error: "Aperçu : pas de paiement hors jeu." });
+    if (name === "tryPieces") return Promise.resolve({ worn: { ...worn, ...payload.pieces } });
+    if (name === "saveOutfit") return Promise.resolve({ ok: true, outfits: [...data.outfits, { id: Date.now(), label: payload.label, sex: "male" }] });
+    if (name === "renameOutfit") return Promise.resolve({ ok: true, outfits: data.outfits.map((o) => (o.id === payload.id ? { ...o, label: payload.label } : o)) });
+    if (name === "deleteOutfit") return Promise.resolve({ ok: true, outfits: data.outfits.filter((o) => o.id !== payload.id) });
+    if (name === "buy" || name === "buyReady" || name === "wearOutfit") return Promise.resolve({ ok: false, error: "Aperçu : pas d'achat hors jeu." });
     return Promise.resolve({});
 }
 
 if (!inGame) {
     open({
-        store: "Binco de Strawberry", brand: { label: "binco", color: "#f7931e" }, pages: { catalogue: true }, sex: "male", currency: "$",
-        images: { component: "", prop: "" },
+        store: "Binco de Strawberry", brand: { label: "binco", color: "#f7931e", image: "", showText: true }, sex: "male", currency: "$",
+        pages: { catalogue: true, ready: true, outfits: true, favorites: true },
+        images: { component: "", prop: "" }, maxOutfits: 10,
+        ready: [{ id: "r1", label: "Décontracté", price: 150, pieces: { jacket: [12, 1], pants: [4, 0] } }, { id: "r2", label: "Costume", price: 450, pieces: { jacket: [4, 0] } }],
+        outfits: [{ id: 1, label: "Soirée", sex: "male" }, { id: 2, label: "Sport", sex: "male" }],
+        favorites: ["jacket:7:0", "shoes:3:2"],
         worn: { jacket: [4, 0], undershirt: [15, 0], arms: [0, 0], pants: [1, 0], shoes: [1, 0], hat: [-1, 0], glasses: [-1, 0], mask: [0, 0], earrings: [-1, 0], chain: [0, 0], watch: [-1, 0], bracelet: [-1, 0], bag: [0, 0] },
         groups: [
             { key: "tops", label: "Hauts", icon: "shirt", camera: "torso", categories: [{ key: "jacket", label: "Hauts", kind: "component", id: 11, price: 60 }, { key: "undershirt", label: "Sous-hauts", kind: "component", id: 8, price: 30 }, { key: "arms", label: "Bras", kind: "component", id: 3, price: 0 }] },
