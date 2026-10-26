@@ -20,8 +20,25 @@
             <div class="hint">Clic maintenu et glisser : tourner le personnage</div>
             <nav class="bar" id="bar"></nav>
         </div>
-        <div class="toast" id="toast"></div>
     </div>
+
+    <!-- Gestion du catalogue (staff) : fiche de chaque pièce -->
+    <div class="tool hidden" id="tool">
+        <header class="tool-top">
+            <b>Gestion du catalogue</b>
+            <span id="toolSub"></span>
+            <button class="btn ghost small" id="toolClose">✕ Fermer</button>
+        </header>
+        <aside class="panel tool-left"><div class="view" id="toolView"></div></aside>
+        <aside class="tool-right" id="toolRight"></aside>
+        <div class="foot">
+            <div class="hint">Clic maintenu et glisser : tourner le personnage</div>
+            <nav class="bar" id="toolBar"></nav>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
     <script src="app.js"></script>
+    <script src="catalogue.js"></script>
 </body>
 </html>

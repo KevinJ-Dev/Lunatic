@@ -85,8 +85,8 @@ end
 -- Caméra (devant le personnage, décalée pour laisser le panneau à gauche)
 ---------------------------------------------------------------------
 
-local function setCamera(view, instant)
-    local settings = Config.Cameras[view] or Config.Cameras.torso
+local function setCamera(view, instant, override)
+    local settings = override or Config.Cameras[view] or Config.Cameras.torso
     local anchor = shop.anchor
     shop.view = view
 
@@ -94,7 +94,7 @@ local function setCamera(view, instant)
     local forward = vector3(-math.sin(angle), math.cos(angle), 0.0)
     local right = vector3(math.cos(angle), math.sin(angle), 0.0)
     local halfWidth = settings.distance * math.tan(math.rad(settings.fov) / 2) * GetAspectRatio(false)
-    local base = vector3(anchor.x, anchor.y, anchor.z) + right * (halfWidth * Config.CameraShift)
+    local base = vector3(anchor.x, anchor.y, anchor.z) + right * (halfWidth * (override and 0.0 or shop.shift or Config.CameraShift))
     local position = base + forward * settings.distance + vector3(0.0, 0.0, settings.height)
 
     local new = CreateCamWithParams('DEFAULT_SCRIPTED_CAMERA', position.x, position.y, position.z, 0.0, 0.0, 0.0, settings.fov, false, 2)
@@ -120,20 +120,48 @@ end
 -- Ouverture et fermeture
 ---------------------------------------------------------------------
 
-local function groupsFor()
+-- Groupes et catégories vendus par l'enseigne (toutes pour la gestion du catalogue) ; price = prix dans l'enseigne,
+-- base = prix par défaut de la catégorie
+local function groupsFor(brand)
     local list = {}
 
     for _, group in ipairs(Config.Groups) do
         local categories = {}
 
         for _, category in ipairs(group.categories) do
-            categories[#categories + 1] = { key = category.key, label = category.label, kind = category.kind, id = category.id, price = ClothingPrice(category.key) }
+            if not brand or ClothingBrandSells(brand, category.key) then
+                local base = ClothingPrice(category.key)
+                categories[#categories + 1] = {
+                    key = category.key, label = category.label, kind = category.kind, id = category.id, base = base,
+                    price = brand and ClothingBrandPrice(brand, base) or base,
+                }
+            end
         end
 
-        list[#list + 1] = { key = group.key, label = group.label, icon = group.icon, camera = group.camera, categories = categories }
+        if #categories > 0 then
+            list[#list + 1] = { key = group.key, label = group.label, icon = group.icon, camera = group.camera, categories = categories }
+        end
     end
 
     return list
+end
+
+-- Fiches des pièces (nom, prix, image, bannie), gardées tant que le catalogue ne change pas
+local catalogueCache = { version = nil }
+
+local function catalogueFor(sex)
+    local version = GlobalState.lunaticClothingVersion
+
+    if catalogueCache.version ~= version then
+        catalogueCache = { version = version }
+    end
+
+    if not catalogueCache[sex] then
+        local result = lib.callback.await('lunatic_clothing:catalogue', false, sex)
+        catalogueCache[sex] = result and result.items or {}
+    end
+
+    return catalogueCache[sex]
 end
 
 -- Image de bannière : lien direct, ou clé de la tuile Images du panel
@@ -169,7 +197,12 @@ local function closeShop(restore)
 
     local ped = PlayerPedId()
 
-    if restore and shop.original then
+    -- Gestion du catalogue : le modèle a pu changer (homme / femme), on remet toute l'apparence
+    if shop.mode == 'tool' then
+        appearanceApi:setPlayerAppearance(shop.original)
+        ped = PlayerPedId()
+        TriggerServerEvent('lunatic_clothing:catalogueClosed')
+    elseif restore and shop.original then
         appearanceApi:setPedAppearance(ped, shop.original)
     end
 
@@ -210,7 +243,7 @@ local function openShop(index, store)
     ClearPedTasksImmediately(ped)
     local coords = GetEntityCoords(ped)
     shop = {
-        index = index, store = store, original = appearanceApi:getPedAppearance(ped), anchor = vector4(coords.x, coords.y, coords.z, GetEntityHeading(ped)),
+        mode = 'shop', index = index, store = store, original = appearanceApi:getPedAppearance(ped), anchor = vector4(coords.x, coords.y, coords.z, GetEntityHeading(ped)),
         favorites = type(profile.favorites) == 'table' and profile.favorites or {},
     }
     FreezeEntityPosition(ped, true)
@@ -219,6 +252,7 @@ local function openShop(index, store)
 
     local brand = ClothingBrand(store.brand)
     local sex = sexOf(ped)
+    local items = catalogueFor(sex)
     local pages = {}
 
     for _, page in ipairs(Config.Pages) do
@@ -227,7 +261,7 @@ local function openShop(index, store)
 
     SendNUIMessage({ action = 'open', data = {
         store = store.label, brand = { label = brand.label, color = brand.color, image = bannerImage(brand.image), showText = brand.showText ~= false },
-        pages = pages, groups = groupsFor(), worn = wornAll(ped), sex = sex, currency = currency(),
+        pages = pages, groups = groupsFor(brand), worn = wornAll(ped), sex = sex, currency = currency(), items = items, coef = tonumber(brand.coef) or 1.0,
         images = (GlobalState.lunaticCreator or {}).clothesImages or Config.ClothesImages,
         ready = readyFor(brand.key, sex), outfits = profile.outfits or {}, maxOutfits = profile.max or 0,
         favorites = type(profile.favorites) == 'table' and profile.favorites[sex] or {},
@@ -392,6 +426,139 @@ end)
 lib.callback.register('lunatic_clothing:capture', function()
     local ped = PlayerPedId()
     return { sex = sexOf(ped), pieces = wornAll(ped) }
+end)
+
+---------------------------------------------------------------------
+-- Gestion du catalogue (staff, ouverte depuis le panel) : fiche de chaque pièce, prix par défaut, photo
+---------------------------------------------------------------------
+
+local MODELS = { male = `mp_m_freemode_01`, female = `mp_f_freemode_01` }
+local captureReply = nil  -- réponse du serveur après une photo
+local cropReply = nil     -- image recadrée par la page
+
+local function toolData(sex, screenshot)
+    return {
+        sex = sex, groups = groupsFor(nil), items = catalogueFor(sex), worn = wornAll(PlayerPedId()), currency = currency(),
+        images = (GlobalState.lunaticCreator or {}).clothesImages or Config.ClothesImages, screenshot = screenshot,
+    }
+end
+
+RegisterNetEvent('lunatic_clothing:catalogueTool', function(screenshot)
+    if shop then
+        return
+    end
+
+    TriggerEvent('lunatic_admin:closePanel')
+    local ped = PlayerPedId()
+
+    if IsPedInAnyVehicle(ped, false) then
+        TriggerServerEvent('lunatic_clothing:catalogueClosed')
+        return notify('Descendez du véhicule pour gérer le catalogue.', 'error')
+    end
+
+    ClearPedTasksImmediately(ped)
+    local coords = GetEntityCoords(ped)
+    shop = { mode = 'tool', shift = 0.0, screenshot = screenshot == true, original = appearanceApi:getPedAppearance(ped), anchor = vector4(coords.x, coords.y, coords.z, GetEntityHeading(ped)) }
+    FreezeEntityPosition(ped, true)
+    DisplayRadar(false)
+    setCamera('torso', true)
+    SendNUIMessage({ action = 'tool', data = toolData(sexOf(ped), shop.screenshot) })
+    SetNuiFocus(true, true)
+end)
+
+-- Homme / femme : le personnage change de modèle le temps de la gestion
+RegisterNUICallback('toolSex', function(data, cb)
+    if not shop or shop.mode ~= 'tool' then
+        return cb({})
+    end
+
+    local sex = data.sex == 'female' and 'female' or 'male'
+
+    if sexOf(PlayerPedId()) ~= sex then
+        appearanceApi:setPlayerModel(MODELS[sex])
+        local ped = PlayerPedId()
+        SetEntityCoords(ped, shop.anchor.x, shop.anchor.y, shop.anchor.z - 0.98, false, false, false, false)
+        SetEntityHeading(ped, shop.anchor.w)
+        FreezeEntityPosition(ped, true)
+    end
+
+    cb(toolData(sex, shop.screenshot))
+end)
+
+RegisterNUICallback('saveItem', function(data, cb)
+    if not shop or shop.mode ~= 'tool' then
+        return cb({ ok = false })
+    end
+
+    local result = lib.callback.await('lunatic_clothing:saveItem', false, sexOf(PlayerPedId()), data.key, data.drawable, data.item)
+    cb(result or { ok = false, error = 'Enregistrement impossible.' })
+end)
+
+RegisterNUICallback('setDefaultPrice', function(data, cb)
+    if not shop or shop.mode ~= 'tool' then
+        return cb({ ok = false })
+    end
+
+    cb(lib.callback.await('lunatic_clothing:setDefaultPrice', false, data.key, data.price) or { ok = false })
+end)
+
+RegisterNUICallback('cropped', function(data, cb)
+    cb({})
+    cropReply = type(data) == 'table' and data or { error = 'réponse vide' }
+end)
+
+RegisterNetEvent('lunatic_clothing:captured', function(ok, path)
+    captureReply = { ok = ok == true, path = path }
+end)
+
+local function waitFor(getter, ms)
+    local timeout = GetGameTimer() + ms
+
+    while not getter() and GetGameTimer() < timeout do
+        Wait(20)
+    end
+
+    return getter()
+end
+
+-- Photo de la pièce portée : interface cachée, caméra cadrée sur la pièce, capture, recadrage par la page, envoi
+RegisterNUICallback('capture', function(data, cb)
+    if not shop or shop.mode ~= 'tool' or not shop.screenshot or GetResourceState('screenshot-basic') ~= 'started' then
+        return cb({ ok = false, error = 'screenshot-basic ne tourne pas sur le serveur.' })
+    end
+
+    local view = Config.Capture.cameras[data.view] and data.view or 'torso'
+    local previous = shop.view
+    SendNUIMessage({ action = 'toolHide', hidden = true })
+    setCamera(view, true, Config.Capture.cameras[view])
+    Wait(450)
+
+    local shot = promise.new()
+    exports['screenshot-basic']:requestScreenshot({ encoding = 'webp', quality = 0.95 }, function(image)
+        shot:resolve(image)
+    end)
+    local image = Citizen.Await(shot)
+
+    cropReply = nil
+    SendNUIMessage({ action = 'crop', image = image, size = Config.Capture.size, crop = Config.Capture.crop, quality = Config.Capture.quality })
+    local cropped = waitFor(function() return cropReply end, 5000)
+
+    setCamera(previous or 'torso', true)
+    SendNUIMessage({ action = 'toolHide', hidden = false })
+
+    if not cropped or type(cropped.image) ~= 'string' then
+        return cb({ ok = false, error = 'Recadrage impossible.' })
+    end
+
+    captureReply = nil
+    TriggerLatentServerEvent('lunatic_clothing:photo', 200000, sexOf(PlayerPedId()), data.key, data.drawable, cropped.image)
+    local reply = waitFor(function() return captureReply end, 15000)
+
+    if not reply or not reply.ok then
+        return cb({ ok = false, error = "Photo refusée par le serveur." })
+    end
+
+    cb({ ok = true, path = reply.path, preview = cropped.image })
 end)
 
 ---------------------------------------------------------------------

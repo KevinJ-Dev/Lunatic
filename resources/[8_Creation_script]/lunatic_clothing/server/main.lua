@@ -42,7 +42,10 @@ exports('getDefaults', function()
 
     for _, key in ipairs(Config.BrandOrder) do
         local brand = Config.Brands[key]
-        brands[#brands + 1] = { key = key, label = brand.label, color = brand.color, image = brand.image or '', showText = brand.showText ~= false, blip = brand.blip }
+        brands[#brands + 1] = {
+            key = key, label = brand.label, color = brand.color, image = brand.image or '', showText = brand.showText ~= false,
+            blip = brand.blip, coef = brand.coef or 1.0, exclude = brand.exclude or {},
+        }
     end
 
     for _, group in ipairs(Config.Groups) do
@@ -54,7 +57,7 @@ exports('getDefaults', function()
 
     return {
         stores = Config.Stores, brands = brands, categories = categories, prices = prices, pages = Config.Pages,
-        storeDefaults = Config.StoreDefaults, maxOutfits = Config.MaxOutfits,
+        storeDefaults = Config.StoreDefaults, maxOutfits = Config.MaxOutfits, screenshot = GetResourceState('screenshot-basic') == 'started',
     }
 end)
 
@@ -251,6 +254,7 @@ lib.callback.register('lunatic_clothing:buy', function(src, index, changes, acco
     end
 
     local bought, total = {}, 0
+    local brand, sex = ClothingBrand(store.brand), sexOfSkin(skin)
 
     for key, value in pairs(type(changes) == 'table' and changes or {}) do
         local category = type(key) == 'string' and ClothingCategory(key)
@@ -261,9 +265,15 @@ lib.callback.register('lunatic_clothing:buy', function(src, index, changes, acco
         end
 
         if not samePiece(skin, category, piece) then
+            local item = piece[1] >= 0 and ClothingItem(sex, key, piece[1])
+
+            if not ClothingBrandSells(brand, key) or (item and item.banned) then
+                return { ok = false, error = ('« %s » : pièce indisponible dans ce magasin.'):format(category.label) }
+            end
+
             bought[#bought + 1] = { category = category, piece = piece }
-            -- Retirer un accessoire est gratuit
-            total = total + (piece[1] < 0 and 0 or ClothingPrice(key))
+            -- Retirer un accessoire est gratuit ; sinon prix de la fiche (ou de la catégorie) selon l'enseigne
+            total = total + (piece[1] < 0 and 0 or ClothingBrandPrice(brand, ClothingPieceBase(sex, key, piece[1])))
         end
     end
 

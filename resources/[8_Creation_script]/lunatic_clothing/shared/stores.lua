@@ -49,7 +49,20 @@ function ClothingBrand(key)
 
     local brand = Config.Brands[key] and key or Config.BrandOrder[1]
     local entry = Config.Brands[brand]
-    return { key = brand, label = entry.label, color = entry.color, image = entry.image or '', showText = entry.showText ~= false, blip = entry.blip }
+    return {
+        key = brand, label = entry.label, color = entry.color, image = entry.image or '', showText = entry.showText ~= false,
+        blip = entry.blip, coef = entry.coef or 1.0, exclude = entry.exclude or {},
+    }
+end
+
+-- Catégorie vendue par l'enseigne
+function ClothingBrandSells(brand, key)
+    return type(brand.exclude) ~= 'table' or brand.exclude[key] ~= true
+end
+
+-- Prix d'une pièce dans une enseigne : prix de la fiche (ou de la catégorie) multiplié par le coefficient de l'enseigne
+function ClothingBrandPrice(brand, base)
+    return math.max(0, math.floor((tonumber(base) or 0) * (tonumber(brand.coef) or 1.0) + 0.5))
 end
 
 -- Catégorie par clé (jacket, pants…)

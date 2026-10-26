@@ -1,0 +1,2 @@
+Photos des vêtements prises en jeu par le staff (panel : Autres → Magasins de vêtements → Catalogue).
+Un fichier par pièce : sexe-catégorie-modèle.webp. Après une séance de photos, « ensure lunatic_clothing » les envoie aux joueurs.

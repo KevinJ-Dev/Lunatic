@@ -79,6 +79,15 @@ const categories = () => data.groups.flatMap((g) => g.categories);
 const categoryOf = (key) => categories().find((c) => c.key === key);
 const groupOf = (key) => data.groups.find((g) => g.key === key);
 const money = (n) => `${n} ${data.currency}`;
+
+// Fiche d'une pièce (nom, prix, image, bannie) réglée dans la gestion du catalogue
+const itemOf = (c, drawable) => (data.items && data.items[c.key] && data.items[c.key][String(drawable)]) || null;
+// Prix d'une pièce dans ce magasin : prix de la fiche × coefficient de l'enseigne, sinon prix de la catégorie
+function piecePrice(c, drawable) {
+    if (drawable < 0) return 0;
+    const item = itemOf(c, drawable);
+    return item && item.price != null ? Math.floor(item.price * (data.coef || 1) + 0.5) : c.price;
+}
 const copy = (o) => JSON.parse(JSON.stringify(o));
 
 // ---------- Ouverture ----------
@@ -160,6 +169,7 @@ function openGroup(key) {
 
 function pieceCell(c, drawable, texture, on, extra) {
     const url = drawable >= 0 ? imageOf(c, drawable, texture) : null;
+    const item = drawable >= 0 ? itemOf(c, drawable) : null;
     const fav = `${c.key}:${drawable}:${texture}`;
     const starred = favorites.includes(fav);
     const star = drawable >= 0 && data.pages.favorites !== false ? h("span", {
@@ -170,7 +180,7 @@ function pieceCell(c, drawable, texture, on, extra) {
         drawable < 0 ? h("span", { class: "none" }, "✕")
             : url ? h("img", { src: url, alt: "", loading: "lazy", onerror: (e) => e.target.replaceWith(h("span", { class: "num" }, String(drawable))) })
                 : h("span", { class: "num" }, String(drawable)),
-        h("small", null, drawable < 0 ? "Aucun" : `N° ${drawable}`));
+        h("small", null, drawable < 0 ? "Aucun" : (item && item.label) || `N° ${drawable}`));
 }
 
 function catalogueView() {
@@ -182,7 +192,8 @@ function catalogueView() {
     const tabs = g.categories.length > 1 ? h("div", { class: "tabs" }, g.categories.map((entry) => h("button", {
         class: `tab${entry.key === category ? " on" : ""}`, onclick: () => { category = entry.key; if ($("grid")) $("grid").scrollTop = 0; paint(); },
     }, entry.label))) : null;
-    const price = h("div", { class: "price-line" }, h("span", null, c.label), h("b", null, c.price > 0 ? `${money(c.price)} la pièce` : "Gratuit"));
+    const current = piecePrice(c, value[0]);
+    const price = h("div", { class: "price-line" }, h("span", null, c.label), h("b", null, value[0] < 0 ? "Aucun" : current > 0 ? `Cette pièce : ${money(current)}` : "Gratuit"));
 
     if (!total) {
         loadCounts(c, 0).then(() => paint());
@@ -192,7 +203,12 @@ function catalogueView() {
     const paid = (original[c.key] || [])[0];
     const cells = [];
     if (c.kind === "prop") cells.push(pieceCell(c, -1, 0, value[0] < 0));
-    for (let i = 0; i < total.drawables; i += 1) cells.push(pieceCell(c, i, 0, value[0] === i, paid === i ? " worn" : ""));
+    for (let i = 0; i < total.drawables; i += 1) {
+        const item = itemOf(c, i);
+        // Pièce bannie : cachée, sauf celle déjà portée
+        if (item && item.banned && paid !== i) continue;
+        cells.push(pieceCell(c, i, 0, value[0] === i, paid === i ? " worn" : ""));
+    }
 
     return h("div", { class: "view" }, viewHead(g.label), tabs, price, h("div", { class: "grid", id: "grid" }, cells), colorsRow(c, value));
 }
@@ -222,6 +238,8 @@ async function loadCounts(c, drawable) {
 }
 
 function imageOf(c, drawable, texture) {
+    const item = itemOf(c, drawable);
+    if (item && item.image) return item.image;
     const template = c.kind === "prop" ? data.images.prop : data.images.component;
     if (!template) return null;
     return template.replaceAll("{sex}", data.sex).replaceAll("{id}", String(c.id))
@@ -370,7 +388,7 @@ const sameAs = (a, b) => a && b && a[0] === b[0] && (a[0] < 0 || a[1] === b[1]);
 
 function cartLines() {
     return categories().filter((c) => !sameAs(worn[c.key], original[c.key]))
-        .map((c) => ({ c, price: worn[c.key][0] < 0 ? 0 : c.price }));
+        .map((c) => ({ c, price: piecePrice(c, worn[c.key][0]) }));
 }
 
 function paintCart() {
@@ -437,7 +455,7 @@ function setCamera(key) {
 
 // Rotation du personnage : clic maintenu hors du panneau
 let dragX = null;
-document.addEventListener("mousedown", (e) => { if (!e.target.closest(".panel, .tools, .bar")) dragX = e.clientX; });
+document.addEventListener("mousedown", (e) => { if (!e.target.closest(".panel, .tools, .bar, .tool-right, .tool-top")) dragX = e.clientX; });
 document.addEventListener("mouseup", () => { dragX = null; });
 document.addEventListener("mousemove", (e) => {
     if (dragX === null) return;
@@ -449,6 +467,7 @@ document.addEventListener("mousemove", (e) => {
 
 document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && data && !$("shop").classList.contains("hidden") && document.activeElement.tagName !== "INPUT") quit();
+    else if (e.key === "Escape" && !$("tool").classList.contains("hidden") && document.activeElement.tagName !== "INPUT") closeTool();
 });
 
 window.addEventListener("message", (event) => {
@@ -469,11 +488,12 @@ function demo(name, payload) {
     return Promise.resolve({});
 }
 
-if (!inGame) {
+if (!inGame && !location.hash.includes("tool")) {
     open({
         store: "Binco de Strawberry", brand: { label: "binco", color: "#f7931e", image: "", showText: true }, sex: "male", currency: "$",
         pages: { catalogue: true, ready: true, outfits: true, favorites: true },
-        images: { component: "", prop: "" }, maxOutfits: 10,
+        images: { component: "", prop: "" }, maxOutfits: 10, coef: 1.2,
+        items: { jacket: { 3: { label: "Veste en jean", price: 90 }, 5: { banned: true }, 6: { label: "Blouson cuir" } } },
         ready: [{ id: "r1", label: "Décontracté", price: 150, pieces: { jacket: [12, 1], pants: [4, 0] } }, { id: "r2", label: "Costume", price: 450, pieces: { jacket: [4, 0] } }],
         outfits: [{ id: 1, label: "Soirée", sex: "male" }, { id: 2, label: "Sport", sex: "male" }],
         favorites: ["jacket:7:0", "shoes:3:2"],

@@ -23,6 +23,7 @@ shared_scripts {
 
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
+    'server/catalogue.lua',
     'server/main.lua',
 }
 
@@ -36,5 +37,7 @@ files {
     'html/index.html',
     'html/style.css',
     'html/app.js',
+    'html/catalogue.js',
+    'html/clothes/*.webp',
     'html/fonts/*.woff2',
 }

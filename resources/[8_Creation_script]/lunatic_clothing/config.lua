@@ -6,12 +6,13 @@ Config.StoreDefaults = { radius = 2.0, marker = true, ped = '' }
 Config.Marker = { 150, 80, 255, 110 } -- couleur du marqueur au sol (couleur du panel)
 
 -- Enseignes (modifiables et complétées dans le panel) : nom de la bannière, couleur, image de bannière (lien https ou
--- clé de la tuile Images, vide : couleur seule), nom affiché sur la bannière ou non, couleur du blip
+-- clé de la tuile Images, vide : couleur seule), nom affiché sur la bannière ou non, couleur du blip,
+-- coefficient appliqué au prix des pièces (1 = prix du catalogue) et catégories non vendues (clés de Config.Groups)
 Config.Brands = {
-    binco = { label = 'binco', color = '#f7931e', image = '', showText = true, blip = 47 },
-    suburban = { label = 'SUBURBAN', color = '#1f6fd1', image = '', showText = true, blip = 3 },
-    ponsonbys = { label = 'PONSONBYS', color = '#1b1b1f', image = '', showText = true, blip = 40 },
-    discount = { label = 'Discount Store', color = '#2e9e4f', image = '', showText = true, blip = 2 },
+    binco = { label = 'binco', color = '#f7931e', image = '', showText = true, blip = 47, coef = 1.0, exclude = {} },
+    suburban = { label = 'SUBURBAN', color = '#1f6fd1', image = '', showText = true, blip = 3, coef = 1.2, exclude = {} },
+    ponsonbys = { label = 'PONSONBYS', color = '#1b1b1f', image = '', showText = true, blip = 40, coef = 2.0, exclude = {} },
+    discount = { label = 'Discount Store', color = '#2e9e4f', image = '', showText = true, blip = 2, coef = 0.8, exclude = {} },
 }
 Config.BrandOrder = { 'binco', 'suburban', 'ponsonbys', 'discount' }
 Config.Blip = { sprite = 73, scale = 0.7 }
@@ -85,6 +86,20 @@ Config.CameraShift = 0.25
 
 -- Animation du bouton « Bras levés » (vérifier les trous des vêtements)
 Config.ArmsUp = { dict = 'missminuteman_1ig_2', anim = 'handsup_base' }
+
+-- Gestion du catalogue (staff, ouverte depuis le panel) : photo d'une pièce avec screenshot-basic, cadrée par ces vues
+-- (sans décalage), recadrée en carré puis enregistrée dans html/clothes/ ; « ensure lunatic_clothing » l'envoie aux joueurs
+Config.Capture = {
+    size = 256,          -- côté de la miniature (pixels)
+    crop = 0.8,          -- part de la hauteur de l'écran gardée au centre
+    quality = 0.85,
+    cameras = {
+        head = { distance = 0.75, height = 0.65, fov = 30.0 },
+        torso = { distance = 1.35, height = 0.25, fov = 40.0 },
+        legs = { distance = 1.45, height = -0.5, fov = 42.0 },
+        feet = { distance = 1.0, height = -0.85, fov = 36.0 },
+    },
+}
 
 -- Images des vêtements : liens réglés dans le panel (Autres → Création perso), sinon ceux-ci.
 -- {sex} = male / female, {id} = numéro GTA, {drawable}, {texture}. Vide : numéro du modèle.

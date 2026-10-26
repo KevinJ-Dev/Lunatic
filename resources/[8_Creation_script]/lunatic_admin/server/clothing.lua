@@ -68,7 +68,7 @@ Panel.actions['clothing.capture'] = function(src, actor)
     return { ok = true, silent = true, sex = outfit.sex == 'female' and 'female' or 'male', pieces = outfit.pieces }
 end
 
-local function readBrands(list)
+local function readBrands(list, categories)
     if type(list) ~= 'table' or #list > BRANDS_MAX then
         return nil, ('Enseignes : %d au maximum.'):format(BRANDS_MAX)
     end
@@ -81,6 +81,7 @@ local function readBrands(list)
         local color = type(brand) == 'table' and type(brand.color) == 'string' and brand.color:match('^#%x%x%x%x%x%x$')
         local image = type(brand) == 'table' and Util.cleanTextOrEmpty(brand.image, 0, 300)
         local blip = type(brand) == 'table' and Util.whole(brand.blip or 0, 0, 85)
+        local coef = type(brand) == 'table' and tonumber(brand.coef or 1)
 
         if not key or #key > 20 or keys[key] then
             return nil, ('Enseigne %d : identifiant invalide ou en double.'):format(index)
@@ -92,10 +93,24 @@ local function readBrands(list)
             return nil, ('Enseigne %d : image invalide (lien https ou clé de la tuile Images).'):format(index)
         elseif not blip then
             return nil, ('Enseigne %d : couleur de blip de 0 à 85.'):format(index)
+        elseif not coef or coef < 0.1 or coef > 10 then
+            return nil, ('Enseigne %d : coefficient de prix de 0,1 à 10.'):format(index)
+        end
+
+        -- Catégories non vendues (clés connues seulement)
+        local exclude = {}
+
+        for category, off in pairs(type(brand.exclude) == 'table' and brand.exclude or {}) do
+            if off == true and categories[category] then
+                exclude[category] = true
+            end
         end
 
         keys[key] = true
-        brands[#brands + 1] = { key = key, label = label, color = color, image = image, showText = brand.showText ~= false, blip = blip }
+        brands[#brands + 1] = {
+            key = key, label = label, color = color, image = image, showText = brand.showText ~= false, blip = blip,
+            coef = math.floor(coef * 100 + 0.5) / 100, exclude = exclude,
+        }
     end
 
     return brands, keys
@@ -200,6 +215,36 @@ local function readReady(list, brandKeys, categories)
     return ready
 end
 
+-- Gestion du catalogue en jeu (lunatic_clothing) : fiches des pièces, prix par défaut, photos
+Panel.actions['clothing.catalogue'] = function(src, actor)
+    if not allowed(actor) then
+        return denied()
+    end
+
+    local ok, started = pcall(function() return exports.lunatic_clothing:startCatalogueSession(src) end)
+
+    if not ok or not started then
+        return Panel.fail('lunatic_clothing ne tourne pas.')
+    end
+
+    return { ok = true, silent = true }
+end
+
+-- Prix par défaut d'une catégorie modifié depuis la gestion du catalogue (lunatic_clothing a vérifié la session)
+exports('setClothingPrice', function(key, price)
+    price = Util.whole(price, 0, PRICE_MAX)
+
+    if type(key) ~= 'string' or not key:match('^[%l_]+$') or not price then
+        return false
+    end
+
+    settings.prices = settings.prices or {}
+    settings.prices[key] = price
+    SetResourceKvp('clothing_shops', json.encode(settings))
+    publish()
+    return true
+end)
+
 Panel.actions['clothing.save'] = function(src, actor, data)
     if not allowed(actor) then
         return denied()
@@ -216,7 +261,7 @@ Panel.actions['clothing.save'] = function(src, actor, data)
         categories[category.key] = category
     end
 
-    local brands, brandKeys = readBrands(data.brands)
+    local brands, brandKeys = readBrands(data.brands, categories)
 
     if not brands then
         return Panel.fail(brandKeys)

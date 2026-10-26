@@ -143,3 +143,45 @@ svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-widt
 .star.on { color: #ffd166; }
 .arrow.fav { color: #ffd166; }
 .tag { padding: 3px 9px; border-radius: 999px; background: #ffffff1f; color: #fff; font-size: 11.5px; font-weight: 700; }
+
+/* ---------- Gestion du catalogue (staff) ---------- */
+.tool { position: fixed; inset: 0; transition: opacity .15s; }
+.tool.ghosted { opacity: 0; pointer-events: none; }
+.tool-top { position: absolute; top: 18px; right: 18px; left: 18px; display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 8px 0 18px; border: 1px solid var(--glass-line); border-radius: 14px; background: var(--panel); }
+.tool-top b { font-size: 14px; letter-spacing: .08em; text-transform: uppercase; }
+.tool-top span { flex: 1; color: var(--muted); font-size: 12px; }
+.tool .tool-left { top: 72px; }
+.tool-right { position: absolute; top: 72px; right: 18px; display: grid; align-content: start; gap: 8px; width: 340px; max-height: calc(100% - 200px); overflow-y: auto; }
+.tool-right::-webkit-scrollbar { width: 6px; }
+.tool-right::-webkit-scrollbar-thumb { border-radius: 3px; background: #ffffff25; }
+.box { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--glass-line); border-radius: 14px; background: var(--panel); }
+.box-head { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.box small { color: var(--muted); font-size: 11.5px; }
+.box small.warn { color: #ffb347; }
+.box .empty { margin: 6px 0; }
+.sexes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.sex { height: 40px; border: 1px solid var(--glass-line); border-radius: 12px; background: var(--panel); color: var(--muted); font-weight: 700; }
+.sex.on { border-color: transparent; background: var(--accent); color: #fff; }
+.preview { display: grid; grid-template-columns: 76px 1fr; align-items: center; gap: 12px; }
+.preview-img { display: grid; place-items: center; width: 76px; height: 76px; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: #ffffff0a; }
+.preview-img img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.preview b { display: block; font-size: 15px; }
+.form { display: grid; grid-template-columns: 70px 1fr; align-items: center; gap: 8px; }
+.form > span { color: var(--muted); font-size: 12px; }
+.inline { display: flex; align-items: center; gap: 8px; }
+.switch { position: relative; width: 40px; height: 22px; padding: 0; border: 0; border-radius: 999px; background: #ffffff26; }
+.switch i { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; }
+.switch.on { background: #ff4d5e; }
+.switch.on i { left: 21px; }
+.btn.save { height: 40px; background: #2e9e4f; }
+.btn.save:hover { background: #3cbf63; }
+.cell.banned { opacity: .5; }
+.badge-ban { position: absolute; top: 4px; right: 4px; padding: 0 5px; border-radius: 5px; background: #ff4d5e; color: #fff; font-size: 9.5px; font-weight: 700; text-transform: uppercase; }
+.badge-price { position: absolute; bottom: 22px; right: 4px; padding: 0 5px; border-radius: 5px; background: #2e9e4f; color: #fff; font-size: 10px; font-weight: 700; }
+
+/* Barres de défilement aux couleurs du panel, partout (panier, grilles, listes) */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { border-radius: 3px; background: #ffffff25; }
+::-webkit-scrollbar-thumb:hover { background: rgba(var(--accent-rgb), .6); }
+::-webkit-scrollbar-button, ::-webkit-scrollbar-corner { display: none; background: transparent; }
