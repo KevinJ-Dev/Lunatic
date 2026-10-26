@@ -254,13 +254,29 @@ function pieceSources(cfg, c, drawable, item, texture) {
     ].filter(Boolean);
 }
 
-// Image qui passe à la source suivante si elle est absente, puis au numéro
+// Photo prise en jeu depuis le dernier démarrage de la ressource : son fichier n'est pas encore arrivé, le serveur
+// l'envoie (gardée ensuite pour toute la session)
+const remoteImages = {};
+function remoteImage(path) {
+    if (!inGame || !/^clothes\/[\w-]+\.webp$/.test(path)) return Promise.resolve(null);
+    if (!(path in remoteImages)) remoteImages[path] = nui("image", { path }).then((res) => (res && res.uri) || null).catch(() => null);
+    return remoteImages[path];
+}
+
+// Image qui passe à la source suivante si elle est absente (une photo récente est d'abord demandée au serveur), puis au numéro
 function pieceImage(sources, drawable) {
     if (!sources.length) return h("span", { class: "num" }, String(drawable));
     let index = 0;
+    let asked = false;
     const img = h("img", { src: sources[0], alt: "", loading: "lazy" });
-    img.addEventListener("error", () => {
+    img.addEventListener("error", async () => {
+        if (!asked && !img.src.startsWith("data:")) {
+            asked = true;
+            const uri = await remoteImage(sources[index]);
+            if (uri) { img.src = uri; return; }
+        }
         index += 1;
+        asked = false;
         if (index < sources.length) img.src = sources[index];
         else img.replaceWith(h("span", { class: "num" }, String(drawable)));
     });

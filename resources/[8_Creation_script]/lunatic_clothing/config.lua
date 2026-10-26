@@ -89,7 +89,8 @@ Config.ArmsUp = { dict = 'missminuteman_1ig_2', anim = 'handsup_base' }
 
 -- Gestion du catalogue (staff, ouverte depuis le panel) : photos avec screenshot-basic, une pièce ou toute une série.
 -- La pièce est portée seule sur une tenue de base, devant un écran vert (détouré : fond transparent), cadrée par ces
--- vues, recadrée autour de la pièce puis enregistrée dans html/clothes/ ; « ensure lunatic_clothing » l'envoie aux joueurs.
+-- vues, recadrée autour de la pièce puis enregistrée dans html/clothes/ ; visible aussitôt (envoyée par le serveur jusqu'au
+-- prochain démarrage de la ressource, qui la livre ensuite avec ses fichiers).
 Config.Capture = {
     size = 256,          -- côté de la miniature (pixels)
     crop = 0.8,          -- part de la hauteur de l'écran gardée au centre avant le détourage

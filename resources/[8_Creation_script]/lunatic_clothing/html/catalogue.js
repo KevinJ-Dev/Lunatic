@@ -143,7 +143,7 @@ function toolRight() {
         tool.previews[`${tool.data.sex}:${c.key}:${drawable}`] = res.preview;
         tool.data.items[c.key] = tool.data.items[c.key] || {};
         tool.data.items[c.key][String(drawable)] = { ...item, image: res.path };
-        toast("Photo enregistrée (envoyée aux joueurs au prochain « ensure lunatic_clothing »).");
+        toast("Photo enregistrée : visible tout de suite dans le catalogue et les magasins.");
         paintTool();
     };
 
@@ -289,7 +289,7 @@ window.addEventListener("message", (event) => {
         $("batch").classList.add("hidden");
         tool.data = { ...tool.data, ...msg.data, items: msg.data.items || {} };
         tool.previews = {};
-        toast(`Série terminée : ${msg.done} photos${msg.failed ? `, ${msg.failed} ratées` : ""}. « ensure lunatic_clothing » les envoie aux joueurs.`);
+        toast(`Série terminée : ${msg.done} photos${msg.failed ? `, ${msg.failed} ratées` : ""}, visibles tout de suite dans le catalogue.`);
         paintTool();
     }
     else if (msg.action === "close") $("tool").classList.add("hidden");

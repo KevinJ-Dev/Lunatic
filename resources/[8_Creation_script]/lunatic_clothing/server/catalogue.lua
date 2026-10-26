@@ -178,6 +178,8 @@ end)
 -- Photos (screenshot-basic, recadrées par la page) : html/clothes/sexe-catégorie-modèle.webp
 ---------------------------------------------------------------------
 
+local imageCache = {} -- chemin -> image en data URI (false : fichier absent)
+
 local B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
 local B64_VALUE = {}
 
@@ -226,8 +228,37 @@ RegisterNetEvent('lunatic_clothing:photo', function(sex, key, drawable, image, b
 
     local item = ClothingItem(sex, key, drawable) or {}
     item.image = path
+    imageCache[path] = nil
     storeItem(sex, key, drawable, item, batch == true)
     TriggerClientEvent('lunatic_clothing:captured', src, true, path)
+end)
+
+-- Photos prises depuis le démarrage de la ressource : leurs fichiers ne sont pas encore chez les joueurs (envoyés au
+-- prochain « ensure »), la page les demande donc ici. Lues sur le disque, encodées en base64, gardées en mémoire.
+local function encodeBase64(data)
+    local out = {}
+
+    for i = 1, #data, 3 do
+        local a, b, c = data:byte(i, i + 2)
+        local n = (a << 16) | ((b or 0) << 8) | (c or 0)
+        out[#out + 1] = B64:sub((n >> 18) + 1, (n >> 18) + 1) .. B64:sub(((n >> 12) & 63) + 1, ((n >> 12) & 63) + 1)
+            .. (b and B64:sub(((n >> 6) & 63) + 1, ((n >> 6) & 63) + 1) or '=') .. (c and B64:sub((n & 63) + 1, (n & 63) + 1) or '=')
+    end
+
+    return table.concat(out)
+end
+
+lib.callback.register('lunatic_clothing:image', function(_, path)
+    if type(path) ~= 'string' or not path:match('^clothes/[%w_%-]+%.webp$') then
+        return nil
+    end
+
+    if imageCache[path] == nil then
+        local data = LoadResourceFile(RESOURCE, 'html/' .. path)
+        imageCache[path] = data and ('data:image/webp;base64,' .. encodeBase64(data)) or false
+    end
+
+    return imageCache[path] or nil
 end)
 
 RegisterNetEvent('lunatic_clothing:photosDone', function()

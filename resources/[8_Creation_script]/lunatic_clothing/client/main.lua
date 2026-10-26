@@ -295,6 +295,11 @@ RegisterNUICallback('apply', function(data, cb)
     cb({})
 end)
 
+-- Photo prise depuis le démarrage de la ressource, pas encore dans ses fichiers : demandée au serveur
+RegisterNUICallback('image', function(data, cb)
+    cb({ uri = type(data.path) == 'string' and lib.callback.await('lunatic_clothing:image', false, data.path) or nil })
+end)
+
 -- Essayage d'une tenue entière (prêt-à-porter)
 RegisterNUICallback('tryPieces', function(data, cb)
     if shop then
