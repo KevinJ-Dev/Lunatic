@@ -96,6 +96,21 @@ Config.Capture = {
     quality = 0.9,
     behind = 1.3,        -- distance de l'écran vert derrière le personnage (mètres)
     wait = 150,          -- attente (ms) après le chargement d'une pièce, avant la photo
+    -- Double photo : sans puis avec la pièce, seul ce qui change est gardé (le corps disparaît). threshold = écart de
+    -- couleur (somme R+V+B, 0-765) en dessous duquel un pixel est retiré ; baseEvery = photos avant de reprendre celle
+    -- de la tenue de base
+    threshold = 45,
+    baseEvery = 25,
+    -- Personnage de base de FiveM (comme au début de la création de personnage) pendant la gestion du catalogue
+    character = {
+        male = { father = 0, mother = 21, shape = 0.5, skin = 0.5 },
+        female = { father = 0, mother = 21, shape = 0.8, skin = 0.5 },
+    },
+    -- Pose figée (animation de la création de personnage GTA, arrêtée) : les deux photos restent identiques
+    pose = {
+        male = { dict = 'mp_character_creation@customise@male_a', anim = 'loop' },
+        female = { dict = 'mp_character_creation@customise@female_a', anim = 'loop' },
+    },
     -- Tenue de base pendant les photos (composant GTA = modèle) : torse nu, sous-vêtements, pieds nus, cheveux courts
     base = {
         male = { [1] = 0, [2] = 0, [3] = 15, [4] = 61, [5] = 0, [6] = 34, [7] = 0, [8] = 15, [9] = 0, [10] = 0, [11] = 15 },

@@ -443,6 +443,64 @@ local function toolData(sex, screenshot)
     }
 end
 
+-- Personnage de base de FiveM (héritage par défaut, sans pilosité ni maquillage, cheveux courts) en tenue de base,
+-- figé face à la caméra
+local function baseCharacter(sex)
+    if sexOf(PlayerPedId()) ~= sex then
+        appearanceApi:setPlayerModel(MODELS[sex])
+    end
+
+    local ped = PlayerPedId()
+    local look = Config.Capture.character[sex]
+    SetPedHeadBlendData(ped, look.father, look.mother, 0, look.father, look.mother, 0, look.shape + 0.0, look.skin + 0.0, 0.0, false)
+
+    for index = 0, 12 do
+        SetPedHeadOverlay(ped, index, 255, 0.0)
+    end
+
+    for index = 0, 19 do
+        SetPedFaceFeature(ped, index, 0.0)
+    end
+
+    SetPedHairColor(ped, 0, 0)
+    SetPedEyeColor(ped, 0)
+
+    for component, drawable in pairs(Config.Capture.base[sex] or {}) do
+        SetPedComponentVariation(ped, component, drawable, 0, 0)
+    end
+
+    ClearAllPedProps(ped)
+    SetEntityCoords(ped, shop.anchor.x, shop.anchor.y, shop.anchor.z - 0.98, false, false, false, false)
+    SetEntityHeading(ped, shop.anchor.w)
+    FreezeEntityPosition(ped, true)
+end
+
+-- Pose figée tant que la gestion est ouverte : l'animation est relancée si besoin et arrêtée à chaque image
+local function holdPose()
+    CreateThread(function()
+        while shop and shop.mode == 'tool' do
+            local ped = PlayerPedId()
+            local pose = Config.Capture.pose[sexOf(ped)]
+
+            if not IsEntityPlayingAnim(ped, pose.dict, pose.anim, 3) then
+                -- Animation absente du jeu : pas de pose, la gestion continue
+                local loaded = pcall(lib.requestAnimDict, pose.dict, 3000)
+
+                if loaded then
+                    TaskPlayAnim(ped, pose.dict, pose.anim, 1000.0, -1000.0, -1, 1, 0.0, false, false, false)
+                end
+
+                Wait(loaded and 200 or 2000)
+            end
+
+            SetEntityAnimSpeed(ped, pose.dict, pose.anim, 0.0)
+            Wait(0)
+        end
+
+        ClearPedTasks(PlayerPedId())
+    end)
+end
+
 RegisterNetEvent('lunatic_clothing:catalogueTool', function(screenshot)
     if shop then
         return
@@ -459,10 +517,11 @@ RegisterNetEvent('lunatic_clothing:catalogueTool', function(screenshot)
     ClearPedTasksImmediately(ped)
     local coords = GetEntityCoords(ped)
     shop = { mode = 'tool', shift = 0.0, screenshot = screenshot == true, original = appearanceApi:getPedAppearance(ped), anchor = vector4(coords.x, coords.y, coords.z, GetEntityHeading(ped)) }
-    FreezeEntityPosition(ped, true)
     DisplayRadar(false)
+    baseCharacter(sexOf(ped))
+    holdPose()
     setCamera('torso', true)
-    SendNUIMessage({ action = 'tool', data = toolData(sexOf(ped), shop.screenshot) })
+    SendNUIMessage({ action = 'tool', data = toolData(sexOf(PlayerPedId()), shop.screenshot) })
     SetNuiFocus(true, true)
 end)
 
@@ -475,11 +534,7 @@ RegisterNUICallback('toolSex', function(data, cb)
     local sex = data.sex == 'female' and 'female' or 'male'
 
     if sexOf(PlayerPedId()) ~= sex then
-        appearanceApi:setPlayerModel(MODELS[sex])
-        local ped = PlayerPedId()
-        SetEntityCoords(ped, shop.anchor.x, shop.anchor.y, shop.anchor.z - 0.98, false, false, false, false)
-        SetEntityHeading(ped, shop.anchor.w)
-        FreezeEntityPosition(ped, true)
+        baseCharacter(sex)
     end
 
     cb(toolData(sex, shop.screenshot))
@@ -594,20 +649,38 @@ local function screenshot()
     return Citizen.Await(shot)
 end
 
--- Photo d'une pièce : tenue de base, pièce, caméra cadrée, capture, détourage par la page, envoi au serveur.
--- batch = série en cours (le catalogue n'est republié qu'à la fin). Renvoie { ok, path, preview } ou { ok = false, error }.
+-- Photo de la tenue de base par vue de caméra, reprise toutes les Config.Capture.baseEvery pièces (lumière qui change)
+local baseShots = {}
+
+-- Photo d'une pièce : tenue de base photographiée (ou reprise du cache), pièce mise, seconde photo ; la page ne garde
+-- que ce qui change entre les deux (la pièce), détoure le fond vert et recadre. batch = série en cours (le catalogue
+-- n'est republié qu'à la fin). Renvoie { ok, path, preview } ou { ok = false, error }.
 local function photograph(category, drawable, view, batch)
     local ped = PlayerPedId()
     local sex = sexOf(ped)
     photoBase(ped, sex)
+
+    if shop.photoView ~= view then
+        shop.photoView = view
+        setCamera(view, true, Config.Capture.cameras[view])
+        Wait(150)
+    end
+
+    local base = baseShots[view]
+
+    if not base or base.uses >= Config.Capture.baseEvery then
+        Wait(Config.Capture.wait)
+        base = { image = screenshot(), uses = 0 }
+        baseShots[view] = base
+    end
+
+    base.uses = base.uses + 1
     wearForPhoto(ped, category, drawable)
-    SetEntityHeading(ped, shop.anchor.w)
-    setCamera(view, true, Config.Capture.cameras[view])
-    Wait(80)
 
     local image = screenshot()
+    photoBase(ped, sex)
     cropReply = nil
-    SendNUIMessage({ action = 'crop', image = image, size = Config.Capture.size, crop = Config.Capture.crop, quality = Config.Capture.quality })
+    SendNUIMessage({ action = 'crop', image = image, base = base.image, threshold = Config.Capture.threshold, size = Config.Capture.size, crop = Config.Capture.crop, quality = Config.Capture.quality })
     local cropped = waitFor(function() return cropReply end, 8000)
 
     if not cropped or type(cropped.image) ~= 'string' then
@@ -660,6 +733,7 @@ RegisterNUICallback('capture', function(data, cb)
     local previous = shop.view
     SendNUIMessage({ action = 'toolHide', hidden = true })
     startGreenScreen()
+    baseShots, shop.photoView = {}, nil
     Wait(50)
 
     local result = photograph(category, drawable, photoView(category.key), false)
@@ -723,6 +797,7 @@ RegisterNUICallback('batch', function(data, cb)
         local done, failed = 0, 0
         SendNUIMessage({ action = 'toolHide', hidden = true })
         startGreenScreen()
+        baseShots, shop.photoView = {}, nil
         Wait(50)
 
         for index, job in ipairs(jobs) do

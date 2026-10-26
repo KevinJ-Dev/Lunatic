@@ -172,7 +172,7 @@ function batchBox(c) {
         batchShow({ index: 0, total: res.total, done: 0, failed: 0, label: "Préparation…" });
     };
     return h("div", { class: "box" }, h("div", { class: "box-head" }, "Photos en série"),
-        h("small", null, "Chaque pièce portée seule, sur fond transparent, rangée dans sa fiche. Les images du Clothes Renderer restent prioritaires."),
+        h("small", null, "Chaque pièce photographiée sans le corps (double photo), sur fond transparent, rangée dans sa fiche. Les images du Clothes Renderer restent prioritaires."),
         h("div", { class: "inline" }, skip, h("small", null, "Garder les photos déjà prises (reprise)")),
         h("div", { class: "pay" },
             h("button", { class: "btn small", disabled: !tool.data.screenshot, onclick: () => run("category") }, `Tout « ${c.label} »`),
@@ -201,53 +201,82 @@ async function toolSex(sex) {
     toolGroupOpen(tool.group);
 }
 
-// Photo : centre de l'écran (screenshot-basic) détouré (fond vert rendu transparent, reflets verts retirés),
-// recadré autour de la pièce puis réduit en carré, renvoyé au jeu
-function cropShot(msg) {
+// Photo : centre de l'écran (screenshot-basic). Avec la photo de la tenue de base (msg.base), seuls les pixels qui
+// changent sont gardés (la pièce : le corps et le fond disparaissent) ; le fond vert est aussi retiré, les reflets verts
+// atténués, les points isolés effacés. Recadrage autour de la pièce, réduit en carré, renvoyé au jeu.
+function loadShot(src) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("capture illisible"));
+        img.src = src;
+    });
+}
+
+async function cropShot(msg) {
     const send = (payload) => nui("cropped", payload).catch(() => null);
-    const img = new Image();
-    img.onload = () => {
-        try {
-            const side = Math.round(Math.min(img.width, img.height * msg.crop));
-            const work = document.createElement("canvas");
-            work.width = side;
-            work.height = side;
-            const ctx = work.getContext("2d");
+    try {
+        const [shot, base] = await Promise.all([loadShot(msg.image), msg.base ? loadShot(msg.base) : null]);
+        const side = Math.round(Math.min(shot.width, shot.height * msg.crop));
+        const read = (img) => {
+            const canvas = document.createElement("canvas");
+            canvas.width = side;
+            canvas.height = side;
+            const ctx = canvas.getContext("2d");
             ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, side, side);
-            const pixels = ctx.getImageData(0, 0, side, side);
-            const p = pixels.data;
-            let minX = side, minY = side, maxX = -1, maxY = -1;
-            for (let i = 0; i < p.length; i += 4) {
-                const r = p[i], g = p[i + 1], b = p[i + 2];
-                const other = Math.max(r, b);
-                const green = g - other;
-                if (green > 70) p[i + 3] = 0;
-                else if (green > 25) { p[i + 3] = Math.round(255 * (1 - (green - 25) / 45)); p[i + 1] = other; }
-                else if (green > 0) p[i + 1] = other;
-                if (p[i + 3] > 24) {
-                    const x = (i / 4) % side, y = Math.floor(i / 4 / side);
-                    if (x < minX) minX = x;
-                    if (x > maxX) maxX = x;
-                    if (y < minY) minY = y;
-                    if (y > maxY) maxY = y;
-                }
+            return { canvas, ctx, pixels: ctx.getImageData(0, 0, side, side) };
+        };
+        const work = read(shot);
+        const ref = base ? read(base).pixels.data : null;
+        const p = work.pixels.data;
+        const limit = msg.threshold || 45;
+
+        for (let i = 0; i < p.length; i += 4) {
+            let alpha = 255;
+            if (ref) {
+                const diff = Math.abs(p[i] - ref[i]) + Math.abs(p[i + 1] - ref[i + 1]) + Math.abs(p[i + 2] - ref[i + 2]);
+                if (diff <= limit) alpha = 0;
+                else if (diff < limit * 2) alpha = Math.round((255 * (diff - limit)) / limit);
             }
-            if (maxX < 0) return send({ error: "pièce invisible sur la photo" });
-            ctx.putImageData(pixels, 0, 0);
-            const w = maxX - minX + 1, h2 = maxY - minY + 1;
-            const box = Math.max(w, h2) * 1.08;
-            const out = document.createElement("canvas");
-            out.width = msg.size;
-            out.height = msg.size;
-            const scale = msg.size / box;
-            out.getContext("2d").drawImage(work, minX, minY, w, h2, (msg.size - w * scale) / 2, (msg.size - h2 * scale) / 2, w * scale, h2 * scale);
-            send({ image: out.toDataURL("image/webp", msg.quality) });
-        } catch (e) {
-            send({ error: String((e && e.message) || e).slice(0, 120) });
+            const other = Math.max(p[i], p[i + 2]);
+            const green = p[i + 1] - other;
+            if (green > 70) alpha = 0;
+            else if (green > 25) { alpha = Math.min(alpha, Math.round(255 * (1 - (green - 25) / 45))); p[i + 1] = other; }
+            else if (green > 0) p[i + 1] = other;
+            p[i + 3] = alpha;
         }
-    };
-    img.onerror = () => send({ error: "capture illisible" });
-    img.src = msg.image;
+
+        // Points isolés (bruit entre les deux photos) effacés, puis cadre de la pièce
+        const solid = new Uint8Array(side * side);
+        for (let k = 0; k < solid.length; k += 1) solid[k] = p[k * 4 + 3] > 24 ? 1 : 0;
+        let minX = side, minY = side, maxX = -1, maxY = -1;
+        for (let y = 1; y < side - 1; y += 1) {
+            for (let x = 1; x < side - 1; x += 1) {
+                const k = y * side + x;
+                if (!solid[k]) continue;
+                const around = solid[k - 1] + solid[k + 1] + solid[k - side] + solid[k + side] + solid[k - side - 1] + solid[k - side + 1] + solid[k + side - 1] + solid[k + side + 1];
+                if (around < 3) { p[k * 4 + 3] = 0; continue; }
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+        }
+        if (maxX < 0) return send({ error: "pièce invisible sur la photo" });
+
+        work.ctx.putImageData(work.pixels, 0, 0);
+        const w = maxX - minX + 1;
+        const hgt = maxY - minY + 1;
+        const box = Math.max(w, hgt) * 1.08;
+        const scale = msg.size / box;
+        const out = document.createElement("canvas");
+        out.width = msg.size;
+        out.height = msg.size;
+        out.getContext("2d").drawImage(work.canvas, minX, minY, w, hgt, (msg.size - w * scale) / 2, (msg.size - hgt * scale) / 2, w * scale, hgt * scale);
+        send({ image: out.toDataURL("image/webp", msg.quality) });
+    } catch (e) {
+        send({ error: String((e && e.message) || e).slice(0, 120) });
+    }
 }
 
 window.addEventListener("message", (event) => {
