@@ -54,8 +54,10 @@ function ClothingPieceBase(sex, key, drawable)
     return item and item.price or ClothingPrice(key)
 end
 
-lib.callback.register('lunatic_clothing:catalogue', function(_, sex)
-    return { version = version, items = items[sex == 'female' and 'female' or 'male'] }
+-- Fiches d'un sexe, envoyées en événement latent (la liste grossit vite après une série de photos)
+RegisterNetEvent('lunatic_clothing:catalogue', function(sex)
+    sex = sex == 'female' and 'female' or 'male'
+    TriggerLatentClientEvent('lunatic_clothing:catalogue', source, 200000, sex, items[sex])
 end)
 
 ---------------------------------------------------------------------
@@ -248,9 +250,30 @@ local function encodeBase64(data)
     return table.concat(out)
 end
 
-lib.callback.register('lunatic_clothing:image', function(_, path)
+-- Envoi en événement latent (débit limité) : des dizaines d'images en événements normaux saturent la file réseau du
+-- joueur (« Reliable network event overflow »). Le client n'en demande qu'une à la fois.
+local IMAGE_BPS = 200000
+local imageRequests = {} -- joueur -> { seconde, nombre }
+
+RegisterNetEvent('lunatic_clothing:image', function(path)
+    local src = source
+
     if type(path) ~= 'string' or not path:match('^clothes/[%w_%-]+%.webp$') then
-        return nil
+        return
+    end
+
+    local now = os.time()
+    local count = imageRequests[src]
+
+    if not count or count[1] ~= now then
+        count = { now, 0 }
+        imageRequests[src] = count
+    end
+
+    count[2] = count[2] + 1
+
+    if count[2] > 20 then
+        return
     end
 
     if imageCache[path] == nil then
@@ -258,7 +281,7 @@ lib.callback.register('lunatic_clothing:image', function(_, path)
         imageCache[path] = data and ('data:image/webp;base64,' .. encodeBase64(data)) or false
     end
 
-    return imageCache[path] or nil
+    TriggerLatentClientEvent('lunatic_clothing:image', src, IMAGE_BPS, path, imageCache[path] or false)
 end)
 
 RegisterNetEvent('lunatic_clothing:photosDone', function()
@@ -269,4 +292,5 @@ end)
 
 AddEventHandler('playerDropped', function()
     sessions[source] = nil
+    imageRequests[source] = nil
 end)

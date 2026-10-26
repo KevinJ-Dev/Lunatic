@@ -148,6 +148,7 @@ end
 
 -- Fiches des pièces (nom, prix, image, bannie), gardées tant que le catalogue ne change pas
 local catalogueCache = { version = nil }
+local catalogueWaiting = {} -- sexe -> promesse en attente de la réponse du serveur
 
 local function catalogueFor(sex)
     local version = GlobalState.lunaticClothingVersion
@@ -157,12 +158,31 @@ local function catalogueFor(sex)
     end
 
     if not catalogueCache[sex] then
-        local result = lib.callback.await('lunatic_clothing:catalogue', false, sex)
-        catalogueCache[sex] = result and result.items or {}
+        local waiting = promise.new()
+        catalogueWaiting[sex] = waiting
+        TriggerServerEvent('lunatic_clothing:catalogue', sex)
+        SetTimeout(15000, function()
+            if catalogueWaiting[sex] == waiting then
+                catalogueWaiting[sex] = nil
+                waiting:resolve(nil)
+            end
+        end)
+        local items = Citizen.Await(waiting)
+        catalogueWaiting[sex] = nil
+        catalogueCache[sex] = type(items) == 'table' and items or {}
     end
 
     return catalogueCache[sex]
 end
+
+RegisterNetEvent('lunatic_clothing:catalogue', function(sex, items)
+    local waiting = catalogueWaiting[sex]
+
+    if waiting then
+        catalogueWaiting[sex] = nil
+        waiting:resolve(items or {})
+    end
+end)
 
 -- Image de bannière : lien direct, ou clé de la tuile Images du panel
 local function bannerImage(value)
@@ -305,9 +325,62 @@ RegisterNUICallback('apply', function(data, cb)
     cb({})
 end)
 
--- Photo prise depuis le démarrage de la ressource, pas encore dans ses fichiers : demandée au serveur
+-- Photo prise depuis le démarrage de la ressource, pas encore dans ses fichiers : demandée au serveur, une à la fois
+-- (réponse en événement latent ; plusieurs demandes de la même image n'en font qu'une)
+local imageWaiting, imageQueue, imageCurrent = {}, {}, nil
+
+local function imageDone(path, uri)
+    for _, cb in ipairs(imageWaiting[path] or {}) do
+        cb({ uri = uri or nil })
+    end
+
+    imageWaiting[path] = nil
+
+    if imageCurrent == path then
+        imageCurrent = nil
+    end
+end
+
+local function imageNext()
+    if imageCurrent or #imageQueue == 0 then
+        return
+    end
+
+    local path = table.remove(imageQueue, 1)
+    imageCurrent = path
+    TriggerServerEvent('lunatic_clothing:image', path)
+
+    SetTimeout(20000, function()
+        if imageCurrent == path then
+            imageDone(path, nil)
+            imageNext()
+        end
+    end)
+end
+
+RegisterNetEvent('lunatic_clothing:image', function(path, uri)
+    if imageWaiting[path] then
+        imageDone(path, uri ~= false and uri or nil)
+    end
+
+    imageNext()
+end)
+
 RegisterNUICallback('image', function(data, cb)
-    cb({ uri = type(data.path) == 'string' and lib.callback.await('lunatic_clothing:image', false, data.path) or nil })
+    local path = data.path
+
+    if type(path) ~= 'string' or not path:match('^clothes/[%w_%-]+%.webp$') then
+        return cb({})
+    end
+
+    if imageWaiting[path] then
+        table.insert(imageWaiting[path], cb)
+        return
+    end
+
+    imageWaiting[path] = { cb }
+    imageQueue[#imageQueue + 1] = path
+    imageNext()
 end)
 
 -- Essayage d'une tenue entière (prêt-à-porter)
