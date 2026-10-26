@@ -145,12 +145,12 @@ svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-widt
 .tag { padding: 3px 9px; border-radius: 999px; background: #ffffff1f; color: #fff; font-size: 11.5px; font-weight: 700; }
 
 /* ---------- Gestion du catalogue (staff) ---------- */
-.tool { position: fixed; inset: 0; transition: opacity .15s; }
-.tool.ghosted { opacity: 0; pointer-events: none; }
+.catalogue-tool { position: fixed; inset: 0; transition: opacity .15s; }
+.catalogue-tool.ghosted { opacity: 0; pointer-events: none; }
 .tool-top { position: absolute; top: 18px; right: 18px; left: 18px; display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 8px 0 18px; border: 1px solid var(--glass-line); border-radius: 14px; background: var(--panel); }
 .tool-top b { font-size: 14px; letter-spacing: .08em; text-transform: uppercase; }
 .tool-top span { flex: 1; color: var(--muted); font-size: 12px; }
-.tool .tool-left { top: 72px; }
+.catalogue-tool .tool-left { top: 72px; }
 .tool-right { position: absolute; top: 72px; right: 18px; display: grid; align-content: start; gap: 8px; width: 340px; max-height: calc(100% - 200px); overflow-y: auto; }
 .tool-right::-webkit-scrollbar { width: 6px; }
 .tool-right::-webkit-scrollbar-thumb { border-radius: 3px; background: #ffffff25; }
