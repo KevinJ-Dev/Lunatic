@@ -174,6 +174,7 @@ Config.TargetConfig = {
     },
 }
 
+-- Lunatic : les magasins de type « clothing » ci-dessous sont retirés en fin de fichier (remplacés par lunatic_clothing)
 Config.Stores = {
     {
         type = "clothing",
@@ -1136,3 +1137,10 @@ Config.InitialPlayerClothes = {
         }
     }
 }
+
+-- Lunatic : magasins de vêtements remplacés par lunatic_clothing (panel : Autres → Magasins de vêtements)
+for index = #Config.Stores, 1, -1 do
+    if Config.Stores[index].type == 'clothing' then
+        table.remove(Config.Stores, index)
+    end
+end
