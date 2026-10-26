@@ -107,10 +107,11 @@ Config.Capture = {
         male = { father = 0, mother = 21, shape = 0.5, skin = 0.5 },
         female = { father = 0, mother = 21, shape = 0.8, skin = 0.5 },
     },
-    -- Pose figée (animation de la création de personnage GTA, arrêtée) : les deux photos restent identiques
+    -- Pose figée (animation arrêtée) : debout, bras le long du corps ; les deux photos restent identiques.
+    -- time = moment de l'animation où elle est figée (0.0 à 1.0)
     pose = {
-        male = { dict = 'mp_character_creation@customise@male_a', anim = 'loop' },
-        female = { dict = 'mp_character_creation@customise@female_a', anim = 'loop' },
+        male = { dict = 'anim@heists@heist_corona@team_idles@male_a', anim = 'idle', time = 0.0 },
+        female = { dict = 'anim@heists@heist_corona@team_idles@female_a', anim = 'idle', time = 0.0 },
     },
     -- Tenue de base pendant les photos (composant GTA = modèle) : torse nu, sous-vêtements, pieds nus, cheveux courts
     base = {

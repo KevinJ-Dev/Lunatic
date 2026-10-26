@@ -190,6 +190,16 @@ local function readyFor(brand, sex)
     return list
 end
 
+-- HUD des autres scripts (novyra_hud, esx_status) masqué en magasin et pendant la gestion (repris de lunatic_creator)
+local function setHud(visible)
+    if GetResourceState('novyra_hud') == 'started' then
+        pcall(function() exports.novyra_hud:setVisible(visible) end)
+    end
+
+    TriggerEvent('esx_status:setDisplay', visible and 0.5 or 0.0)
+    DisplayRadar(visible)
+end
+
 local function closeShop(restore)
     if not shop then
         return
@@ -215,7 +225,7 @@ local function closeShop(restore)
         DestroyCam(shop.cam, false)
     end
 
-    DisplayRadar(true)
+    setHud(true)
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'close' })
     shop = nil
@@ -247,7 +257,7 @@ local function openShop(index, store)
         favorites = type(profile.favorites) == 'table' and profile.favorites or {},
     }
     FreezeEntityPosition(ped, true)
-    DisplayRadar(false)
+    setHud(false)
     setCamera('torso', true)
 
     local brand = ClothingBrand(store.brand)
@@ -492,7 +502,9 @@ local function holdPose()
                 local loaded = pcall(lib.requestAnimDict, pose.dict, 3000)
 
                 if loaded then
-                    TaskPlayAnim(ped, pose.dict, pose.anim, 1000.0, -1000.0, -1, 1, 0.0, false, false, false)
+                    TaskPlayAnim(ped, pose.dict, pose.anim, 1000.0, -1000.0, -1, 1, pose.time or 0.0, false, false, false)
+                    Wait(50)
+                    SetEntityAnimCurrentTime(ped, pose.dict, pose.anim, pose.time or 0.0)
                 end
 
                 Wait(loaded and 200 or 2000)
@@ -522,7 +534,7 @@ RegisterNetEvent('lunatic_clothing:catalogueTool', function(screenshot)
     ClearPedTasksImmediately(ped)
     local coords = GetEntityCoords(ped)
     shop = { mode = 'tool', shift = 0.0, screenshot = screenshot == true, original = appearanceApi:getPedAppearance(ped), anchor = vector4(coords.x, coords.y, coords.z, GetEntityHeading(ped)) }
-    DisplayRadar(false)
+    setHud(false)
     baseCharacter(sexOf(ped))
     holdPose()
     setCamera('torso', true)
