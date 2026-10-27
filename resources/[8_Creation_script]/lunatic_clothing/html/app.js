@@ -78,6 +78,7 @@ let camera = "torso";
 let armsUp = false;
 let tried = null;     // tenue prêt-à-porter essayée
 let favorites = [];   // "clé:modèle:couleur"
+let undressed = [];   // boutons « Retirer » actifs (clés de Config.Undress)
 let pending = false;
 const countsCache = {};
 
@@ -105,6 +106,7 @@ function open(payload) {
     favorites = Array.isArray(payload.favorites) ? payload.favorites.slice() : [];
     armsUp = false;
     tried = null;
+    undressed = [];
     camera = "torso";
 
     // Bannière : couleur de l'enseigne, image éventuelle, nom affiché ou non
@@ -138,6 +140,7 @@ function paint() {
     paintCart();
     paintBar();
     paintTools();
+    paintUndress();
 }
 
 function openPage(id) {
@@ -290,9 +293,12 @@ function pieceImage(sources, drawable) {
     return img;
 }
 
-function pick(c, drawable, texture) {
+async function pick(c, drawable, texture) {
     worn[c.key] = [drawable, texture];
     tried = null;
+    // Pièce choisie dans une partie retirée : toute la partie est remise d'abord
+    const entry = (data.undress || []).find((u) => undressed.includes(u.key) && u.categories.includes(c.key));
+    if (entry) await undress(entry, false);
     nui("apply", { key: c.key, drawable, texture });
     paint();
 }
@@ -311,6 +317,7 @@ function readyView() {
 }
 
 async function tryReady(o) {
+    undressed = [];
     const res = await nui("tryPieces", { pieces: o.pieces });
     if (res && res.worn) worn = res.worn;
     tried = o.id;
@@ -326,6 +333,7 @@ async function buyReady(o, account) {
     worn = res.worn;
     original = copy(res.worn);
     tried = null;
+    undressed = [];
     toast(`Tenue « ${o.label} » achetée.`);
     paint();
 }
@@ -388,6 +396,7 @@ async function wearOutfit(o) {
     worn = res.worn;
     original = copy(res.worn);
     tried = null;
+    undressed = [];
     toast(`Vous portez « ${o.label} ».`);
     paint();
 }
@@ -491,6 +500,24 @@ function paintTools() {
         h("button", { class: `tool${armsUp ? " on" : ""}`, onclick: () => { armsUp = !armsUp; nui("armsUp", { on: armsUp }); paintTools(); } }, svg("arms"), "Bras levés"));
 }
 
+// Retirer / remettre une partie de la tenue (vue seulement, rien n'est acheté)
+function paintUndress() {
+    const list = data.undress || [];
+    $("undress").classList.toggle("hidden", !list.length);
+    $("undress").replaceChildren(h("small", null, "Retirer"), ...list.map((u) => {
+        const off = undressed.includes(u.key);
+        return h("button", { class: `tool${off ? " on" : ""}`, title: off ? `Remettre : ${u.label.toLowerCase()}` : `Retirer : ${u.label.toLowerCase()}`, onclick: () => undress(u, !off) },
+            svg(u.icon), off ? "Remettre" : u.label);
+    }));
+}
+
+async function undress(u, on) {
+    undressed = undressed.filter((key) => key !== u.key);
+    if (on) undressed.push(u.key);
+    paintUndress();
+    await nui("undress", { key: u.key, on });
+}
+
 function setCamera(key) {
     if (camera === key) return;
     camera = key;
@@ -499,7 +526,7 @@ function setCamera(key) {
 
 // Rotation du personnage : clic maintenu hors du panneau
 let dragX = null;
-document.addEventListener("mousedown", (e) => { if (!e.target.closest(".panel, .tools, .bar, .tool-right, .tool-top")) dragX = e.clientX; });
+document.addEventListener("mousedown", (e) => { if (!e.target.closest(".panel, .tools, .undress, .bar, .tool-right, .tool-top")) dragX = e.clientX; });
 document.addEventListener("mouseup", () => { dragX = null; });
 document.addEventListener("mousemove", (e) => {
     if (dragX === null) return;
@@ -542,6 +569,12 @@ if (!inGame && !location.hash.includes("tool")) {
         outfits: [{ id: 1, label: "Soirée", sex: "male" }, { id: 2, label: "Sport", sex: "male" }],
         favorites: ["jacket:7:0", "shoes:3:2"],
         worn: { jacket: [4, 0], undershirt: [15, 0], arms: [0, 0], pants: [1, 0], shoes: [1, 0], hat: [-1, 0], glasses: [-1, 0], mask: [0, 0], earrings: [-1, 0], chain: [0, 0], watch: [-1, 0], bracelet: [-1, 0], bag: [0, 0] },
+        undress: [
+            { key: "top", label: "Haut", icon: "shirt", categories: ["jacket", "undershirt", "arms"] }, { key: "pants", label: "Bas", icon: "pants", categories: ["pants"] },
+            { key: "shoes", label: "Chaussures", icon: "shoe", categories: ["shoes"] }, { key: "hat", label: "Chapeau", icon: "hat", categories: ["hat"] },
+            { key: "glasses", label: "Lunettes", icon: "glasses", categories: ["glasses"] }, { key: "mask", label: "Masque", icon: "mask", categories: ["mask"] },
+            { key: "jewelry", label: "Bijoux", icon: "watch", categories: ["earrings", "chain", "watch", "bracelet"] }, { key: "bag", label: "Sac", icon: "bag", categories: ["bag"] },
+        ],
         groups: [
             { key: "tops", label: "Hauts", icon: "shirt", camera: "torso", categories: [{ key: "jacket", label: "Hauts", kind: "component", id: 11, price: 60 }, { key: "undershirt", label: "Sous-hauts", kind: "component", id: 8, price: 30 }, { key: "arms", label: "Bras", kind: "component", id: 3, price: 0 }] },
             { key: "legs", label: "Bas", icon: "pants", camera: "legs", categories: [{ key: "pants", label: "Bas", kind: "component", id: 4, price: 40 }] },

@@ -105,6 +105,11 @@ svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-widt
 .tool:hover { color: var(--ink); background: #ffffff10; }
 .tool.on { background: var(--accent); color: #fff; }
 
+/* Retirer / remettre : colonne sous les caméras */
+.undress { position: absolute; top: 82px; right: 18px; display: grid; gap: 2px; padding: 4px; border: 1px solid var(--glass-line); border-radius: 14px; background: var(--panel); }
+.undress small { padding: 4px 0 2px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-align: center; text-transform: uppercase; }
+.undress .tool { min-width: 74px; }
+
 .foot { position: absolute; right: 18px; bottom: 18px; display: grid; justify-items: end; gap: 8px; }
 .hint { padding: 4px 10px; border-radius: 999px; background: #0000008c; color: #ffffffb3; font-size: 11.5px; }
 .bar { display: flex; gap: 4px; padding: 5px; border: 1px solid var(--glass-line); border-radius: 16px; background: var(--panel); }

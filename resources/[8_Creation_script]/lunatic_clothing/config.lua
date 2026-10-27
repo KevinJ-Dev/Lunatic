@@ -82,7 +82,10 @@ Config.Groups = {
 
 -- Vues de la caméra : distance devant le personnage, hauteur visée, champ de vision ; side = décalage vers la droite
 -- du personnage (négatif : sa gauche), angle = rotation autour de lui (degrés, positif : vers sa droite),
--- pose = animation jouée tant que la vue est active (bijoux du poignet)
+-- pose = animation jouée tant que la vue est active (bijoux du poignet).
+-- bone = os visé (numéro GTA) au lieu d'un point fixe : la caméra suit le poignet là où la pose le met ; height est
+-- alors la hauteur de la caméra au-dessus de l'os (elle regarde un peu vers le bas).
+-- Os utiles : 18905 poignet gauche (montres), 57005 poignet droit (bracelets).
 Config.Cameras = {
     head = { distance = 0.85, height = 0.65, fov = 36.0 },
     torso = { distance = 1.5, height = 0.3, fov = 45.0 },
@@ -91,8 +94,8 @@ Config.Cameras = {
     full = { distance = 2.7, height = 0.0, fov = 50.0 },
     neck = { distance = 0.6, height = 0.45, fov = 34.0 },
     ear = { distance = 0.45, height = 0.65, fov = 32.0, angle = -70.0 },
-    wrist = { distance = 0.7, height = 0.2, fov = 32.0, side = -0.12, pose = 'watch' },
-    wristRight = { distance = 0.7, height = 0.2, fov = 32.0, side = 0.12, pose = 'watch' },
+    wrist = { bone = 18905, distance = 0.5, height = 0.12, fov = 30.0, angle = -25.0, pose = 'watch' },
+    wristRight = { bone = 57005, distance = 0.5, height = 0.08, fov = 30.0, angle = 55.0 },
 }
 
 -- Animations des vues (poignet levé comme pour regarder l'heure, celle des magasins de vêtements de GTA)
@@ -104,6 +107,20 @@ Config.CameraShift = 0.25
 
 -- Animation du bouton « Bras levés » (vérifier les trous des vêtements)
 Config.ArmsUp = { dict = 'missminuteman_1ig_2', anim = 'handsup_base' }
+
+-- Boutons « Retirer / Remettre » du magasin (en haut à droite) : enlève une partie de la tenue pour mieux voir, sans
+-- rien acheter ; remise d'un clic, et toujours avant de payer ou de quitter. Les composants passent sur le modèle
+-- « rien » de la tenue de base des photos (Config.Capture.base), les accessoires (chapeau, montre…) sont retirés.
+Config.Undress = {
+    { key = 'top', label = 'Haut', icon = 'shirt', categories = { 'jacket', 'undershirt', 'arms' } },
+    { key = 'pants', label = 'Bas', icon = 'pants', categories = { 'pants' } },
+    { key = 'shoes', label = 'Chaussures', icon = 'shoe', categories = { 'shoes' } },
+    { key = 'hat', label = 'Chapeau', icon = 'hat', categories = { 'hat' } },
+    { key = 'glasses', label = 'Lunettes', icon = 'glasses', categories = { 'glasses' } },
+    { key = 'mask', label = 'Masque', icon = 'mask', categories = { 'mask' } },
+    { key = 'jewelry', label = 'Bijoux', icon = 'watch', categories = { 'earrings', 'chain', 'watch', 'bracelet' } },
+    { key = 'bag', label = 'Sac', icon = 'bag', categories = { 'bag' } },
+}
 
 -- Gestion du catalogue (staff, ouverte depuis le panel) : photos avec screenshot-basic, une pièce ou toute une série.
 -- La pièce est portée seule sur une tenue de base, devant un écran vert (détouré : fond transparent), cadrée par ces
@@ -139,8 +156,8 @@ Config.Capture = {
     cameras = {
         neck = { distance = 0.55, height = 0.45, fov = 30.0 },
         ear = { distance = 0.4, height = 0.65, fov = 28.0, angle = -70.0 },
-        wrist = { distance = 0.6, height = 0.2, fov = 28.0, side = -0.12, pose = 'watch' },
-        wristRight = { distance = 0.6, height = 0.2, fov = 28.0, side = 0.12, pose = 'watch' },
+        wrist = { bone = 18905, distance = 0.45, height = 0.1, fov = 28.0, angle = -25.0, pose = 'watch' },
+        wristRight = { bone = 57005, distance = 0.45, height = 0.06, fov = 28.0, angle = 45.0 },
         head = { distance = 0.75, height = 0.65, fov = 30.0 },
         torso = { distance = 1.35, height = 0.25, fov = 40.0 },
         legs = { distance = 1.45, height = -0.5, fov = 42.0 },

@@ -108,10 +108,35 @@ local function setViewPose(name)
     shop.viewPose = pose
 end
 
+-- Os visé par une vue (poignet) : lu une fois la pose de la vue en place ; nil si la caméra a changé entre-temps
+local function boneTarget(settings, token)
+    local ped = PlayerPedId()
+    local pose = settings.pose and Config.Poses[settings.pose]
+
+    if pose then
+        local timeout = GetGameTimer() + 1500
+
+        while not IsEntityPlayingAnim(ped, pose.dict, pose.anim, 3) and GetGameTimer() < timeout do
+            Wait(50)
+        end
+    end
+
+    -- Fin du fondu vers la pose (ou du retour des bras le long du corps)
+    Wait(450)
+
+    if not shop or shop.cameraToken ~= token then
+        return nil
+    end
+
+    return GetPedBoneCoords(PlayerPedId(), settings.bone, 0.0, 0.0, 0.0)
+end
+
 local function setCamera(view, instant, override)
     local settings = override or Config.Cameras[view] or Config.Cameras.torso
     local anchor = shop.anchor
     shop.view = view
+    shop.cameraToken = (shop.cameraToken or 0) + 1
+    local token = shop.cameraToken
     setViewPose(settings.pose)
 
     -- Caméra face au personnage, tournée autour de lui (angle), décalée sur son côté (side) puis vers la droite de
@@ -124,12 +149,25 @@ local function setCamera(view, instant, override)
     -- Gauche de l'écran vue de la caméra (= droite du personnage quand la caméra est en face)
     local screenLeft = vector3(direction.y, -direction.x, 0.0)
     local halfWidth = settings.distance * math.tan(math.rad(settings.fov) / 2) * GetAspectRatio(false)
-    local base = vector3(anchor.x, anchor.y, anchor.z) + right * (settings.side or 0.0)
-        + screenLeft * (halfWidth * (override and 0.0 or shop.shift or Config.CameraShift))
-    local position = base + direction * settings.distance + vector3(0.0, 0.0, settings.height)
+    local shift = screenLeft * (halfWidth * (override and 0.0 or shop.shift or Config.CameraShift))
+    local target, position
+
+    if settings.bone then
+        local bone = boneTarget(settings, token)
+
+        if not bone then
+            return
+        end
+
+        target = bone + shift
+        position = target + direction * settings.distance + vector3(0.0, 0.0, settings.height or 0.0)
+    else
+        target = vector3(anchor.x, anchor.y, anchor.z + settings.height) + right * (settings.side or 0.0) + shift
+        position = target + direction * settings.distance
+    end
 
     local new = CreateCamWithParams('DEFAULT_SCRIPTED_CAMERA', position.x, position.y, position.z, 0.0, 0.0, 0.0, settings.fov, false, 2)
-    PointCamAtCoord(new, base.x, base.y, base.z + settings.height)
+    PointCamAtCoord(new, target.x, target.y, target.z)
 
     if shop.cam and not instant then
         SetCamActiveWithInterp(new, shop.cam, 500, 1, 1)
@@ -258,9 +296,62 @@ local function setHud(visible)
     DisplayRadar(visible)
 end
 
+-- Retirer / remettre (boutons du magasin) : pièces enlevées pour la vue seulement (shop.hidden = pièce à remettre par
+-- catégorie), remises avant tout achat, tenue remise ou sortie
+local function undressedPiece(ped, category)
+    if category.kind == 'prop' then
+        return -1
+    end
+
+    return (Config.Capture.base[sexOf(ped)] or {})[category.id] or 0
+end
+
+local function restoreHidden(keys)
+    if not shop or not shop.hidden then
+        return
+    end
+
+    local ped = PlayerPedId()
+
+    for _, key in ipairs(keys or {}) do
+        local piece = shop.hidden[key]
+        local category = ClothingCategory(key)
+
+        if piece and category then
+            applyPiece(ped, category, piece[1], piece[2])
+        end
+
+        shop.hidden[key] = nil
+    end
+
+    if not keys then
+        for key, piece in pairs(shop.hidden) do
+            local category = ClothingCategory(key)
+
+            if category then
+                applyPiece(ped, category, piece[1], piece[2])
+            end
+        end
+
+        shop.hidden = {}
+    end
+end
+
+local function undressEntry(key)
+    for _, entry in ipairs(Config.Undress) do
+        if entry.key == key then
+            return entry
+        end
+    end
+end
+
 local function closeShop(restore)
     if not shop then
         return
+    end
+
+    if shop.mode ~= 'tool' then
+        restoreHidden()
     end
 
     local ped = PlayerPedId()
@@ -312,7 +403,7 @@ local function openShop(index, store)
     local coords = GetEntityCoords(ped)
     shop = {
         mode = 'shop', index = index, store = store, original = appearanceApi:getPedAppearance(ped), anchor = vector4(coords.x, coords.y, coords.z, GetEntityHeading(ped)),
-        favorites = type(profile.favorites) == 'table' and profile.favorites or {},
+        favorites = type(profile.favorites) == 'table' and profile.favorites or {}, hidden = {},
     }
     FreezeEntityPosition(ped, true)
     setHud(false)
@@ -333,12 +424,14 @@ local function openShop(index, store)
         images = (GlobalState.lunaticCreator or {}).clothesImages or Config.ClothesImages, renderer = Config.RendererImages,
         ready = readyFor(brand.key, sex), outfits = profile.outfits or {}, maxOutfits = profile.max or 0,
         favorites = type(profile.favorites) == 'table' and profile.favorites[sex] or {},
+        undress = Config.Undress,
     } })
     SetNuiFocus(true, true)
 end
 
 -- Après un achat ou une tenue remise : la nouvelle tenue devient celle à remettre en quittant
 local function settle(pieces)
+    restoreHidden()
     applyPieces(pieces)
     shop.original = appearanceApi:getPedAppearance(PlayerPedId())
     return wornAll(PlayerPedId())
@@ -357,7 +450,38 @@ RegisterNUICallback('apply', function(data, cb)
     local category = ClothingCategory(data.key)
 
     if shop and category then
+        -- Pièce choisie : elle n'est plus retirée
+        if shop.hidden then
+            shop.hidden[category.key] = nil
+        end
+
         applyPiece(PlayerPedId(), category, math.floor(tonumber(data.drawable) or 0), math.floor(tonumber(data.texture) or 0))
+    end
+
+    cb({})
+end)
+
+RegisterNUICallback('undress', function(data, cb)
+    local entry = shop and shop.mode == 'shop' and undressEntry(data.key)
+
+    if not entry then
+        return cb({})
+    end
+
+    if data.on ~= true then
+        restoreHidden(entry.categories)
+        return cb({})
+    end
+
+    local ped = PlayerPedId()
+
+    for _, key in ipairs(entry.categories) do
+        local category = ClothingCategory(key)
+
+        if category and not shop.hidden[key] then
+            shop.hidden[key] = wornPiece(ped, category)
+            applyPiece(ped, category, undressedPiece(ped, category), 0)
+        end
     end
 
     cb({})
@@ -424,6 +548,7 @@ end)
 -- Essayage d'une tenue entière (prêt-à-porter)
 RegisterNUICallback('tryPieces', function(data, cb)
     if shop then
+        restoreHidden()
         applyPieces(data.pieces)
     end
 
