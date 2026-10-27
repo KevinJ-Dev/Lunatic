@@ -39,6 +39,11 @@ Config.RentalReturnDistance = 30.0    -- distance maximale entre le véhicule et
 -- Réglable dans le panel (tuile Catalogues, agence de location : « Vitrine d'aperçu »), qui a la priorité.
 Config.RentalShowroom = vector4(228.7, -991.6, -99.0, 200.0)
 
+-- Vente de véhicules (concessionnaire, Vespucci Bike) : essai routier, seul dans une instance à part
+Config.TestDriveTime = 120            -- durée de l'essai (secondes)
+Config.TestDriveRadius = 800.0        -- distance maximale à la sortie du magasin, sinon l'essai s'arrête
+Config.TestDriveBucket = 7000         -- instance de l'essai = ce numéro + id du joueur
+
 -- Véhicules de service (parc et garages placés dans le panel, fiche de la structure)
 Config.GarageStoreDistance = 8.0     -- au volant, distance au point Garages pour [E] Ranger
 Config.GarageReturnDistance = 20.0   -- distance maximale entre le véhicule et le point pour le ranger (vérifiée par le serveur)

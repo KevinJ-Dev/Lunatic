@@ -1071,7 +1071,7 @@ local function showroomSpot()
 end
 
 lib.callback.register('lunatic_business:rentalOpen', function(src, slug, index)
-    local shop, _, xPlayer, err = shopAt(src, slug, index, 'rental')
+    local shop, location, xPlayer, err = shopAt(src, slug, index, 'rental')
 
     if not shop then
         return fail(err)
@@ -1080,13 +1080,13 @@ lib.callback.register('lunatic_business:rentalOpen', function(src, slug, index)
     return {
         ok = true, label = shop.label, header = shop.header, vehicles = shop.vehicles or {}, active = rentalInfo(rentals[src]),
         cash = xPlayer.getAccount('money').money, bank = xPlayer.getAccount('bank').money,
-        maxPeriods = shop.maxPeriods or 4, showroom = showroomSpot(),
+        maxPeriods = shop.maxPeriods or 4, showroom = location.showroom or showroomSpot(),
     }
 end)
 
--- Vente de véhicules (Vespucci Bike) : même vitrine, sans durée
+-- Vente de véhicules (concessionnaire, Vespucci Bike) : vitrine sur place de l'emplacement, sinon la commune ; sans durée
 lib.callback.register('lunatic_business:saleOpen', function(src, slug, index)
-    local shop, _, xPlayer, err = shopAt(src, slug, index, 'vehicles')
+    local shop, location, xPlayer, err = shopAt(src, slug, index, 'vehicles')
 
     if not shop then
         return fail(err)
@@ -1094,7 +1094,7 @@ lib.callback.register('lunatic_business:saleOpen', function(src, slug, index)
 
     return {
         ok = true, sale = true, label = shop.label, header = shop.header, vehicles = shop.vehicles or {},
-        cash = xPlayer.getAccount('money').money, bank = xPlayer.getAccount('bank').money, showroom = showroomSpot(),
+        cash = xPlayer.getAccount('money').money, bank = xPlayer.getAccount('bank').money, showroom = location.showroom or showroomSpot(),
     }
 end)
 
@@ -1208,8 +1208,15 @@ local function newPlate()
     end
 end
 
--- Achat : payé, ajouté au garage du joueur (owned_vehicles, sorti) et posé à la sortie du magasin, le joueur au volant
-lib.callback.register('lunatic_business:saleBuy', function(src, slug, index, vehicleId, account)
+-- Couleur GTA choisie (0-160), nil = celle d'origine du modèle
+local function colorOf(value)
+    value = tonumber(value)
+    return value and value == math.floor(value) and value >= 0 and value <= 160 and value or nil
+end
+
+-- Achat : payé, ajouté au garage du joueur (owned_vehicles, sorti) et posé à la sortie du magasin, le joueur au volant.
+-- Achat libre : la part réglée dans le panel va au compte de la société (le reste disparaît).
+lib.callback.register('lunatic_business:saleBuy', function(src, slug, index, vehicleId, account, primary, secondary)
     if saleBusy[src] then
         return fail('Patientez un instant.')
     end
@@ -1278,14 +1285,148 @@ lib.callback.register('lunatic_business:saleBuy', function(src, slug, index, veh
 
     SetEntityRoutingBucket(vehicle, GetPlayerRoutingBucket(src))
     SetVehicleNumberPlateText(vehicle, plate)
+
+    -- Couleurs choisies : posées par le jeu du client (au volant) et gardées avec le véhicule
+    local props = { model = joaat(offer.model), plate = plate, fuelLevel = 100.0 }
+    primary, secondary = colorOf(primary), colorOf(secondary)
+    props.color1, props.color2 = primary, secondary
+
     MySQL.insert.await('INSERT INTO `owned_vehicles` (`owner`, `plate`, `vehicle`, `type`, `stored`) VALUES (?, ?, ?, ?, 0)', {
-        xPlayer.identifier, plate, json.encode({ model = joaat(offer.model), plate = plate, fuelLevel = 100.0 }), GARAGE_TYPES[offer.type] or 'car',
+        xPlayer.identifier, plate, json.encode(props), GARAGE_TYPES[offer.type] or 'car',
     })
     TaskWarpPedIntoVehicle(GetPlayerPed(src), vehicle, -1)
     saleBusy[src] = nil
 
-    GameLog('vehicles', 'success', src, 'vehicle.buy', offer.label, { plate = plate, price = price, shop = shop.label, account = account })
-    return { ok = true, label = offer.label, plate = plate, price = price, account = account }
+    local share = 0
+
+    if price > 0 and shop.accountJob and shop.accountJob ~= '' then
+        share = math.floor(price * math.max(0, math.min(100, shop.companyShare or 0)) / 100)
+
+        if share > 0 then
+            Account.add(shop.accountJob, share, ('Vente %s (%s)'):format(offer.label, plate), xPlayer.getName())
+        end
+    end
+
+    GameLog('vehicles', 'success', src, 'vehicle.buy', offer.label, { plate = plate, price = price, shop = shop.label, account = account, company = share })
+    return { ok = true, label = offer.label, plate = plate, price = price, account = account, netId = NetworkGetNetworkIdFromEntity(vehicle), primary = primary, secondary = secondary }
+end)
+
+---------------------------------------------------------------------
+-- Essai routier : le client conduit le véhicule seul, dans une instance à part, pendant Config.TestDriveTime.
+-- Fin à l'heure, trop loin, en descendant du véhicule ou à la déconnexion ; il est ramené au comptoir.
+---------------------------------------------------------------------
+
+local tests = {} -- joueur -> { vehicle, previous, back, origin, endsAt, label }
+
+local function endTest(src, message)
+    local test = tests[src]
+
+    if not test then
+        return
+    end
+
+    tests[src] = nil
+
+    if DoesEntityExist(test.vehicle) then
+        DeleteEntity(test.vehicle)
+    end
+
+    if GetPlayerPed(src) ~= 0 then
+        SetPlayerRoutingBucket(src, test.previous)
+    end
+
+    TriggerClientEvent('lunatic_business:testEnded', src, test.back, message)
+end
+
+lib.callback.register('lunatic_business:testDrive', function(src, slug, index, vehicleId)
+    if tests[src] then
+        return fail('Un essai est déjà en cours.')
+    end
+
+    if rentals[src] then
+        return fail("Rendez d'abord votre location.")
+    end
+
+    local shop, location, _, err = shopAt(src, slug, index, 'vehicles')
+
+    if not shop then
+        return fail(err)
+    end
+
+    local offer
+
+    for _, vehicle in ipairs(shop.vehicles or {}) do
+        if vehicle.id == tonumber(vehicleId) then
+            offer = vehicle
+        end
+    end
+
+    if not offer then
+        return fail('Véhicule introuvable.')
+    end
+
+    local spawn = spawnOf(location)
+    local bucket = Config.TestDriveBucket + src
+    local previous = GetPlayerRoutingBucket(src)
+    SetRoutingBucketPopulationEnabled(bucket, false)
+    SetPlayerRoutingBucket(src, bucket)
+
+    local vehicle = CreateVehicleServerSetter(joaat(offer.model), offer.type or 'automobile', spawn.x, spawn.y, spawn.z, spawn.h or 0.0)
+    local timeout = GetGameTimer() + 3000
+
+    while (not vehicle or vehicle == 0 or not DoesEntityExist(vehicle)) and GetGameTimer() < timeout do
+        Wait(0)
+    end
+
+    if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then
+        SetPlayerRoutingBucket(src, previous)
+        return fail("Le véhicule d'essai n'a pas pu sortir.")
+    end
+
+    SetEntityRoutingBucket(vehicle, bucket)
+    SetVehicleNumberPlateText(vehicle, 'ESSAI')
+    TaskWarpPedIntoVehicle(GetPlayerPed(src), vehicle, -1)
+
+    tests[src] = {
+        vehicle = vehicle, previous = previous, origin = vector3(spawn.x, spawn.y, spawn.z), endsAt = os.time() + Config.TestDriveTime, label = offer.label,
+        back = { x = location.x, y = location.y, z = location.z, h = location.h or 0.0 },
+    }
+
+    GameLog('vehicles', 'info', src, 'vehicle.test_drive', offer.label, { shop = shop.label })
+    return { ok = true, label = offer.label, seconds = Config.TestDriveTime, netId = NetworkGetNetworkIdFromEntity(vehicle) }
+end)
+
+RegisterNetEvent('lunatic_business:testEnd', function()
+    endTest(source, "Essai terminé : le véhicule est rendu.")
+end)
+
+CreateThread(function()
+    while true do
+        Wait(1000)
+        local now = os.time()
+
+        for src, test in pairs(tests) do
+            local ped = GetPlayerPed(src)
+
+            if now >= test.endsAt then
+                endTest(src, "Fin de l'essai : le véhicule est rendu.")
+            elseif ped ~= 0 and #(GetEntityCoords(ped) - test.origin) > Config.TestDriveRadius then
+                endTest(src, 'Trop loin de la concession : essai terminé.')
+            end
+        end
+    end
+end)
+
+AddEventHandler('playerDropped', function()
+    local test = tests[source]
+
+    if test then
+        tests[source] = nil
+
+        if DoesEntityExist(test.vehicle) then
+            DeleteEntity(test.vehicle)
+        end
+    end
 end)
 
 AddEventHandler('playerDropped', function()

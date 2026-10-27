@@ -42,7 +42,15 @@ function toast(text) {
 }
 
 let data = null;
-const state = { category: null, selected: null, periods: 1, account: "money" };
+const state = { category: null, selected: null, periods: 1, account: "money", cam: "orbit", auto: false, primary: -1, secondary: -1 };
+
+// Couleurs proposées à la vente (numéro GTA, nom, teinte approchée pour la pastille)
+const SALE_COLORS = [
+    [0, "Noir", "#0d1116"], [1, "Graphite", "#1c1d21"], [4, "Argent", "#8f969c"], [111, "Blanc", "#f4f4f0"],
+    [27, "Rouge", "#c00e1a"], [28, "Rouge vif", "#da1918"], [38, "Orange", "#f78616"], [89, "Jaune", "#fbe212"],
+    [53, "Vert", "#155c2d"], [92, "Vert citron", "#98d223"], [61, "Bleu nuit", "#222e46"], [64, "Bleu", "#47578f"],
+    [70, "Bleu vif", "#0b9cf1"], [71, "Violet", "#2f2d52"], [135, "Rose", "#f21f99"], [96, "Marron", "#3f2a1e"],
+];
 
 const money = (n) => `${Math.round(n).toLocaleString("fr-FR")} ${data.currency || "$"}`;
 const minutes = (m) => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${String(m % 60).padStart(2, "0")}` : ""}` : `${m} min`);
@@ -106,6 +114,23 @@ function statsOf(vehicle) {
             h("i", null, h("em", { style: `width:${Math.round(Math.max(0.04, bar.value) * 100)}%` })))));
 }
 
+// Caméras de la vitrine : extérieur, intérieur, rotation automatique
+function paintCams() {
+    const set = (cam, auto) => { state.cam = cam; state.auto = auto; nui("rentalCamera", { mode: cam, auto }); paintCams(); };
+    $("cams").replaceChildren(
+        h("button", { class: state.cam === "orbit" && !state.auto ? "on" : "", onclick: () => set("orbit", false) }, "Extérieur"),
+        h("button", { class: state.cam === "inside" ? "on" : "", onclick: () => set("inside", false) }, "Intérieur"),
+        h("button", { class: state.auto ? "on" : "", onclick: () => set("orbit", !state.auto) }, "Rotation"));
+}
+
+// Vente : couleur principale ou secondaire (-1 = d'origine)
+function colorRow(label, key) {
+    const pick = (id) => { state[key] = id; nui("rentalColor", { primary: state.primary, secondary: state.secondary }); paintFoot(selectedVehicle()); };
+    return h("div", { class: "colors" }, h("span", null, label), h("div", { class: "swatches" },
+        h("button", { class: `swatch origin${state[key] < 0 ? " on" : ""}`, title: "Couleur d'origine", onclick: () => pick(-1) }, "∅"),
+        SALE_COLORS.map(([id, name, hex]) => h("button", { class: `swatch${state[key] === id ? " on" : ""}`, title: name, style: `background:${hex}`, onclick: () => pick(id) }))));
+}
+
 function paintFoot(vehicle) {
     const max = Math.max(1, data.maxPeriods || 1);
     state.periods = Math.min(Math.max(1, state.periods), max);
@@ -120,6 +145,8 @@ function paintFoot(vehicle) {
 
     const blocked = !vehicle || !!data.active || (total > 0 && !canPay(state.account));
     $("foot").replaceChildren(...[
+        data.sale ? colorRow("Couleur", "primary") : null,
+        data.sale ? colorRow("Secondaire", "secondary") : null,
         data.sale ? null : h("div", { class: "row" }, h("span", null, "Durée"),
             h("div", { class: "stepper" },
                 h("button", { disabled: state.periods <= 1, onclick: () => { state.periods -= 1; paintFoot(vehicle); } }, "−"),
@@ -127,9 +154,10 @@ function paintFoot(vehicle) {
                 h("button", { disabled: state.periods >= max, onclick: () => { state.periods += 1; paintFoot(vehicle); } }, "+"))),
         h("div", { class: "row" }, h("span", null, "Total"), h("b", { class: "total" }, total > 0 ? money(total) : "Gratuit")),
         total > 0 ? h("div", { class: "pay" }, payButton("money", "Liquide", data.cash), payButton("bank", "Carte", data.bank)) : null,
+        data.sale ? h("button", { class: "ghost-btn test", disabled: !vehicle, onclick: () => vehicle && nui("rentalTest", { id: vehicle.id }) }, "Essai routier") : null,
         h("button", { class: "go", disabled: blocked, onclick: () => {
             if (blocked) return;
-            nui("rentalRent", { id: vehicle.id, periods: state.periods, account: state.account });
+            nui("rentalRent", { id: vehicle.id, periods: state.periods, account: state.account, primary: state.primary, secondary: state.secondary });
         } }, data.active ? "Location déjà en cours" : data.sale ? "Acheter" : "Louer")].filter(Boolean));
 }
 
@@ -156,7 +184,7 @@ function paintTimer(msg) {
     timer.classList.remove("hidden");
     timer.classList.toggle("late", left <= 60);
     timer.title = msg.label;
-    timer.querySelector("small").textContent = left > 0 ? "Location" : "À rendre";
+    timer.querySelector("small").textContent = msg.test ? "Essai" : left > 0 ? "Location" : "À rendre";
     $("timer-time").textContent = `${String(Math.floor(left / 60)).padStart(2, "0")}:${String(left % 60).padStart(2, "0")}`;
     timer.style.left = `calc(${msg.left * 100}% + 8px)`;
     timer.style.top = `${msg.bottom * 100}%`;
@@ -171,6 +199,11 @@ window.addEventListener("message", (event) => {
         state.periods = 1;
         state.account = "money";
         state.selected = null;
+        state.cam = "orbit";
+        state.auto = false;
+        state.primary = -1;
+        state.secondary = -1;
+        paintCams();
         $("agency").textContent = data.label;
         document.querySelector("#rental .head small").textContent = data.sale ? "Vente" : "Location";
         $("rental").classList.remove("hidden");
@@ -190,7 +223,7 @@ window.addEventListener("message", (event) => {
 if (!inGame && location.hash.includes("sale")) {
     const bars = (a, b, c, d) => [{ label: "Vitesse", value: a }, { label: "Accélération", value: b }, { label: "Freinage", value: c }, { label: "Traction", value: d }];
     window.postMessage({
-        action: "rentalOpen", sale: true, label: "Vespucci Bike", currency: "$", cash: 420, bank: 15800, active: null,
+        action: "rentalOpen", sale: true, label: "Concessionnaire Premium Deluxe", currency: "$", cash: 420, bank: 15800, active: null,
         vehicles: [
             { id: 1, model: "bmx", label: "BMX", price: 350, category: "BMX" },
             { id: 2, model: "scorcher", label: "Scorcher", price: 900, category: "VTT" },

@@ -7,7 +7,7 @@
 // ====================================================================
 
 const SHOP_ICONS = {
-    ltd: "i-store", binco: "i-shirt", vangelico: "i-gem", barber: "i-scissors", ammunation: "i-crosshair", rental: "i-key", bikes: "i-car",
+    ltd: "i-store", binco: "i-shirt", vangelico: "i-gem", barber: "i-scissors", ammunation: "i-crosshair", rental: "i-key", bikes: "i-car", dealer: "i-car",
     masquerade: "i-mask", shenails: "i-sparkle", skateshop: "i-skate", tattoo: "i-edit", wholesale: "i-truck",
 };
 
@@ -78,7 +78,7 @@ async function loadShopList() {
 
 // Partie de la fiche enregistrée par « Enregistrer » (les emplacements sont enregistrés tout de suite)
 function shopSnapshot(d) {
-    return JSON.stringify([d.label, d.slug, d.blip, d.header || "", d.jobs, (d.items || []).map((e) => [e.item, e.price, e.license || null]), d.defaultPrice || 0, d.maxPeriods || 4]);
+    return JSON.stringify([d.label, d.slug, d.blip, d.header || "", d.jobs, (d.items || []).map((e) => [e.item, e.price, e.license || null]), d.defaultPrice || 0, d.maxPeriods || 4, d.accountJob || "", d.companyShare ?? 30]);
 }
 
 // Image d'un véhicule : celle du panel, sinon la photo officielle des véhicules du jeu (docs FiveM)
@@ -205,6 +205,12 @@ function shopForm() {
     const showroomText = (s) => (s ? `${s.x.toFixed(1)}, ${s.y.toFixed(1)}, ${s.z.toFixed(1)} · ${Math.round(s.h)}°` : "celle de la config (garage par défaut)");
     const showroomCoords = h("span", { class: "mono muted" }, showroomText(d.showroom));
     const buyback = shopState.category.kind === "buyback";
+    // Vente : compte de société crédité et sa part du prix quand le client achète seul
+    const sale = shopState.category.kind === "vehicles";
+    const accountJob = h("select", { class: "input" }, [h("option", { value: "" }, "Aucun (l'argent disparaît)"),
+        ...shopState.jobs.map((j) => h("option", { value: j.name, selected: j.name === d.accountJob }, j.label))]);
+    accountJob.addEventListener("change", () => { d.accountJob = accountJob.value; });
+    const companyShare = bind(h("input", { class: "input mono", type: "number", min: "0", max: "100", value: String(d.companyShare ?? 30) }), (v) => { d.companyShare = Math.max(0, Math.min(100, Math.floor(Number(v) || 0))); });
     const vehicleRow = (v) => {
         const img = h("img", { class: "vehicle-img", src: vehicleImage(v), alt: "" });
         img.addEventListener("error", () => { img.style.visibility = "hidden"; });
@@ -245,8 +251,10 @@ function shopForm() {
     // Emplacements (enregistrés tout de suite, à la position du staff)
     const locations = d.locations.map((l, i) => h("div", { class: "row point-row" },
         h("span", { class: "pid mono" }, String(i + 1)),
-        h("div", { class: "who" }, h("b", null, `Emplacement ${i + 1}`), h("span", null, `${l.x.toFixed(1)}, ${l.y.toFixed(1)}, ${l.z.toFixed(1)}${vehicleShop ? (l.spawn ? " · sortie définie" : " · sortie : devant le comptoir") : ""}`)),
+        h("div", { class: "who" }, h("b", null, `Emplacement ${i + 1}`), h("span", null, `${l.x.toFixed(1)}, ${l.y.toFixed(1)}, ${l.z.toFixed(1)}${vehicleShop ? (l.spawn ? " · sortie définie" : " · sortie : devant le comptoir") : ""}${sale ? (l.showroom ? " · vitrine sur place" : " · vitrine commune") : ""}`)),
         h("div", { class: "btn-row" },
+            sale ? h("button", { class: "btn small", title: "Placez-vous là où le véhicule doit être montré (plateau, quai…), dans le sens voulu", onclick: () => shopAct("shops.setLocationShowroom", { locationId: l.id }, "Vitrine placée à votre position.") }, icon("i-crosshair"), "Vitrine") : null,
+            sale && l.showroom ? h("button", { class: "btn small ghost", title: "Revenir à la vitrine commune", onclick: () => shopAct("shops.setLocationShowroom", { locationId: l.id, clear: true }, "Vitrine sur place retirée.") }, icon("i-x")) : null,
             vehicleShop ? h("button", { class: "btn small", title: "Placez-vous là où le véhicule doit apparaître, dans le sens de sortie", onclick: () => shopAct("shops.setSpawn", { locationId: l.id }, "Sortie des véhicules définie à votre position.") }, icon("i-car"), "Sortie") : null,
             h("button", { class: "btn small", onclick: () => shopAct("shops.moveLocation", { locationId: l.id }, "Emplacement replacé à votre position.") }, icon("i-crosshair"), "Définir"),
             h("button", { class: "btn small ghost", onclick: () => act("shops.tpLocation", { locationId: l.id }, null) }, icon("i-goto"), "TP"),
@@ -258,6 +266,7 @@ function shopForm() {
         const res = await shopAct("shops.save", {
         id: d.id, label: d.label.trim(), slug: d.slug.trim(), blipSprite: d.blip.sprite, blipColor: d.blip.color, blipScale: d.blip.scale,
         blipLabel: (d.blip.label || "").trim(), header: (d.header || "").trim(), jobs: d.jobs, defaultPrice: d.defaultPrice || 0, maxPeriods: d.maxPeriods || 4,
+        accountJob: d.accountJob || "", companyShare: d.companyShare ?? 30,
         items: d.items.map((e) => ({ item: e.item, price: e.price, license: e.license || null })),
     }, "Magasin enregistré.");
         if (res) shopState.saved = snapshot;
@@ -284,6 +293,9 @@ function shopForm() {
                 h("p", { class: "hint-line" }, rental ? "Le prix et la durée d'un véhicule valent pour une période ; le client choisit le nombre de périodes, paie en liquide ou par carte, puis le véhicule est repris à la fin. Il peut le rendre plus tôt au comptoir."
                     : "Le client regarde le véhicule en 3D avec ses caractéristiques, paie en liquide ou par carte : il est à lui (garage, table owned_vehicles) et sort devant le magasin."),
                 rental ? field("Périodes maximum par location", maxPeriods) : null,
+                sale ? field("Compte de société crédité", accountJob) : null,
+                sale ? field("Part pour la société en achat libre (%)", companyShare) : null,
+                sale ? h("p", { class: "hint-line" }, "Achat libre (aucun vendeur en service) : cette part du prix va au compte de la société, le reste disparaît. Chaque emplacement peut avoir sa vitrine sur place (bouton « Vitrine »), sinon la vitrine commune ci-dessous sert.") : null,
                 h("div", { class: "driving-spot" }, h("b", null, "Vitrine d'aperçu (location et vente)"), showroomCoords,
                     h("button", { class: "btn small ghost", title: "Placez-vous là où le véhicule doit apparaître, dans le sens voulu", onclick: async () => {
                         const res = await shopAct("shops.setShowroom", { id: d.id }, "Vitrine placée à votre position.");

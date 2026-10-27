@@ -55,6 +55,8 @@ local function load()
             header = row.header or '', jobs = ok and jobs or {}, items = {}, locations = {}, vehicles = {}, defaultPrice = tonumber(row.default_price) or 0,
             -- Location : nombre maximum de périodes (prix et durée du véhicule) qu'un joueur peut prendre d'un coup
             maxPeriods = tonumber(row.rental_periods) or 4,
+            -- Vente de véhicules : compte de société crédité (job, '' = aucun) et sa part du prix en achat libre (%)
+            accountJob = row.account_job or '', companyShare = tonumber(row.company_share) or 30,
         }
     end
 
@@ -74,6 +76,8 @@ local function load()
                 id = tonumber(row.id), x = tonumber(row.x), y = tonumber(row.y), z = tonumber(row.z), h = tonumber(row.h),
                 -- Location : sortie des véhicules (sinon devant l'emplacement)
                 spawn = row.sx and { x = tonumber(row.sx), y = tonumber(row.sy), z = tonumber(row.sz), h = tonumber(row.sh) } or nil,
+                -- Vitrine sur place (sinon la vitrine commune)
+                showroom = row.vx and { x = tonumber(row.vx), y = tonumber(row.vy), z = tonumber(row.vz), h = tonumber(row.vh) } or nil,
                 -- Tuile Interactions : PNJ (modèle et position), rayon du [E], blip affiché ou non
                 ped = row.ped ~= '' and row.ped or nil,
                 pedPos = row.px and { x = tonumber(row.px), y = tonumber(row.py), z = tonumber(row.pz), h = tonumber(row.ph) } or nil,
@@ -181,6 +185,20 @@ table.insert(Panel.readyHooks, function()
             ADD COLUMN IF NOT EXISTS `sy` DOUBLE NULL DEFAULT NULL,
             ADD COLUMN IF NOT EXISTS `sz` DOUBLE NULL DEFAULT NULL,
             ADD COLUMN IF NOT EXISTS `sh` DOUBLE NULL DEFAULT NULL
+    ]])
+
+    -- Vente de véhicules : vitrine sur place par emplacement, compte de société crédité et sa part en achat libre
+    MySQL.query.await([[
+        ALTER TABLE `lunatic_shop_locations`
+            ADD COLUMN IF NOT EXISTS `vx` DOUBLE NULL DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS `vy` DOUBLE NULL DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS `vz` DOUBLE NULL DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS `vh` DOUBLE NULL DEFAULT NULL
+    ]])
+    MySQL.query.await([[
+        ALTER TABLE `lunatic_shops`
+            ADD COLUMN IF NOT EXISTS `account_job` VARCHAR(50) NOT NULL DEFAULT '',
+            ADD COLUMN IF NOT EXISTS `company_share` INT NOT NULL DEFAULT 30
     ]])
 
     -- Interactions : PNJ, rayon, blip par emplacement
@@ -317,7 +335,7 @@ Panel.actions['shops.info'] = function(_, actor, data)
     return { ok = true, silent = true, shop = {
         id = shop.id, category = shop.category, slug = shop.slug, label = shop.label, blip = shop.blip, header = shop.header,
         jobs = shop.jobs, items = items, locations = shop.locations, vehicles = shop.vehicles, kind = shop.kind, defaultPrice = shop.defaultPrice,
-        maxPeriods = shop.maxPeriods, showroom = GlobalState.lunaticRentalShowroom,
+        maxPeriods = shop.maxPeriods, showroom = GlobalState.lunaticRentalShowroom, accountJob = shop.accountJob, companyShare = shop.companyShare,
     }, licenses = licenseList, jobs = jobList }
 end
 
@@ -378,6 +396,16 @@ Panel.actions['shops.save'] = function(src, actor, data)
     local scale = number(data.blipScale, 0.1, 3)
     local defaultPrice = number(data.defaultPrice or 0, 0, LIMITS.price, true)
     local maxPeriods = number(data.maxPeriods or 4, 1, 24, true)
+    local companyShare = number(data.companyShare or 30, 0, 100, true)
+    local accountJob = type(data.accountJob) == 'string' and data.accountJob or ''
+
+    if accountJob ~= '' and not ESX.GetJobs()[accountJob] then
+        return Panel.fail('Compte de société : job inconnu.')
+    end
+
+    if not companyShare then
+        return Panel.fail('Part de la société : de 0 à 100 %.')
+    end
 
     if not label or not blipLabel or not header then
         return Panel.fail('Label (2-60), label du blip (60 max) ou image (255 max) invalide.')
@@ -417,8 +445,8 @@ Panel.actions['shops.save'] = function(src, actor, data)
     end
 
     local queries = {
-        { query = 'UPDATE `lunatic_shops` SET `slug` = ?, `label` = ?, `blip_sprite` = ?, `blip_color` = ?, `blip_scale` = ?, `blip_label` = ?, `header` = ?, `jobs` = ?, `default_price` = ?, `rental_periods` = ? WHERE `id` = ?',
-            values = { slug, label, sprite, color, scale, blipLabel, header, json.encode(jobs), defaultPrice, maxPeriods, shop.id } },
+        { query = 'UPDATE `lunatic_shops` SET `slug` = ?, `label` = ?, `blip_sprite` = ?, `blip_color` = ?, `blip_scale` = ?, `blip_label` = ?, `header` = ?, `jobs` = ?, `default_price` = ?, `rental_periods` = ?, `account_job` = ?, `company_share` = ? WHERE `id` = ?',
+            values = { slug, label, sprite, color, scale, blipLabel, header, json.encode(jobs), defaultPrice, maxPeriods, accountJob, companyShare, shop.id } },
         { query = 'DELETE FROM `lunatic_shop_items` WHERE `shop_id` = ?', values = { shop.id } },
     }
 
@@ -774,6 +802,33 @@ Panel.actions['shops.setSpawn'] = function(src, actor, data)
     MySQL.update.await('UPDATE `lunatic_shop_locations` SET `sx` = ?, `sy` = ?, `sz` = ?, `sh` = ? WHERE `id` = ?', { coords.x, coords.y, coords.z, GetEntityHeading(ped), location.id })
     load()
     Logs.add(src, 'shops.location', nil, { id = shop.id, label = shop.label, operation = 'sortie véhicules' })
+
+    return { ok = true, silent = true }
+end
+
+-- Vitrine sur place d'un emplacement (vente de véhicules) : position du staff, ou retirée (clear = true)
+Panel.actions['shops.setLocationShowroom'] = function(src, actor, data)
+    local shop, location, err = locationFor(actor, data.locationId)
+
+    if not shop then
+        return err
+    end
+
+    if data.clear == true then
+        MySQL.update.await('UPDATE `lunatic_shop_locations` SET `vx` = NULL, `vy` = NULL, `vz` = NULL, `vh` = NULL WHERE `id` = ?', { location.id })
+    else
+        local ped = GetPlayerPed(src)
+
+        if not ped or ped == 0 then
+            return Panel.fail("Votre personnage n'est pas encore apparu.")
+        end
+
+        local coords = GetEntityCoords(ped)
+        MySQL.update.await('UPDATE `lunatic_shop_locations` SET `vx` = ?, `vy` = ?, `vz` = ?, `vh` = ? WHERE `id` = ?', { coords.x, coords.y, coords.z, GetEntityHeading(ped), location.id })
+    end
+
+    load()
+    Logs.add(src, 'shops.location', nil, { id = shop.id, label = shop.label, operation = data.clear == true and 'vitrine sur place retirée' or 'vitrine sur place' })
 
     return { ok = true, silent = true }
 end

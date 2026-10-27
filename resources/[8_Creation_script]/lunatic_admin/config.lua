@@ -164,6 +164,7 @@ Config.ShopCategories = {
     { id = 'ammunation', label = 'Ammunation', kind = 'items', blip = { sprite = 110, color = 1 } },
     { id = 'rental', label = 'Location', kind = 'rental', blip = { sprite = 225, color = 3 } },
     { id = 'bikes', label = 'Vespucci Bike', kind = 'vehicles', blip = { sprite = 226, color = 5 } }, -- vente de véhicules (vélos)
+    { id = 'dealer', label = 'Concessionnaire', kind = 'vehicles', blip = { sprite = 326, color = 3 } }, -- voitures et motos
     { id = 'masquerade', label = 'Masquerade', kind = 'clothing', blip = { sprite = 362, color = 27 } },
     { id = 'shenails', label = 'Shenails', kind = 'clothing', blip = { sprite = 621, color = 8 } },
     { id = 'skateshop', label = 'Skateshop', kind = 'items', blip = { sprite = 59, color = 5 } },

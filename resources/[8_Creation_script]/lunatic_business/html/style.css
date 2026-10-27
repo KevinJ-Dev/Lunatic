@@ -149,3 +149,18 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .stat span { color: var(--muted); }
 .stat i { display: block; height: 6px; overflow: hidden; border-radius: 3px; background: #ffffff14; }
 .stat em { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+
+/* Vitrine : caméras en haut à droite (à gauche du bouton fermer) */
+.cams { position: absolute; top: 18px; right: 72px; display: flex; gap: 4px; padding: 4px; border: 1px solid var(--glass-line); border-radius: 12px; background: var(--panel); }
+.cams button { height: 32px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-size: 12px; font-weight: 600; }
+.cams button:hover { color: var(--ink); background: #ffffff10; }
+.cams button.on { background: var(--accent); color: #fff; }
+/* Vente : nuancier des couleurs */
+.colors { display: grid; gap: 5px; }
+.colors > span { color: var(--muted); font-size: 12px; }
+.swatches { display: grid; grid-template-columns: repeat(17, 1fr); gap: 3px; }
+.swatch { aspect-ratio: 1; padding: 0; border: 1px solid #0006; border-radius: 5px; color: var(--muted); font-size: 10px; line-height: 1; }
+.swatch.origin { background: #ffffff10; }
+.swatch:hover { transform: scale(1.1); }
+.swatch.on { box-shadow: 0 0 0 2px #fff, 0 0 0 3px var(--accent); }
+.ghost-btn.test { width: 100%; height: 38px; }

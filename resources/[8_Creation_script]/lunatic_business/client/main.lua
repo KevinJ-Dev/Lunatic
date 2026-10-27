@@ -774,9 +774,36 @@ end)
 -- avant de louer ou de rendre, car le serveur vérifie qu'il s'y trouve. Le véhicule montré n'existe que chez lui.
 ---------------------------------------------------------------------
 
-local rental = nil -- { target, info, back, vehicle, cam, heading, pitch, distance, token }
+local rental = nil -- { target, info, back, vehicle, cam, heading, pitch, distance, token, mode, auto, look, colors, base }
+
+-- Couleurs choisies (nil = celle d'origine) posées sur un véhicule ; base = couleurs d'origine si connues
+local function paintVehicle(vehicle, primary, secondary, base)
+    if not vehicle or not DoesEntityExist(vehicle) then
+        return
+    end
+
+    local p, s = GetVehicleColours(vehicle)
+
+    if base then
+        p, s = base[1], base[2]
+    end
+
+    SetVehicleColours(vehicle, primary or p, secondary or s)
+end
 
 local function rentalCamera()
+    -- Vue intérieure : place du conducteur, regard tourné à la souris (look)
+    if rental.mode == 'inside' and rental.vehicle and DoesEntityExist(rental.vehicle) then
+        local seat = GetEntityBoneIndexByName(rental.vehicle, 'seat_dside_f')
+        local base = seat ~= -1 and GetWorldPositionOfEntityBone(rental.vehicle, seat) or GetEntityCoords(rental.vehicle)
+        local position = base + vector3(0.0, 0.0, 0.62)
+        local heading = math.rad(GetEntityHeading(rental.vehicle) + (rental.look or 0.0))
+        local target = position + vector3(-math.sin(heading) * 4.0, math.cos(heading) * 4.0, -0.35)
+        SetCamCoord(rental.cam, position.x, position.y, position.z)
+        PointCamAtCoord(rental.cam, target.x, target.y, target.z)
+        return
+    end
+
     local spot = rental.info.showroom
     local h, p = math.rad(rental.heading), math.rad(rental.pitch)
     local target = vector3(spot.x, spot.y, spot.z + 0.5)
@@ -823,6 +850,11 @@ local function previewVehicle(offer)
     SetVehicleLights(vehicle, 2)
     SetVehicleNumberPlateText(vehicle, rental.info.sale and 'A VENDRE' or 'LOCATION')
     rental.vehicle = vehicle
+
+    -- Couleur choisie gardée d'un véhicule à l'autre
+    local p, s = GetVehicleColours(vehicle)
+    rental.base = { p, s }
+    paintVehicle(vehicle, rental.colors.primary, rental.colors.secondary, rental.base)
 
     local min, max = GetModelDimensions(model)
     rental.distance = math.max(4.0, #(max - min) * 1.15)
@@ -926,6 +958,7 @@ local function openRental(target)
     rental = {
         target = target, info = info, back = vector4(coords.x, coords.y, coords.z, GetEntityHeading(ped)),
         heading = (info.showroom.h or 0.0) + 145.0, pitch = 12.0, distance = 5.0, token = 0,
+        mode = 'orbit', auto = false, look = 0.0, colors = {},
     }
 
     DoScreenFadeOut(250)
@@ -957,6 +990,13 @@ local function openRental(target)
     CreateThread(function()
         while rental do
             HideHudAndRadarThisFrame()
+
+            -- Rotation automatique autour du véhicule
+            if rental.auto and rental.mode ~= 'inside' then
+                rental.heading = rental.heading + 0.2
+                rentalCamera()
+            end
+
             Wait(0)
         end
     end)
@@ -1012,7 +1052,10 @@ end)
 RegisterNUICallback('rentalRotate', function(data, cb)
     cb({})
 
-    if rental then
+    if rental and rental.mode == 'inside' then
+        rental.look = math.max(-150.0, math.min(150.0, (rental.look or 0.0) - (tonumber(data.dx) or 0) * 0.3))
+        rentalCamera()
+    elseif rental then
         rental.heading = rental.heading - (tonumber(data.dx) or 0) * 0.4
         rental.pitch = math.max(-5.0, math.min(60.0, rental.pitch + (tonumber(data.dy) or 0) * 0.25))
         rental.distance = math.max(2.5, math.min(14.0, rental.distance + (tonumber(data.zoom) or 0)))
@@ -1023,6 +1066,119 @@ end)
 RegisterNUICallback('rentalClose', function(_, cb)
     cb({})
     closeRental()
+end)
+
+-- Caméra : extérieur (orbite) ou intérieur, rotation automatique
+RegisterNUICallback('rentalCamera', function(data, cb)
+    cb({})
+
+    if rental then
+        rental.mode = data.mode == 'inside' and 'inside' or 'orbit'
+        rental.auto = data.auto == true
+        rental.look = 0.0
+        rentalCamera()
+    end
+end)
+
+-- Couleur principale et secondaire (-1 = celle d'origine)
+local function nuiColor(value)
+    value = tonumber(value)
+    return value and value >= 0 and value <= 160 and math.floor(value) or nil
+end
+
+RegisterNUICallback('rentalColor', function(data, cb)
+    cb({})
+
+    if rental then
+        rental.colors = { primary = nuiColor(data.primary), secondary = nuiColor(data.secondary) }
+        paintVehicle(rental.vehicle, rental.colors.primary, rental.colors.secondary, rental.base)
+    end
+end)
+
+-- Véhicule d'un achat ou d'un essai : couleurs posées dès qu'il est arrivé chez le client
+local function paintWhenReady(netId, primary, secondary)
+    if not netId or (not primary and not secondary) then
+        return
+    end
+
+    CreateThread(function()
+        local timeout = GetGameTimer() + 5000
+
+        while not NetworkDoesNetworkIdExist(netId) and GetGameTimer() < timeout do
+            Wait(50)
+        end
+
+        if NetworkDoesNetworkIdExist(netId) then
+            paintVehicle(NetToVeh(netId), primary, secondary)
+        end
+    end)
+end
+
+-- Essai routier : compte à rebours à droite de la minimap ; descendre du véhicule y met fin
+local testDrive = nil
+
+RegisterNUICallback('rentalTest', function(data, cb)
+    cb({})
+
+    if not rental or not rental.info.sale or testDrive then
+        return
+    end
+
+    local target, colors = rental.target, rental.colors
+    closeRental()
+
+    local result = lib.callback.await('lunatic_business:testDrive', false, target.shop.slug, target.index, tonumber(data.id))
+
+    if failed(result) then
+        return
+    end
+
+    notify(('Essai de %s : %d minutes. Descendez du véhicule pour le rendre plus tôt.'):format(result.label, math.floor(result.seconds / 60)), 'info')
+    paintWhenReady(result.netId, colors.primary, colors.secondary)
+    testDrive = { label = result.label, endsAt = GetGameTimer() + result.seconds * 1000 }
+    local current = testDrive
+
+    CreateThread(function()
+        local outside = 0
+        Wait(1500)
+
+        while testDrive == current do
+            local right, bottom = minimapCorner()
+            SendNUIMessage({
+                action = 'rentalTimer', test = true, label = current.label, remaining = math.max(0, math.floor((current.endsAt - GetGameTimer()) / 1000)),
+                left = right, bottom = bottom, hidden = IsRadarHidden() or IsPauseMenuActive(),
+            })
+
+            outside = IsPedInAnyVehicle(PlayerPedId(), false) and 0 or outside + 1
+
+            if outside == 3 then
+                TriggerServerEvent('lunatic_business:testEnd')
+            end
+
+            Wait(1000)
+        end
+    end)
+end)
+
+RegisterNetEvent('lunatic_business:testEnded', function(back, message)
+    testDrive = nil
+    SendNUIMessage({ action = 'rentalTimer' })
+
+    if back then
+        DoScreenFadeOut(250)
+
+        while not IsScreenFadedOut() do
+            Wait(0)
+        end
+
+        teleport(vector3(back.x, back.y, back.z), back.h)
+        Wait(400)
+        DoScreenFadeIn(400)
+    end
+
+    if message then
+        notify(message, 'info')
+    end
 end)
 
 RegisterNUICallback('rentalRent', function(data, cb)
@@ -1037,9 +1193,11 @@ RegisterNUICallback('rentalRent', function(data, cb)
     closeRental()
 
     if sale then
-        local bought = lib.callback.await('lunatic_business:saleBuy', false, target.shop.slug, target.index, tonumber(data.id), data.account == 'bank' and 'bank' or 'money')
+        local bought = lib.callback.await('lunatic_business:saleBuy', false, target.shop.slug, target.index, tonumber(data.id), data.account == 'bank' and 'bank' or 'money',
+            nuiColor(data.primary), nuiColor(data.secondary))
 
         if not failed(bought) then
+            paintWhenReady(bought.netId, bought.primary, bought.secondary)
             notify(('%s acheté%s : il est à vous (plaque %s).'):format(bought.label,
                 bought.price > 0 and (' ' .. money(bought.price) .. (bought.account == 'bank' and ' par carte' or ' en liquide')) or '', bought.plate), 'success')
         end
