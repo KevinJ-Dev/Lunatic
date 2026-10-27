@@ -1248,6 +1248,22 @@ RegisterNUICallback('rentalTest', function(data, cb)
     DoScreenFadeIn(400)
     notify(('Essai de %s : %d minutes. Descendez du véhicule pour le rendre plus tôt.'):format(result.label, math.floor(result.seconds / 60)), 'info')
 
+    -- Touche pour terminer l'essai, rappelée en haut à gauche
+    CreateThread(function()
+        while testDrive == current do
+            BeginTextCommandDisplayHelp('STRING')
+            AddTextComponentSubstringPlayerName(("%s Terminer l'essai et revenir au concessionnaire"):format(Config.TestDriveKey.label))
+            EndTextCommandDisplayHelp(0, false, false, -1)
+
+            if IsControlJustReleased(0, Config.TestDriveKey.control) then
+                TriggerServerEvent('lunatic_business:testEnd')
+                break
+            end
+
+            Wait(0)
+        end
+    end)
+
     CreateThread(function()
         -- Descendre du véhicule ne compte qu'une fois le joueur assis dedans
         local outside, seated = 0, vehicle ~= nil
