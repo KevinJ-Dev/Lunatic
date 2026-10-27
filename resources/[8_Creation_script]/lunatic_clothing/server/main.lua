@@ -49,7 +49,7 @@ exports('getDefaults', function()
         }
     end
 
-    for _, kind in ipairs({ 'clothing', 'barber' }) do
+    for _, kind in ipairs({ 'clothing', 'barber', 'tattoo' }) do
         for _, group in ipairs(ClothingGroupsOf(kind)) do
             for _, category in ipairs(group.categories) do
                 categories[#categories + 1] = { key = category.key, label = category.label, group = group.label, kind = category.kind, shop = kind }
@@ -266,6 +266,61 @@ local function setPiece(skin, category, piece)
     current.drawable, current.texture = piece[1], piece[1] < 0 and -1 or piece[2]
 end
 
+-- Tatouages d'une zone dans le skin, par nom
+local function tattoosOf(skin, zone)
+    local list = type(skin.tattoos) == 'table' and type(skin.tattoos[zone]) == 'table' and skin.tattoos[zone] or {}
+    local names, count = {}, 0
+
+    for _, tattoo in ipairs(list) do
+        if type(tattoo) == 'table' and type(tattoo.name) == 'string' then
+            names[tattoo.name] = tattoo
+            count = count + 1
+        end
+    end
+
+    return names, count
+end
+
+-- Tatouages voulus sur une zone (liste de noms) : nouvelle liste du skin, nombre de tatouages ajoutés, zone changée ;
+-- nil si un nom est inconnu, en double, sans version pour ce sexe, ou s'il y en a trop
+local function readTattoos(skin, category, value, sex)
+    if type(value) ~= 'table' or #value > Config.TattooMax then
+        return nil
+    end
+
+    local current, count = tattoosOf(skin, category.zone)
+    local entries, seen, added = {}, {}, 0
+
+    for _, name in ipairs(value) do
+        local tattoo = type(name) == 'string' and ClothingTattoo(category.zone, name)
+
+        if not tattoo or seen[name] then
+            return nil
+        end
+
+        seen[name] = true
+
+        if current[name] then
+            -- Déjà porté : gardé tel quel
+            entries[#entries + 1] = current[name]
+        else
+            local hash = sex == 'female' and tattoo.hashFemale or tattoo.hashMale
+
+            if type(hash) ~= 'string' or hash == '' then
+                return nil
+            end
+
+            entries[#entries + 1] = {
+                name = tattoo.name, label = tattoo.label, hashMale = tattoo.hashMale, hashFemale = tattoo.hashFemale,
+                zone = tattoo.zone, collection = tattoo.collection,
+            }
+            added = added + 1
+        end
+    end
+
+    return entries, added, added > 0 or count ~= #entries
+end
+
 local function pay(xPlayer, account, total, label)
     account = account == 'bank' and 'bank' or 'money'
 
@@ -320,6 +375,27 @@ lib.callback.register('lunatic_clothing:buy', function(src, index, changes, acco
 
     for key, value in pairs(type(changes) == 'table' and changes or {}) do
         local category = type(key) == 'string' and ClothingCategory(key)
+
+        -- Salon de tatouage : chaque tatouage ajouté est payé, en retirer est gratuit
+        if category and category.kind == 'tattoo' then
+            local entries, added, changed = readTattoos(skin, category, value, sex)
+
+            if not entries then
+                return { ok = false, error = 'Panier invalide.' }
+            end
+
+            if not ClothingBrandSells(brand, key) then
+                return { ok = false, error = ('« %s » : zone indisponible dans ce magasin.'):format(category.label) }
+            end
+
+            if changed then
+                bought[#bought + 1] = { category = category, tattoos = entries }
+                total = total + added * ClothingBrandPrice(brand, ClothingPrice(key))
+            end
+
+            goto continue
+        end
+
         local piece = category and readPiece(category, value)
 
         if not piece then
@@ -338,13 +414,16 @@ lib.callback.register('lunatic_clothing:buy', function(src, index, changes, acco
             -- Retirer un accessoire ou tout raser est gratuit ; sinon prix de la fiche (ou de la catégorie) selon l'enseigne
             total = total + (none and 0 or ClothingBrandPrice(brand, ClothingPieceBase(sex, key, piece[1])))
         end
+
+        ::continue::
     end
 
     if #bought == 0 then
         return { ok = true, total = 0, count = 0 }
     end
 
-    local paid, err = pay(xPlayer, account, total, ('%s : %s'):format(ClothingBrandKind(brand) == 'barber' and 'Barbier' or 'Vêtements', store.label))
+    local kinds = { barber = 'Barbier', tattoo = 'Tatouages', clothing = 'Vêtements' }
+    local paid, err = pay(xPlayer, account, total, ('%s : %s'):format(kinds[ClothingBrandKind(brand)], store.label))
 
     if not paid then
         return { ok = false, error = err }
@@ -353,7 +432,13 @@ lib.callback.register('lunatic_clothing:buy', function(src, index, changes, acco
     local labels = {}
 
     for _, entry in ipairs(bought) do
-        setPiece(skin, entry.category, entry.piece)
+        if entry.tattoos then
+            skin.tattoos = type(skin.tattoos) == 'table' and skin.tattoos or {}
+            skin.tattoos[entry.category.zone] = entry.tattoos
+        else
+            setPiece(skin, entry.category, entry.piece)
+        end
+
         labels[#labels + 1] = entry.category.label
     end
 

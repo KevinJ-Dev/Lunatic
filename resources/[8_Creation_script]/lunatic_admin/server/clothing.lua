@@ -182,7 +182,7 @@ local function readBrands(list, categories)
         brands[#brands + 1] = {
             key = key, label = label, color = color, image = image, showText = brand.showText ~= false, blip = blip,
             coef = math.floor(coef * 100 + 0.5) / 100, exclude = exclude, textColor = textColor, flat = brand.flat == true,
-            kind = brand.kind == 'barber' and 'barber' or 'clothing',
+            kind = (brand.kind == 'barber' or brand.kind == 'tattoo') and brand.kind or 'clothing',
         }
     end
 

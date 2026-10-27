@@ -24,6 +24,11 @@ end
 ---------------------------------------------------------------------
 
 local function wornPiece(ped, category)
+    -- Tatouages : lus dans l'apparence (le jeu ne les rend pas), voir tattooWorn
+    if category.kind == 'tattoo' then
+        return nil
+    end
+
     -- Coupe : { modèle, variante, couleur, reflets } ; calque du visage : { style, opacité 0-10, couleur }
     if category.kind == 'hair' then
         return { GetPedDrawableVariation(ped, 2), GetPedTextureVariation(ped, 2), GetPedHairColor(ped), GetPedHairHighlightColor(ped) }
@@ -97,6 +102,68 @@ local function hairColors()
     end
 
     return list
+end
+
+-- Tatouages portés (table illenium : zone -> liste) remis sur le personnage, comme illenium-appearance (opacité = passes)
+local function applyTattoos(ped, tattoos)
+    local female = sexOf(ped) == 'female'
+    ClearPedDecorations(ped)
+
+    for _, list in pairs(type(tattoos) == 'table' and tattoos or {}) do
+        for _, tattoo in ipairs(type(list) == 'table' and list or {}) do
+            local hash = type(tattoo) == 'table' and (female and tattoo.hashFemale or tattoo.hashMale)
+
+            if type(hash) == 'string' and hash ~= '' and type(tattoo.collection) == 'string' then
+                for _ = 1, math.max(1, math.floor((tonumber(tattoo.opacity) or 0.1) * 10 + 0.5)) do
+                    AddPedDecorationFromHashes(ped, joaat(tattoo.collection), joaat(hash))
+                end
+            end
+        end
+    end
+end
+
+-- Noms des tatouages portés par catégorie (zone) du salon
+local function tattooWorn(groups, tattoos)
+    local worn = {}
+
+    for _, group in ipairs(groups) do
+        for _, category in ipairs(group.categories) do
+            local names = {}
+
+            for _, tattoo in ipairs(type(tattoos[category.zone]) == 'table' and tattoos[category.zone] or {}) do
+                if type(tattoo) == 'table' and tattoo.name then
+                    names[#names + 1] = tattoo.name
+                end
+            end
+
+            worn[category.key] = names
+        end
+    end
+
+    return worn
+end
+
+-- Tatouages proposés par catégorie (zone) : ceux qui existent pour ce sexe, { name, label }
+local function tattoosFor(groups, sex)
+    local lists = {}
+
+    for _, group in ipairs(groups) do
+        for _, category in ipairs(group.categories) do
+            local list = {}
+
+            for _, tattoo in ipairs(ClothingTattoos()[category.zone] or {}) do
+                local hash = sex == 'female' and tattoo.hashFemale or tattoo.hashMale
+
+                if type(hash) == 'string' and hash ~= '' then
+                    list[#list + 1] = { name = tattoo.name, label = tattoo.label }
+                end
+            end
+
+            lists[category.key] = list
+        end
+    end
+
+    return lists
 end
 
 -- Nuancier du maquillage (maquillage, blush, rouge à lèvres)
@@ -260,7 +327,7 @@ local function groupsFor(brand)
                 local base = ClothingPrice(category.key)
                 local entry = {
                     key = category.key, label = category.label, kind = category.kind, id = category.id, base = base,
-                    price = brand and ClothingBrandPrice(brand, base) or base, camera = category.camera, undress = category.undress, palette = category.palette,
+                    price = brand and ClothingBrandPrice(brand, base) or base, camera = category.camera, undress = category.undress, palette = category.palette, zone = category.zone,
                 }
 
                 if brand and brand.flat then
@@ -472,15 +539,27 @@ local function openShop(index, store)
     local items = catalogueFor(sex)
     local pages = {}
 
-    -- Barbier : catalogue seulement
+    -- Barbier et salon de tatouage : catalogue seulement
     for _, page in ipairs(Config.Pages) do
-        pages[page] = kind == 'barber' and page == 'catalogue' or (kind ~= 'barber' and ClothingPageOn(store, page))
+        pages[page] = kind ~= 'clothing' and page == 'catalogue' or (kind == 'clothing' and ClothingPageOn(store, page))
     end
+
+    local groups = groupsFor(brand)
+    local worn = wornAll(ped, kind)
+
+    -- Salon de tatouage : tatouages de l'apparence, modifiés en direct pendant l'essai
+    if kind == 'tattoo' then
+        shop.tattoos = json.decode(json.encode(type(shop.original.tattoos) == 'table' and shop.original.tattoos or {}))
+        worn = tattooWorn(groups, shop.tattoos)
+    end
+
+    local undress = kind == 'barber' and Config.BarberUndress or kind == 'tattoo' and Config.TattooUndress or nil
 
     SendNUIMessage({ action = 'open', data = {
         store = store.label, brand = { label = brand.label, color = brand.color, textColor = brand.textColor, image = bannerImage(brand.image), showText = brand.showText ~= false },
-        kind = kind, pages = pages, groups = groupsFor(brand), worn = wornAll(ped, kind), sex = sex, currency = currency(), items = items, coef = tonumber(brand.coef) or 1.0,
-        hairColors = kind == 'barber' and hairColors() or nil, makeupColors = kind == 'barber' and makeupColors() or nil, autoUndress = kind == 'barber' and Config.BarberUndress or nil,
+        kind = kind, pages = pages, groups = groups, worn = worn, sex = sex, currency = currency(), items = items, coef = tonumber(brand.coef) or 1.0,
+        hairColors = kind == 'barber' and hairColors() or nil, makeupColors = kind == 'barber' and makeupColors() or nil, autoUndress = undress,
+        tattoos = kind == 'tattoo' and tattoosFor(groups, sex) or nil, tattooMax = Config.TattooMax,
         images = (GlobalState.lunaticCreator or {}).clothesImages or Config.ClothesImages, renderer = Config.RendererImages,
         ready = readyFor(brand.key, sex), outfits = profile.outfits or {}, maxOutfits = profile.max or 0,
         favorites = type(profile.favorites) == 'table' and profile.favorites[sex] or {},
@@ -529,6 +608,33 @@ RegisterNUICallback('apply', function(data, cb)
     end
 
     cb({})
+end)
+
+-- Essai des tatouages d'une zone (liste de noms) : remis aussitôt sur le personnage
+RegisterNUICallback('tattoos', function(data, cb)
+    cb({})
+    local category = ClothingCategory(data.key)
+
+    if not shop or not shop.tattoos or not category or category.kind ~= 'tattoo' or type(data.names) ~= 'table' then
+        return
+    end
+
+    local current, list = {}, {}
+
+    for _, tattoo in ipairs(shop.tattoos[category.zone] or {}) do
+        current[tattoo.name] = tattoo
+    end
+
+    for _, name in ipairs(data.names) do
+        local tattoo = current[name] or ClothingTattoo(category.zone, name)
+
+        if tattoo and #list < Config.TattooMax then
+            list[#list + 1] = tattoo
+        end
+    end
+
+    shop.tattoos[category.zone] = list
+    applyTattoos(PlayerPedId(), shop.tattoos)
 end)
 
 RegisterNUICallback('undress', function(data, cb)
@@ -667,6 +773,12 @@ RegisterNUICallback('buy', function(data, cb)
     end
 
     cb({ ok = true })
+
+    -- Tatouages achetés : illenium-appearance les garde aussi (sinon ils disparaîtraient à la prochaine apparence remise)
+    if shop.tattoos then
+        pcall(function() appearanceApi:setPedTattoos(PlayerPedId(), shop.tattoos) end)
+    end
+
     closeShop(false)
 
     if result.count > 0 then

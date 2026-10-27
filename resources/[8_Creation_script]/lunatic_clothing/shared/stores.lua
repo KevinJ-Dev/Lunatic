@@ -56,14 +56,50 @@ function ClothingBrand(key)
     }
 end
 
--- Type d'une enseigne : 'clothing' (vêtements) ou 'barber'
+-- Type d'une enseigne : 'clothing' (vêtements), 'barber' ou 'tattoo'
 function ClothingBrandKind(brand)
-    return type(brand) == 'table' and brand.kind == 'barber' and 'barber' or 'clothing'
+    local kind = type(brand) == 'table' and brand.kind
+    return (kind == 'barber' or kind == 'tattoo') and kind or 'clothing'
 end
 
 -- Groupes de la barre du bas d'un type d'enseigne
 function ClothingGroupsOf(kind)
-    return kind == 'barber' and Config.BarberGroups or Config.Groups
+    return kind == 'barber' and Config.BarberGroups or kind == 'tattoo' and Config.TattooGroups or Config.Groups
+end
+
+-- Tatouages du jeu par zone GTA : liste d'illenium-appearance (shared/tattoos.lua) lue sans la copier
+local tattooList, tattooIndex = nil, nil
+
+function ClothingTattoos()
+    if tattooList then
+        return tattooList
+    end
+
+    local raw = LoadResourceFile('illenium-appearance', 'shared/tattoos.lua')
+    local env = { Config = {} }
+    local chunk = raw and load(raw, '@illenium-appearance/shared/tattoos.lua', 't', env)
+
+    if not chunk or not pcall(chunk) or type(env.Config.Tattoos) ~= 'table' then
+        return {}
+    end
+
+    tattooList, tattooIndex = env.Config.Tattoos, {}
+
+    for zone, list in pairs(tattooList) do
+        tattooIndex[zone] = {}
+
+        for _, tattoo in ipairs(list) do
+            tattooIndex[zone][tattoo.name] = tattoo
+        end
+    end
+
+    return tattooList
+end
+
+-- Tatouage par zone et nom (ex. ZONE_TORSO, TAT_AR_000)
+function ClothingTattoo(zone, name)
+    ClothingTattoos()
+    return tattooIndex and tattooIndex[zone] and tattooIndex[zone][name] or nil
 end
 
 local categories = {}
@@ -87,10 +123,12 @@ for _, group in ipairs(Config.Groups) do
     end
 end
 
-for _, group in ipairs(Config.BarberGroups) do
-    for _, category in ipairs(group.categories) do
-        category.shop = 'barber'
-        categories[category.key] = category
+for _, kind in ipairs({ 'barber', 'tattoo' }) do
+    for _, group in ipairs(ClothingGroupsOf(kind)) do
+        for _, category in ipairs(group.categories) do
+            category.shop = kind
+            categories[category.key] = category
+        end
     end
 end
 

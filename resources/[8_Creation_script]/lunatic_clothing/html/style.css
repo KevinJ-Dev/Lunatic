@@ -82,6 +82,18 @@ svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-widt
 .swatch:hover { transform: scale(1.15); }
 .swatch.on { box-shadow: 0 0 0 2px #fff, 0 0 0 3px var(--accent); }
 
+/* Salon de tatouage : cases texte, recherche */
+.tattoo-bar { padding: 4px 18px 6px; }
+.tattoo-search { width: 100%; }
+.tattoo-grid { grid-template-columns: repeat(2, 1fr); }
+.tcell { position: relative; display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 12px; background: #ffffff08; text-align: left; }
+.tcell:hover { border-color: #ffffff30; background: #ffffff10; }
+.tcell small { overflow: hidden; color: var(--ink); font-size: 12px; line-height: 1.25; text-overflow: ellipsis; }
+.tmark { display: grid; flex: none; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #ffffff14; color: var(--muted); font-size: 13px; font-weight: 700; }
+.tcell.on { border-color: transparent; background: linear-gradient(180deg, rgba(var(--accent-rgb), .5), rgba(var(--accent-rgb), .18)); box-shadow: 0 0 0 1px var(--accent-2); }
+.tcell.on .tmark { background: #fff; color: var(--accent); }
+.tcell.worn::after { content: "Porté"; position: absolute; top: 4px; right: 6px; padding: 0 5px; border-radius: 5px; background: #ffffff1f; color: var(--muted); font-size: 9px; font-weight: 700; text-transform: uppercase; }
+
 /* Accueil : grandes tuiles des pages */
 .home { display: grid; align-content: start; gap: 10px; padding: 16px 18px; overflow-y: auto; }
 .page-tile { display: grid; grid-template-columns: 46px 1fr; align-items: center; gap: 14px; min-height: 82px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(120deg, #ffffff10, #ffffff04); text-align: left; }

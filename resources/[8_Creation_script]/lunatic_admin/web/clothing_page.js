@@ -3,7 +3,7 @@
 // ====================================================================
 //  Autres → Magasins de vêtements (jeu : lunatic_clothing). Accueil en tuiles :
 //  - une tuile par enseigne : bannière et prix (coefficient, catégories vendues), ses magasins, son prêt-à-porter ;
-//    une enseigne de type barbier (kind = 'barber') a ses propres catégories et prix, sans prêt-à-porter ni pages ;
+//    un barbier (kind = 'barber') ou un salon de tatouage ('tattoo') a ses propres catégories et prix, sans prêt-à-porter ni pages ;
 //  - Catalogue des vêtements : prix par défaut et gestion en jeu des fiches (nom, prix, image, bannie, photo) ;
 //  - Réglages : nombre de tenues enregistrables.
 // ====================================================================
@@ -68,7 +68,9 @@ function clothingDraft() {
     return d;
 }
 
-const clothingBarber = (brand) => !!brand && brand.kind === "barber";
+const clothingKind = (brand) => (brand && brand.kind) || "clothing";
+const clothingSpecial = (brand) => clothingKind(brand) !== "clothing";
+const CLOTHING_KINDS = { clothing: "vêtements", barber: "barbier", tattoo: "tatouage" };
 // Catégories d'un type d'enseigne (vêtements ou barbier)
 const clothingCategoriesOf = (base, kind) => (base.categories || []).filter((c) => (c.shop || "clothing") === kind);
 
@@ -130,7 +132,7 @@ function clothingHome(d) {
         const ready = d.ready.filter((o) => o.brands[brand.key] || !Object.keys(o.brands).length).length;
         return h("button", { class: "clothing-tile", onclick: () => clothingGo("brand", brand.key) },
             clothingBanner(brand, `${open} / ${stores.length} magasin${stores.length > 1 ? "s" : ""} ouverts`),
-            h("span", { class: "clothing-tile-info" }, `Prix ×${Number(brand.coef || 1).toFixed(2).replace(".", ",")}`, clothingBarber(brand) ? " · barbier" : ` · ${ready} tenue${ready > 1 ? "s" : ""} prêtes`,
+            h("span", { class: "clothing-tile-info" }, `Prix ×${Number(brand.coef || 1).toFixed(2).replace(".", ",")}`, clothingSpecial(brand) ? ` · ${CLOTHING_KINDS[clothingKind(brand)]}` : ` · ${ready} tenue${ready > 1 ? "s" : ""} prêtes`,
                 Object.keys(brand.exclude || {}).length ? ` · ${Object.keys(brand.exclude).length} catégorie(s) non vendue(s)` : ""));
     };
     const addBrand = h("button", { class: "clothing-tile clothing-tile-add", onclick: () => {
@@ -142,7 +144,7 @@ function clothingHome(d) {
 
     return [
         h("div", { class: "card" }, h("div", { class: "crew-sub" }, "Enseignes"),
-            h("p", { class: "hint-line", style: "margin:0" }, "Chaque enseigne a sa bannière, son coefficient de prix, ses catégories vendues, ses magasins et ses tenues prêt-à-porter. Barber : coupes, barbe, sourcils et pilosité."),
+            h("p", { class: "hint-line", style: "margin:0" }, "Chaque enseigne a sa bannière, son coefficient de prix, ses catégories vendues, ses magasins et ses tenues prêt-à-porter. Barber : coupes, barbe, sourcils et pilosité. Tattoo Shop : tatouages par zone du corps."),
             h("div", { class: "clothing-tiles" }, d.brands.map(brandTile), addBrand)),
         h("div", { class: "card" }, h("div", { class: "crew-sub" }, "Commun à tous les magasins"),
             h("div", { class: "tiles others-tiles" },
@@ -156,10 +158,10 @@ function clothingHome(d) {
 function clothingBrandPage(d, brand, base) {
     const stores = d.stores.filter((s) => s.brand === brand.key);
     const ready = d.ready.filter((o) => o.brands[brand.key] || !Object.keys(o.brands).length);
-    if (clothingBarber(brand) && clothingState.tab === "ready") clothingState.tab = "banner";
+    if (clothingSpecial(brand) && clothingState.tab === "ready") clothingState.tab = "banner";
     const tabs = h("div", { class: "segmented" }, segmentedButtons([
         { value: "banner", label: "Bannière et prix" }, { value: "stores", label: `Magasins (${stores.length})` },
-        clothingBarber(brand) ? null : { value: "ready", label: `Prêt-à-porter (${ready.length})` },
+        clothingSpecial(brand) ? null : { value: "ready", label: `Prêt-à-porter (${ready.length})` },
     ].filter(Boolean), clothingState.tab, (v) => { clothingState.tab = v; paintClothing(); }));
     const body = { banner: clothingBrandBanner, stores: clothingBrandStores, ready: clothingBrandReady }[clothingState.tab](d, brand, base);
     return [h("div", { class: "card" }, tabs), body];
@@ -179,9 +181,10 @@ function clothingBrandBanner(d, brand, base) {
     text.addEventListener("click", paintPreview);
     const textColor = h("input", { class: "input clothing-color", type: "color", value: brand.textColor || "#ffffff" });
     textColor.addEventListener("input", () => { brand.textColor = textColor.value; paintPreview(); });
-    const barber = clothingBarber(brand);
+    const barber = clothingSpecial(brand);
     const flat = barber ? null : draftToggle(brand, "flat", "Une catégorie par bouton", "La barre du bas montre chaque catégorie vendue (Montres, Bracelets…) au lieu des groupes. Idéal pour une bijouterie.");
-    const kindCategories = clothingCategoriesOf(base, barber ? "barber" : "clothing");
+    const kindCategories = clothingCategoriesOf(base, clothingKind(brand));
+    const tattoo = clothingKind(brand) === "tattoo";
     const used = d.stores.filter((s) => s.brand === brand.key).length;
 
     // Catégories vendues : interrupteur allumé = vendue (enregistré comme liste des catégories exclues)
@@ -204,12 +207,13 @@ function clothingBrandBanner(d, brand, base) {
             h("div", { class: "mode-list" }, text, flat)),
         h("div", { class: "card" }, h("div", { class: "crew-sub" }, "Prix et catégories vendues"),
             fieldRow("Coefficient de prix", clothingInput(brand, "coef", { type: "number", min: "0.1", max: "10", step: "0.05" }, true)),
-            h("p", { class: "hint-line" }, barber ? "Prix chez ce barbier = prix de base de la catégorie × coefficient. Tout raser est gratuit."
+            h("p", { class: "hint-line" }, tattoo ? "Prix d'un tatouage = prix de base de sa zone × coefficient. En retirer un est gratuit."
+                : barber ? "Prix chez ce barbier = prix de base de la catégorie × coefficient. Tout raser est gratuit."
                 : "Prix d'une pièce dans cette enseigne = prix de sa fiche (ou de sa catégorie) × coefficient. Ex. 0,8 pour un discount, 2 pour du luxe."),
             h("div", { class: "mode-list clothing-sells" }, toggles)),
-        barber ? h("div", { class: "card" }, h("div", { class: "crew-sub" }, "Prix de base (communs à tous les barbiers)"),
+        barber ? h("div", { class: "card" }, h("div", { class: "crew-sub" }, `Prix de base (communs à tous les ${tattoo ? "salons de tatouage" : "barbiers"})`),
             h("div", { class: "driving-grid" }, kindCategories.map((c) => fieldRow(`${c.label} (${currencySymbol()})`, clothingInput(d.prices, c.key, { type: "number", min: "0", max: "1000000" }, true)))),
-            h("p", { class: "hint-line" }, "Payé quand la catégorie change (coupe, couleur, densité…) ; 0 = gratuit.")) : null,
+            h("p", { class: "hint-line" }, tattoo ? "Prix d'un tatouage ajouté sur cette zone ; 0 = gratuit." : "Payé quand la catégorie change (coupe, couleur, densité…) ; 0 = gratuit.")) : null,
         h("div", { class: "card" }, h("div", { class: "btn-row" },
             h("button", { class: "btn small danger", disabled: used > 0 || d.brands.length <= 1, title: used ? "Déplacez ou retirez d'abord ses magasins" : "", onclick: () => {
                 d.brands.splice(d.brands.indexOf(brand), 1);
@@ -223,7 +227,7 @@ function clothingBrandBanner(d, brand, base) {
 function clothingBrandStores(d, brand) {
     const stores = d.stores.filter((s) => s.brand === brand.key);
     const card = (store, index) => {
-        const move = h("select", { class: "input" }, d.brands.filter((b) => clothingBarber(b) === clothingBarber(brand)).map((b) => h("option", { value: b.key, selected: b.key === store.brand }, b.label || b.key)));
+        const move = h("select", { class: "input" }, d.brands.filter((b) => clothingKind(b) === clothingKind(brand)).map((b) => h("option", { value: b.key, selected: b.key === store.brand }, b.label || b.key)));
         move.addEventListener("change", () => { store.brand = move.value; paintClothing(); });
         const coords = h("span", { class: "mono muted" }, afkCoords(store.x != null ? store : null));
         return h("div", { class: "card creator-spawn" },
@@ -246,7 +250,7 @@ function clothingBrandStores(d, brand) {
             h("div", { class: "mode-list" },
                 draftToggle(store, "marker", "Marqueur au sol", "Cercle à la taille de la zone (désactivez-le pour une zone couvrant tout le magasin)."),
                 draftToggle(store, "blip", "Blip sur la carte", "À la couleur de l'enseigne (les 15 magasins d'origine ont déjà le leur dans la tuile Blips)."),
-                clothingBarber(brand) ? null : CLOTHING_PAGES.map(([key, label, hint]) => draftToggle(store.pages, key, `Page « ${label} »`, hint))));
+                clothingSpecial(brand) ? null : CLOTHING_PAGES.map(([key, label, hint]) => draftToggle(store.pages, key, `Page « ${label} »`, hint))));
     };
 
     return [
@@ -284,7 +288,7 @@ function clothingBrandReady(d, brand) {
                 fieldRow("Nom", clothingInput(outfit, "label", { maxlength: "30", placeholder: "Costume trois pièces" })),
                 fieldRow(`Prix (${currencySymbol()})`, clothingInput(outfit, "price", { type: "number", min: "0" }, true))),
             h("div", { class: "crew-sub" }, "Vendue chez (aucune cochée : partout)"),
-            h("div", { class: "mode-list" }, d.brands.filter((b) => !clothingBarber(b)).map((b) => draftToggle(outfit.brands, b.key, b.label || b.key, null))));
+            h("div", { class: "mode-list" }, d.brands.filter((b) => !clothingSpecial(b)).map((b) => draftToggle(outfit.brands, b.key, b.label || b.key, null))));
     };
 
     return [

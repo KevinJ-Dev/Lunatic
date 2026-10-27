@@ -64,6 +64,11 @@ const ICONS = {
     makeup: "M3 12c3-4 15-4 18 0-3 4-15 4-18 0zM12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM5 7l1 2M9 5l.5 2M15 5l-.5 2M19 7l-1 2",
     blush: "M12 3a8 9 0 1 0 0 18 8 9 0 0 0 0-18zM6 13a2 1.5 0 1 0 4 0 2 1.5 0 0 0-4 0M14 13a2 1.5 0 1 0 4 0 2 1.5 0 0 0-4 0",
     lipstick: "M9 21h6V11H9zM10 11V7l4-3v7M8 15h8",
+    head: "M12 3a6 7 0 1 0 0 14 6 7 0 0 0 0-14zM9 17v4h6v-4",
+    armLeft: "M17 3v6l-6 3-5 7M6 19l-2 2M17 9l2 2",
+    armRight: "M7 3v6l6 3 5 7M18 19l2 2M7 9l-2 2",
+    legLeft: "M14 3v9l-4 9M10 21H6M14 12l2 1",
+    legRight: "M10 3v9l4 9M14 21h4M10 12l-2 1",
 };
 const svg = (name) => h("span", { html: `<svg class="i" viewBox="0 0 24 24"><path d="${ICONS[name] || ICONS.shirt}"/></svg>` }).firstChild;
 
@@ -75,6 +80,7 @@ const PAGES = [
 ];
 const CAMERAS = [["head", "Visage"], ["torso", "Buste"], ["legs", "Jambes"], ["feet", "Pieds"], ["full", "Entier"]];
 const BARBER_CAMERAS = [["head", "Visage"], ["headSide", "Profil"], ["headBack", "Arrière"], ["torso", "Buste"]];
+const TATTOO_CAMERAS = [["torso", "Face"], ["torsoBack", "Dos"], ["armLeft", "Bras G."], ["armRight", "Bras D."], ["legs", "Jambes"], ["head", "Tête"]];
 
 let data = null;      // magasin ouvert (envoyé par le jeu)
 let worn = {};        // pièces portées : { clé: [modèle, couleur] }
@@ -106,6 +112,8 @@ function piecePrice(c, drawable) {
 const copy = (o) => JSON.parse(JSON.stringify(o));
 // Pièce « aucune » : accessoire retiré, calque du visage à opacité nulle (rasé)
 const isNone = (c, v) => !v || (c.kind === "prop" && v[0] < 0) || (c.kind === "overlay" && !v[1]);
+// Tatouages ajoutés sur une zone (payés) par rapport à ceux déjà portés
+const tattoosAdded = (c) => (worn[c.key] || []).filter((name) => !(original[c.key] || []).includes(name));
 const barberKind = (c) => c.kind === "hair" || c.kind === "overlay";
 
 // ---------- Ouverture ----------
@@ -219,6 +227,7 @@ function pieceCell(c, drawable, texture, on, extra) {
 function catalogueView() {
     const g = groupOf(group);
     const c = categoryOf(category);
+    if (c.kind === "tattoo") return tattooView(g, c);
     const value = worn[c.key] || [0, 0];
     const total = countsCache[`${data.sex}:${c.key}:0`];
 
@@ -340,8 +349,44 @@ async function setValue(c, value) {
     // Pièce choisie dans une partie retirée : toute la partie est remise d'abord
     const entry = (data.undress || []).find((u) => undressed.includes(u.key) && u.categories.includes(c.key));
     if (entry) await undress(entry, false);
-    nui("apply", { key: c.key, drawable: value[0], texture: value[1], value });
+    if (c.kind === "tattoo") nui("tattoos", { key: c.key, names: value });
+    else nui("apply", { key: c.key, drawable: value[0], texture: value[1], value });
     paint();
+}
+
+// ---------- Salon de tatouage : plusieurs tatouages par zone, recherche par nom ----------
+
+let tattooSearch = "";
+
+function tattooView(g, c) {
+    const list = (data.tattoos && data.tattoos[c.key]) || [];
+    const mine = worn[c.key] || [];
+    const paid = original[c.key] || [];
+    const grid = h("div", { class: "grid tattoo-grid", id: "grid" });
+    const fill = () => {
+        const q = tattooSearch.trim().toLowerCase();
+        const shown = q ? list.filter((t) => t.label.toLowerCase().includes(q)) : list;
+        grid.replaceChildren(...(shown.length ? shown.map((t) => {
+            const on = mine.includes(t.name);
+            return h("button", { class: `tcell${on ? " on" : ""}${paid.includes(t.name) ? " worn" : ""}`, title: t.label, onclick: () => toggleTattoo(c, t.name) },
+                h("span", { class: "tmark" }, on ? "✓" : "+"), h("small", null, t.label));
+        }) : [h("p", { class: "empty" }, "Aucun tatouage trouvé.")]));
+    };
+    const search = h("input", { class: "input tattoo-search", placeholder: "Rechercher un tatouage…", value: tattooSearch });
+    search.addEventListener("input", () => { tattooSearch = search.value; fill(); });
+    fill();
+    const price = h("div", { class: "price-line" }, h("span", null, `${mine.length} / ${data.tattooMax || 30} sur cette zone`),
+        h("b", null, c.price > 0 ? `${money(c.price)} le tatouage` : "Gratuit"));
+    return h("div", { class: "view" }, viewHead(g.label), price, h("div", { class: "tattoo-bar" }, search), grid);
+}
+
+function toggleTattoo(c, name) {
+    const list = (worn[c.key] || []).slice();
+    const index = list.indexOf(name);
+    if (index >= 0) list.splice(index, 1);
+    else if (list.length >= (data.tattooMax || 30)) return toast(`${data.tattooMax || 30} tatouages au maximum sur une zone.`);
+    else list.push(name);
+    setValue(c, list);
 }
 
 // ---------- Barbier : variante, opacité et nuancier ----------
@@ -515,12 +560,13 @@ function favoritesView() {
 function samePiece(c, a, b) {
     if (!a || !b) return false;
     if (isNone(c, a) || isNone(c, b)) return isNone(c, a) && isNone(c, b);
+    if (c.kind === "tattoo") return a.length === b.length && a.every((name) => b.includes(name));
     return a.length === b.length && a.every((value, i) => value === b[i]);
 }
 
 function cartLines() {
     return categories().filter((c) => worn[c.key] && !samePiece(c, worn[c.key], original[c.key]))
-        .map((c) => ({ c, price: isNone(c, worn[c.key]) ? 0 : piecePrice(c, worn[c.key][0]) }));
+        .map((c) => ({ c, price: c.kind === "tattoo" ? tattoosAdded(c).length * c.price : isNone(c, worn[c.key]) ? 0 : piecePrice(c, worn[c.key][0]) }));
 }
 
 function paintCart() {
@@ -574,9 +620,9 @@ function paintBar() {
 }
 
 function paintTools() {
-    const barber = data.kind === "barber";
+    const barber = data.kind === "barber" || data.kind === "tattoo";
     $("tools").replaceChildren(
-        ...(barber ? BARBER_CAMERAS : CAMERAS).map(([key, label]) => h("button", { class: `tool${camera === key ? " on" : ""}`, onclick: () => { setCamera(key); paintTools(); } }, label)),
+        ...(data.kind === "tattoo" ? TATTOO_CAMERAS : barber ? BARBER_CAMERAS : CAMERAS).map(([key, label]) => h("button", { class: `tool${camera === key ? " on" : ""}`, onclick: () => { setCamera(key); paintTools(); } }, label)),
         ...(barber ? [] : [h("button", { class: `tool${armsUp ? " on" : ""}`, onclick: () => { armsUp = !armsUp; nui("armsUp", { on: armsUp }); paintTools(); } }, svg("arms"), "Bras levés")]));
 }
 
@@ -639,7 +685,26 @@ function demo(name, payload) {
     return Promise.resolve({});
 }
 
-if (!inGame && location.hash.includes("barber")) {
+if (!inGame && location.hash.includes("tattoo")) {
+    const names = ["Turbulence", "Pilot Skull", "Winged Bombshell", "Toxic Trails", "Balloon Pioneer", "Parachute Belle", "Bombs Away", "Eagle Eyes", "Dragon", "Koi", "Rose", "Panthère"];
+    const zone = (prefix) => names.map((label, i) => ({ name: `${prefix}_${i}`, label }));
+    open({
+        kind: "tattoo", store: "Tattoo Shop de Vinewood", brand: { label: "TATTOO SHOP", color: "#8c1c1c", textColor: "#ffffff", image: "", showText: true }, sex: "male", currency: "$",
+        pages: { catalogue: true, ready: false, outfits: false, favorites: false }, images: { component: "", prop: "" }, coef: 1, items: {}, ready: [], outfits: [], favorites: [],
+        tattooMax: 30, autoUndress: ["top"],
+        undress: [{ key: "top", label: "Haut", icon: "shirt", categories: ["jacket", "undershirt", "arms"] }],
+        tattoos: { tattoo_torso: zone("T"), tattoo_head: zone("H"), tattoo_leftarm: zone("LA"), tattoo_rightarm: zone("RA"), tattoo_leftleg: zone("LL"), tattoo_rightleg: zone("RL") },
+        worn: { tattoo_torso: ["T_1"], tattoo_head: [], tattoo_leftarm: [], tattoo_rightarm: [], tattoo_leftleg: [], tattoo_rightleg: [] },
+        groups: [
+            { key: "tattoo_torso", label: "Torse et dos", icon: "chest", camera: "torso", categories: [{ key: "tattoo_torso", label: "Torse et dos", kind: "tattoo", price: 150, camera: "torso" }] },
+            { key: "tattoo_head", label: "Tête et cou", icon: "head", camera: "head", categories: [{ key: "tattoo_head", label: "Tête et cou", kind: "tattoo", price: 120, camera: "head" }] },
+            { key: "tattoo_leftarm", label: "Bras gauche", icon: "armLeft", camera: "armLeft", categories: [{ key: "tattoo_leftarm", label: "Bras gauche", kind: "tattoo", price: 100, camera: "armLeft" }] },
+            { key: "tattoo_rightarm", label: "Bras droit", icon: "armRight", camera: "armRight", categories: [{ key: "tattoo_rightarm", label: "Bras droit", kind: "tattoo", price: 100, camera: "armRight" }] },
+            { key: "tattoo_leftleg", label: "Jambe gauche", icon: "legLeft", camera: "legLeft", categories: [{ key: "tattoo_leftleg", label: "Jambe gauche", kind: "tattoo", price: 100, camera: "legLeft" }] },
+            { key: "tattoo_rightleg", label: "Jambe droite", icon: "legRight", camera: "legRight", categories: [{ key: "tattoo_rightleg", label: "Jambe droite", kind: "tattoo", price: 100, camera: "legRight" }] },
+        ],
+    });
+} else if (!inGame && location.hash.includes("barber")) {
     const colors = Array.from({ length: 64 }, (_, i) => `hsl(${(i * 23) % 360} 45% ${20 + (i % 8) * 8}%)`);
     open({
         kind: "barber", store: "Herr Kutz de Davis", brand: { label: "BARBER", color: "#1c2a44", textColor: "#f4efe6", image: "", showText: true }, sex: "male", currency: "$",

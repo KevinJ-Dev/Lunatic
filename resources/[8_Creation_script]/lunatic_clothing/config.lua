@@ -9,7 +9,8 @@ Config.Marker = { 150, 80, 255, 110 } -- couleur du marqueur au sol (couleur du 
 -- clé de la tuile Images, vide : couleur seule), nom affiché sur la bannière ou non, couleur du blip,
 -- coefficient appliqué au prix des pièces (1 = prix du catalogue), catégories non vendues (clés de Config.Groups),
 -- couleur du nom sur la bannière (vide : blanc) et flat = une catégorie par bouton dans la barre du bas (au lieu des groupes).
--- kind = 'barber' : barbier (coupes, barbe, sourcils, pilosité : Config.BarberGroups) au lieu de vêtements
+-- kind = 'barber' : barbier (coupes, barbe, sourcils, pilosité : Config.BarberGroups) ; kind = 'tattoo' : salon de
+-- tatouage (Config.TattooGroups)
 local NOT_JEWELRY = { jacket = true, undershirt = true, arms = true, pants = true, shoes = true, hat = true, glasses = true, mask = true, bag = true }
 
 Config.Brands = {
@@ -21,10 +22,12 @@ Config.Brands = {
     vangelico = { label = 'VANGELICO', color = '#141210', textColor = '#d9b45a', image = '', showText = true, blip = 46, coef = 3.0, exclude = NOT_JEWELRY, flat = true },
     -- Barbier : coupe, couleurs, barbe et pilosité
     barber = { kind = 'barber', label = 'BARBER', color = '#1c2a44', textColor = '#f4efe6', image = '', showText = true, blip = 4, coef = 1.0, exclude = {}, flat = true },
+    -- Salon de tatouage : un bouton par zone du corps
+    tattoo = { kind = 'tattoo', label = 'TATTOO SHOP', color = '#8c1c1c', textColor = '#ffffff', image = '', showText = true, blip = 1, coef = 1.0, exclude = {}, flat = true },
 }
-Config.BrandOrder = { 'binco', 'suburban', 'ponsonbys', 'discount', 'vangelico', 'barber' }
+Config.BrandOrder = { 'binco', 'suburban', 'ponsonbys', 'discount', 'vangelico', 'barber', 'tattoo' }
 -- sprites = icône du blip selon le type d'enseigne (vêtements par défaut)
-Config.Blip = { sprite = 73, scale = 0.7, sprites = { barber = 71 } }
+Config.Blip = { sprite = 73, scale = 0.7, sprites = { barber = 71, tattoo = 75 } }
 
 -- Mes tenues : nombre de tenues enregistrées par personnage (réglable dans le panel) ; Favoris : pièces par sexe
 Config.MaxOutfits = 10
@@ -59,6 +62,13 @@ Config.Stores = {
     { label = 'Herr Kutz de Mirror Park', brand = 'barber', x = 1212.8, y = -472.9, z = 65.2, h = 60.94 },
     { label = 'Hair on Hawick', brand = 'barber', x = -32.9, y = -152.3, z = 56.1, h = 335.22 },
     { label = 'Herr Kutz de Paleto Bay', brand = 'barber', x = -278.1, y = 6228.5, z = 30.7, h = 49.32 },
+    -- Salons de tatouage (positions de ceux d'illenium-appearance)
+    { label = 'Tattoo Shop de El Burro Heights', brand = 'tattoo', x = 1322.6, y = -1651.9, z = 51.2, h = 42.47 },
+    { label = 'Tattoo Shop de Vespucci Beach', brand = 'tattoo', x = -1154.01, y = -1425.31, z = 4.95, h = 23.21 },
+    { label = 'Tattoo Shop de Vinewood', brand = 'tattoo', x = 322.62, y = 180.34, z = 103.59, h = 156.2 },
+    { label = 'Tattoo Shop de Chumash', brand = 'tattoo', x = -3169.52, y = 1074.86, z = 20.83, h = 253.29 },
+    { label = 'Tattoo Shop de Sandy Shores', brand = 'tattoo', x = 1864.1, y = 3747.91, z = 33.03, h = 17.23 },
+    { label = 'Tattoo Shop de Paleto Bay', brand = 'tattoo', x = -294.24, y = 6200.12, z = 31.49, h = 195.72 },
 }
 
 -- Groupes de la barre du bas et catégories (composants et accessoires GTA) ; price = prix par défaut d'une pièce,
@@ -123,6 +133,33 @@ Config.BarberGroups = {
 -- Parties de la tenue retirées en entrant chez le barbier (elles cachent les cheveux), remises en sortant
 Config.BarberUndress = { 'hat', 'mask' }
 
+-- Salons de tatouage (enseignes kind = 'tattoo') : un bouton par zone du corps (zone GTA d'illenium-appearance, dont la
+-- liste des tatouages est lue telle quelle). price = prix par défaut d'un tatouage (réglable dans le panel) ; en retirer
+-- un est gratuit. Le joueur choisit plusieurs tatouages par zone, au plus Config.TattooMax.
+Config.TattooGroups = {
+    { key = 'tattoo_torso', label = 'Torse et dos', icon = 'chest', camera = 'torso', categories = {
+        { key = 'tattoo_torso', label = 'Torse et dos', kind = 'tattoo', zone = 'ZONE_TORSO', price = 150, icon = 'chest', camera = 'torso' },
+    } },
+    { key = 'tattoo_head', label = 'Tête et cou', icon = 'head', camera = 'head', categories = {
+        { key = 'tattoo_head', label = 'Tête et cou', kind = 'tattoo', zone = 'ZONE_HEAD', price = 120, icon = 'head', camera = 'head' },
+    } },
+    { key = 'tattoo_leftarm', label = 'Bras gauche', icon = 'armLeft', camera = 'armLeft', categories = {
+        { key = 'tattoo_leftarm', label = 'Bras gauche', kind = 'tattoo', zone = 'ZONE_LEFT_ARM', price = 100, icon = 'armLeft', camera = 'armLeft' },
+    } },
+    { key = 'tattoo_rightarm', label = 'Bras droit', icon = 'armRight', camera = 'armRight', categories = {
+        { key = 'tattoo_rightarm', label = 'Bras droit', kind = 'tattoo', zone = 'ZONE_RIGHT_ARM', price = 100, icon = 'armRight', camera = 'armRight' },
+    } },
+    { key = 'tattoo_leftleg', label = 'Jambe gauche', icon = 'legLeft', camera = 'legLeft', categories = {
+        { key = 'tattoo_leftleg', label = 'Jambe gauche', kind = 'tattoo', zone = 'ZONE_LEFT_LEG', price = 100, icon = 'legLeft', camera = 'legLeft' },
+    } },
+    { key = 'tattoo_rightleg', label = 'Jambe droite', icon = 'legRight', camera = 'legRight', categories = {
+        { key = 'tattoo_rightleg', label = 'Jambe droite', kind = 'tattoo', zone = 'ZONE_RIGHT_LEG', price = 100, icon = 'legRight', camera = 'legRight' },
+    } },
+}
+Config.TattooMax = 30
+-- Parties de la tenue retirées en entrant au salon de tatouage, remises en sortant
+Config.TattooUndress = { 'top', 'pants', 'hat', 'mask', 'glasses' }
+
 -- Vues de la caméra : distance devant le personnage, hauteur visée, champ de vision ; side = décalage vers la droite
 -- du personnage (négatif : sa gauche), angle = rotation autour de lui (degrés, positif : vers sa droite),
 -- pose = animation jouée tant que la vue est active (bijoux du poignet).
@@ -134,6 +171,11 @@ Config.Cameras = {
     headSide = { distance = 0.85, height = 0.65, fov = 36.0, angle = -90.0 },
     headBack = { distance = 0.9, height = 0.65, fov = 36.0, angle = 180.0 },
     torso = { distance = 1.5, height = 0.3, fov = 45.0 },
+    torsoBack = { distance = 1.5, height = 0.3, fov = 45.0, angle = 180.0 },
+    armLeft = { distance = 1.1, height = 0.3, fov = 45.0, angle = -90.0 },
+    armRight = { distance = 1.1, height = 0.3, fov = 45.0, angle = 90.0 },
+    legLeft = { distance = 1.4, height = -0.45, fov = 45.0, angle = -70.0 },
+    legRight = { distance = 1.4, height = -0.45, fov = 45.0, angle = 70.0 },
     legs = { distance = 1.5, height = -0.45, fov = 45.0 },
     feet = { distance = 1.2, height = -0.8, fov = 40.0 },
     full = { distance = 2.7, height = 0.0, fov = 50.0 },
