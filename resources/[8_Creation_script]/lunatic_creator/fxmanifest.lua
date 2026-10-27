@@ -11,8 +11,10 @@ dependencies {
     'es_extended',
     'ox_lib',
     'oxmysql',
-    'illenium-appearance',
 }
+
+-- illenium-appearance n'est pas une dépendance déclarée : sinon chaque « ensure illenium-appearance » arrêterait cette
+-- resource sans la relancer. Elle doit simplement démarrer avant (dossier [5_Standalone]).
 
 shared_scripts {
     '@es_extended/imports.lua',
