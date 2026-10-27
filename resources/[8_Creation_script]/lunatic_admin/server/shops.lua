@@ -261,7 +261,7 @@ Panel.actions['shops.categories'] = function(_, actor)
     local list = {}
 
     for _, entry in ipairs(Config.ShopCategories) do
-        list[#list + 1] = { id = entry.id, label = entry.label, kind = entry.kind, ready = entry.kind == 'items' or entry.kind == 'rental' or entry.kind == 'buyback', count = counts[entry.id] or 0 }
+        list[#list + 1] = { id = entry.id, label = entry.label, kind = entry.kind, ready = entry.kind == 'items' or entry.kind == 'rental' or entry.kind == 'vehicles' or entry.kind == 'buyback', count = counts[entry.id] or 0 }
     end
 
     return { ok = true, silent = true, categories = list }
@@ -650,7 +650,8 @@ function Shops.list()
 end
 
 ---------------------------------------------------------------------
--- Agences de location (lot C3) : véhicules et sortie des véhicules
+-- Agences de location (lot C3) et vente de véhicules (Vespucci Bike) : véhicules et sortie des véhicules.
+-- Un véhicule vendu n'a pas de durée (0).
 ---------------------------------------------------------------------
 
 local VEHICLE_TYPES = { automobile = true, bike = true, boat = true, heli = true, plane = true, submarine = true, trailer = true }
@@ -662,14 +663,14 @@ Panel.actions['shops.addVehicle'] = function(src, actor, data)
         return err
     end
 
-    if shop.kind ~= 'rental' then
-        return Panel.fail("Ce magasin n'est pas une agence de location.")
+    if shop.kind ~= 'rental' and shop.kind ~= 'vehicles' then
+        return Panel.fail("Ce magasin ne propose pas de véhicules.")
     end
 
     local model = type(data.model) == 'string' and data.model:lower():gsub('%s', '') or ''
     local label = cleanText(data.label, 2, 60)
     local price = number(data.price, 0, LIMITS.price, true)
-    local duration = number(data.duration, 1, 1440, true)
+    local duration = shop.kind == 'vehicles' and 0 or number(data.duration, 1, 1440, true)
     local category = cleanText(data.category, 0, 40)
     local image = cleanText(data.image, 0, 255)
 
@@ -716,7 +717,7 @@ Panel.actions['shops.updateVehicle'] = function(src, actor, data)
 
     local label = cleanText(data.label, 2, 60)
     local price = number(data.price, 0, LIMITS.price, true)
-    local duration = number(data.duration, 1, 1440, true)
+    local duration = shop.kind == 'vehicles' and 0 or number(data.duration, 1, 1440, true)
     local category = cleanText(data.category, 0, 40)
     local image = cleanText(data.image, 0, 255)
 

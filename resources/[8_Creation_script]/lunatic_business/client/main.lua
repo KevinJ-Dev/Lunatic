@@ -821,7 +821,7 @@ local function previewVehicle(offer)
     SetEntityInvincible(vehicle, true)
     SetVehicleDirtLevel(vehicle, 0.0)
     SetVehicleLights(vehicle, 2)
-    SetVehicleNumberPlateText(vehicle, 'LOCATION')
+    SetVehicleNumberPlateText(vehicle, rental.info.sale and 'A VENDRE' or 'LOCATION')
     rental.vehicle = vehicle
 
     local min, max = GetModelDimensions(model)
@@ -876,10 +876,35 @@ local function closeRental()
     DoScreenFadeIn(400)
 end
 
+-- Caractéristiques d'un modèle lues dans le jeu (barres de la vente) : vitesse en km/h, le reste de 0 à 1
+local function vehicleStats(vehicles)
+    local stats = {}
+
+    for _, offer in ipairs(vehicles) do
+        local model = joaat(offer.model)
+
+        if IsModelInCdimage(model) then
+            local speed = GetVehicleModelEstimatedMaxSpeed(model)
+            stats[tostring(offer.id)] = {
+                speed = math.floor(speed * 3.6 + 0.5),
+                bars = {
+                    { label = 'Vitesse', value = math.min(1.0, speed / 60.0) },
+                    { label = 'Accélération', value = math.min(1.0, GetVehicleModelAcceleration(model) / 0.5) },
+                    { label = 'Freinage', value = math.min(1.0, GetVehicleModelMaxBraking(model) / 1.6) },
+                    { label = 'Traction', value = math.min(1.0, GetVehicleModelMaxTraction(model) / 3.0) },
+                },
+            }
+        end
+    end
+
+    return stats
+end
+
 local function rentalData(info)
     return {
         action = 'rentalOpen', label = info.label, header = info.header, vehicles = info.vehicles, active = info.active,
         cash = info.cash, bank = info.bank, maxPeriods = info.maxPeriods, currency = GlobalState.lunaticCurrency or '$',
+        sale = info.sale == true, stats = info.sale and vehicleStats(info.vehicles) or nil,
     }
 end
 
@@ -888,7 +913,9 @@ local function openRental(target)
         return
     end
 
-    local info = lib.callback.await('lunatic_business:rentalOpen', false, target.shop.slug, target.index)
+    -- Vente de véhicules (Vespucci Bike) : même vitrine que la location
+    local sale = target.shop.kind == 'vehicles'
+    local info = lib.callback.await(sale and 'lunatic_business:saleOpen' or 'lunatic_business:rentalOpen', false, target.shop.slug, target.index)
 
     if failed(info) then
         return
@@ -1006,7 +1033,19 @@ RegisterNUICallback('rentalRent', function(data, cb)
     end
 
     local target = rental.target
+    local sale = rental.info.sale
     closeRental()
+
+    if sale then
+        local bought = lib.callback.await('lunatic_business:saleBuy', false, target.shop.slug, target.index, tonumber(data.id), data.account == 'bank' and 'bank' or 'money')
+
+        if not failed(bought) then
+            notify(('%s acheté%s : il est à vous (plaque %s).'):format(bought.label,
+                bought.price > 0 and (' ' .. money(bought.price) .. (bought.account == 'bank' and ' par carte' or ' en liquide')) or '', bought.plate), 'success')
+        end
+
+        return
+    end
 
     local result = lib.callback.await('lunatic_business:rent', false, target.shop.slug, target.index, tonumber(data.id), data.account == 'bank' and 'bank' or 'money', tonumber(data.periods) or 1)
 
@@ -1168,7 +1207,7 @@ local function openShop(target)
         return openStore(target)
     end
 
-    if target.shop.kind == 'rental' then
+    if target.shop.kind == 'rental' or target.shop.kind == 'vehicles' then
         return openRental(target)
     end
 

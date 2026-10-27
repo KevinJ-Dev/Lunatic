@@ -163,6 +163,7 @@ Config.ShopCategories = {
     { id = 'barber', label = 'Barber', kind = 'barber', blip = { sprite = 71, color = 51 } },
     { id = 'ammunation', label = 'Ammunation', kind = 'items', blip = { sprite = 110, color = 1 } },
     { id = 'rental', label = 'Location', kind = 'rental', blip = { sprite = 225, color = 3 } },
+    { id = 'bikes', label = 'Vespucci Bike', kind = 'vehicles', blip = { sprite = 226, color = 5 } }, -- vente de véhicules (vélos)
     { id = 'masquerade', label = 'Masquerade', kind = 'clothing', blip = { sprite = 362, color = 27 } },
     { id = 'shenails', label = 'Shenails', kind = 'clothing', blip = { sprite = 621, color = 8 } },
     { id = 'skateshop', label = 'Skateshop', kind = 'items', blip = { sprite = 59, color = 5 } },

@@ -1,6 +1,7 @@
 "use strict";
 
 // Location de véhicules : catalogue de l'agence, aperçu 3D (géré par le jeu), durée par périodes, paiement.
+// Vente de véhicules (data.sale, Vespucci Bike) : même vitrine, caractéristiques du modèle, achat sans durée.
 // Le serveur revérifie tout au moment de louer (véhicule, périodes, solde).
 
 const $ = (id) => document.getElementById(id);
@@ -87,10 +88,22 @@ function paint() {
     $("grid").replaceChildren(...(list.length ? list.map((v) => h("button", { class: `card${v.id === state.selected ? " on" : ""}`, onclick: () => choose(v) },
         h("span", { class: "pic" }, h("img", { src: imageOf(v), alt: "", loading: "lazy", onerror: (e) => { e.target.style.visibility = "hidden"; } })),
         h("b", null, v.label),
-        h("small", null, v.price > 0 ? `${money(v.price)} · ${minutes(v.duration)}` : `Gratuit · ${minutes(v.duration)}`))) : [h("p", { class: "empty" }, "Aucun véhicule disponible.")]));
+        h("small", null, data.sale ? (v.price > 0 ? money(v.price) : "Gratuit") : v.price > 0 ? `${money(v.price)} · ${minutes(v.duration)}` : `Gratuit · ${minutes(v.duration)}`))) : [h("p", { class: "empty" }, "Aucun véhicule disponible.")]));
 
-    $("name").replaceChildren(...(vehicle ? [h("b", null, vehicle.label), h("small", null, `${vehicle.price > 0 ? money(vehicle.price) : "Gratuit"} pour ${minutes(vehicle.duration)}`)] : []));
+    $("name").replaceChildren(...(vehicle ? [h("b", null, vehicle.label),
+        h("small", null, data.sale ? (vehicle.price > 0 ? money(vehicle.price) : "Gratuit") : `${vehicle.price > 0 ? money(vehicle.price) : "Gratuit"} pour ${minutes(vehicle.duration)}`),
+        data.sale ? statsOf(vehicle) : null] : []));
     paintFoot(vehicle);
+}
+
+// Vente : caractéristiques du modèle (lues par le jeu)
+function statsOf(vehicle) {
+    const stats = data.stats && data.stats[String(vehicle.id)];
+    if (!stats) return null;
+    return h("div", { class: "stats" },
+        h("div", { class: "stat-speed" }, h("b", null, String(stats.speed)), h("small", null, "km/h max")),
+        stats.bars.map((bar) => h("div", { class: "stat" }, h("span", null, bar.label),
+            h("i", null, h("em", { style: `width:${Math.round(Math.max(0.04, bar.value) * 100)}%` })))));
 }
 
 function paintFoot(vehicle) {
@@ -106,8 +119,8 @@ function paintFoot(vehicle) {
     }, label, h("small", null, money(balance)));
 
     const blocked = !vehicle || !!data.active || (total > 0 && !canPay(state.account));
-    $("foot").replaceChildren(
-        h("div", { class: "row" }, h("span", null, "Durée"),
+    $("foot").replaceChildren(...[
+        data.sale ? null : h("div", { class: "row" }, h("span", null, "Durée"),
             h("div", { class: "stepper" },
                 h("button", { disabled: state.periods <= 1, onclick: () => { state.periods -= 1; paintFoot(vehicle); } }, "−"),
                 h("b", null, vehicle ? minutes(vehicle.duration * state.periods) : "—"),
@@ -117,7 +130,7 @@ function paintFoot(vehicle) {
         h("button", { class: "go", disabled: blocked, onclick: () => {
             if (blocked) return;
             nui("rentalRent", { id: vehicle.id, periods: state.periods, account: state.account });
-        } }, data.active ? "Location déjà en cours" : "Louer"));
+        } }, data.active ? "Location déjà en cours" : data.sale ? "Acheter" : "Louer")].filter(Boolean));
 }
 
 // Glisser sur la scène : tourner la caméra ; molette : zoom
@@ -159,6 +172,7 @@ window.addEventListener("message", (event) => {
         state.account = "money";
         state.selected = null;
         $("agency").textContent = data.label;
+        document.querySelector("#rental .head small").textContent = data.sale ? "Vente" : "Location";
         $("rental").classList.remove("hidden");
         // Premier véhicule du premier onglet : montré tout de suite dans la vitrine
         const first = [...data.vehicles].sort((a, b) => categoryOf(a).localeCompare(categoryOf(b)))[0];
@@ -173,7 +187,19 @@ window.addEventListener("message", (event) => {
 
 // ---------- Aperçu navigateur ----------
 
-if (!inGame && !location.hash.includes("store")) {
+if (!inGame && location.hash.includes("sale")) {
+    const bars = (a, b, c, d) => [{ label: "Vitesse", value: a }, { label: "Accélération", value: b }, { label: "Freinage", value: c }, { label: "Traction", value: d }];
+    window.postMessage({
+        action: "rentalOpen", sale: true, label: "Vespucci Bike", currency: "$", cash: 420, bank: 15800, active: null,
+        vehicles: [
+            { id: 1, model: "bmx", label: "BMX", price: 350, category: "BMX" },
+            { id: 2, model: "scorcher", label: "Scorcher", price: 900, category: "VTT" },
+            { id: 3, model: "tribike", label: "Whippet", price: 1200, category: "Route" },
+            { id: 4, model: "cruiser", label: "Cruiser", price: 500, category: "Ville" },
+        ],
+        stats: { 1: { speed: 38, bars: bars(0.3, 0.5, 0.4, 0.6) }, 2: { speed: 45, bars: bars(0.4, 0.45, 0.5, 0.7) }, 3: { speed: 52, bars: bars(0.5, 0.4, 0.4, 0.5) }, 4: { speed: 35, bars: bars(0.28, 0.3, 0.35, 0.55) } },
+    }, "*");
+} else if (!inGame && !location.hash.includes("store")) {
     window.postMessage({
         action: "rentalOpen", label: "Location Vespucci", currency: "$", cash: 420, bank: 15800, maxPeriods: 4,
         active: null,

@@ -7,7 +7,7 @@
 // ====================================================================
 
 const SHOP_ICONS = {
-    ltd: "i-store", binco: "i-shirt", vangelico: "i-gem", barber: "i-scissors", ammunation: "i-crosshair", rental: "i-key",
+    ltd: "i-store", binco: "i-shirt", vangelico: "i-gem", barber: "i-scissors", ammunation: "i-crosshair", rental: "i-key", bikes: "i-car",
     masquerade: "i-mask", shenails: "i-sparkle", skateshop: "i-skate", tattoo: "i-edit", wholesale: "i-truck",
 };
 
@@ -127,12 +127,15 @@ async function shopAct(action, payload, okMessage) {
     return res;
 }
 
+// Magasin de véhicules : location ou vente (Vespucci Bike)
+const vehicleKind = (kind) => kind === "rental" || kind === "vehicles";
+
 // Ce qui empêche un magasin de fonctionner en jeu (counts = nombres, ou la fiche en cours d'édition)
-function shopProblems(counts, rental) {
+function shopProblems(counts, vehicleShop) {
     const problems = [];
     if (!counts.locations) problems.push("aucun emplacement");
-    if (rental && !counts.vehicles) problems.push("aucun véhicule à louer");
-    if (!rental && !counts.items) problems.push("aucun article");
+    if (vehicleShop && !counts.vehicles) problems.push("aucun véhicule");
+    if (!vehicleShop && !counts.items) problems.push("aucun article");
     if (counts.missing) problems.push(`${counts.missing} objet${counts.missing > 1 ? "s" : ""} inconnu${counts.missing > 1 ? "s" : ""}`);
     return problems;
 }
@@ -146,7 +149,7 @@ function paintShopCategory() {
         h("button", { class: "shops-back", onclick: closeShopCategory }, icon("i-back"), category.label),
         h("div", { class: "side-scroll" }, !list ? h("div", { class: "muted side-empty" }, "Chargement…")
             : list.length ? list.map((s) => h("div", { class: `list-row shop-row${s.id === shopState.selected ? " active" : ""}`, onclick: () => selectShop(s.id) },
-                readyDot(shopProblems(s, category.kind === "rental")),
+                readyDot(shopProblems(s, vehicleKind(category.kind))),
                 h("span", { class: "name" }, s.label),
                 h("span", { class: "cnt", title: "Articles" }, String(s.items)),
                 h("button", { class: "shop-x", title: "Supprimer", onclick: (e) => { e.stopPropagation(); deleteShop(s); } }, icon("i-x"))))
@@ -195,8 +198,9 @@ function shopForm() {
             h("button", { class: "chip-x", onclick: () => { d.jobs.splice(i, 1); paintShopCategory(); } }, icon("i-x")))) : h("span", { class: "muted" }, "tout le monde peut acheter"),
         jobSelect);
 
-    // Agence de location : véhicules proposés, rangés par catégorie
+    // Agence de location ou vente de véhicules : véhicules proposés, rangés par catégorie
     const rental = shopState.category.kind === "rental";
+    const vehicleShop = vehicleKind(shopState.category.kind);
     const maxPeriods = bind(h("input", { class: "input mono", type: "number", min: "1", max: "24", value: String(d.maxPeriods || 4) }), (v) => { d.maxPeriods = Math.max(1, Math.min(24, Math.floor(Number(v) || 1))); });
     const showroomText = (s) => (s ? `${s.x.toFixed(1)}, ${s.y.toFixed(1)}, ${s.z.toFixed(1)} · ${Math.round(s.h)}°` : "celle de la config (garage par défaut)");
     const showroomCoords = h("span", { class: "mono muted" }, showroomText(d.showroom));
@@ -205,7 +209,7 @@ function shopForm() {
         const img = h("img", { class: "vehicle-img", src: vehicleImage(v), alt: "" });
         img.addEventListener("error", () => { img.style.visibility = "hidden"; });
         return h("div", { class: "row point-row vehicle-row" }, img,
-            h("div", { class: "who" }, h("b", null, v.label), h("span", null, `${v.model} · ${v.price ? money(v.price) : "gratuit"} pour ${v.duration} min`)),
+            h("div", { class: "who" }, h("b", null, v.label), h("span", null, `${v.model} · ${v.price ? money(v.price) : "gratuit"}${rental ? ` pour ${v.duration} min` : ""}`)),
             h("div", { class: "btn-row" },
                 h("button", { class: "btn small ghost", onclick: () => openRentalVehicle(d, v) }, icon("i-edit"), "Modifier"),
                 h("button", { class: "btn small ghost", title: "Retirer", onclick: () => shopAct("shops.deleteVehicle", { id: d.id, vehicleId: v.id }, "Véhicule retiré.") }, icon("i-trash"))));
@@ -241,9 +245,9 @@ function shopForm() {
     // Emplacements (enregistrés tout de suite, à la position du staff)
     const locations = d.locations.map((l, i) => h("div", { class: "row point-row" },
         h("span", { class: "pid mono" }, String(i + 1)),
-        h("div", { class: "who" }, h("b", null, `Emplacement ${i + 1}`), h("span", null, `${l.x.toFixed(1)}, ${l.y.toFixed(1)}, ${l.z.toFixed(1)}${rental ? (l.spawn ? " · sortie définie" : " · sortie : devant le comptoir") : ""}`)),
+        h("div", { class: "who" }, h("b", null, `Emplacement ${i + 1}`), h("span", null, `${l.x.toFixed(1)}, ${l.y.toFixed(1)}, ${l.z.toFixed(1)}${vehicleShop ? (l.spawn ? " · sortie définie" : " · sortie : devant le comptoir") : ""}`)),
         h("div", { class: "btn-row" },
-            rental ? h("button", { class: "btn small", title: "Placez-vous là où le véhicule doit apparaître, dans le sens de sortie", onclick: () => shopAct("shops.setSpawn", { locationId: l.id }, "Sortie des véhicules définie à votre position.") }, icon("i-car"), "Sortie") : null,
+            vehicleShop ? h("button", { class: "btn small", title: "Placez-vous là où le véhicule doit apparaître, dans le sens de sortie", onclick: () => shopAct("shops.setSpawn", { locationId: l.id }, "Sortie des véhicules définie à votre position.") }, icon("i-car"), "Sortie") : null,
             h("button", { class: "btn small", onclick: () => shopAct("shops.moveLocation", { locationId: l.id }, "Emplacement replacé à votre position.") }, icon("i-crosshair"), "Définir"),
             h("button", { class: "btn small ghost", onclick: () => act("shops.tpLocation", { locationId: l.id }, null) }, icon("i-goto"), "TP"),
             h("button", { class: "btn small ghost", title: "Supprimer", onclick: () => shopAct("shops.deleteLocation", { locationId: l.id }, "Emplacement supprimé.") }, icon("i-trash")))));
@@ -260,7 +264,7 @@ function shopForm() {
         paintUnsaved();
     });
 
-    const problems = shopProblems({ locations: d.locations.length, vehicles: (d.vehicles || []).length, items: d.items.length, missing: d.items.filter((e) => e.missing).length }, rental);
+    const problems = shopProblems({ locations: d.locations.length, vehicles: (d.vehicles || []).length, items: d.items.length, missing: d.items.filter((e) => e.missing).length }, vehicleShop);
     return h("div", { class: "content shop-form" },
         h("div", { class: "page-head" }, h("div", { class: "grow" }, h("h1", { class: "page-title" }, d.label, readyBadge(problems)), h("div", { class: "page-sub mono" }, d.slug))),
         h("div", { class: "scroll" },
@@ -271,15 +275,16 @@ function shopForm() {
                 field("Blip sprite / couleur / taille", h("div", { class: "blip-row" }, sprite, color, scale)),
                 field("Blip label (sur la carte)", blipLabel),
                 field("Image (en-tête)", header),
-                rental ? null : field(buyback ? "Prix de rachat par défaut" : "Prix par défaut des articles", h("div", { class: "blip-row" }, defaultPrice, applyDefault)),
+                vehicleShop ? null : field(buyback ? "Prix de rachat par défaut" : "Prix par défaut des articles", h("div", { class: "blip-row" }, defaultPrice, applyDefault)),
                 field(buyback ? "Jobs autorisés à revendre" : "Jobs autorisés", jobs)),
-            rental ? h("div", { class: "card", style: "margin-top:16px" },
+            vehicleShop ? h("div", { class: "card", style: "margin-top:16px" },
                 h("div", { class: "card-head dev-head" }, h("h3", { class: "card-title" }, `Véhicules (${(d.vehicles || []).length})`),
                     h("button", { class: "btn small primary", onclick: () => openRentalVehicle(d, null) }, icon("i-plus"), "Ajouter")),
-                vehicles.length ? vehicles : h("p", { class: "hint-line", style: "margin:0" }, "Aucun véhicule à louer."),
-                h("p", { class: "hint-line" }, "Le prix et la durée d'un véhicule valent pour une période ; le client choisit le nombre de périodes, paie en liquide ou par carte, puis le véhicule est repris à la fin. Il peut le rendre plus tôt au comptoir."),
-                field("Périodes maximum par location", maxPeriods),
-                h("div", { class: "driving-spot" }, h("b", null, "Vitrine d'aperçu (toutes les agences)"), showroomCoords,
+                vehicles.length ? vehicles : h("p", { class: "hint-line", style: "margin:0" }, rental ? "Aucun véhicule à louer." : "Aucun véhicule à vendre."),
+                h("p", { class: "hint-line" }, rental ? "Le prix et la durée d'un véhicule valent pour une période ; le client choisit le nombre de périodes, paie en liquide ou par carte, puis le véhicule est repris à la fin. Il peut le rendre plus tôt au comptoir."
+                    : "Le client regarde le véhicule en 3D avec ses caractéristiques, paie en liquide ou par carte : il est à lui (garage, table owned_vehicles) et sort devant le magasin."),
+                rental ? field("Périodes maximum par location", maxPeriods) : null,
+                h("div", { class: "driving-spot" }, h("b", null, "Vitrine d'aperçu (location et vente)"), showroomCoords,
                     h("button", { class: "btn small ghost", title: "Placez-vous là où le véhicule doit apparaître, dans le sens voulu", onclick: async () => {
                         const res = await shopAct("shops.setShowroom", { id: d.id }, "Vitrine placée à votre position.");
                         if (res && res.showroom) { d.showroom = res.showroom; showroomCoords.textContent = showroomText(res.showroom); }
@@ -303,6 +308,7 @@ function openRentalVehicle(d, v) {
     const model = h("input", { class: "input mono", maxlength: "32", placeholder: "Modèle, ex. faggio", value: v ? v.model : "", disabled: !!v });
     const label = h("input", { class: "input", maxlength: "60", placeholder: "Nom affiché, ex. Scooter Faggio", value: v ? v.label : "" });
     const price = h("input", { class: "input mono", type: "number", min: "0", value: String(v ? v.price : 100) });
+    const rental = shopState.category.kind === "rental";
     const duration = h("input", { class: "input mono", type: "number", min: "1", value: String(v ? v.duration : 30) });
     const categories = [...new Set((d.vehicles || []).map((x) => x.category).filter(Boolean))];
     document.getElementById("rental-categories")?.remove();
@@ -322,14 +328,14 @@ function openRentalVehicle(d, v) {
     openModal((close) => {
         const submit = h("button", { class: "btn primary" }, icon(v ? "i-save" : "i-plus"), v ? "Enregistrer" : "Ajouter");
         submit.addEventListener("click", async () => {
-            const payload = { id: d.id, label: label.value.trim(), price: Number(price.value), duration: Number(duration.value), category: category.value.trim(), image: image.value.trim() };
+            const payload = { id: d.id, label: label.value.trim(), price: Number(price.value), duration: rental ? Number(duration.value) : 0, category: category.value.trim(), image: image.value.trim() };
             const res = v
                 ? await shopAct("shops.updateVehicle", { ...payload, vehicleId: v.id }, "Véhicule modifié.")
                 : await shopAct("shops.addVehicle", { ...payload, model: model.value.trim().toLowerCase() }, "Véhicule ajouté.");
             if (res) close();
         });
         return [
-            h("header", null, h("h3", null, v ? `Modifier ${v.label}` : "Ajouter un véhicule à louer"), h("p", null, v ? "Le modèle ne change pas : retirez le véhicule pour en mettre un autre." : "Le modèle est vérifié par votre jeu : soyez connecté.")),
+            h("header", null, h("h3", null, v ? `Modifier ${v.label}` : rental ? "Ajouter un véhicule à louer" : "Ajouter un véhicule à vendre"), h("p", null, v ? "Le modèle ne change pas : retirez le véhicule pour en mettre un autre." : "Le modèle est vérifié par votre jeu : soyez connecté.")),
             h("div", { class: "body event-form" },
                 preview,
                 h("div", { class: "event-form-row" },
@@ -337,7 +343,7 @@ function openRentalVehicle(d, v) {
                     h("div", { class: "field" }, h("label", null, "Nom affiché"), label)),
                 h("div", { class: "event-form-row" },
                     h("div", { class: "field" }, h("label", null, "Prix ($)"), price),
-                    h("div", { class: "field" }, h("label", null, "Durée (minutes)"), duration)),
+                    rental ? h("div", { class: "field" }, h("label", null, "Durée (minutes)"), duration) : null),
                 h("div", { class: "field" }, h("label", null, "Catégorie"), category),
                 h("div", { class: "field" }, h("label", null, "Image (adresse https, facultative)"), image)),
             h("footer", null, h("button", { class: "btn ghost", onclick: () => close() }, "Annuler"), submit),

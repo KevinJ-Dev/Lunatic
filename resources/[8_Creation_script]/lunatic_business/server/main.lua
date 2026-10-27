@@ -1063,6 +1063,13 @@ lib.callback.register('lunatic_business:buybackSell', function(src, slug, index,
     return { ok = true, quantity = quantity, total = total, label = item and item.label or entry.item }
 end)
 
+-- Vitrine d'aperçu commune à la location et à la vente : celle du panel, sinon celle de la config
+local function showroomSpot()
+    return GlobalState.lunaticRentalShowroom or {
+        x = Config.RentalShowroom.x, y = Config.RentalShowroom.y, z = Config.RentalShowroom.z, h = Config.RentalShowroom.w,
+    }
+end
+
 lib.callback.register('lunatic_business:rentalOpen', function(src, slug, index)
     local shop, _, xPlayer, err = shopAt(src, slug, index, 'rental')
 
@@ -1070,14 +1077,24 @@ lib.callback.register('lunatic_business:rentalOpen', function(src, slug, index)
         return fail(err)
     end
 
-    local showroom = GlobalState.lunaticRentalShowroom or {
-        x = Config.RentalShowroom.x, y = Config.RentalShowroom.y, z = Config.RentalShowroom.z, h = Config.RentalShowroom.w,
-    }
-
     return {
         ok = true, label = shop.label, header = shop.header, vehicles = shop.vehicles or {}, active = rentalInfo(rentals[src]),
         cash = xPlayer.getAccount('money').money, bank = xPlayer.getAccount('bank').money,
-        maxPeriods = shop.maxPeriods or 4, showroom = showroom,
+        maxPeriods = shop.maxPeriods or 4, showroom = showroomSpot(),
+    }
+end)
+
+-- Vente de véhicules (Vespucci Bike) : même vitrine, sans durée
+lib.callback.register('lunatic_business:saleOpen', function(src, slug, index)
+    local shop, _, xPlayer, err = shopAt(src, slug, index, 'vehicles')
+
+    if not shop then
+        return fail(err)
+    end
+
+    return {
+        ok = true, sale = true, label = shop.label, header = shop.header, vehicles = shop.vehicles or {},
+        cash = xPlayer.getAccount('money').money, bank = xPlayer.getAccount('bank').money, showroom = showroomSpot(),
     }
 end)
 
@@ -1167,6 +1184,112 @@ lib.callback.register('lunatic_business:rent', function(src, slug, index, vehicl
     TriggerClientEvent('lunatic_business:rentalTimer', src, { label = offer.label, remaining = duration * 60 })
     GameLog('vehicles', 'info', src, 'vehicle.rent', offer.label, { plate = plate, price = price, duration = duration, periods = periods })
     return { ok = true, label = offer.label, plate = plate, duration = duration, price = price, account = account }
+end)
+
+-- Vente : plaque libre de 8 caractères (3 lettres, un espace, 4 chiffres), comme les véhicules donnés par le staff
+local PLATE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
+local GARAGE_TYPES = { boat = 'boat', submarine = 'boat', heli = 'aircraft', plane = 'aircraft' }
+local saleBusy = {}
+
+local function newPlate()
+    for _ = 1, 20 do
+        local letters = ''
+
+        for _ = 1, 3 do
+            local i = math.random(1, #PLATE_LETTERS)
+            letters = letters .. PLATE_LETTERS:sub(i, i)
+        end
+
+        local plate = ('%s %04d'):format(letters, math.random(0, 9999))
+
+        if (tonumber(MySQL.scalar.await('SELECT COUNT(*) FROM `owned_vehicles` WHERE `plate` = ?', { plate })) or 0) == 0 then
+            return plate
+        end
+    end
+end
+
+-- Achat : payé, ajouté au garage du joueur (owned_vehicles, sorti) et posé à la sortie du magasin, le joueur au volant
+lib.callback.register('lunatic_business:saleBuy', function(src, slug, index, vehicleId, account)
+    if saleBusy[src] then
+        return fail('Patientez un instant.')
+    end
+
+    local shop, location, xPlayer, err = shopAt(src, slug, index, 'vehicles')
+
+    if not shop then
+        return fail(err)
+    end
+
+    local offer
+
+    for _, vehicle in ipairs(shop.vehicles or {}) do
+        if vehicle.id == tonumber(vehicleId) then
+            offer = vehicle
+        end
+    end
+
+    if not offer then
+        return fail('Véhicule introuvable.')
+    end
+
+    local spawn = spawnOf(location)
+    local spawnCoords = vector3(spawn.x, spawn.y, spawn.z)
+
+    for _, vehicle in ipairs(GetAllVehicles()) do
+        if #(GetEntityCoords(vehicle) - spawnCoords) < 3.0 then
+            return fail('La sortie est encombrée : dégagez-la puis réessayez.')
+        end
+    end
+
+    account = account == 'bank' and 'bank' or 'money'
+    local price = offer.price
+
+    if price > 0 and xPlayer.getAccount(account).money < price then
+        return fail(account == 'bank' and 'Solde bancaire insuffisant.' or "Vous n'avez pas assez de liquide.")
+    end
+
+    local plate = newPlate()
+
+    if not plate then
+        return fail('Aucune plaque libre, réessayez.')
+    end
+
+    saleBusy[src] = true
+
+    if price > 0 then
+        xPlayer.removeAccountMoney(account, price, ('Achat : %s (%s)'):format(offer.label, shop.label))
+    end
+
+    local vehicle = CreateVehicleServerSetter(joaat(offer.model), offer.type or 'automobile', spawn.x, spawn.y, spawn.z, spawn.h or 0.0)
+    local timeout = GetGameTimer() + 3000
+
+    while (not vehicle or vehicle == 0 or not DoesEntityExist(vehicle)) and GetGameTimer() < timeout do
+        Wait(0)
+    end
+
+    if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then
+        if price > 0 then
+            xPlayer.addAccountMoney(account, price, 'Remboursement achat de véhicule')
+        end
+
+        saleBusy[src] = nil
+        return fail("Le véhicule n'a pas pu sortir. Vous avez été remboursé.")
+    end
+
+    SetEntityRoutingBucket(vehicle, GetPlayerRoutingBucket(src))
+    SetVehicleNumberPlateText(vehicle, plate)
+    MySQL.insert.await('INSERT INTO `owned_vehicles` (`owner`, `plate`, `vehicle`, `type`, `stored`) VALUES (?, ?, ?, ?, 0)', {
+        xPlayer.identifier, plate, json.encode({ model = joaat(offer.model), plate = plate, fuelLevel = 100.0 }), GARAGE_TYPES[offer.type] or 'car',
+    })
+    TaskWarpPedIntoVehicle(GetPlayerPed(src), vehicle, -1)
+    saleBusy[src] = nil
+
+    GameLog('vehicles', 'success', src, 'vehicle.buy', offer.label, { plate = plate, price = price, shop = shop.label, account = account })
+    return { ok = true, label = offer.label, plate = plate, price = price, account = account }
+end)
+
+AddEventHandler('playerDropped', function()
+    saleBusy[source] = nil
 end)
 
 lib.callback.register('lunatic_business:rentReturn', function(src, slug, index)
