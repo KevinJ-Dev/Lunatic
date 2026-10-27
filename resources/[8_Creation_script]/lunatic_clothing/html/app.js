@@ -61,6 +61,9 @@ const ICONS = {
     beard: "M5 5v5c0 6 3 10 7 10s7-4 7-10V5M9 14c1 1 2 1.5 3 1.5s2-.5 3-1.5",
     eyebrows: "M3 10c2-2 5-2 7 0M14 10c2-2 5-2 7 0M5 15h4M15 15h4",
     chest: "M4 8c3-3 13-3 16 0v12H4zM8 12c1 1 2 1 3 0M13 12c1 1 2 1 3 0",
+    makeup: "M3 12c3-4 15-4 18 0-3 4-15 4-18 0zM12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM5 7l1 2M9 5l.5 2M15 5l-.5 2M19 7l-1 2",
+    blush: "M12 3a8 9 0 1 0 0 18 8 9 0 0 0 0-18zM6 13a2 1.5 0 1 0 4 0 2 1.5 0 0 0-4 0M14 13a2 1.5 0 1 0 4 0 2 1.5 0 0 0-4 0",
+    lipstick: "M9 21h6V11H9zM10 11V7l4-3v7M8 15h8",
 };
 const svg = (name) => h("span", { html: `<svg class="i" viewBox="0 0 24 24"><path d="${ICONS[name] || ICONS.shirt}"/></svg>` }).firstChild;
 
@@ -362,14 +365,14 @@ function barberRow(c, value) {
         rows.push(h("div", { class: "colors" }, h("span", null, "Densité"),
             h("button", { class: "arrow", disabled: value[1] <= 1, onclick: () => set(value[1] - 1) }, "‹"), h("b", null, `${value[1] * 10} %`),
             h("button", { class: "arrow", disabled: value[1] >= 10, onclick: () => set(value[1] + 1) }, "›")));
-        rows.push(palette("Couleur", value[2], (i) => setValue(c, [value[0], value[1], i])));
+        rows.push(palette("Couleur", value[2], (i) => setValue(c, [value[0], value[1], i]), c.palette === "makeup" ? data.makeupColors : data.hairColors));
     }
     return h("div", { class: "barber-tools" }, rows);
 }
 
-function palette(label, current, set) {
+function palette(label, current, set, colors) {
     return h("div", { class: "palette" }, h("span", null, label),
-        h("div", { class: "swatches" }, (data.hairColors || []).map((hex, i) => h("button", {
+        h("div", { class: "swatches" }, (colors || data.hairColors || []).map((hex, i) => h("button", {
             class: `swatch${i === current ? " on" : ""}`, style: `background:${hex}`, title: `Teinte ${i + 1}`, onclick: () => set(i),
         }))));
 }
@@ -641,14 +644,17 @@ if (!inGame && location.hash.includes("barber")) {
     open({
         kind: "barber", store: "Herr Kutz de Davis", brand: { label: "BARBER", color: "#1c2a44", textColor: "#f4efe6", image: "", showText: true }, sex: "male", currency: "$",
         pages: { catalogue: true, ready: false, outfits: false, favorites: false }, images: { component: "", prop: "" }, coef: 1, items: {}, ready: [], outfits: [], favorites: [],
-        hairColors: colors, autoUndress: ["hat", "mask"],
+        hairColors: colors, makeupColors: colors.slice().reverse(), autoUndress: ["hat", "mask"],
         undress: [{ key: "top", label: "Haut", icon: "shirt", categories: ["jacket", "undershirt", "arms"] }, { key: "hat", label: "Chapeau", icon: "hat", categories: ["hat"] }, { key: "mask", label: "Masque", icon: "mask", categories: ["mask"] }],
-        worn: { hair: [12, 0, 3, 5], beard: [4, 8, 2], eyebrows: [1, 10, 2], chesthair: [0, 0, 0] },
+        worn: { hair: [12, 0, 3, 5], beard: [4, 8, 2], eyebrows: [1, 10, 2], chesthair: [0, 0, 0], makeup: [0, 0, 0], blush: [0, 0, 0], lipstick: [2, 6, 10] },
         groups: [
             { key: "hair", label: "Coupes", icon: "hair", camera: "head", categories: [{ key: "hair", label: "Coupes", kind: "hair", id: 2, price: 50, camera: "head" }] },
             { key: "beard", label: "Barbe", icon: "beard", camera: "head", categories: [{ key: "beard", label: "Barbe", kind: "overlay", id: 1, price: 30, camera: "head" }] },
             { key: "eyebrows", label: "Sourcils", icon: "eyebrows", camera: "head", categories: [{ key: "eyebrows", label: "Sourcils", kind: "overlay", id: 2, price: 15, camera: "head" }] },
             { key: "chesthair", label: "Pilosité", icon: "chest", camera: "torso", categories: [{ key: "chesthair", label: "Pilosité du torse", kind: "overlay", id: 10, price: 20, camera: "torso", undress: "top" }] },
+            { key: "makeup", label: "Maquillage", icon: "makeup", camera: "head", categories: [{ key: "makeup", label: "Maquillage", kind: "overlay", id: 4, palette: "makeup", price: 25, camera: "head" }] },
+            { key: "blush", label: "Blush", icon: "blush", camera: "head", categories: [{ key: "blush", label: "Blush", kind: "overlay", id: 5, palette: "makeup", price: 15, camera: "head" }] },
+            { key: "lipstick", label: "Lèvres", icon: "lipstick", camera: "head", categories: [{ key: "lipstick", label: "Rouge à lèvres", kind: "overlay", id: 8, palette: "makeup", price: 15, camera: "head" }] },
         ],
     });
 } else if (!inGame && !location.hash.includes("tool")) {

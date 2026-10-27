@@ -81,7 +81,7 @@ local function applyValue(ped, category, value)
     elseif category.kind == 'overlay' then
         local opacity = value[2] / 10
         SetPedHeadOverlay(ped, category.id, opacity > 0 and value[1] or 255, opacity + 0.0)
-        SetPedHeadOverlayColor(ped, category.id, 1, value[3], value[3])
+        SetPedHeadOverlayColor(ped, category.id, category.palette == 'makeup' and 2 or 1, value[3], value[3])
     else
         applyPiece(ped, category, value[1], value[2])
     end
@@ -93,6 +93,18 @@ local function hairColors()
 
     for index = 0, GetNumHairColors() - 1 do
         local r, g, b = GetPedHairRgbColor(index)
+        list[#list + 1] = ('#%02x%02x%02x'):format(r, g, b)
+    end
+
+    return list
+end
+
+-- Nuancier du maquillage (maquillage, blush, rouge à lèvres)
+local function makeupColors()
+    local list = {}
+
+    for index = 0, GetNumMakeupColors() - 1 do
+        local r, g, b = GetMakeupRgbColor(index)
         list[#list + 1] = ('#%02x%02x%02x'):format(r, g, b)
     end
 
@@ -248,7 +260,7 @@ local function groupsFor(brand)
                 local base = ClothingPrice(category.key)
                 local entry = {
                     key = category.key, label = category.label, kind = category.kind, id = category.id, base = base,
-                    price = brand and ClothingBrandPrice(brand, base) or base, camera = category.camera, undress = category.undress,
+                    price = brand and ClothingBrandPrice(brand, base) or base, camera = category.camera, undress = category.undress, palette = category.palette,
                 }
 
                 if brand and brand.flat then
@@ -468,7 +480,7 @@ local function openShop(index, store)
     SendNUIMessage({ action = 'open', data = {
         store = store.label, brand = { label = brand.label, color = brand.color, textColor = brand.textColor, image = bannerImage(brand.image), showText = brand.showText ~= false },
         kind = kind, pages = pages, groups = groupsFor(brand), worn = wornAll(ped, kind), sex = sex, currency = currency(), items = items, coef = tonumber(brand.coef) or 1.0,
-        hairColors = kind == 'barber' and hairColors() or nil, autoUndress = kind == 'barber' and Config.BarberUndress or nil,
+        hairColors = kind == 'barber' and hairColors() or nil, makeupColors = kind == 'barber' and makeupColors() or nil, autoUndress = kind == 'barber' and Config.BarberUndress or nil,
         images = (GlobalState.lunaticCreator or {}).clothesImages or Config.ClothesImages, renderer = Config.RendererImages,
         ready = readyFor(brand.key, sex), outfits = profile.outfits or {}, maxOutfits = profile.max or 0,
         favorites = type(profile.favorites) == 'table' and profile.favorites[sex] or {},

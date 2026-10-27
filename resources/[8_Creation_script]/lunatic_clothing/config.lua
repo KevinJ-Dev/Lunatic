@@ -94,7 +94,8 @@ Config.Groups = {
 
 -- Barbiers (enseignes kind = 'barber') : un bouton par catégorie dans la barre du bas. kind = 'hair' (coupe : modèle,
 -- variante, couleur, reflets) ou 'overlay' (calque du visage GTA n° id : style, opacité, couleur) ; name = nom du calque
--- dans le skin illenium-appearance ; undress = partie de la tenue retirée en ouvrant la catégorie (Config.Undress).
+-- dans le skin illenium-appearance ; undress = partie de la tenue retirée en ouvrant la catégorie (Config.Undress) ;
+-- palette = 'makeup' : nuancier du maquillage au lieu de celui des cheveux.
 -- price = prix par défaut (réglable dans le panel), payé quand la catégorie change (coupe ou couleur) ; tout raser est gratuit.
 Config.BarberGroups = {
     { key = 'hair', label = 'Coupes', icon = 'hair', camera = 'head', categories = {
@@ -108,6 +109,15 @@ Config.BarberGroups = {
     } },
     { key = 'chesthair', label = 'Pilosité', icon = 'chest', camera = 'torso', categories = {
         { key = 'chesthair', label = 'Pilosité du torse', kind = 'overlay', id = 10, name = 'chestHair', price = 20, icon = 'chest', camera = 'torso', undress = 'top' },
+    } },
+    { key = 'makeup', label = 'Maquillage', icon = 'makeup', camera = 'head', categories = {
+        { key = 'makeup', label = 'Maquillage', kind = 'overlay', id = 4, name = 'makeUp', palette = 'makeup', price = 25, icon = 'makeup', camera = 'head' },
+    } },
+    { key = 'blush', label = 'Blush', icon = 'blush', camera = 'head', categories = {
+        { key = 'blush', label = 'Blush', kind = 'overlay', id = 5, name = 'blush', palette = 'makeup', price = 15, icon = 'blush', camera = 'head' },
+    } },
+    { key = 'lipstick', label = 'Lèvres', icon = 'lipstick', camera = 'head', categories = {
+        { key = 'lipstick', label = 'Rouge à lèvres', kind = 'overlay', id = 8, name = 'lipstick', palette = 'makeup', price = 15, icon = 'lipstick', camera = 'head' },
     } },
 }
 -- Parties de la tenue retirées en entrant chez le barbier (elles cachent les cheveux), remises en sortant
