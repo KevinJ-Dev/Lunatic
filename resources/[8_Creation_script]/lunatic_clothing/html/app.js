@@ -1,7 +1,7 @@
 "use strict";
 
-// Magasins de vêtements (lunatic_clothing) : accueil, catalogue par groupe et catégorie, prêt-à-porter, mes tenues,
-// favoris et panier. L'interface ne fait qu'afficher : le jeu applique les pièces, le serveur vérifie et fait payer.
+// Magasins de vêtements et barbiers (lunatic_clothing) : accueil, catalogue par groupe et catégorie, prêt-à-porter,
+// mes tenues, favoris et panier ; chez le barbier, coupes et pilosité avec nuancier. L'interface ne fait qu'afficher : le jeu applique les pièces, le serveur vérifie et fait payer.
 
 const $ = (id) => document.getElementById(id);
 const inGame = typeof GetParentResourceName === "function";
@@ -57,6 +57,10 @@ const ICONS = {
     star: "M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z",
     back: "M15 6l-6 6 6 6",
     arms: "M12 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM5 3l3 7h8l3-7M9 10l1 12M15 10l-1 12",
+    hair: "M5 15c0-7 3-11 7-11s7 4 7 11M5 15c2-1 3-4 3-7M19 15c-2-1-4-3-5-7M8 20v-5M16 20v-5",
+    beard: "M5 5v5c0 6 3 10 7 10s7-4 7-10V5M9 14c1 1 2 1.5 3 1.5s2-.5 3-1.5",
+    eyebrows: "M3 10c2-2 5-2 7 0M14 10c2-2 5-2 7 0M5 15h4M15 15h4",
+    chest: "M4 8c3-3 13-3 16 0v12H4zM8 12c1 1 2 1 3 0M13 12c1 1 2 1 3 0",
 };
 const svg = (name) => h("span", { html: `<svg class="i" viewBox="0 0 24 24"><path d="${ICONS[name] || ICONS.shirt}"/></svg>` }).firstChild;
 
@@ -67,6 +71,7 @@ const PAGES = [
     { id: "favorites", label: "Favoris", text: "Les pièces marquées d'une étoile", icon: "star" },
 ];
 const CAMERAS = [["head", "Visage"], ["torso", "Buste"], ["legs", "Jambes"], ["feet", "Pieds"], ["full", "Entier"]];
+const BARBER_CAMERAS = [["head", "Visage"], ["headSide", "Profil"], ["headBack", "Arrière"], ["torso", "Buste"]];
 
 let data = null;      // magasin ouvert (envoyé par le jeu)
 let worn = {};        // pièces portées : { clé: [modèle, couleur] }
@@ -96,6 +101,9 @@ function piecePrice(c, drawable) {
     return item && item.price != null ? Math.floor(item.price * (data.coef || 1) + 0.5) : c.price;
 }
 const copy = (o) => JSON.parse(JSON.stringify(o));
+// Pièce « aucune » : accessoire retiré, calque du visage à opacité nulle (rasé)
+const isNone = (c, v) => !v || (c.kind === "prop" && v[0] < 0) || (c.kind === "overlay" && !v[1]);
+const barberKind = (c) => c.kind === "hair" || c.kind === "overlay";
 
 // ---------- Ouverture ----------
 
@@ -120,6 +128,12 @@ function open(payload) {
     $("brand").classList.toggle("hidden", payload.brand.showText === false);
     $("storeName").textContent = payload.store;
     $("shop").classList.remove("hidden");
+
+    // Barbier : chapeau et masque retirés en entrant (remis en sortant)
+    for (const key of payload.autoUndress || []) {
+        const u = (payload.undress || []).find((entry) => entry.key === key);
+        if (u) undress(u, true);
+    }
 
     const pages = availablePages();
     if (pages.length === 1 && pages[0].id === "catalogue") openGroup(data.groups[0].key);
@@ -174,7 +188,15 @@ function openGroup(key) {
     group = g.key;
     category = g.categories[0].key;
     setCamera(g.categories[0].camera || g.camera);
+    categoryOpened(g.categories[0]);
     paint();
+}
+
+// Catégorie qui demande de retirer une partie de la tenue (pilosité du torse : haut retiré)
+function categoryOpened(c) {
+    if (!c.undress || undressed.includes(c.undress)) return;
+    const u = (data.undress || []).find((entry) => entry.key === c.undress);
+    if (u) undress(u, true);
 }
 
 function pieceCell(c, drawable, texture, on, extra) {
@@ -198,10 +220,11 @@ function catalogueView() {
     const total = countsCache[`${data.sex}:${c.key}:0`];
 
     const tabs = g.categories.length > 1 ? h("div", { class: "tabs" }, g.categories.map((entry) => h("button", {
-        class: `tab${entry.key === category ? " on" : ""}`, onclick: () => { category = entry.key; setCamera(entry.camera || g.camera); if ($("grid")) $("grid").scrollTop = 0; paint(); },
+        class: `tab${entry.key === category ? " on" : ""}`, onclick: () => { category = entry.key; setCamera(entry.camera || g.camera); categoryOpened(entry); if ($("grid")) $("grid").scrollTop = 0; paint(); },
     }, entry.label))) : null;
     const current = piecePrice(c, value[0]);
-    const price = h("div", { class: "price-line" }, h("span", null, c.label), h("b", null, value[0] < 0 ? "Aucun" : current > 0 ? `Cette pièce : ${money(current)}` : "Gratuit"));
+    const none = isNone(c, value);
+    const price = h("div", { class: "price-line" }, h("span", null, c.label), h("b", null, none ? "Aucun" : current > 0 ? `${barberKind(c) ? "Prix" : "Cette pièce"} : ${money(current)}` : "Gratuit"));
 
     if (!total) {
         loadCounts(c, 0).then(() => paint());
@@ -210,15 +233,16 @@ function catalogueView() {
 
     const paid = (original[c.key] || [])[0];
     const cells = [];
-    if (c.kind === "prop") cells.push(pieceCell(c, -1, 0, value[0] < 0));
+    if (c.kind === "prop" || c.kind === "overlay") cells.push(pieceCell(c, -1, 0, none));
+    const paidNone = isNone(c, original[c.key]);
     for (let i = 0; i < total.drawables; i += 1) {
         const item = itemOf(c, i);
         // Pièce bannie : cachée, sauf celle déjà portée
         if (item && item.banned && paid !== i) continue;
-        cells.push(pieceCell(c, i, 0, value[0] === i, paid === i ? " worn" : ""));
+        cells.push(pieceCell(c, i, 0, !none && value[0] === i, paid === i && !paidNone ? " worn" : ""));
     }
 
-    return h("div", { class: "view" }, viewHead(g.label), tabs, price, h("div", { class: "grid", id: "grid" }, cells), colorsRow(c, value));
+    return h("div", { class: "view" }, viewHead(g.label), tabs, price, h("div", { class: "grid", id: "grid" }, cells), barberKind(c) ? barberRow(c, value) : colorsRow(c, value));
 }
 
 // Couleurs du modèle porté (lues dans le jeu)
@@ -253,6 +277,8 @@ function fillTemplate(template, cfg, c, drawable, texture) {
 }
 
 function pieceSources(cfg, c, drawable, item, texture) {
+    // Calques du visage (barbe, sourcils…) : pas d'image du jeu, le numéro s'affiche
+    if (c.kind === "overlay") return item && item.image ? [item.image] : [];
     const kind = c.kind === "prop" ? "prop" : "component";
     const image = item && item.image;
     const photo = image && image.startsWith("clothes/");
@@ -293,14 +319,59 @@ function pieceImage(sources, drawable) {
     return img;
 }
 
+// Valeur complète d'une pièce choisie dans la grille : chez le barbier, couleurs et opacité gardées
+function pieceValue(c, drawable, texture) {
+    const current = worn[c.key] || [];
+    if (c.kind === "hair") return [drawable, texture, current[2] || 0, current[3] || 0];
+    if (c.kind === "overlay") return drawable < 0 ? [current[0] || 0, 0, current[2] || 0] : [drawable, current[1] || 10, current[2] || 0];
+    return [drawable, texture];
+}
+
 async function pick(c, drawable, texture) {
-    worn[c.key] = [drawable, texture];
+    await setValue(c, pieceValue(c, drawable, texture));
+}
+
+async function setValue(c, value) {
+    worn[c.key] = value;
     tried = null;
     // Pièce choisie dans une partie retirée : toute la partie est remise d'abord
     const entry = (data.undress || []).find((u) => undressed.includes(u.key) && u.categories.includes(c.key));
     if (entry) await undress(entry, false);
-    nui("apply", { key: c.key, drawable, texture });
+    nui("apply", { key: c.key, drawable: value[0], texture: value[1], value });
     paint();
+}
+
+// ---------- Barbier : variante, opacité et nuancier ----------
+
+function barberRow(c, value) {
+    if (isNone(c, value)) return null;
+    const rows = [];
+    if (c.kind === "hair") {
+        const counts = countsCache[`${data.sex}:${c.key}:${value[0]}`];
+        if (!counts) loadCounts(c, value[0]).then(() => paint());
+        else if (counts.textures > 1) {
+            const set = (t) => setValue(c, [value[0], (t + counts.textures) % counts.textures, value[2], value[3]]);
+            rows.push(h("div", { class: "colors" }, h("span", null, "Variante"),
+                h("button", { class: "arrow", onclick: () => set(value[1] - 1) }, "‹"), h("b", null, `${value[1] + 1} / ${counts.textures}`),
+                h("button", { class: "arrow", onclick: () => set(value[1] + 1) }, "›")));
+        }
+        rows.push(palette("Couleur", value[2], (i) => setValue(c, [value[0], value[1], i, value[3]])));
+        rows.push(palette("Reflets", value[3], (i) => setValue(c, [value[0], value[1], value[2], i])));
+    } else {
+        const set = (o) => setValue(c, [value[0], Math.min(10, Math.max(1, o)), value[2]]);
+        rows.push(h("div", { class: "colors" }, h("span", null, "Densité"),
+            h("button", { class: "arrow", disabled: value[1] <= 1, onclick: () => set(value[1] - 1) }, "‹"), h("b", null, `${value[1] * 10} %`),
+            h("button", { class: "arrow", disabled: value[1] >= 10, onclick: () => set(value[1] + 1) }, "›")));
+        rows.push(palette("Couleur", value[2], (i) => setValue(c, [value[0], value[1], i])));
+    }
+    return h("div", { class: "barber-tools" }, rows);
+}
+
+function palette(label, current, set) {
+    return h("div", { class: "palette" }, h("span", null, label),
+        h("div", { class: "swatches" }, (data.hairColors || []).map((hex, i) => h("button", {
+            class: `swatch${i === current ? " on" : ""}`, style: `background:${hex}`, title: `Teinte ${i + 1}`, onclick: () => set(i),
+        }))));
 }
 
 // ---------- Prêt-à-porter ----------
@@ -437,11 +508,16 @@ function favoritesView() {
 
 // ---------- Panier ----------
 
-const sameAs = (a, b) => a && b && a[0] === b[0] && (a[0] < 0 || a[1] === b[1]);
+// Même pièce : deux « aucune », ou mêmes valeurs (couleur ignorée pour un accessoire retiré)
+function samePiece(c, a, b) {
+    if (!a || !b) return false;
+    if (isNone(c, a) || isNone(c, b)) return isNone(c, a) && isNone(c, b);
+    return a.length === b.length && a.every((value, i) => value === b[i]);
+}
 
 function cartLines() {
-    return categories().filter((c) => !sameAs(worn[c.key], original[c.key]))
-        .map((c) => ({ c, price: piecePrice(c, worn[c.key][0]) }));
+    return categories().filter((c) => worn[c.key] && !samePiece(c, worn[c.key], original[c.key]))
+        .map((c) => ({ c, price: isNone(c, worn[c.key]) ? 0 : piecePrice(c, worn[c.key][0]) }));
 }
 
 function paintCart() {
@@ -458,7 +534,7 @@ function paintCart() {
     }
     const lines = cartLines();
     const total = lines.reduce((sum, l) => sum + l.price, 0);
-    const undo = (c) => { pick(c, original[c.key][0], original[c.key][1]); };
+    const undo = (c) => { setValue(c, original[c.key].slice()); };
 
     $("cart").replaceChildren(...[
         h("div", { class: "cart-head" }, h("span", null, lines.length ? `Panier · ${lines.length} pièce${lines.length > 1 ? "s" : ""}` : "Panier vide"), h("b", null, money(total))),
@@ -495,9 +571,10 @@ function paintBar() {
 }
 
 function paintTools() {
+    const barber = data.kind === "barber";
     $("tools").replaceChildren(
-        ...CAMERAS.map(([key, label]) => h("button", { class: `tool${camera === key ? " on" : ""}`, onclick: () => { setCamera(key); paintTools(); } }, label)),
-        h("button", { class: `tool${armsUp ? " on" : ""}`, onclick: () => { armsUp = !armsUp; nui("armsUp", { on: armsUp }); paintTools(); } }, svg("arms"), "Bras levés"));
+        ...(barber ? BARBER_CAMERAS : CAMERAS).map(([key, label]) => h("button", { class: `tool${camera === key ? " on" : ""}`, onclick: () => { setCamera(key); paintTools(); } }, label)),
+        ...(barber ? [] : [h("button", { class: `tool${armsUp ? " on" : ""}`, onclick: () => { armsUp = !armsUp; nui("armsUp", { on: armsUp }); paintTools(); } }, svg("arms"), "Bras levés")]));
 }
 
 // Retirer / remettre une partie de la tenue (vue seulement, rien n'est acheté)
@@ -559,7 +636,22 @@ function demo(name, payload) {
     return Promise.resolve({});
 }
 
-if (!inGame && !location.hash.includes("tool")) {
+if (!inGame && location.hash.includes("barber")) {
+    const colors = Array.from({ length: 64 }, (_, i) => `hsl(${(i * 23) % 360} 45% ${20 + (i % 8) * 8}%)`);
+    open({
+        kind: "barber", store: "Herr Kutz de Davis", brand: { label: "BARBER", color: "#1c2a44", textColor: "#f4efe6", image: "", showText: true }, sex: "male", currency: "$",
+        pages: { catalogue: true, ready: false, outfits: false, favorites: false }, images: { component: "", prop: "" }, coef: 1, items: {}, ready: [], outfits: [], favorites: [],
+        hairColors: colors, autoUndress: ["hat", "mask"],
+        undress: [{ key: "top", label: "Haut", icon: "shirt", categories: ["jacket", "undershirt", "arms"] }, { key: "hat", label: "Chapeau", icon: "hat", categories: ["hat"] }, { key: "mask", label: "Masque", icon: "mask", categories: ["mask"] }],
+        worn: { hair: [12, 0, 3, 5], beard: [4, 8, 2], eyebrows: [1, 10, 2], chesthair: [0, 0, 0] },
+        groups: [
+            { key: "hair", label: "Coupes", icon: "hair", camera: "head", categories: [{ key: "hair", label: "Coupes", kind: "hair", id: 2, price: 50, camera: "head" }] },
+            { key: "beard", label: "Barbe", icon: "beard", camera: "head", categories: [{ key: "beard", label: "Barbe", kind: "overlay", id: 1, price: 30, camera: "head" }] },
+            { key: "eyebrows", label: "Sourcils", icon: "eyebrows", camera: "head", categories: [{ key: "eyebrows", label: "Sourcils", kind: "overlay", id: 2, price: 15, camera: "head" }] },
+            { key: "chesthair", label: "Pilosité", icon: "chest", camera: "torso", categories: [{ key: "chesthair", label: "Pilosité du torse", kind: "overlay", id: 10, price: 20, camera: "torso", undress: "top" }] },
+        ],
+    });
+} else if (!inGame && !location.hash.includes("tool")) {
     open({
         store: "Binco de Strawberry", brand: { label: "binco", color: "#f7931e", image: "", showText: true }, sex: "male", currency: "$",
         pages: { catalogue: true, ready: true, outfits: true, favorites: true },

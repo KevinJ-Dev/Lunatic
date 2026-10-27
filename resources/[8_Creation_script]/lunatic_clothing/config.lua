@@ -8,7 +8,8 @@ Config.Marker = { 150, 80, 255, 110 } -- couleur du marqueur au sol (couleur du 
 -- Enseignes (modifiables et complétées dans le panel) : nom de la bannière, couleur, image de bannière (lien https ou
 -- clé de la tuile Images, vide : couleur seule), nom affiché sur la bannière ou non, couleur du blip,
 -- coefficient appliqué au prix des pièces (1 = prix du catalogue), catégories non vendues (clés de Config.Groups),
--- couleur du nom sur la bannière (vide : blanc) et flat = une catégorie par bouton dans la barre du bas (au lieu des groupes)
+-- couleur du nom sur la bannière (vide : blanc) et flat = une catégorie par bouton dans la barre du bas (au lieu des groupes).
+-- kind = 'barber' : barbier (coupes, barbe, sourcils, pilosité : Config.BarberGroups) au lieu de vêtements
 local NOT_JEWELRY = { jacket = true, undershirt = true, arms = true, pants = true, shoes = true, hat = true, glasses = true, mask = true, bag = true }
 
 Config.Brands = {
@@ -18,9 +19,12 @@ Config.Brands = {
     discount = { label = 'Discount Store', color = '#2e9e4f', image = '', showText = true, blip = 2, coef = 0.8, exclude = {} },
     -- Bijouterie de luxe : bijoux seulement, une catégorie par bouton
     vangelico = { label = 'VANGELICO', color = '#141210', textColor = '#d9b45a', image = '', showText = true, blip = 46, coef = 3.0, exclude = NOT_JEWELRY, flat = true },
+    -- Barbier : coupe, couleurs, barbe et pilosité
+    barber = { kind = 'barber', label = 'BARBER', color = '#1c2a44', textColor = '#f4efe6', image = '', showText = true, blip = 4, coef = 1.0, exclude = {}, flat = true },
 }
-Config.BrandOrder = { 'binco', 'suburban', 'ponsonbys', 'discount', 'vangelico' }
-Config.Blip = { sprite = 73, scale = 0.7 }
+Config.BrandOrder = { 'binco', 'suburban', 'ponsonbys', 'discount', 'vangelico', 'barber' }
+-- sprites = icône du blip selon le type d'enseigne (vêtements par défaut)
+Config.Blip = { sprite = 73, scale = 0.7, sprites = { barber = 71 } }
 
 -- Mes tenues : nombre de tenues enregistrées par personnage (réglable dans le panel) ; Favoris : pièces par sexe
 Config.MaxOutfits = 10
@@ -47,6 +51,14 @@ Config.Stores = {
     { label = 'Binco de Vespucci Beach', brand = 'binco', x = -1119.24, y = -1440.6, z = 5.23, h = 300.5 },
     { label = 'Suburban de Hawick', brand = 'suburban', x = 124.82, y = -224.36, z = 54.56, h = 335.41 },
     { label = 'Vangelico de Rockford Hills', brand = 'vangelico', x = -623.0, y = -232.5, z = 38.06, h = 125.0, pages = { catalogue = true, ready = false, outfits = false, favorites = true } },
+    -- Barbiers (positions de ceux d'illenium-appearance)
+    { label = 'Herr Kutz de Rockford Hills', brand = 'barber', x = -814.22, y = -183.7, z = 37.57, h = 116.91 },
+    { label = 'Herr Kutz de Davis', brand = 'barber', x = 136.78, y = -1708.4, z = 29.29, h = 144.19 },
+    { label = 'Beach Combover de Vespucci', brand = 'barber', x = -1282.57, y = -1116.84, z = 6.99, h = 89.25 },
+    { label = "O'Sheas de Sandy Shores", brand = 'barber', x = 1931.41, y = 3729.73, z = 32.84, h = 212.08 },
+    { label = 'Herr Kutz de Mirror Park', brand = 'barber', x = 1212.8, y = -472.9, z = 65.2, h = 60.94 },
+    { label = 'Hair on Hawick', brand = 'barber', x = -32.9, y = -152.3, z = 56.1, h = 335.22 },
+    { label = 'Herr Kutz de Paleto Bay', brand = 'barber', x = -278.1, y = 6228.5, z = 30.7, h = 49.32 },
 }
 
 -- Groupes de la barre du bas et catégories (composants et accessoires GTA) ; price = prix par défaut d'une pièce,
@@ -80,6 +92,27 @@ Config.Groups = {
     } },
 }
 
+-- Barbiers (enseignes kind = 'barber') : un bouton par catégorie dans la barre du bas. kind = 'hair' (coupe : modèle,
+-- variante, couleur, reflets) ou 'overlay' (calque du visage GTA n° id : style, opacité, couleur) ; name = nom du calque
+-- dans le skin illenium-appearance ; undress = partie de la tenue retirée en ouvrant la catégorie (Config.Undress).
+-- price = prix par défaut (réglable dans le panel), payé quand la catégorie change (coupe ou couleur) ; tout raser est gratuit.
+Config.BarberGroups = {
+    { key = 'hair', label = 'Coupes', icon = 'hair', camera = 'head', categories = {
+        { key = 'hair', label = 'Coupes', kind = 'hair', id = 2, price = 50, icon = 'hair', camera = 'head' },
+    } },
+    { key = 'beard', label = 'Barbe', icon = 'beard', camera = 'head', categories = {
+        { key = 'beard', label = 'Barbe', kind = 'overlay', id = 1, name = 'beard', price = 30, icon = 'beard', camera = 'head' },
+    } },
+    { key = 'eyebrows', label = 'Sourcils', icon = 'eyebrows', camera = 'head', categories = {
+        { key = 'eyebrows', label = 'Sourcils', kind = 'overlay', id = 2, name = 'eyebrows', price = 15, icon = 'eyebrows', camera = 'head' },
+    } },
+    { key = 'chesthair', label = 'Pilosité', icon = 'chest', camera = 'torso', categories = {
+        { key = 'chesthair', label = 'Pilosité du torse', kind = 'overlay', id = 10, name = 'chestHair', price = 20, icon = 'chest', camera = 'torso', undress = 'top' },
+    } },
+}
+-- Parties de la tenue retirées en entrant chez le barbier (elles cachent les cheveux), remises en sortant
+Config.BarberUndress = { 'hat', 'mask' }
+
 -- Vues de la caméra : distance devant le personnage, hauteur visée, champ de vision ; side = décalage vers la droite
 -- du personnage (négatif : sa gauche), angle = rotation autour de lui (degrés, positif : vers sa droite),
 -- pose = animation jouée tant que la vue est active (bijoux du poignet).
@@ -88,6 +121,8 @@ Config.Groups = {
 -- Os utiles : 18905 poignet gauche (montres), 57005 poignet droit (bracelets).
 Config.Cameras = {
     head = { distance = 0.85, height = 0.65, fov = 36.0 },
+    headSide = { distance = 0.85, height = 0.65, fov = 36.0, angle = -90.0 },
+    headBack = { distance = 0.9, height = 0.65, fov = 36.0, angle = 180.0 },
     torso = { distance = 1.5, height = 0.3, fov = 45.0 },
     legs = { distance = 1.5, height = -0.45, fov = 45.0 },
     feet = { distance = 1.2, height = -0.8, fov = 40.0 },

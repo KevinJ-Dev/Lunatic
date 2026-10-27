@@ -1,10 +1,10 @@
--- Magasins de vêtements, côté serveur. Tout part de la tenue enregistrée (users.skin, format illenium-appearance) :
---   - panier : seules les pièces réellement changées sont payées puis enregistrées ;
+-- Magasins de vêtements et barbiers, côté serveur. Tout part de la tenue enregistrée (users.skin, format illenium-appearance) :
+--   - panier : seules les pièces réellement changées sont payées puis enregistrées (coupe et pilosité chez le barbier) ;
 --   - prêt-à-porter : tenue du staff payée à son prix ;
 --   - mes tenues : copie des pièces déjà enregistrées (donc payées), remise gratuitement ;
 --   - favoris : liste de pièces par sexe.
 
-local MAX_DRAWABLE, MAX_TEXTURE = 3000, 255
+local MAX_DRAWABLE, MAX_TEXTURE, MAX_COLOR, MAX_OPACITY = 3000, 255, 63, 10
 local lastAction = {} -- joueur -> dernière action (anti-spam)
 local lastFavorites = {} -- joueur -> dernier enregistrement des favoris
 
@@ -45,13 +45,16 @@ exports('getDefaults', function()
         brands[#brands + 1] = {
             key = key, label = brand.label, color = brand.color, image = brand.image or '', showText = brand.showText ~= false,
             blip = brand.blip, coef = brand.coef or 1.0, exclude = brand.exclude or {}, textColor = brand.textColor or '', flat = brand.flat == true,
+            kind = brand.kind or 'clothing',
         }
     end
 
-    for _, group in ipairs(Config.Groups) do
-        for _, category in ipairs(group.categories) do
-            categories[#categories + 1] = { key = category.key, label = category.label, group = group.label, kind = category.kind }
-            prices[category.key] = category.price
+    for _, kind in ipairs({ 'clothing', 'barber' }) do
+        for _, group in ipairs(ClothingGroupsOf(kind)) do
+            for _, category in ipairs(group.categories) do
+                categories[#categories + 1] = { key = category.key, label = category.label, group = group.label, kind = category.kind, shop = kind }
+                prices[category.key] = category.price
+            end
         end
     end
 
@@ -145,11 +148,43 @@ local function slotOf(skin, category)
     return skin.components, 'component_id'
 end
 
--- Pièce valide : { modèle, couleur } (-1 = aucun accessoire)
+-- Pièce valide : { modèle, couleur } (-1 = aucun accessoire) ; coupe { modèle, variante, couleur, reflets } ;
+-- calque du visage { style, opacité 0-10, couleur }
 local function readPiece(category, value)
-    local drawable = type(value) == 'table' and whole(value[1], category.kind == 'prop' and -1 or 0, MAX_DRAWABLE)
+    if type(value) ~= 'table' then
+        return nil
+    end
+
+    if category.kind == 'hair' then
+        local piece = { whole(value[1], 0, MAX_DRAWABLE), whole(value[2] or 0, 0, MAX_TEXTURE), whole(value[3] or 0, 0, MAX_COLOR), whole(value[4] or 0, 0, MAX_COLOR) }
+        return piece[1] and piece[2] and piece[3] and piece[4] and piece or nil
+    end
+
+    if category.kind == 'overlay' then
+        local piece = { whole(value[1], 0, MAX_DRAWABLE), whole(value[2] or 0, 0, MAX_OPACITY), whole(value[3] or 0, 0, MAX_COLOR) }
+        return piece[1] and piece[2] and piece[3] and piece or nil
+    end
+
+    local drawable = whole(value[1], category.kind == 'prop' and -1 or 0, MAX_DRAWABLE)
     local texture = drawable and whole(value[2] or 0, 0, MAX_TEXTURE)
     return texture and { drawable, drawable < 0 and 0 or texture } or nil
+end
+
+-- Pièce « aucune » : accessoire retiré, calque à opacité nulle (rasé)
+local function isNone(category, piece)
+    return (category.kind == 'prop' and piece[1] < 0) or (category.kind == 'overlay' and piece[2] == 0)
+end
+
+-- Coupe et calques du visage dans le skin illenium-appearance
+local function hairOf(skin)
+    local hair = type(skin.hair) == 'table' and skin.hair or {}
+    return { tonumber(hair.style) or 0, tonumber(hair.texture) or 0, tonumber(hair.color) or 0, tonumber(hair.highlight) or 0 }
+end
+
+local function overlayOf(skin, category)
+    local overlays = type(skin.headOverlays) == 'table' and skin.headOverlays or {}
+    local overlay = type(overlays[category.name]) == 'table' and overlays[category.name] or {}
+    return { tonumber(overlay.style) or 0, math.floor((tonumber(overlay.opacity) or 0) * 10 + 0.5), tonumber(overlay.color) or 0 }
 end
 
 -- Pièces d'une tenue (clé de catégorie -> pièce), invalides ignorées
@@ -187,12 +222,39 @@ local function piecesOfSkin(skin)
 end
 
 local function samePiece(skin, category, piece)
+    if category.kind == 'hair' or category.kind == 'overlay' then
+        local current = category.kind == 'hair' and hairOf(skin) or overlayOf(skin, category)
+
+        if isNone(category, piece) or isNone(category, current) then
+            return isNone(category, piece) and isNone(category, current)
+        end
+
+        for index, value in ipairs(piece) do
+            if current[index] ~= value then
+                return false
+            end
+        end
+
+        return true
+    end
+
     local list, field = slotOf(skin, category)
     local current = findPiece(list, field, category.id)
     return current and tonumber(current.drawable) == piece[1] and (piece[1] < 0 or tonumber(current.texture) == piece[2])
 end
 
 local function setPiece(skin, category, piece)
+    if category.kind == 'hair' then
+        skin.hair = { style = piece[1], texture = piece[2], color = piece[3], highlight = piece[4] }
+        return
+    end
+
+    if category.kind == 'overlay' then
+        skin.headOverlays = type(skin.headOverlays) == 'table' and skin.headOverlays or {}
+        skin.headOverlays[category.name] = { style = piece[1], opacity = piece[2] / 10, color = piece[3], secondColor = piece[3] }
+        return
+    end
+
     local list, field = slotOf(skin, category)
     local current = findPiece(list, field, category.id)
 
@@ -265,15 +327,16 @@ lib.callback.register('lunatic_clothing:buy', function(src, index, changes, acco
         end
 
         if not samePiece(skin, category, piece) then
-            local item = piece[1] >= 0 and ClothingItem(sex, key, piece[1])
+            local none = isNone(category, piece)
+            local item = not none and ClothingItem(sex, key, piece[1])
 
             if not ClothingBrandSells(brand, key) or (item and item.banned) then
                 return { ok = false, error = ('« %s » : pièce indisponible dans ce magasin.'):format(category.label) }
             end
 
             bought[#bought + 1] = { category = category, piece = piece }
-            -- Retirer un accessoire est gratuit ; sinon prix de la fiche (ou de la catégorie) selon l'enseigne
-            total = total + (piece[1] < 0 and 0 or ClothingBrandPrice(brand, ClothingPieceBase(sex, key, piece[1])))
+            -- Retirer un accessoire ou tout raser est gratuit ; sinon prix de la fiche (ou de la catégorie) selon l'enseigne
+            total = total + (none and 0 or ClothingBrandPrice(brand, ClothingPieceBase(sex, key, piece[1])))
         end
     end
 
@@ -281,7 +344,7 @@ lib.callback.register('lunatic_clothing:buy', function(src, index, changes, acco
         return { ok = true, total = 0, count = 0 }
     end
 
-    local paid, err = pay(xPlayer, account, total, ('Vêtements : %s'):format(store.label))
+    local paid, err = pay(xPlayer, account, total, ('%s : %s'):format(ClothingBrandKind(brand) == 'barber' and 'Barbier' or 'Vêtements', store.label))
 
     if not paid then
         return { ok = false, error = err }
@@ -322,7 +385,7 @@ lib.callback.register('lunatic_clothing:buyReady', function(src, index, id, acco
         end
     end
 
-    if not outfit or not ClothingReadyIn(outfit, store.brand) then
+    if not outfit or not ClothingReadyIn(outfit, store.brand) or ClothingBrandKind(ClothingBrand(store.brand)) ~= 'clothing' then
         return { ok = false, error = "Cette tenue n'est pas vendue ici." }
     end
 

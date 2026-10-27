@@ -1138,9 +1138,9 @@ Config.InitialPlayerClothes = {
     }
 }
 
--- Lunatic : magasins de vêtements remplacés par lunatic_clothing (panel : Autres → Magasins de vêtements)
+-- Lunatic : magasins de vêtements et barbiers remplacés par lunatic_clothing (panel : Autres → Magasins de vêtements)
 for index = #Config.Stores, 1, -1 do
-    if Config.Stores[index].type == 'clothing' then
+    if Config.Stores[index].type == 'clothing' or Config.Stores[index].type == 'barber' then
         table.remove(Config.Stores, index)
     end
 end

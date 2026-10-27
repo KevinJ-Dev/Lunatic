@@ -1,5 +1,5 @@
--- Magasins de vêtements, côté client : zone de chaque magasin (rayon, marqueur, PNJ), essayage en direct (caméra
--- devant le personnage, bras levés, rotation), panier, prêt-à-porter, mes tenues et favoris (vérifiés par le serveur).
+-- Magasins de vêtements et barbiers, côté client : zone de chaque magasin (rayon, marqueur, PNJ), essayage en direct
+-- (caméra devant le personnage, bras levés, rotation), panier, prêt-à-porter, mes tenues et favoris (vérifiés par le serveur).
 -- Quitter sans payer remet la tenue d'avant (illenium-appearance).
 -- Repris de lunatic_creator : caméra décalée, nombre de modèles et de couleurs, bras levés.
 
@@ -24,6 +24,21 @@ end
 ---------------------------------------------------------------------
 
 local function wornPiece(ped, category)
+    -- Coupe : { modèle, variante, couleur, reflets } ; calque du visage : { style, opacité 0-10, couleur }
+    if category.kind == 'hair' then
+        return { GetPedDrawableVariation(ped, 2), GetPedTextureVariation(ped, 2), GetPedHairColor(ped), GetPedHairHighlightColor(ped) }
+    end
+
+    if category.kind == 'overlay' then
+        local _, value, _, color, _, opacity = GetPedHeadOverlayData(ped, category.id)
+
+        if value == 255 then
+            return { 0, 0, color }
+        end
+
+        return { value, math.floor(opacity * 10 + 0.5), color }
+    end
+
     if category.kind == 'prop' then
         local drawable = GetPedPropIndex(ped, category.id)
         return { drawable, drawable >= 0 and GetPedPropTextureIndex(ped, category.id) or 0 }
@@ -32,10 +47,10 @@ local function wornPiece(ped, category)
     return { GetPedDrawableVariation(ped, category.id), GetPedTextureVariation(ped, category.id) }
 end
 
-local function wornAll(ped)
+local function wornAll(ped, kind)
     local worn = {}
 
-    for _, group in ipairs(Config.Groups) do
+    for _, group in ipairs(ClothingGroupsOf(kind)) do
         for _, category in ipairs(group.categories) do
             worn[category.key] = wornPiece(ped, category)
         end
@@ -58,6 +73,32 @@ local function applyPiece(ped, category, drawable, texture)
     SetPedComponentVariation(ped, category.id, drawable, texture, 0)
 end
 
+-- Pièce complète (coupe et calques du visage compris)
+local function applyValue(ped, category, value)
+    if category.kind == 'hair' then
+        SetPedComponentVariation(ped, 2, value[1], value[2], 0)
+        SetPedHairColor(ped, value[3], value[4])
+    elseif category.kind == 'overlay' then
+        local opacity = value[2] / 10
+        SetPedHeadOverlay(ped, category.id, opacity > 0 and value[1] or 255, opacity + 0.0)
+        SetPedHeadOverlayColor(ped, category.id, 1, value[3], value[3])
+    else
+        applyPiece(ped, category, value[1], value[2])
+    end
+end
+
+-- Nuancier des cheveux du jeu (couleurs et reflets, barbe, sourcils)
+local function hairColors()
+    local list = {}
+
+    for index = 0, GetNumHairColors() - 1 do
+        local r, g, b = GetPedHairRgbColor(index)
+        list[#list + 1] = ('#%02x%02x%02x'):format(r, g, b)
+    end
+
+    return list
+end
+
 local function applyPieces(pieces)
     local ped = PlayerPedId()
 
@@ -73,6 +114,10 @@ end
 -- Nombre de modèles et de couleurs d'une catégorie (selon le modèle homme / femme)
 local function counts(category, drawable)
     local ped = PlayerPedId()
+
+    if category.kind == 'overlay' then
+        return { drawables = GetPedHeadOverlayNum(category.id), textures = 0 }
+    end
 
     if category.kind == 'prop' then
         return { drawables = GetNumberOfPedPropDrawableVariations(ped, category.id), textures = drawable >= 0 and GetNumberOfPedPropTextureVariations(ped, category.id, drawable) or 0 }
@@ -195,7 +240,7 @@ end
 local function groupsFor(brand)
     local list = {}
 
-    for _, group in ipairs(Config.Groups) do
+    for _, group in ipairs(ClothingGroupsOf(brand and ClothingBrandKind(brand) or 'clothing')) do
         local categories = {}
 
         for _, category in ipairs(group.categories) do
@@ -203,7 +248,7 @@ local function groupsFor(brand)
                 local base = ClothingPrice(category.key)
                 local entry = {
                     key = category.key, label = category.label, kind = category.kind, id = category.id, base = base,
-                    price = brand and ClothingBrandPrice(brand, base) or base, camera = category.camera,
+                    price = brand and ClothingBrandPrice(brand, base) or base, camera = category.camera, undress = category.undress,
                 }
 
                 if brand and brand.flat then
@@ -410,17 +455,20 @@ local function openShop(index, store)
     setCamera('torso', true)
 
     local brand = ClothingBrand(store.brand)
+    local kind = ClothingBrandKind(brand)
     local sex = sexOf(ped)
     local items = catalogueFor(sex)
     local pages = {}
 
+    -- Barbier : catalogue seulement
     for _, page in ipairs(Config.Pages) do
-        pages[page] = ClothingPageOn(store, page)
+        pages[page] = kind == 'barber' and page == 'catalogue' or (kind ~= 'barber' and ClothingPageOn(store, page))
     end
 
     SendNUIMessage({ action = 'open', data = {
         store = store.label, brand = { label = brand.label, color = brand.color, textColor = brand.textColor, image = bannerImage(brand.image), showText = brand.showText ~= false },
-        pages = pages, groups = groupsFor(brand), worn = wornAll(ped), sex = sex, currency = currency(), items = items, coef = tonumber(brand.coef) or 1.0,
+        kind = kind, pages = pages, groups = groupsFor(brand), worn = wornAll(ped, kind), sex = sex, currency = currency(), items = items, coef = tonumber(brand.coef) or 1.0,
+        hairColors = kind == 'barber' and hairColors() or nil, autoUndress = kind == 'barber' and Config.BarberUndress or nil,
         images = (GlobalState.lunaticCreator or {}).clothesImages or Config.ClothesImages, renderer = Config.RendererImages,
         ready = readyFor(brand.key, sex), outfits = profile.outfits or {}, maxOutfits = profile.max or 0,
         favorites = type(profile.favorites) == 'table' and profile.favorites[sex] or {},
@@ -455,7 +503,17 @@ RegisterNUICallback('apply', function(data, cb)
             shop.hidden[category.key] = nil
         end
 
-        applyPiece(PlayerPedId(), category, math.floor(tonumber(data.drawable) or 0), math.floor(tonumber(data.texture) or 0))
+        if (category.kind == 'hair' or category.kind == 'overlay') and type(data.value) == 'table' then
+            local value = {}
+
+            for index = 1, category.kind == 'hair' and 4 or 3 do
+                value[index] = math.max(0, math.floor(tonumber(data.value[index]) or 0))
+            end
+
+            applyValue(PlayerPedId(), category, value)
+        else
+            applyPiece(PlayerPedId(), category, math.floor(tonumber(data.drawable) or 0), math.floor(tonumber(data.texture) or 0))
+        end
     end
 
     cb({})
@@ -1106,7 +1164,7 @@ local function refreshStores()
         if store.blip then
             local brand = ClothingBrand(store.brand)
             local blip = AddBlipForCoord(store.x, store.y, store.z)
-            SetBlipSprite(blip, Config.Blip.sprite)
+            SetBlipSprite(blip, (Config.Blip.sprites or {})[ClothingBrandKind(brand)] or Config.Blip.sprite)
             SetBlipColour(blip, tonumber(brand.blip) or 0)
             SetBlipScale(blip, Config.Blip.scale)
             SetBlipAsShortRange(blip, true)

@@ -52,12 +52,27 @@ function ClothingBrand(key)
     return {
         key = brand, label = entry.label, color = entry.color, image = entry.image or '', showText = entry.showText ~= false,
         blip = entry.blip, coef = entry.coef or 1.0, exclude = entry.exclude or {}, textColor = entry.textColor, flat = entry.flat == true,
+        kind = entry.kind or 'clothing',
     }
 end
 
--- Catégorie vendue par l'enseigne
+-- Type d'une enseigne : 'clothing' (vêtements) ou 'barber'
+function ClothingBrandKind(brand)
+    return type(brand) == 'table' and brand.kind == 'barber' and 'barber' or 'clothing'
+end
+
+-- Groupes de la barre du bas d'un type d'enseigne
+function ClothingGroupsOf(kind)
+    return kind == 'barber' and Config.BarberGroups or Config.Groups
+end
+
+local categories = {}
+
+-- Catégorie vendue par l'enseigne (et de son type : un barbier ne vend pas de vêtements)
 function ClothingBrandSells(brand, key)
-    return type(brand.exclude) ~= 'table' or brand.exclude[key] ~= true
+    local category = categories[key]
+    return category ~= nil and (category.shop or 'clothing') == ClothingBrandKind(brand)
+        and (type(brand.exclude) ~= 'table' or brand.exclude[key] ~= true)
 end
 
 -- Prix d'une pièce dans une enseigne : prix de la fiche (ou de la catégorie) multiplié par le coefficient de l'enseigne
@@ -65,11 +80,16 @@ function ClothingBrandPrice(brand, base)
     return math.max(0, math.floor((tonumber(base) or 0) * (tonumber(brand.coef) or 1.0) + 0.5))
 end
 
--- Catégorie par clé (jacket, pants…)
-local categories = {}
-
+-- Catégorie par clé (jacket, pants… ; hair, beard… chez le barbier, marquées shop = 'barber')
 for _, group in ipairs(Config.Groups) do
     for _, category in ipairs(group.categories) do
+        categories[category.key] = category
+    end
+end
+
+for _, group in ipairs(Config.BarberGroups) do
+    for _, category in ipairs(group.categories) do
+        category.shop = 'barber'
         categories[category.key] = category
     end
 end
