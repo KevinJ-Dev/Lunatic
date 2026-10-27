@@ -18,7 +18,16 @@ Config.AccountMaxAction = 10000000 -- montant maximum d'un dépôt ou retrait
 Config.HistorySize = 30            -- lignes d'historique affichées
 
 -- Catalogues
-Config.MaxPurchase = 50            -- quantité maximale par achat
+Config.MaxPurchase = 50            -- quantité maximale par achat (par article dans le panier des magasins)
+Config.MaxCartLines = 30           -- articles différents dans un même panier
+-- Magasins d'articles (LTD, Ammunation…) : couleur de la bannière par catégorie de la tuile Catalogues, et nom affiché en
+-- grand (l'image d'en-tête du magasin, si elle est réglée, passe derrière). Catégorie absente : couleur du panel.
+Config.StoreThemes = {
+    ltd = { color = '#d3122a', title = 'LTD', sub = 'Limited Gasoline' },
+    ammunation = { color = '#2b2b2e', title = 'AMMU-NATION' },
+    vangelico = { color = '#141210', title = 'VANGELICO', textColor = '#d9b45a' },
+    skateshop = { color = '#1f6fd1', title = 'SKATE SHOP' },
+}
 
 -- Location de véhicules
 Config.RentalWarnings = { 300, 60 }   -- avertissements avant la fin (secondes restantes)

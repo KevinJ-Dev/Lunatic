@@ -20,13 +20,14 @@ server_scripts {
 
 client_script 'client/main.lua'
 
--- Interface des agences de location (aperçu 3D, durée, paiement)
+-- Interface des agences de location (aperçu 3D, durée, paiement) et des magasins d'articles (catalogue, panier)
 ui_page 'html/index.html'
 
 files {
     'html/index.html',
     'html/style.css',
     'html/app.js',
+    'html/store.js',
     'html/fonts/*.woff2',
 }
 

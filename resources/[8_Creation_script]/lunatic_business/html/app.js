@@ -173,7 +173,7 @@ window.addEventListener("message", (event) => {
 
 // ---------- Aperçu navigateur ----------
 
-if (!inGame) {
+if (!inGame && !location.hash.includes("store")) {
     window.postMessage({
         action: "rentalOpen", label: "Location Vespucci", currency: "$", cash: 420, bank: 15800, maxPeriods: 4,
         active: null,

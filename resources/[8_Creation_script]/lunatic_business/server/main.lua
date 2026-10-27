@@ -849,6 +849,154 @@ local function shopAt(src, slug, index, kind)
     return shop, location, xPlayer
 end
 
+---------------------------------------------------------------------
+-- Magasins d'articles (LTD, Ammunation…) : interface Lunatic au lieu de celle d'ox_inventory. Tout est revérifié ici :
+-- articles et prix du panel, quantités, permis, place dans l'inventaire, solde.
+---------------------------------------------------------------------
+
+local licenseLabels = {}
+local storeBusy = {}
+
+local function licenseLabel(kind)
+    if licenseLabels[kind] == nil then
+        licenseLabels[kind] = MySQL.scalar.await('SELECT `label` FROM `licenses` WHERE `type` = ?', { kind }) or kind
+    end
+
+    return licenseLabels[kind]
+end
+
+local function licensesOf(identifier)
+    local owned = {}
+
+    for _, row in ipairs(MySQL.query.await('SELECT `type` FROM `user_licenses` WHERE `owner` = ?', { identifier }) or {}) do
+        owned[row.type] = true
+    end
+
+    return owned
+end
+
+local function accounts(xPlayer)
+    return xPlayer.getAccount('money').money, xPlayer.getAccount('bank').money
+end
+
+lib.callback.register('lunatic_business:storeOpen', function(src, slug, index)
+    local shop, _, xPlayer, err = shopAt(src, slug, index, 'items')
+
+    if not shop then
+        return fail(err)
+    end
+
+    local owned = licensesOf(xPlayer.identifier)
+    local items = {}
+
+    for _, entry in ipairs(shop.items or {}) do
+        local item = ox:Items(entry.item)
+
+        if item then
+            items[#items + 1] = {
+                item = entry.item, label = item.label, price = entry.price, weight = item.weight or 0, description = item.description,
+                license = entry.license and licenseLabel(entry.license) or nil, locked = entry.license ~= nil and not owned[entry.license],
+            }
+        end
+    end
+
+    local cash, bank = accounts(xPlayer)
+    return { ok = true, label = shop.label, category = shop.category, header = shop.header, items = items, cash = cash, bank = bank, max = Config.MaxPurchase }
+end)
+
+-- cart = { [article] = quantité }, account = 'money' (liquide) ou 'bank' (carte)
+lib.callback.register('lunatic_business:storeBuy', function(src, slug, index, cart, account)
+    if storeBusy[src] then
+        return fail('Patientez un instant.')
+    end
+
+    local shop, _, xPlayer, err = shopAt(src, slug, index, 'items')
+
+    if not shop then
+        return fail(err)
+    end
+
+    if type(cart) ~= 'table' then
+        return fail('Panier invalide.')
+    end
+
+    local entries, lines, total, weight, owned = {}, {}, 0, 0, nil
+
+    for _, entry in ipairs(shop.items or {}) do
+        entries[entry.item] = entry
+    end
+
+    for name, amount in pairs(cart) do
+        local entry = type(name) == 'string' and entries[name]
+        local item = entry and ox:Items(name)
+        amount = tonumber(amount)
+
+        if not item or not amount or amount ~= math.floor(amount) or amount < 1 or amount > Config.MaxPurchase or #lines >= Config.MaxCartLines then
+            return fail('Panier invalide.')
+        end
+
+        if entry.license then
+            owned = owned or licensesOf(xPlayer.identifier)
+
+            if not owned[entry.license] then
+                return fail(('%s : permis requis (%s).'):format(item.label, licenseLabel(entry.license)))
+            end
+        end
+
+        lines[#lines + 1] = { item = name, count = amount, label = item.label, price = entry.price * amount }
+        total = total + entry.price * amount
+        weight = weight + (item.weight or 0) * amount
+    end
+
+    if #lines == 0 then
+        return fail('Panier vide.')
+    end
+
+    for _, line in ipairs(lines) do
+        if not ox:CanCarryItem(src, line.item, line.count) then
+            return fail(('Pas assez de place pour %s.'):format(line.label))
+        end
+    end
+
+    if not ox:CanCarryWeight(src, weight) then
+        return fail('Votre inventaire est trop lourd pour tout prendre.')
+    end
+
+    account = account == 'bank' and 'bank' or 'money'
+
+    if xPlayer.getAccount(account).money < total then
+        return fail(account == 'bank' and 'Solde bancaire insuffisant.' or "Vous n'avez pas assez de liquide.")
+    end
+
+    storeBusy[src] = true
+    xPlayer.removeAccountMoney(account, total, ('Achat : %s'):format(shop.label))
+
+    -- Article refusé par l'inventaire malgré les vérifications : remboursé
+    local refund, labels = 0, {}
+
+    for _, line in ipairs(lines) do
+        if ox:AddItem(src, line.item, line.count) then
+            labels[#labels + 1] = ('%s x%d'):format(line.label, line.count)
+        else
+            refund = refund + line.price
+        end
+    end
+
+    if refund > 0 then
+        xPlayer.addAccountMoney(account, refund, ('Remboursement : %s'):format(shop.label))
+    end
+
+    storeBusy[src] = nil
+    GameLog('economy', 'info', src, 'shop.buy', shop.label, { total = total - refund, items = table.concat(labels, ', '), account = account })
+
+    local cash, bank = accounts(xPlayer)
+    return { ok = true, total = total - refund, refunded = refund > 0, cash = cash, bank = bank }
+end)
+
+AddEventHandler('playerDropped', function()
+    storeBusy[source] = nil
+end)
+
 local function rentalInfo(rental)
     return rental and { label = rental.label, plate = rental.plate, remaining = math.max(0, rental.expiresAt - os.time()) } or nil
 end

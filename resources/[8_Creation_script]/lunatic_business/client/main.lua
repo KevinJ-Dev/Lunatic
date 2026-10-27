@@ -1090,13 +1090,82 @@ local function openBuyback(target)
     lib.showContext('lb_buyback')
 end
 
+---------------------------------------------------------------------
+-- Magasins d'articles (LTD, Ammunation…) : catalogue et panier dans la page, achat vérifié par le serveur
+---------------------------------------------------------------------
+
+local store = nil -- magasin ouvert : { target }
+
+-- Image d'en-tête : lien direct, ou clé de la tuile Images du panel
+local function headerImage(value)
+    if type(value) ~= 'string' or value == '' then
+        return nil
+    end
+
+    if value:match('^https?://') or value:match('^nui://') then
+        return value
+    end
+
+    return (GlobalState.lunaticImages or {})[value]
+end
+
+local function closeStore()
+    if not store then
+        return
+    end
+
+    store = nil
+    SetNuiFocus(false, false)
+    SendNUIMessage({ action = 'storeClose' })
+end
+
+local function openStore(target)
+    if store or rental then
+        return
+    end
+
+    local info = lib.callback.await('lunatic_business:storeOpen', false, target.shop.slug, target.index)
+
+    if failed(info) then
+        return
+    end
+
+    store = { target = target }
+    local theme = Config.StoreThemes[info.category] or {}
+    SetNuiFocus(true, true)
+    SendNUIMessage({
+        action = 'storeOpen', label = info.label, items = info.items, cash = info.cash, bank = info.bank, max = info.max,
+        currency = GlobalState.lunaticCurrency or '$', header = headerImage(info.header),
+        theme = { color = theme.color, title = theme.title, sub = theme.sub, textColor = theme.textColor },
+    })
+end
+
+RegisterNUICallback('storeBuy', function(data, cb)
+    if not store then
+        return cb({ ok = false, error = 'Magasin fermé.' })
+    end
+
+    local target = store.target
+    local result = lib.callback.await('lunatic_business:storeBuy', false, target.shop.slug, target.index, type(data.cart) == 'table' and data.cart or {}, data.account)
+    cb(result or { ok = false, error = 'Achat impossible.' })
+
+    if result and result.ok then
+        notify(('Achat réglé : %s %s.'):format(result.total, GlobalState.lunaticCurrency or '$'), 'success')
+    end
+end)
+
+RegisterNUICallback('storeClose', function(_, cb)
+    cb({})
+    closeStore()
+end)
+
 local function openShop(target)
     if target.shop.kind == 'buyback' then
         return openBuyback(target)
     end
 
     if target.shop.kind == 'items' then
-        return exports.ox_inventory:openInventory('shop', { type = ('lunatic_%s'):format(target.shop.slug), id = target.index })
+        return openStore(target)
     end
 
     if target.shop.kind == 'rental' then
@@ -1183,6 +1252,7 @@ end)
 AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
         lib.hideTextUI()
+        closeStore()
 
         for _, blip in ipairs(shopBlips) do
             RemoveBlip(blip)
