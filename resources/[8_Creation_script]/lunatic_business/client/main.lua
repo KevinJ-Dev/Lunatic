@@ -1096,20 +1096,41 @@ RegisterNUICallback('rentalColor', function(data, cb)
 end)
 
 -- Véhicule d'un achat ou d'un essai : couleurs posées dès qu'il est arrivé chez le client
+-- Joueur mis au volant d'un véhicule du serveur dès qu'il est arrivé dans son jeu (la mise au volant du serveur échoue
+-- s'il n'est pas encore là) ; renvoie le véhicule une fois assis, nil au bout de timeout ms
+local function seatWhenReady(netId, timeout)
+    local limit = GetGameTimer() + (timeout or 5000)
+
+    while netId and GetGameTimer() < limit do
+        local vehicle = NetworkDoesNetworkIdExist(netId) and NetToVeh(netId) or 0
+
+        if vehicle ~= 0 and DoesEntityExist(vehicle) then
+            local ped = PlayerPedId()
+
+            if GetVehiclePedIsIn(ped, false) == vehicle then
+                return vehicle
+            end
+
+            SetPedIntoVehicle(ped, vehicle, -1)
+        end
+
+        Wait(50)
+    end
+
+    return nil
+end
+
+-- Véhicule acheté : joueur au volant, couleurs choisies posées
 local function paintWhenReady(netId, primary, secondary)
-    if not netId or (not primary and not secondary) then
+    if not netId then
         return
     end
 
     CreateThread(function()
-        local timeout = GetGameTimer() + 5000
+        local vehicle = seatWhenReady(netId, 5000)
 
-        while not NetworkDoesNetworkIdExist(netId) and GetGameTimer() < timeout do
-            Wait(50)
-        end
-
-        if NetworkDoesNetworkIdExist(netId) then
-            paintVehicle(NetToVeh(netId), primary, secondary)
+        if vehicle and (primary or secondary) then
+            paintVehicle(vehicle, primary, secondary)
         end
     end)
 end
@@ -1194,20 +1215,42 @@ RegisterNUICallback('rentalTest', function(data, cb)
     local target, colors = rental.target, rental.colors
     closeRental()
 
+    -- Écran noir le temps que le véhicule d'essai apparaisse et que le joueur soit au volant
+    DoScreenFadeOut(250)
+
+    while not IsScreenFadedOut() do
+        Wait(0)
+    end
+
     local result = lib.callback.await('lunatic_business:testDrive', false, target.shop.slug, target.index, tonumber(data.id))
 
     if failed(result) then
+        DoScreenFadeIn(300)
         return
     end
 
-    notify(('Essai de %s : %d minutes. Descendez du véhicule pour le rendre plus tôt.'):format(result.label, math.floor(result.seconds / 60)), 'info')
-    paintWhenReady(result.netId, colors.primary, colors.secondary)
     testDrive = { label = result.label, endsAt = GetGameTimer() + result.seconds * 1000 }
     local current = testDrive
+    local vehicle = seatWhenReady(result.netId, 8000)
+
+    if vehicle and (colors.primary or colors.secondary) then
+        paintVehicle(vehicle, colors.primary, colors.secondary)
+    end
+
+    -- Véhicule jamais arrivé : essai annulé (le serveur le reprend)
+    if not vehicle then
+        testDrive = nil
+        DoScreenFadeIn(400)
+        TriggerServerEvent('lunatic_business:testEnd')
+        return
+    end
+
+    DoScreenFadeIn(400)
+    notify(('Essai de %s : %d minutes. Descendez du véhicule pour le rendre plus tôt.'):format(result.label, math.floor(result.seconds / 60)), 'info')
 
     CreateThread(function()
-        local outside = 0
-        Wait(1500)
+        -- Descendre du véhicule ne compte qu'une fois le joueur assis dedans
+        local outside, seated = 0, vehicle ~= nil
 
         while testDrive == current do
             local right, bottom = minimapCorner()
@@ -1216,7 +1259,9 @@ RegisterNUICallback('rentalTest', function(data, cb)
                 left = right, bottom = bottom, hidden = IsRadarHidden() or IsPauseMenuActive(),
             })
 
-            outside = IsPedInAnyVehicle(PlayerPedId(), false) and 0 or outside + 1
+            local inside = IsPedInAnyVehicle(PlayerPedId(), false)
+            seated = seated or inside
+            outside = (inside or not seated) and 0 or outside + 1
 
             if outside == 3 then
                 TriggerServerEvent('lunatic_business:testEnd')
