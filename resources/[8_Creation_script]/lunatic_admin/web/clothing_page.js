@@ -55,6 +55,8 @@ function clothingDraft() {
         if (brand.showText === undefined) brand.showText = true;
         if (brand.image === undefined) brand.image = "";
         if (brand.coef === undefined) brand.coef = 1;
+        if (!brand.textColor) brand.textColor = "";
+        if (brand.flat === undefined) brand.flat = false;
         if (!brand.exclude || Array.isArray(brand.exclude)) brand.exclude = {};
     }
     for (const outfit of d.ready) if (!outfit.brands || Array.isArray(outfit.brands)) outfit.brands = {};
@@ -79,7 +81,7 @@ function clothingGo(view, brand) {
 
 // Bannière d'une enseigne (tuile de l'accueil et aperçu)
 function clothingBanner(brand, sub) {
-    const el = h("div", { class: "clothing-banner" }, brand.showText !== false ? h("b", null, brand.label || "Enseigne") : null, h("small", null, sub));
+    const el = h("div", { class: "clothing-banner" }, brand.showText !== false ? h("b", { style: brand.textColor ? `color:${brand.textColor}` : null }, brand.label || "Enseigne") : null, h("small", null, sub));
     el.style.background = brand.color || "#7a3cff";
     if (/^https?:\/\//.test(brand.image || "")) el.style.backgroundImage = `linear-gradient(180deg, #0000 40%, #0008), url("${brand.image}")`;
     return el;
@@ -167,6 +169,9 @@ function clothingBrandBanner(d, brand, base) {
     image.addEventListener("input", paintPreview);
     const text = draftToggle(brand, "showText", "Nom sur la bannière", "Décochez si l'image contient déjà le logo.");
     text.addEventListener("click", paintPreview);
+    const textColor = h("input", { class: "input clothing-color", type: "color", value: brand.textColor || "#ffffff" });
+    textColor.addEventListener("input", () => { brand.textColor = textColor.value; paintPreview(); });
+    const flat = draftToggle(brand, "flat", "Une catégorie par bouton", "La barre du bas montre chaque catégorie vendue (Montres, Bracelets…) au lieu des groupes. Idéal pour une bijouterie.");
     const used = d.stores.filter((s) => s.brand === brand.key).length;
 
     // Catégories vendues : interrupteur allumé = vendue (enregistré comme liste des catégories exclues)
@@ -183,9 +188,10 @@ function clothingBrandBanner(d, brand, base) {
             h("div", { class: "driving-grid" },
                 fieldRow("Nom", label),
                 fieldRow("Couleur", color),
+                fieldRow("Couleur du nom", textColor),
                 fieldRow("Couleur du blip (0-85)", clothingInput(brand, "blip", { type: "number", min: "0", max: "85" }, true))),
             fieldRow("Image de bannière", image),
-            h("div", { class: "mode-list" }, text)),
+            h("div", { class: "mode-list" }, text, flat)),
         h("div", { class: "card" }, h("div", { class: "crew-sub" }, "Prix et catégories vendues"),
             fieldRow("Coefficient de prix", clothingInput(brand, "coef", { type: "number", min: "0.1", max: "10", step: "0.05" }, true)),
             h("p", { class: "hint-line" }, "Prix d'une pièce dans cette enseigne = prix de sa fiche (ou de sa catégorie) × coefficient. Ex. 0,8 pour un discount, 2 pour du luxe."),

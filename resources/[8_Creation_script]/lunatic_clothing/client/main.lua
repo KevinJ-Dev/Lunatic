@@ -85,17 +85,48 @@ end
 -- Caméra (devant le personnage, décalée pour laisser le panneau à gauche)
 ---------------------------------------------------------------------
 
+-- Pose d'une vue (poignet levé pour les montres) : dans la gestion du catalogue, la boucle de pose figée la prend ;
+-- en magasin, l'animation est jouée tant que la vue est active
+local function setViewPose(name)
+    local pose = name and Config.Poses[name] or nil
+
+    if shop.mode == 'tool' then
+        shop.pose = pose
+        return
+    end
+
+    local ped = PlayerPedId()
+
+    if pose then
+        if pcall(lib.requestAnimDict, pose.dict, 3000) then
+            TaskPlayAnim(ped, pose.dict, pose.anim, 4.0, -4.0, -1, 1, 0.0, false, false, false)
+        end
+    elseif shop.viewPose then
+        ClearPedTasks(ped)
+    end
+
+    shop.viewPose = pose
+end
+
 local function setCamera(view, instant, override)
     local settings = override or Config.Cameras[view] or Config.Cameras.torso
     local anchor = shop.anchor
     shop.view = view
+    setViewPose(settings.pose)
 
+    -- Caméra face au personnage, tournée autour de lui (angle), décalée sur son côté (side) puis vers la droite de
+    -- l'écran pour laisser le panneau à gauche
     local angle = math.rad(anchor.w)
     local forward = vector3(-math.sin(angle), math.cos(angle), 0.0)
     local right = vector3(math.cos(angle), math.sin(angle), 0.0)
+    local orbit = math.rad(settings.angle or 0.0)
+    local direction = forward * math.cos(orbit) + right * math.sin(orbit)
+    -- Gauche de l'écran vue de la caméra (= droite du personnage quand la caméra est en face)
+    local screenLeft = vector3(direction.y, -direction.x, 0.0)
     local halfWidth = settings.distance * math.tan(math.rad(settings.fov) / 2) * GetAspectRatio(false)
-    local base = vector3(anchor.x, anchor.y, anchor.z) + right * (halfWidth * (override and 0.0 or shop.shift or Config.CameraShift))
-    local position = base + forward * settings.distance + vector3(0.0, 0.0, settings.height)
+    local base = vector3(anchor.x, anchor.y, anchor.z) + right * (settings.side or 0.0)
+        + screenLeft * (halfWidth * (override and 0.0 or shop.shift or Config.CameraShift))
+    local position = base + direction * settings.distance + vector3(0.0, 0.0, settings.height)
 
     local new = CreateCamWithParams('DEFAULT_SCRIPTED_CAMERA', position.x, position.y, position.z, 0.0, 0.0, 0.0, settings.fov, false, 2)
     PointCamAtCoord(new, base.x, base.y, base.z + settings.height)
@@ -122,6 +153,7 @@ end
 
 -- Groupes et catégories vendus par l'enseigne (toutes pour la gestion du catalogue) ; price = prix dans l'enseigne,
 -- base = prix par défaut de la catégorie
+-- Enseigne « une catégorie par bouton » (bijouterie) : chaque catégorie devient son propre groupe dans la barre
 local function groupsFor(brand)
     local list = {}
 
@@ -131,10 +163,16 @@ local function groupsFor(brand)
         for _, category in ipairs(group.categories) do
             if not brand or ClothingBrandSells(brand, category.key) then
                 local base = ClothingPrice(category.key)
-                categories[#categories + 1] = {
+                local entry = {
                     key = category.key, label = category.label, kind = category.kind, id = category.id, base = base,
-                    price = brand and ClothingBrandPrice(brand, base) or base,
+                    price = brand and ClothingBrandPrice(brand, base) or base, camera = category.camera,
                 }
+
+                if brand and brand.flat then
+                    list[#list + 1] = { key = category.key, label = category.label, icon = category.icon or group.icon, camera = category.camera or group.camera, categories = { entry } }
+                else
+                    categories[#categories + 1] = entry
+                end
             end
         end
 
@@ -290,7 +328,7 @@ local function openShop(index, store)
     end
 
     SendNUIMessage({ action = 'open', data = {
-        store = store.label, brand = { label = brand.label, color = brand.color, image = bannerImage(brand.image), showText = brand.showText ~= false },
+        store = store.label, brand = { label = brand.label, color = brand.color, textColor = brand.textColor, image = bannerImage(brand.image), showText = brand.showText ~= false },
         pages = pages, groups = groupsFor(brand), worn = wornAll(ped), sex = sex, currency = currency(), items = items, coef = tonumber(brand.coef) or 1.0,
         images = (GlobalState.lunaticCreator or {}).clothesImages or Config.ClothesImages, renderer = Config.RendererImages,
         ready = readyFor(brand.key, sex), outfits = profile.outfits or {}, maxOutfits = profile.max or 0,
@@ -568,7 +606,7 @@ local function holdPose()
     CreateThread(function()
         while shop and shop.mode == 'tool' do
             local ped = PlayerPedId()
-            local pose = Config.Capture.pose[sexOf(ped)]
+            local pose = shop.pose or Config.Capture.pose[sexOf(ped)]
 
             if not IsEntityPlayingAnim(ped, pose.dict, pose.anim, 3) then
                 -- Animation absente du jeu : pas de pose, la gestion continue
@@ -753,7 +791,8 @@ local function photograph(category, drawable, view, batch)
     if shop.photoView ~= view then
         shop.photoView = view
         setCamera(view, true, Config.Capture.cameras[view])
-        Wait(150)
+        -- Le temps que la pose de la vue (poignet levé) se mette en place
+        Wait(500)
     end
 
     local base = baseShots[view]
@@ -797,7 +836,8 @@ local function photoView(key)
     for _, group in ipairs(Config.Groups) do
         for _, category in ipairs(group.categories) do
             if category.key == key then
-                return Config.Capture.cameras[group.camera] and group.camera or 'torso'
+                local view = category.camera or group.camera
+                return Config.Capture.cameras[view] and view or 'torso'
             end
         end
     end

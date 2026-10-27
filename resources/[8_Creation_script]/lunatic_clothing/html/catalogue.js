@@ -30,7 +30,7 @@ function toolGroupOpen(key) {
     tool.group = g.key;
     tool.category = g.categories[0].key;
     tool.selected = null;
-    nui("camera", { view: g.camera });
+    nui("camera", { view: g.categories[0].camera || g.camera });
     paintTool();
 }
 
@@ -63,7 +63,7 @@ function toolLeft() {
     const c = toolCategory();
     const total = tool.counts[`${tool.data.sex}:${c.key}:0`];
     const tabs = g.categories.length > 1 ? h("div", { class: "tabs" }, g.categories.map((entry) => h("button", {
-        class: `tab${entry.key === tool.category ? " on" : ""}`, onclick: () => { tool.category = entry.key; tool.selected = null; if ($("toolGrid")) $("toolGrid").scrollTop = 0; paintTool(); },
+        class: `tab${entry.key === tool.category ? " on" : ""}`, onclick: () => { tool.category = entry.key; tool.selected = null; nui("camera", { view: entry.camera || g.camera }); if ($("toolGrid")) $("toolGrid").scrollTop = 0; paintTool(); },
     }, entry.label))) : null;
 
     if (!total) {
@@ -137,7 +137,7 @@ function toolRight() {
     const capture = async () => {
         tool.busy = true;
         paintTool();
-        const res = await nui("capture", { key: c.key, drawable, view: toolGroup().camera });
+        const res = await nui("capture", { key: c.key, drawable, view: c.camera || toolGroup().camera });
         tool.busy = false;
         if (!res || !res.ok) { paintTool(); return toast((res && res.error) || "Photo impossible."); }
         tool.previews[`${tool.data.sex}:${c.key}:${drawable}`] = res.preview;

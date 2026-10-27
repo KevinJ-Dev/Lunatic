@@ -38,10 +38,78 @@ local function defaults()
     return ok and type(value) == 'table' and value or empty
 end
 
+-- Enseignes ajoutées plus tard à la config de lunatic_clothing (ex. Vangelico) : ajoutées une seule fois aux enseignes
+-- déjà enregistrées, avec leurs magasins. Une enseigne supprimée ensuite ne revient pas (settings.offered).
+local ORIGINAL_BRANDS = { 'binco', 'suburban', 'ponsonbys', 'discount' }
+
+local function offerNewBrands()
+    if type(settings.brands) ~= 'table' or #settings.brands == 0 then
+        return
+    end
+
+    local base = defaults()
+
+    if not base.brands or #base.brands == 0 then
+        return
+    end
+
+    if type(settings.offered) ~= 'table' then
+        settings.offered = {}
+
+        for _, key in ipairs(ORIGINAL_BRANDS) do
+            settings.offered[key] = true
+        end
+    end
+
+    local present, changed = {}, false
+
+    for _, brand in ipairs(settings.brands) do
+        present[brand.key] = true
+        settings.offered[brand.key] = true
+    end
+
+    for _, brand in ipairs(base.brands) do
+        if not settings.offered[brand.key] then
+            settings.offered[brand.key] = true
+            changed = true
+
+            if not present[brand.key] then
+                settings.brands[#settings.brands + 1] = brand
+
+                if type(settings.stores) == 'table' and #settings.stores > 0 then
+                    for _, store in ipairs(base.stores or {}) do
+                        if store.brand == brand.key then
+                            settings.stores[#settings.stores + 1] = store
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if changed then
+        SetResourceKvp('clothing_shops', json.encode(settings))
+        publish()
+    end
+end
+
+CreateThread(function()
+    local timeout = GetGameTimer() + 120000
+
+    while GetResourceState('lunatic_clothing') ~= 'started' and GetGameTimer() < timeout do
+        Wait(2000)
+    end
+
+    Wait(1000)
+    offerNewBrands()
+end)
+
 Panel.actions['clothing.get'] = function(_, actor)
     if not allowed(actor) then
         return denied()
     end
+
+    offerNewBrands()
 
     return {
         ok = true, silent = true, stores = settings.stores or {}, prices = settings.prices or {}, brands = settings.brands or {},
@@ -82,6 +150,8 @@ local function readBrands(list, categories)
         local image = type(brand) == 'table' and Util.cleanTextOrEmpty(brand.image, 0, 300)
         local blip = type(brand) == 'table' and Util.whole(brand.blip or 0, 0, 85)
         local coef = type(brand) == 'table' and tonumber(brand.coef or 1)
+        local rawColor = type(brand) == 'table' and brand.textColor or nil
+        local textColor = (rawColor == nil or rawColor == '') and '' or type(rawColor) == 'string' and rawColor:match('^#%x%x%x%x%x%x$')
 
         if not key or #key > 20 or keys[key] then
             return nil, ('Enseigne %d : identifiant invalide ou en double.'):format(index)
@@ -95,6 +165,8 @@ local function readBrands(list, categories)
             return nil, ('Enseigne %d : couleur de blip de 0 à 85.'):format(index)
         elseif not coef or coef < 0.1 or coef > 10 then
             return nil, ('Enseigne %d : coefficient de prix de 0,1 à 10.'):format(index)
+        elseif not textColor then
+            return nil, ('Enseigne %d : couleur du nom invalide (ex. #d9b45a, vide : blanc).'):format(index)
         end
 
         -- Catégories non vendues (clés connues seulement)
@@ -109,7 +181,7 @@ local function readBrands(list, categories)
         keys[key] = true
         brands[#brands + 1] = {
             key = key, label = label, color = color, image = image, showText = brand.showText ~= false, blip = blip,
-            coef = math.floor(coef * 100 + 0.5) / 100, exclude = exclude,
+            coef = math.floor(coef * 100 + 0.5) / 100, exclude = exclude, textColor = textColor, flat = brand.flat == true,
         }
     end
 
@@ -305,7 +377,7 @@ Panel.actions['clothing.save'] = function(src, actor, data)
         return Panel.fail('Mes tenues : de 0 à 50 par personnage.')
     end
 
-    settings = { stores = stores, prices = prices, brands = brands, ready = ready, maxOutfits = maxOutfits }
+    settings = { stores = stores, prices = prices, brands = brands, ready = ready, maxOutfits = maxOutfits, offered = settings.offered }
     SetResourceKvp('clothing_shops', json.encode(settings))
     publish()
 

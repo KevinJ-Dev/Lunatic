@@ -45,6 +45,12 @@ const ICONS = {
     hat: "M4 16c0-5 3-9 8-9s8 4 8 9M2 16h20",
     watch: "M9 3h6l1 4M9 3 8 7M8 17l1 4h6l1-4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 10v2l1 1",
     bag: "M5 8h14l-1 13H6zM9 8V6a3 3 0 0 1 6 0v2",
+    glove: "M7 21v-6l-2-4V6a1 1 0 0 1 2 0v4V4a1 1 0 0 1 2 0v6V3a1 1 0 0 1 2 0v7V4a1 1 0 0 1 2 0v8l2-2a1 1 0 0 1 2 1l-4 5v5",
+    glasses: "M3 12a3 3 0 1 0 6 0 3 3 0 0 0-6 0M15 12a3 3 0 1 0 6 0 3 3 0 0 0-6 0M9 12h6",
+    mask: "M4 8c3-2 13-2 16 0 0 7-3 12-8 12S4 15 4 8zM8 11h2M14 11h2",
+    earring: "M12 3v6M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
+    chain: "M6 4c0 8 3 12 6 12s6-4 6-12M12 16v4",
+    bracelet: "M4 12a8 5 0 1 0 16 0 8 5 0 1 0-16 0M7 12a5 2.5 0 1 0 10 0 5 2.5 0 1 0-10 0",
     catalogue: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
     ready: "M12 3a2 2 0 0 1 2 2c0 1-1 1.5-2 2.5V9l9 7H3l9-7",
     outfits: "M4 7h16v13H4zM9 7V4h6v3M4 12h16",
@@ -107,6 +113,7 @@ function open(payload) {
     banner.style.backgroundImage = payload.brand.image ? `linear-gradient(180deg, #0000 40%, #0008), url("${payload.brand.image}")` : "";
     banner.classList.toggle("with-image", !!payload.brand.image);
     $("brand").textContent = payload.brand.label;
+    $("brand").style.color = payload.brand.textColor || "";
     $("brand").className = `brand${payload.brand.label === payload.brand.label.toLowerCase() ? " lower" : ""}`;
     $("brand").classList.toggle("hidden", payload.brand.showText === false);
     $("storeName").textContent = payload.store;
@@ -163,7 +170,7 @@ function openGroup(key) {
     view = "catalogue";
     group = g.key;
     category = g.categories[0].key;
-    setCamera(g.camera);
+    setCamera(g.categories[0].camera || g.camera);
     paint();
 }
 
@@ -188,7 +195,7 @@ function catalogueView() {
     const total = countsCache[`${data.sex}:${c.key}:0`];
 
     const tabs = g.categories.length > 1 ? h("div", { class: "tabs" }, g.categories.map((entry) => h("button", {
-        class: `tab${entry.key === category ? " on" : ""}`, onclick: () => { category = entry.key; if ($("grid")) $("grid").scrollTop = 0; paint(); },
+        class: `tab${entry.key === category ? " on" : ""}`, onclick: () => { category = entry.key; setCamera(entry.camera || g.camera); if ($("grid")) $("grid").scrollTop = 0; paint(); },
     }, entry.label))) : null;
     const current = piecePrice(c, value[0]);
     const price = h("div", { class: "price-line" }, h("span", null, c.label), h("b", null, value[0] < 0 ? "Aucun" : current > 0 ? `Cette pièce : ${money(current)}` : "Gratuit"));

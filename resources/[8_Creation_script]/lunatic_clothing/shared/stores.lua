@@ -51,7 +51,7 @@ function ClothingBrand(key)
     local entry = Config.Brands[brand]
     return {
         key = brand, label = entry.label, color = entry.color, image = entry.image or '', showText = entry.showText ~= false,
-        blip = entry.blip, coef = entry.coef or 1.0, exclude = entry.exclude or {},
+        blip = entry.blip, coef = entry.coef or 1.0, exclude = entry.exclude or {}, textColor = entry.textColor, flat = entry.flat == true,
     }
 end
 

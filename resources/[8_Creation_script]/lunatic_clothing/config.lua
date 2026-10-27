@@ -7,14 +7,19 @@ Config.Marker = { 150, 80, 255, 110 } -- couleur du marqueur au sol (couleur du 
 
 -- Enseignes (modifiables et complétées dans le panel) : nom de la bannière, couleur, image de bannière (lien https ou
 -- clé de la tuile Images, vide : couleur seule), nom affiché sur la bannière ou non, couleur du blip,
--- coefficient appliqué au prix des pièces (1 = prix du catalogue) et catégories non vendues (clés de Config.Groups)
+-- coefficient appliqué au prix des pièces (1 = prix du catalogue), catégories non vendues (clés de Config.Groups),
+-- couleur du nom sur la bannière (vide : blanc) et flat = une catégorie par bouton dans la barre du bas (au lieu des groupes)
+local NOT_JEWELRY = { jacket = true, undershirt = true, arms = true, pants = true, shoes = true, hat = true, glasses = true, mask = true, bag = true }
+
 Config.Brands = {
     binco = { label = 'binco', color = '#f7931e', image = '', showText = true, blip = 47, coef = 1.0, exclude = {} },
     suburban = { label = 'SUBURBAN', color = '#1f6fd1', image = '', showText = true, blip = 3, coef = 1.2, exclude = {} },
     ponsonbys = { label = 'PONSONBYS', color = '#1b1b1f', image = '', showText = true, blip = 40, coef = 2.0, exclude = {} },
     discount = { label = 'Discount Store', color = '#2e9e4f', image = '', showText = true, blip = 2, coef = 0.8, exclude = {} },
+    -- Bijouterie de luxe : bijoux seulement, une catégorie par bouton
+    vangelico = { label = 'VANGELICO', color = '#141210', textColor = '#d9b45a', image = '', showText = true, blip = 46, coef = 3.0, exclude = NOT_JEWELRY, flat = true },
 }
-Config.BrandOrder = { 'binco', 'suburban', 'ponsonbys', 'discount' }
+Config.BrandOrder = { 'binco', 'suburban', 'ponsonbys', 'discount', 'vangelico' }
 Config.Blip = { sprite = 73, scale = 0.7 }
 
 -- Mes tenues : nombre de tenues enregistrées par personnage (réglable dans le panel) ; Favoris : pièces par sexe
@@ -41,45 +46,58 @@ Config.Stores = {
     { label = 'Discount Store de Great Ocean', brand = 'discount', x = -1105.52, y = 2707.79, z = 19.11, h = 317.19 },
     { label = 'Binco de Vespucci Beach', brand = 'binco', x = -1119.24, y = -1440.6, z = 5.23, h = 300.5 },
     { label = 'Suburban de Hawick', brand = 'suburban', x = 124.82, y = -224.36, z = 54.56, h = 335.41 },
+    { label = 'Vangelico de Rockford Hills', brand = 'vangelico', x = -623.0, y = -232.5, z = 38.06, h = 125.0, pages = { catalogue = true, ready = false, outfits = false, favorites = true } },
 }
 
 -- Groupes de la barre du bas et catégories (composants et accessoires GTA) ; price = prix par défaut d'une pièce,
--- réglable dans le panel. camera = vue prise à l'ouverture du groupe.
+-- réglable dans le panel. camera = vue prise à l'ouverture du groupe (ou de la catégorie si elle a la sienne),
+-- icon = dessin du bouton quand l'enseigne affiche une catégorie par bouton.
 Config.Groups = {
     { key = 'tops', label = 'Hauts', icon = 'shirt', camera = 'torso', categories = {
-        { key = 'jacket', label = 'Hauts', kind = 'component', id = 11, price = 60 },
-        { key = 'undershirt', label = 'Sous-hauts', kind = 'component', id = 8, price = 30 },
-        { key = 'arms', label = 'Bras', kind = 'component', id = 3, price = 0 },
+        { key = 'jacket', label = 'Hauts', kind = 'component', id = 11, price = 60, icon = 'shirt' },
+        { key = 'undershirt', label = 'Sous-hauts', kind = 'component', id = 8, price = 30, icon = 'shirt' },
+        { key = 'arms', label = 'Bras', kind = 'component', id = 3, price = 0, icon = 'glove' },
     } },
     { key = 'legs', label = 'Bas', icon = 'pants', camera = 'legs', categories = {
-        { key = 'pants', label = 'Bas', kind = 'component', id = 4, price = 40 },
+        { key = 'pants', label = 'Bas', kind = 'component', id = 4, price = 40, icon = 'pants' },
     } },
     { key = 'feet', label = 'Chaussures', icon = 'shoe', camera = 'feet', categories = {
-        { key = 'shoes', label = 'Chaussures', kind = 'component', id = 6, price = 40 },
+        { key = 'shoes', label = 'Chaussures', kind = 'component', id = 6, price = 40, icon = 'shoe' },
     } },
     { key = 'head', label = 'Tête', icon = 'hat', camera = 'head', categories = {
-        { key = 'hat', label = 'Chapeaux', kind = 'prop', id = 0, price = 25 },
-        { key = 'glasses', label = 'Lunettes', kind = 'prop', id = 1, price = 20 },
-        { key = 'mask', label = 'Masques', kind = 'component', id = 1, price = 30 },
-        { key = 'earrings', label = "Boucles d'oreilles", kind = 'prop', id = 2, price = 20 },
+        { key = 'hat', label = 'Chapeaux', kind = 'prop', id = 0, price = 25, icon = 'hat' },
+        { key = 'glasses', label = 'Lunettes', kind = 'prop', id = 1, price = 20, icon = 'glasses' },
+        { key = 'mask', label = 'Masques', kind = 'component', id = 1, price = 30, icon = 'mask' },
+        { key = 'earrings', label = "Boucles d'oreilles", kind = 'prop', id = 2, price = 20, icon = 'earring', camera = 'ear' },
     } },
     { key = 'accessories', label = 'Accessoires', icon = 'watch', camera = 'torso', categories = {
-        { key = 'chain', label = 'Chaînes et cravates', kind = 'component', id = 7, price = 25 },
-        { key = 'watch', label = 'Montres', kind = 'prop', id = 6, price = 30 },
-        { key = 'bracelet', label = 'Bracelets', kind = 'prop', id = 7, price = 20 },
+        { key = 'chain', label = 'Chaînes et cravates', kind = 'component', id = 7, price = 25, icon = 'chain', camera = 'neck' },
+        { key = 'watch', label = 'Montres', kind = 'prop', id = 6, price = 30, icon = 'watch', camera = 'wrist' },
+        { key = 'bracelet', label = 'Bracelets', kind = 'prop', id = 7, price = 20, icon = 'bracelet', camera = 'wristRight' },
     } },
     { key = 'bags', label = 'Sacs', icon = 'bag', camera = 'torso', categories = {
-        { key = 'bag', label = 'Sacs', kind = 'component', id = 5, price = 35 },
+        { key = 'bag', label = 'Sacs', kind = 'component', id = 5, price = 35, icon = 'bag' },
     } },
 }
 
--- Vues de la caméra : distance devant le personnage, hauteur visée, champ de vision
+-- Vues de la caméra : distance devant le personnage, hauteur visée, champ de vision ; side = décalage vers la droite
+-- du personnage (négatif : sa gauche), angle = rotation autour de lui (degrés, positif : vers sa droite),
+-- pose = animation jouée tant que la vue est active (bijoux du poignet)
 Config.Cameras = {
     head = { distance = 0.85, height = 0.65, fov = 36.0 },
     torso = { distance = 1.5, height = 0.3, fov = 45.0 },
     legs = { distance = 1.5, height = -0.45, fov = 45.0 },
     feet = { distance = 1.2, height = -0.8, fov = 40.0 },
     full = { distance = 2.7, height = 0.0, fov = 50.0 },
+    neck = { distance = 0.6, height = 0.45, fov = 34.0 },
+    ear = { distance = 0.45, height = 0.65, fov = 32.0, angle = -70.0 },
+    wrist = { distance = 0.7, height = 0.2, fov = 32.0, side = -0.12, pose = 'watch' },
+    wristRight = { distance = 0.7, height = 0.2, fov = 32.0, side = 0.12, pose = 'watch' },
+}
+
+-- Animations des vues (poignet levé comme pour regarder l'heure, celle des magasins de vêtements de GTA)
+Config.Poses = {
+    watch = { dict = 'anim@random@shop_clothes@watches', anim = 'base' },
 }
 -- Décalage du personnage vers la droite de l'écran (le panneau est à gauche)
 Config.CameraShift = 0.25
@@ -119,6 +137,10 @@ Config.Capture = {
         female = { [1] = 0, [2] = 0, [3] = 15, [4] = 17, [5] = 0, [6] = 35, [7] = 0, [8] = 14, [9] = 0, [10] = 0, [11] = 18 },
     },
     cameras = {
+        neck = { distance = 0.55, height = 0.45, fov = 30.0 },
+        ear = { distance = 0.4, height = 0.65, fov = 28.0, angle = -70.0 },
+        wrist = { distance = 0.6, height = 0.2, fov = 28.0, side = -0.12, pose = 'watch' },
+        wristRight = { distance = 0.6, height = 0.2, fov = 28.0, side = 0.12, pose = 'watch' },
         head = { distance = 0.75, height = 0.65, fov = 30.0 },
         torso = { distance = 1.35, height = 0.25, fov = 40.0 },
         legs = { distance = 1.45, height = -0.5, fov = 42.0 },

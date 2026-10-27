@@ -44,7 +44,7 @@ exports('getDefaults', function()
         local brand = Config.Brands[key]
         brands[#brands + 1] = {
             key = key, label = brand.label, color = brand.color, image = brand.image or '', showText = brand.showText ~= false,
-            blip = brand.blip, coef = brand.coef or 1.0, exclude = brand.exclude or {},
+            blip = brand.blip, coef = brand.coef or 1.0, exclude = brand.exclude or {}, textColor = brand.textColor or '', flat = brand.flat == true,
         }
     end
 
