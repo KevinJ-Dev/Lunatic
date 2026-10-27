@@ -42,7 +42,7 @@ function toast(text) {
 }
 
 let data = null;
-const state = { category: null, selected: null, periods: 1, account: "money", cam: "orbit", auto: false, primary: -1, secondary: -1 };
+const state = { category: null, selected: null, periods: 1, account: "money", cam: "orbit", auto: false, primary: -1, secondary: -1, client: null };
 
 // Couleurs proposées à la vente (numéro GTA, nom, teinte approchée pour la pastille)
 const SALE_COLORS = [
@@ -143,6 +143,33 @@ function paintFoot(vehicle) {
         onclick: () => { state.account = account; paintFoot(vehicle); },
     }, label, h("small", null, money(balance)));
 
+    // Vente encadrée : le vendeur propose à un client proche, le client demande un vendeur
+    if (data.sale && data.mode === "seller") {
+        const clients = data.clients || [];
+        if (!clients.some((c) => c.id === state.client)) state.client = clients.length ? clients[0].id : null;
+        const select = h("select", { class: "client" }, clients.map((c) => h("option", { value: String(c.id), selected: c.id === state.client }, c.name)));
+        select.addEventListener("change", () => { state.client = Number(select.value); });
+        $("foot").replaceChildren(...[
+            colorRow("Couleur", "primary"), colorRow("Secondaire", "secondary"),
+            h("div", { class: "row" }, h("span", null, "Client"), clients.length ? select : h("b", null, "Personne à côté")),
+            h("div", { class: "row" }, h("span", null, "Prix"), h("b", { class: "total" }, total > 0 ? money(total) : "Gratuit")),
+            h("button", { class: "ghost-btn test", disabled: !vehicle, onclick: () => vehicle && nui("rentalTest", { id: vehicle.id }) }, "Essai routier"),
+            h("button", { class: "go", disabled: !vehicle || state.client === null, onclick: () => {
+                if (!vehicle || state.client === null) return;
+                nui("rentalOffer", { id: vehicle.id, client: state.client, primary: state.primary, secondary: state.secondary });
+            } }, "Proposer la vente"),
+        ]);
+        return;
+    }
+    if (data.sale && data.mode === "request") {
+        $("foot").replaceChildren(
+            h("div", { class: "row" }, h("span", null, "Prix"), h("b", { class: "total" }, total > 0 ? money(total) : "Gratuit")),
+            h("p", { class: "seller-hint" }, "Un vendeur est en service : il vous propose le véhicule et ses couleurs, puis vous payez."),
+            h("button", { class: "ghost-btn test", disabled: !vehicle, onclick: () => vehicle && nui("rentalTest", { id: vehicle.id }) }, "Essai routier"),
+            h("button", { class: "go", onclick: () => nui("rentalRequest") }, "Demander un vendeur"));
+        return;
+    }
+
     const blocked = !vehicle || !!data.active || (total > 0 && !canPay(state.account));
     $("foot").replaceChildren(...[
         data.sale ? colorRow("Couleur", "primary") : null,
@@ -203,6 +230,7 @@ window.addEventListener("message", (event) => {
         state.auto = false;
         state.primary = -1;
         state.secondary = -1;
+        state.client = null;
         paintCams();
         $("agency").textContent = data.label;
         document.querySelector("#rental .head small").textContent = data.sale ? "Vente" : "Location";
@@ -223,7 +251,9 @@ window.addEventListener("message", (event) => {
 if (!inGame && location.hash.includes("sale")) {
     const bars = (a, b, c, d) => [{ label: "Vitesse", value: a }, { label: "Accélération", value: b }, { label: "Freinage", value: c }, { label: "Traction", value: d }];
     window.postMessage({
-        action: "rentalOpen", sale: true, label: "Concessionnaire Premium Deluxe", currency: "$", cash: 420, bank: 15800, active: null,
+        action: "rentalOpen", sale: true, label: "Concessionnaire Premium Deluxe",
+        mode: location.hash.includes("seller") ? "seller" : location.hash.includes("request") ? "request" : "free",
+        clients: [{ id: 1, name: "Moi-même" }, { id: 7, name: "Jean Dupont" }], currency: "$", cash: 420, bank: 15800, active: null,
         vehicles: [
             { id: 1, model: "bmx", label: "BMX", price: 350, category: "BMX" },
             { id: 2, model: "scorcher", label: "Scorcher", price: 900, category: "VTT" },

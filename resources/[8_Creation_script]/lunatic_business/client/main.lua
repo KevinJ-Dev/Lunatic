@@ -936,7 +936,7 @@ local function rentalData(info)
     return {
         action = 'rentalOpen', label = info.label, header = info.header, vehicles = info.vehicles, active = info.active,
         cash = info.cash, bank = info.bank, maxPeriods = info.maxPeriods, currency = GlobalState.lunaticCurrency or '$',
-        sale = info.sale == true, stats = info.sale and vehicleStats(info.vehicles) or nil,
+        sale = info.sale == true, stats = info.sale and vehicleStats(info.vehicles) or nil, mode = info.mode, clients = info.clients,
     }
 end
 
@@ -1113,6 +1113,73 @@ local function paintWhenReady(netId, primary, secondary)
         end
     end)
 end
+
+-- Vente par un vendeur : demande du client, offre du vendeur
+RegisterNUICallback('rentalRequest', function(_, cb)
+    cb({})
+
+    if not rental or not rental.info.sale then
+        return
+    end
+
+    local result = lib.callback.await('lunatic_business:saleRequest', false, rental.target.shop.slug, rental.target.index)
+
+    if not failed(result) then
+        notify(('Vendeur prévenu (%d en service) : restez au comptoir.'):format(result.count), 'success')
+    end
+end)
+
+RegisterNUICallback('rentalOffer', function(data, cb)
+    cb({})
+
+    if not rental or not rental.info.sale then
+        return
+    end
+
+    local target = rental.target
+    closeRental()
+
+    local result = lib.callback.await('lunatic_business:saleOffer', false, target.shop.slug, target.index, tonumber(data.id), tonumber(data.client),
+        nuiColor(data.primary), nuiColor(data.secondary))
+
+    if not failed(result) then
+        notify(('Offre envoyée à %s : %s.'):format(result.client, result.label), 'success')
+    end
+end)
+
+-- Offre reçue : le client paie en liquide, par carte, ou refuse (menu ox_lib)
+RegisterNetEvent('lunatic_business:saleOffer', function(offer)
+    local answered = false
+
+    local function answer(account)
+        if answered then
+            return
+        end
+
+        answered = true
+        local result = lib.callback.await('lunatic_business:saleAnswer', false, account)
+
+        if failed(result) or result.refused then
+            return
+        end
+
+        paintWhenReady(result.netId, result.primary, result.secondary)
+        notify(('%s acheté %s : il est à vous (plaque %s).'):format(result.label, money(result.price), result.plate), 'success')
+    end
+
+    lib.registerContext({
+        id = 'lb_sale_offer', title = ('%s : %s'):format(offer.shop, offer.label),
+        -- Menu fermé sans choisir : refus (après un instant, pour laisser passer un choix)
+        onExit = function() SetTimeout(300, function() answer(nil) end) end,
+        options = {
+            { title = ('%s pour %s'):format(offer.label, money(offer.price)), description = ('Proposé par %s, valable %d secondes.'):format(offer.seller, offer.seconds), readOnly = true },
+            { title = 'Payer en liquide', icon = 'money-bill', onSelect = function() answer('money') end },
+            { title = 'Payer par carte', icon = 'credit-card', onSelect = function() answer('bank') end },
+            { title = 'Refuser', icon = 'xmark', onSelect = function() answer(nil) end },
+        },
+    })
+    lib.showContext('lb_sale_offer')
+end)
 
 -- Essai routier : compte à rebours à droite de la minimap ; descendre du véhicule y met fin
 local testDrive = nil

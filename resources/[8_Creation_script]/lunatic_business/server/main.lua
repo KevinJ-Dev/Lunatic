@@ -1084,7 +1084,42 @@ lib.callback.register('lunatic_business:rentalOpen', function(src, slug, index)
     }
 end)
 
--- Vente de véhicules (concessionnaire, Vespucci Bike) : vitrine sur place de l'emplacement, sinon la commune ; sans durée
+-- Vendeurs en service : joueurs connectés avec le job lié au magasin (sans compter except)
+local function sellersOnline(job, except)
+    if not job or job == '' then
+        return {}
+    end
+
+    local list = {}
+
+    for _, xSeller in pairs(ESX.GetExtendedPlayers('job', job)) do
+        if xSeller.source ~= except then
+            list[#list + 1] = xSeller
+        end
+    end
+
+    return list
+end
+
+-- Clients possibles d'un vendeur : joueurs proches (lui compris, pour s'acheter un véhicule)
+local function nearbyClients(src)
+    local origin = GetEntityCoords(GetPlayerPed(src))
+    local list = {}
+
+    for _, xTarget in pairs(ESX.GetExtendedPlayers()) do
+        local ped = GetPlayerPed(xTarget.source)
+
+        if ped ~= 0 and #(GetEntityCoords(ped) - origin) <= Config.SaleClientDistance then
+            list[#list + 1] = { id = xTarget.source, name = xTarget.source == src and 'Moi-même' or xTarget.getName() }
+        end
+    end
+
+    table.sort(list, function(a, b) return a.id == src or (b.id ~= src and a.name < b.name) end)
+    return list
+end
+
+-- Vente de véhicules (concessionnaire, Vespucci Bike) : vitrine sur place de l'emplacement, sinon la commune ; sans durée.
+-- mode = 'seller' (employé : propose la vente), 'request' (un vendeur est en service : le client le demande) ou 'free'
 lib.callback.register('lunatic_business:saleOpen', function(src, slug, index)
     local shop, location, xPlayer, err = shopAt(src, slug, index, 'vehicles')
 
@@ -1092,8 +1127,12 @@ lib.callback.register('lunatic_business:saleOpen', function(src, slug, index)
         return fail(err)
     end
 
+    local seller = shop.accountJob ~= '' and xPlayer.getJob().name == shop.accountJob
+    local mode = seller and 'seller' or #sellersOnline(shop.accountJob, src) > 0 and 'request' or 'free'
+
     return {
-        ok = true, sale = true, label = shop.label, header = shop.header, vehicles = shop.vehicles or {},
+        ok = true, sale = true, label = shop.label, header = shop.header, vehicles = shop.vehicles or {}, mode = mode,
+        clients = seller and nearbyClients(src) or nil,
         cash = xPlayer.getAccount('money').money, bank = xPlayer.getAccount('bank').money, showroom = location.showroom or showroomSpot(),
     }
 end)
@@ -1214,31 +1253,17 @@ local function colorOf(value)
     return value and value == math.floor(value) and value >= 0 and value <= 160 and value or nil
 end
 
--- Achat : payé, ajouté au garage du joueur (owned_vehicles, sorti) et posé à la sortie du magasin, le joueur au volant.
--- Achat libre : la part réglée dans le panel va au compte de la société (le reste disparaît).
-lib.callback.register('lunatic_business:saleBuy', function(src, slug, index, vehicleId, account, primary, secondary)
-    if saleBusy[src] then
-        return fail('Patientez un instant.')
-    end
-
-    local shop, location, xPlayer, err = shopAt(src, slug, index, 'vehicles')
-
-    if not shop then
-        return fail(err)
-    end
-
-    local offer
-
+local function offerOf(shop, vehicleId)
     for _, vehicle in ipairs(shop.vehicles or {}) do
         if vehicle.id == tonumber(vehicleId) then
-            offer = vehicle
+            return vehicle
         end
     end
+end
 
-    if not offer then
-        return fail('Véhicule introuvable.')
-    end
-
+-- Livraison d'un véhicule payé : sortie libre, paiement, garage du joueur (owned_vehicles, sorti), véhicule posé à la
+-- sortie du magasin avec le joueur au volant ; share = part du prix (%) pour le compte de la société liée
+local function deliverVehicle(src, xPlayer, shop, location, offer, account, primary, secondary, share)
     local spawn = spawnOf(location)
     local spawnCoords = vector3(spawn.x, spawn.y, spawn.z)
 
@@ -1297,18 +1322,164 @@ lib.callback.register('lunatic_business:saleBuy', function(src, slug, index, veh
     TaskWarpPedIntoVehicle(GetPlayerPed(src), vehicle, -1)
     saleBusy[src] = nil
 
-    local share = 0
+    local amount = 0
 
     if price > 0 and shop.accountJob and shop.accountJob ~= '' then
-        share = math.floor(price * math.max(0, math.min(100, shop.companyShare or 0)) / 100)
+        amount = math.floor(price * math.max(0, math.min(100, share or 0)) / 100)
 
-        if share > 0 then
-            Account.add(shop.accountJob, share, ('Vente %s (%s)'):format(offer.label, plate), xPlayer.getName())
+        if amount > 0 then
+            Account.add(shop.accountJob, amount, ('Vente %s (%s)'):format(offer.label, plate), xPlayer.getName())
         end
     end
 
-    GameLog('vehicles', 'success', src, 'vehicle.buy', offer.label, { plate = plate, price = price, shop = shop.label, account = account, company = share })
+    GameLog('vehicles', 'success', src, 'vehicle.buy', offer.label, { plate = plate, price = price, shop = shop.label, account = account, company = amount })
     return { ok = true, label = offer.label, plate = plate, price = price, account = account, netId = NetworkGetNetworkIdFromEntity(vehicle), primary = primary, secondary = secondary }
+end
+
+-- Achat libre (aucun vendeur en service) : la part réglée dans le panel va au compte de la société, le reste disparaît
+lib.callback.register('lunatic_business:saleBuy', function(src, slug, index, vehicleId, account, primary, secondary)
+    if saleBusy[src] then
+        return fail('Patientez un instant.')
+    end
+
+    local shop, location, xPlayer, err = shopAt(src, slug, index, 'vehicles')
+
+    if not shop then
+        return fail(err)
+    end
+
+    if #sellersOnline(shop.accountJob, src) > 0 then
+        return fail('Un vendeur est en service : demandez-le pour acheter.')
+    end
+
+    local offer = offerOf(shop, vehicleId)
+
+    if not offer then
+        return fail('Véhicule introuvable.')
+    end
+
+    return deliverVehicle(src, xPlayer, shop, location, offer, account, primary, secondary, shop.companyShare or 0)
+end)
+
+---------------------------------------------------------------------
+-- Vente par un vendeur : le client le demande, le vendeur propose (véhicule, couleurs, client proche), le client
+-- accepte et paie ; tout le prix va au compte de la société
+---------------------------------------------------------------------
+
+local offers = {}   -- client -> { seller, slug, index, vehicleId, primary, secondary, expires }
+local requests = {} -- client -> dernière demande (os.time)
+
+lib.callback.register('lunatic_business:saleRequest', function(src, slug, index)
+    local shop, _, xPlayer, err = shopAt(src, slug, index, 'vehicles')
+
+    if not shop then
+        return fail(err)
+    end
+
+    if (requests[src] or 0) > os.time() - Config.SaleRequestCooldown then
+        return fail('Vous avez déjà demandé un vendeur : patientez un peu.')
+    end
+
+    local sellers = sellersOnline(shop.accountJob, src)
+
+    if #sellers == 0 then
+        return fail("Aucun vendeur en service : vous pouvez acheter directement.")
+    end
+
+    requests[src] = os.time()
+
+    for _, xSeller in ipairs(sellers) do
+        notify(xSeller.source, ('%s demande un vendeur à %s.'):format(xPlayer.getName(), shop.label), 'info')
+    end
+
+    return { ok = true, count = #sellers }
+end)
+
+lib.callback.register('lunatic_business:saleOffer', function(src, slug, index, vehicleId, client, primary, secondary)
+    local shop, _, xSeller, err = shopAt(src, slug, index, 'vehicles')
+
+    if not shop then
+        return fail(err)
+    end
+
+    if shop.accountJob == '' or xSeller.getJob().name ~= shop.accountJob then
+        return fail('Réservé aux vendeurs de la concession.')
+    end
+
+    local offer = offerOf(shop, vehicleId)
+    client = tonumber(client)
+    local xClient = client and ESX.GetPlayerFromId(client)
+
+    if not offer then
+        return fail('Véhicule introuvable.')
+    end
+
+    if not xClient or #(GetEntityCoords(GetPlayerPed(client)) - GetEntityCoords(GetPlayerPed(src))) > Config.SaleClientDistance then
+        return fail('Le client doit être à côté de vous.')
+    end
+
+    if offers[client] and offers[client].expires > os.time() then
+        return fail('Ce client a déjà une offre en attente.')
+    end
+
+    offers[client] = {
+        seller = src, slug = slug, index = index, vehicleId = offer.id, primary = colorOf(primary), secondary = colorOf(secondary),
+        expires = os.time() + Config.SaleOfferTime,
+    }
+
+    TriggerClientEvent('lunatic_business:saleOffer', client, {
+        label = offer.label, price = offer.price, seller = client == src and 'vous-même' or xSeller.getName(), shop = shop.label, seconds = Config.SaleOfferTime,
+    })
+
+    return { ok = true, client = client == src and 'vous-même' or xClient.getName(), label = offer.label }
+end)
+
+-- Réponse du client : account = 'money' / 'bank', ou nil pour refuser
+lib.callback.register('lunatic_business:saleAnswer', function(src, account)
+    local pending = offers[src]
+    offers[src] = nil
+
+    if not pending or pending.expires < os.time() then
+        return fail("L'offre a expiré.")
+    end
+
+    if not account then
+        notify(pending.seller, 'Le client a refusé votre offre.', 'error')
+        return { ok = true, refused = true }
+    end
+
+    if saleBusy[src] then
+        return fail('Patientez un instant.')
+    end
+
+    -- Le vendeur doit toujours être au comptoir, toujours vendeur, et le client à côté de lui
+    local shop, location, xSeller = shopAt(pending.seller, pending.slug, pending.index, 'vehicles')
+    local xPlayer = ESX.GetPlayerFromId(src)
+
+    if not shop or not xPlayer or xSeller.getJob().name ~= shop.accountJob then
+        return fail("Le vendeur n'est plus au comptoir.")
+    end
+
+    if #(GetEntityCoords(GetPlayerPed(src)) - GetEntityCoords(GetPlayerPed(pending.seller))) > Config.SaleClientDistance then
+        return fail('Restez à côté du vendeur pour payer.')
+    end
+
+    local offer = offerOf(shop, pending.vehicleId)
+
+    if not offer then
+        return fail("Ce véhicule n'est plus en vente.")
+    end
+
+    local result = deliverVehicle(src, xPlayer, shop, location, offer, account, pending.primary, pending.secondary, 100)
+
+    notify(pending.seller, result.ok and ('Vente conclue : %s (%s) pour %s.'):format(offer.label, result.plate, xPlayer.getName())
+        or ('Vente non conclue : %s'):format(result.error), result.ok and 'success' or 'error')
+    return result
+end)
+
+AddEventHandler('playerDropped', function()
+    offers[source] = nil
+    requests[source] = nil
 end)
 
 ---------------------------------------------------------------------

@@ -43,6 +43,11 @@ Config.RentalShowroom = vector4(228.7, -991.6, -99.0, 200.0)
 Config.TestDriveTime = 120            -- durée de l'essai (secondes)
 Config.TestDriveRadius = 800.0        -- distance maximale à la sortie du magasin, sinon l'essai s'arrête
 Config.TestDriveBucket = 7000         -- instance de l'essai = ce numéro + id du joueur
+-- Vente par un vendeur (employé du job lié au magasin, connecté) : distance vendeur / client, durée de l'offre,
+-- délai entre deux demandes d'un même client
+Config.SaleClientDistance = 10.0
+Config.SaleOfferTime = 60
+Config.SaleRequestCooldown = 60
 
 -- Véhicules de service (parc et garages placés dans le panel, fiche de la structure)
 Config.GarageStoreDistance = 8.0     -- au volant, distance au point Garages pour [E] Ranger

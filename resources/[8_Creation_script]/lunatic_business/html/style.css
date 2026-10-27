@@ -164,3 +164,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .swatch:hover { transform: scale(1.1); }
 .swatch.on { box-shadow: 0 0 0 2px #fff, 0 0 0 3px var(--accent); }
 .ghost-btn.test { width: 100%; height: 38px; }
+
+/* Vente encadrée : client choisi par le vendeur, explication côté client */
+select.client { height: 32px; padding: 0 8px; border: 1px solid var(--line); border-radius: 9px; background: #00000040; color: var(--ink); font: inherit; }
+.seller-hint { margin: 0; color: var(--muted); font-size: 12px; }
