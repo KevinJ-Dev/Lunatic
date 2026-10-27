@@ -645,3 +645,14 @@ AddEventHandler('playerDropped', function()
     lastAction[source] = nil
     lastFavorites[source] = nil
 end)
+
+-- illenium-appearance doit retirer ses propres magasins (fin de son shared/config.lua, version Lunatic) : sinon son menu
+-- Apparence s'ouvre aussi au [E] des magasins de vêtements, barbiers et salons de tatouage
+CreateThread(function()
+    Wait(5000)
+    local raw = LoadResourceFile('illenium-appearance', 'shared/config.lua') or ''
+
+    if not raw:find('replaced[Config.Stores[index].type]', 1, true) then
+        print("^3[lunatic_clothing] illenium-appearance/shared/config.lua n'est pas la version Lunatic : ses magasins (vêtements, barbiers, tatouages) restent actifs et son menu Apparence s'ouvre en double. Envoyez ce fichier puis « ensure illenium-appearance ».^0")
+    end
+end)
