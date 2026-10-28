@@ -5,21 +5,22 @@
 -- Diffusé dans GlobalState.lunaticImages (clé -> URL) : appliqué en direct par le panel, lunatic_creator et lunatic_illegal.
 -- Mugshots : photo du visage prise par le client du joueur (client/mugshots.lua), enregistrée en base (table lunatic_mugshots).
 
+-- size : taille conseillée des images ajoutées dans la catégorie (le double de l'affichage, pour rester net)
 local CATEGORIES = {
-    { id = 'logo', label = 'Logo' },
-    { id = 'banner', label = 'Bannière' },
-    { id = 'header', label = 'Headers' },
-    { id = 'notification', label = 'Notifications' },
-    { id = 'character', label = 'Création perso' },
-    { id = 'other', label = 'Autres' },
+    { id = 'logo', label = 'Logo', size = '256 × 256 px, PNG transparent' },
+    { id = 'banner', label = 'Bannière', size = '800 × 240 px (format 10:3)' },
+    { id = 'header', label = 'Headers', size = '800 × 240 px (format 10:3)' },
+    { id = 'notification', label = 'Notifications', size = '128 × 128 px, PNG transparent' },
+    { id = 'character', label = 'Création perso', size = '1200 × 300 px (format 4:1)' },
+    { id = 'other', label = 'Autres', size = 'Libre' },
 }
 
 local SLOTS = {
-    { key = 'panel_logo', category = 'logo', label = 'Logo du panel staff', description = 'Barre du haut et pastille du panel réduit', default = 'nui://lunatic_admin/web/logo.png' },
-    { key = 'creator_logo', category = 'character', label = 'Logo du créateur de personnage', description = 'En haut du panneau de création (lunatic_creator) ; masquable dans Autres > Création perso', default = 'nui://lunatic_creator/html/logo.png' },
-    { key = 'creator_banner', category = 'character', label = 'Bannière du créateur de personnage', description = 'Fond du haut du panneau de création (vide : pas de bannière)', default = '' },
-    { key = 'tablet_logo', category = 'header', label = 'Logo de la tablette illégale', description = 'En haut à gauche de la tablette des crews (vide : pas de logo)', default = '' },
-    { key = 'quick_banner', category = 'banner', label = 'Bannière du menu rapide staff', description = 'En-tête du menu rapide (F9) et de ses fenêtres de saisie (vide : dégradé violet)', default = '' },
+    { key = 'panel_logo', category = 'logo', label = 'Logo du panel staff', description = 'Barre du haut et pastille du panel réduit', default = 'nui://lunatic_admin/web/logo.png', size = '256 × 256 px, PNG transparent' },
+    { key = 'creator_logo', category = 'character', label = 'Logo du créateur de personnage', description = 'En haut du panneau de création (lunatic_creator) ; masquable dans Autres > Création perso', default = 'nui://lunatic_creator/html/logo.png', size = '512 × 160 px, PNG transparent' },
+    { key = 'creator_banner', category = 'character', label = 'Bannière du créateur de personnage', description = 'Fond du haut du panneau de création (vide : pas de bannière)', default = '', size = '1200 × 300 px (format 4:1)' },
+    { key = 'tablet_logo', category = 'header', label = 'Logo de la tablette illégale', description = 'En haut à gauche de la tablette des crews (vide : pas de logo)', default = '', size = '256 × 256 px, PNG transparent' },
+    { key = 'quick_banner', category = 'banner', label = 'Bannière du menu rapide staff', description = 'En-tête du menu rapide (F9) et de ses fenêtres de saisie (vide : dégradé violet)', default = '', size = '680 × 180 px (format 4:1)' },
 }
 
 local MUGSHOT_MAX = 200000          -- taille maximale d'une photo encodée (caractères)
@@ -137,7 +138,7 @@ local function entryOf(key)
 
     if slot then
         return {
-            key = key, slot = true, category = slot.category, label = slot.label, description = slot.description,
+            key = key, slot = true, category = slot.category, label = slot.label, description = slot.description, size = slot.size,
             url = entry and entry.url ~= '' and entry.url or slot.default, default = slot.default, changed = entry ~= nil,
             updatedBy = entry and entry.updatedBy or nil, updatedAt = entry and entry.updatedAt or nil, order = slot.order,
         }

@@ -189,7 +189,8 @@ function imagesBody() {
 
     const grid = list.length
         ? h("div", { class: "img-grid" }, list.map((i) => h("button", { class: `img-card${i.key === imgState.sel ? " on" : ""}`, onclick: () => i.key !== imgState.sel && imgGo({ sel: i.key }) },
-            imgThumb(i.url), h("b", null, i.label), h("span", null, i.description || (i.slot ? "Emplacement d'un script" : "Image ajoutée")))))
+            imgThumb(i.url), h("b", null, i.label), h("span", null, i.description || (i.slot ? "Emplacement d'un script" : "Image ajoutée")),
+            imgSize(i) ? h("small", { class: "img-size" }, imgSize(i)) : null)))
         : h("div", { class: "empty" }, icon("i-image"), "Aucune image.");
 
     return h("div", { class: "img-body" },
@@ -246,9 +247,18 @@ function imageEditor() {
             fieldRow("Description", description),
             fieldRow("URL de l'image", url),
             fieldRow("Catégorie", category),
+            h("p", { class: "hint-line img-size-hint" }, `Taille conseillée : ${imgSize(entry || d) || "libre"}.`),
             slot ? h("p", { class: "hint-line" }, `Emplacement d'un script : seule l'image change. ${entry.changed ? `Modifiée par ${entry.updatedBy || "?"}.` : "Image d'origine."}`) : null,
             h("p", { class: "hint-line" }, "Enregistrez avec la barre du bas : appliqué en jeu tout de suite. Hébergez l'image sur un CDN (Discord, Imgur, Fivemanage…).")),
         remove ? h("div", { class: "item-actions single" }, remove) : null);
+}
+
+// Taille conseillée : celle de l'emplacement, sinon celle de la catégorie de l'image
+function imgSize(entry) {
+    if (!entry) return null;
+    if (entry.size) return entry.size;
+    const category = (imgState.data.categories || []).find((c) => c.id === entry.category);
+    return category && category.size && category.size !== "Libre" ? category.size : null;
 }
 
 async function saveImage() {
