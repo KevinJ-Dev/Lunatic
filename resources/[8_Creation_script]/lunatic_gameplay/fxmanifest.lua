@@ -48,6 +48,7 @@ files {
     'html/index.html',
     'html/style.css',
     'html/app.js',
+    'html/fuel.js',
     'html/fonts/*.woff2',
 }
 

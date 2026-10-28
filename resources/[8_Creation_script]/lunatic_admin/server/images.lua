@@ -20,6 +20,7 @@ local SLOTS = {
     { key = 'creator_logo', category = 'character', label = 'Logo du créateur de personnage', description = 'En haut du panneau de création (lunatic_creator) ; masquable dans Autres > Création perso', default = 'nui://lunatic_creator/html/logo.png', size = '512 × 160 px, PNG transparent' },
     { key = 'creator_banner', category = 'character', label = 'Bannière du créateur de personnage', description = 'Fond du haut du panneau de création (vide : pas de bannière)', default = '', size = '1200 × 300 px (format 4:1)' },
     { key = 'tablet_logo', category = 'header', label = 'Logo de la tablette illégale', description = 'En haut à gauche de la tablette des crews (vide : pas de logo)', default = '', size = '256 × 256 px, PNG transparent' },
+    { key = 'fuel_banner', category = 'banner', label = 'Bannière de la pompe à essence', description = 'En-tête du panneau des pompes à essence (vide : LTD rouge)', default = '', size = '680 × 180 px (format 4:1)' },
     { key = 'quick_banner', category = 'banner', label = 'Bannière du menu rapide staff', description = 'En-tête du menu rapide (F9) et de ses fenêtres de saisie (vide : dégradé violet)', default = '', size = '680 × 180 px (format 4:1)' },
 }
 

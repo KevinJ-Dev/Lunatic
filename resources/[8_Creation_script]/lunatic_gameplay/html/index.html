@@ -50,6 +50,19 @@
             <div class="death-title" id="death-title">Vous êtes <b>inconscient</b></div>
         </div>
     </div>
+    <!-- Pompe à essence : volume et prix en direct, moyen de paiement, Valider / Stop -->
+    <div class="fuel hidden" id="fuel">
+        <header class="fuel-banner" id="fuelBanner"><b>LTD</b><small>Limited Gasoline</small></header>
+        <div class="fuel-title">Pompe à essence</div>
+        <div class="fuel-counter"><span>Volume</span><b id="fuelVolume">0.00</b><small>litres</small></div>
+        <div class="fuel-counter"><span>Prix</span><b id="fuelPrice">0.00</b><small id="fuelCurrency">$</small></div>
+        <div class="fuel-info" id="fuelInfo"></div>
+        <div class="fuel-label">Paiement</div>
+        <div class="fuel-pay" id="fuelPay"></div>
+        <button class="fuel-go" id="fuelGo">Valider</button>
+        <button class="fuel-close" id="fuelClose">Fermer</button>
+    </div>
     <script src="app.js"></script>
+    <script src="fuel.js"></script>
 </body>
 </html>

@@ -17,6 +17,7 @@ Config.FuelStationRadius = 35.0
 Config.FuelPumpModels = { 'prop_gas_pump_1a', 'prop_gas_pump_1b', 'prop_gas_pump_1c', 'prop_gas_pump_1d', 'prop_gas_pump_old2', 'prop_gas_pump_old3', 'prop_vintage_pump' }
 Config.FuelPumpDistance = 3.0     -- distance à la pompe pour [E]
 Config.FuelVehicleDistance = 6.0  -- le véhicule doit être garé à côté de la pompe
+Config.FuelRate = 1.5             -- litres versés par seconde (le serveur paie d'après ce débit)
 Config.FuelStations = {
     vector3(49.4, 2778.8, 58.0), vector3(263.9, 2606.5, 44.9), vector3(1039.9, 2671.1, 39.5), vector3(1207.3, 2660.2, 37.9),
     vector3(2539.7, 2594.2, 37.9), vector3(2679.9, 3263.9, 55.2), vector3(2005.1, 3773.9, 32.4), vector3(1687.2, 4929.4, 42.1),

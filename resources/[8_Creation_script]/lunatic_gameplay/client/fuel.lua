@@ -1,6 +1,7 @@
 -- Carburant côté client (réglages : tuile Fonctionnalités → Gameplay → Carburant).
 -- Le conducteur consomme selon le régime moteur et la classe du véhicule ; niveau partagé par le statebag « fuel »
--- du véhicule. À une pompe des stations-service : [E] Faire le plein (payé et vérifié par le serveur).
+-- du véhicule. À une pompe des stations-service : [E] ouvre la pompe (volume et prix en direct, moyen de paiement,
+-- Valider puis Stop) ; le serveur mesure le plein et ne fait payer que les litres versés.
 
 local pumpHashes = {}
 
@@ -115,51 +116,130 @@ end
 local busy = false
 local shown = false
 
+local pumpVehicle = nil -- véhicule de la pompe ouverte
+local pumping = nil     -- plein en cours : { vehicle, started, max, rate }
+
+local function currency()
+    return GlobalState.lunaticCurrency or '$'
+end
+
+local function closePump()
+    pumpVehicle = nil
+    SetNuiFocus(false, false)
+    SendNUIMessage({ action = 'fuelHide' })
+    ClearPedTasks(PlayerPedId())
+    busy = false
+end
+
+-- Fin du plein (Stop, réservoir plein, joueur trop loin) : le serveur fait payer les litres versés
+local function stopPumping(reported)
+    local current = pumping
+
+    if not current then
+        return
+    end
+
+    pumping = nil
+    local result = lib.callback.await('lunatic_gameplay:refuelStop', false, reported)
+    ClearPedTasks(PlayerPedId())
+
+    if not result or not result.ok then
+        Notify(result and result.error or 'Plein interrompu.', 'error')
+        return SendNUIMessage({ action = 'fuelDone', liters = 0, cost = 0 })
+    end
+
+    if result.liters > 0 then
+        Notify(('%d litres pour %d %s (%s).'):format(result.liters, result.cost, currency(), result.account == 'bank' and 'carte bancaire' or 'espèces'), 'success')
+    end
+
+    SendNUIMessage({ action = 'fuelDone', liters = result.liters, cost = result.cost })
+end
+
+-- Pompe ouverte : volume et prix à zéro, choix du paiement, Valider
 local function refuel(vehicle)
     busy = true
     lib.hideTextUI()
     shown = false
 
-    local s = settings()
-    local level = fuelOf(vehicle)
-    local missing = math.floor(100.0 - level)
-
-    if missing < 1 then
+    if 100.0 - fuelOf(vehicle) < 1 then
         busy = false
         return Notify('Le réservoir est déjà plein.', 'info')
     end
 
-    local price = tonumber(s.price) or 3
-    local input = lib.inputDialog('Faire le plein', {
-        { type = 'slider', label = ('Litres (%s %s le litre)'):format(price, GlobalState.lunaticCurrency or '$'), min = 1, max = missing, default = missing, step = 1 },
-    })
+    local accounts = {}
 
-    if not input or not input[1] then
-        busy = false
+    for _, account in ipairs(ESX.GetPlayerData().accounts or {}) do
+        accounts[account.name] = account.money
+    end
+
+    pumpVehicle = vehicle
+    SetNuiFocus(true, true)
+    SendNUIMessage({
+        action = 'fuelOpen', price = tonumber(settings().price) or 3, level = math.floor(fuelOf(vehicle)), cash = accounts.money or 0, bank = accounts.bank or 0,
+        currency = currency(), banner = (GlobalState.lunaticImages or {}).fuel_banner,
+    })
+end
+
+RegisterNUICallback('fuelStart', function(data, cb)
+    cb({})
+
+    if not pumpVehicle or pumping then
         return
     end
 
-    local liters = math.floor(input[1])
-    local result = lib.callback.await('lunatic_gameplay:refuel', false, liters)
+    local result = lib.callback.await('lunatic_gameplay:refuelStart', false, VehToNet(pumpVehicle), data.account == 'bank' and 'bank' or 'money')
 
     if not result or not result.ok then
-        busy = false
-        return Notify(result and result.error or 'Paiement refusé.', 'error')
+        Notify(result and result.error or 'Pompe indisponible.', 'error')
+        return SendNUIMessage({ action = 'fuelError' })
     end
 
-    local done = lib.progressBar({
-        duration = math.max(2000, liters * 120), label = 'Plein en cours…', canCancel = false,
-        disable = { move = true, car = true, combat = true },
-        anim = { dict = 'timetable@gardener@filling_can', clip = 'gar_ig_5_filling_can' },
-    })
+    pumping = { vehicle = pumpVehicle, started = GetGameTimer(), max = result.max, rate = result.rate }
+    local current = pumping
 
-    if done and DoesEntityExist(vehicle) then
-        setFuel(vehicle, fuelOf(vehicle) + liters)
-        Notify(('%d litres ajoutés (%s %s).'):format(liters, result.cost, GlobalState.lunaticCurrency or '$'), 'success')
+    if pcall(lib.requestAnimDict, 'timetable@gardener@filling_can', 3000) then
+        TaskPlayAnim(PlayerPedId(), 'timetable@gardener@filling_can', 'gar_ig_5_filling_can', 4.0, -4.0, -1, 1, 0.0, false, false, false)
     end
 
-    busy = false
-end
+    SendNUIMessage({ action = 'fuelRunning', max = result.max, rate = result.rate, price = result.price, limited = result.limited })
+
+    if result.limited then
+        Notify(('La pompe s’arrêtera à %d litres : c’est ce que vous pouvez payer.'):format(result.max), 'info')
+    end
+
+    -- Arrêt automatique : réservoir plein (ou somme atteinte), véhicule parti
+    CreateThread(function()
+        while pumping == current do
+            local liters = (GetGameTimer() - current.started) / 1000 * current.rate
+
+            if liters >= current.max then
+                stopPumping(current.max)
+            elseif not DoesEntityExist(current.vehicle) or #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(current.vehicle)) > Config.FuelVehicleDistance + 3.0 then
+                stopPumping(nil)
+            end
+
+            Wait(100)
+        end
+    end)
+end)
+
+-- Stop : seulement les litres versés jusque-là
+RegisterNUICallback('fuelStop', function(data, cb)
+    cb({})
+    stopPumping(tonumber(data.liters))
+end)
+
+RegisterNUICallback('fuelClose', function(_, cb)
+    cb({})
+    stopPumping(nil)
+    closePump()
+end)
+
+AddEventHandler('onResourceStop', function(resource)
+    if resource == GetCurrentResourceName() and pumpVehicle then
+        SetNuiFocus(false, false)
+    end
+end)
 
 CreateThread(function()
     while true do
