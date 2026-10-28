@@ -69,11 +69,21 @@ local function paint()
         items[#items + 1] = { label = item.label, right = item.right, toggle = item.toggle, on = item.on, disabled = item.disabled, info = item.info }
     end
 
+    -- Fiche du joueur affichée à côté tant qu'on est dans ses menus
+    local sheet
+
+    for index = #stack, 1, -1 do
+        if stack[index].sheet then
+            sheet = stack[index].sheet
+            break
+        end
+    end
+
     local selected = menu.items[menu.index]
     SendNUIMessage({
         action = 'quick', data = {
             title = 'Administration', subtitle = menu.title, items = items, index = menu.index, desc = selected and selected.desc or menu.desc,
-            stats = summary and { online = summary.online, staff = summary.staff, reports = summary.reports } or nil, depth = #stack,
+            stats = summary and { online = summary.online, staff = summary.staff, reports = summary.reports } or nil, depth = #stack, sheet = sheet,
         },
     })
 end
@@ -108,7 +118,7 @@ local function refresh()
         local fresh = menu.build()
 
         if fresh then
-            menu.items, menu.title, menu.desc = fresh.items, fresh.title, fresh.desc
+            menu.items, menu.title, menu.desc, menu.sheet = fresh.items, fresh.title, fresh.desc, fresh.sheet
             menu.index = math.min(index, math.max(1, #menu.items))
         end
     end
@@ -137,49 +147,22 @@ local function reasonRows(extra)
     return rows
 end
 
-playerMenu = function(player)
-    return function()
-        local items = {}
-        local add = function(permission, label, fn, desc)
-            if can(permission) then
-                items[#items + 1] = { label = label, onSelect = fn, desc = desc }
+-- Menus d'un joueur (client/quickplayer.lua) : outils du menu rapide partagés
+local ctx = {
+    can = can, ask = ask, run = run, input = input, reasonRows = reasonRows,
+    closeQuick = function() closeQuick() end,
+    -- Revenir de n menus en arrière (ex. après le choix d'un métier)
+    back = function(count)
+        for _ = 1, count or 1 do
+            if stack and #stack > 1 then
+                table.remove(stack)
             end
         end
-        local target = { serverId = player.id }
+    end,
+}
 
-        add('players.goto', 'Aller vers', function() run('player.goto', target, nil) end)
-        add('players.bring', 'Ramener', function() run('player.bring', target, ('%s ramené.'):format(player.name)) end)
-        add('players.bring', 'Renvoyer à sa place', function() run('player.return', target, ('%s renvoyé à sa place.'):format(player.name)) end)
-        add('players.spectate', 'Observer', function() closeQuick() run('player.spectate', target, nil) end)
-        add('players.freeze', 'Figer / libérer', function() run('player.freeze', target, 'Joueur figé ou libéré.') end)
-        add('players.heal', 'Soigner', function() run('player.heal', target, 'Joueur soigné.') end)
-        add('players.heal', 'Réanimer', function() run('player.revive', target, 'Joueur réanimé.') end)
-        add('sanctions.warn', 'Avertir', function()
-            local values = input(('Avertir %s'):format(player.name), reasonRows())
-            if values then run('sanction.warn', { serverId = player.id, reason = values[1] }, 'Avertissement envoyé.') end
-        end)
-        add('sanctions.jail', 'Prison staff', function()
-            local values = input(('Prison staff : %s'):format(player.name), reasonRows({ { type = 'number', label = 'Durée (minutes)', required = true, min = 1, default = 10 } }))
-            if values then run('sanction.jail', { serverId = player.id, minutes = values[1], reason = values[2] }, 'Joueur mis en prison staff.') end
-        end)
-        add('players.kick', 'Expulser', function()
-            local values = input(('Expulser %s'):format(player.name), reasonRows())
-            if values then run('player.kick', { serverId = player.id, reason = values[1] }, 'Joueur expulsé.') end
-        end)
-        add('sanctions.ban', 'Bannir', function()
-            local durations = { { value = '24', label = '24 heures' }, { value = '72', label = '3 jours' }, { value = '168', label = '7 jours' }, { value = '720', label = '30 jours' } }
-
-            if can('sanctions.ban_permanent') then
-                durations[#durations + 1] = { value = 'permanent', label = 'Définitif' }
-            end
-
-            local values = input(('Bannir %s'):format(player.name), reasonRows({ { type = 'select', label = 'Durée', required = true, options = durations, default = '24' } }))
-            if values then run('sanction.ban', { serverId = player.id, duration = values[1], reason = values[2] }, 'Joueur banni.') end
-        end)
-        add('players.view', 'Ouvrir sa fiche dans le panel', function() closeQuick() OpenPanelOnPlayer(player.id) end)
-
-        return { title = ('%d · %s'):format(player.id, player.name), items = items }
-    end
+playerMenu = function(player)
+    return QuickPlayerMenu(player, ctx)
 end
 
 local function playersMenu()

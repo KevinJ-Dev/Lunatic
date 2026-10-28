@@ -148,3 +148,11 @@ body.quick-open .quick { display: block; }
 .quick-item.on .quick-right { color: #444; }
 .quick-more { display: flex; justify-content: center; gap: 10px; padding: 0 0 4px; color: var(--ink-3, #ffffff70); font-size: 10px; }
 .quick-desc { margin: 0 8px 4px; padding: 8px 10px; border-radius: 9px; background: #ffffff0a; color: var(--ink-2); font-size: 12px; line-height: 1.4; }
+
+/* Menu rapide : fiche du joueur à côté du menu */
+.quick-sheet { display: none; position: fixed; top: 24px; left: 376px; width: 320px; max-height: calc(100vh - 48px); overflow: hidden; border: 1px solid var(--glass-line); border-radius: 16px; background: var(--bg); box-shadow: 0 24px 60px -20px #000; pointer-events: none; }
+body.quick-open .quick-sheet.on { display: block; }
+.quick-sheet .crew-col-head { padding: 14px 16px 10px; }
+.quick-sheet-body { display: grid; gap: 10px; max-height: calc(100vh - 100px); overflow: hidden; padding: 0 12px 12px; }
+.quick-sheet .card { margin: 0; }
+.quick-sheet .crew-id { padding: 10px 12px; border: 1px solid var(--glass-line); border-radius: 12px; }

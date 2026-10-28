@@ -35,21 +35,62 @@ function paintQuick(data) {
     ].filter(Boolean));
 }
 
+// Fiche du joueur (comme dans le panel) à côté du menu ; repeinte seulement si elle change
+let quickSheetKey = "";
+
+function paintQuickSheet(info) {
+    const box = $("quickSheet");
+    if (!info) {
+        quickSheetKey = "";
+        return box.classList.remove("on");
+    }
+    const key = JSON.stringify(info);
+    box.classList.add("on");
+    if (key === quickSheetKey) return;
+    quickSheetKey = key;
+    const health = typeof info.health === "number" ? info.health : null;
+    const maxHealth = info.maxHealth || 200;
+    const healthPct = health === null ? 0 : ((health - 100) / Math.max(1, maxHealth - 100)) * 100;
+    const down = health !== null && health <= 100;
+    box.replaceChildren(
+        h("div", { class: "crew-col-head" }, icon("i-player"), "Fiche du joueur"),
+        h("div", { class: "quick-sheet-body" },
+            h("div", { class: "crew-id player-id" },
+                h("div", { class: "crew-pic" }, mugshotImg(info.identifier, "mug-head")),
+                h("div", { class: "crew-id-text" },
+                    h("b", null, info.name),
+                    h("span", { class: "muted" }, `ID ${info.serverId} · ${info.pseudo || "—"}`),
+                    h("span", { class: "mono muted" }, shortLicense(info.license)),
+                    h("div", { class: "btn-row" }, info.rank ? rankPill(info.rank) : null, info.isSelf ? h("span", { class: "you" }, "Vous") : null,
+                        info.premium ? h("span", { class: "badge ok" }, info.premium.label) : null))),
+            h("div", { class: "card" },
+                bar("Santé", health === null ? "—" : down ? "Au sol" : `${Math.round(healthPct)} %`, healthPct, down ? "var(--danger)" : "var(--ok)"),
+                bar("Armure", typeof info.armor === "number" ? `${info.armor} %` : "—", info.armor || 0, "var(--info)"),
+                h("div", { class: "info-cols" }, infoRow("Ping", `${info.ping} ms`), infoRow("Figé", info.frozen ? "Oui" : "Non"),
+                    info.jail ? infoRow("Prison", `${Math.ceil(info.jail.remaining / 60)} min`) : null)),
+            profileCard(info)));
+}
+
 window.addEventListener("message", (event) => {
     const msg = event.data;
     if (!msg || typeof msg !== "object") return;
     if (msg.action === "quick" && msg.data) {
         document.body.classList.add("quick-open");
         paintQuick(msg.data);
+        paintQuickSheet(msg.data.sheet || null);
     } else if (msg.action === "quickClose") {
         document.body.classList.remove("quick-open");
+        paintQuickSheet(null);
     }
 });
 
 // Aperçu hors jeu : index.html#quick
 if (typeof GetParentResourceName !== "function" && location.hash.includes("quick")) {
     window.postMessage({ action: "quick", data: {
-        title: "Administration", subtitle: "Kévin", index: 2, depth: 1, stats: { online: 94, staff: 12, reports: 3 },
+        title: "Administration", subtitle: "7 · RiderCool", index: 2, depth: 2, stats: { online: 94, staff: 12, reports: 3 },
+        sheet: { serverId: 7, name: "RiderCool", pseudo: "RiderCool", license: "license:25c26900000000000000000000000000000009be3", identifier: "char1:aaa", rank: { name: "Fondateur", color: "#9650ff" }, isSelf: true,
+            health: 200, maxHealth: 200, armor: 0, ping: 32, frozen: false, money: 90, bank: 169625, job: { label: "Burger Shot", grade: "Patron" }, onDuty: true,
+            dateofbirth: "16/12/1987", sex: "m", height: 194, profile: { discord: "327980186615488328", firstSeen: 1792873740, playtime: 1179, warns: 0, crew: { label: "Ballas", rank: "Rang S" }, linked: [] } },
         desc: null,
         items: [
             { label: "Mode administration", toggle: true, on: true },

@@ -84,6 +84,7 @@ client_scripts {
     'client/event_zones.lua',
     'client/dev.lua',
     'client/context.lua',
+    'client/quickplayer.lua',
     'client/quickmenu.lua',
     'client/blips.lua',
     'client/mugshots.lua',
