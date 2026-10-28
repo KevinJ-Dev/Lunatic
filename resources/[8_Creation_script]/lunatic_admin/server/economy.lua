@@ -290,6 +290,28 @@ Panel.actions['economy.inspect'] = function(src, actor, data)
     return { ok = true, silent = true }
 end
 
+-- Ouvre l'inventaire ox_inventory du joueur chez le membre du staff, utilisable (menu rapide : « Voir l'inventaire »)
+Panel.actions['economy.openInventory'] = function(src, actor, data)
+    if not Ranks.hasPermission(actor, 'economy.items') then
+        return denied()
+    end
+
+    local target, _, err = targetOf(src, actor, data)
+
+    if not target then
+        return err
+    end
+
+    if target == src then
+        return Panel.fail('Ouvrez votre propre inventaire avec la touche habituelle.')
+    end
+
+    ox:forceOpenInventory(src, 'player', target)
+    Logs.add(src, 'economy.openInventory', Staff.displayName(target), { serverId = target })
+
+    return { ok = true, silent = true }
+end
+
 Panel.actions['economy.giveItem'] = function(src, actor, data)
     if not Ranks.hasPermission(actor, 'economy.items') then
         return denied()

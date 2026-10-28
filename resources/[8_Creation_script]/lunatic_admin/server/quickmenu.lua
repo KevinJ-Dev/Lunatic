@@ -23,6 +23,18 @@ lib.callback.register('lunatic_admin:quick', function(src)
     }
 end)
 
+-- Nom RP (prénom nom) d'un joueur connecté, sinon le nom affiché par le panel
+local function rpNameOf(src)
+    local xPlayer = ESX.GetPlayerFromId(src)
+    local first, last = xPlayer and xPlayer.get('firstName'), xPlayer and xPlayer.get('lastName')
+
+    if type(first) == 'string' and first ~= '' and type(last) == 'string' and last ~= '' then
+        return ('%s %s'):format(first, last)
+    end
+
+    return xPlayer and xPlayer.getName() or Staff.displayName(src)
+end
+
 -- Listes des sous-menus : players (joueurs connectés), staff (membres connectés), reports (en cours)
 lib.callback.register('lunatic_admin:quickList', function(src, kind)
     local rank = Staff.rankOf(src)
@@ -37,7 +49,7 @@ lib.callback.register('lunatic_admin:quickList', function(src, kind)
         for _, id in ipairs(GetPlayers()) do
             local target = tonumber(id)
             local staffRank = Staff.rankOf(target)
-            list[#list + 1] = { id = target, name = Staff.displayName(target), rank = staffRank and staffRank.name or nil }
+            list[#list + 1] = { id = target, name = rpNameOf(target), pseudo = GetPlayerName(target), rank = staffRank and staffRank.name or nil }
         end
 
         table.sort(list, function(a, b) return a.id < b.id end)
@@ -47,7 +59,7 @@ lib.callback.register('lunatic_admin:quickList', function(src, kind)
             local staffRank = Staff.rankOf(target)
 
             if staffRank then
-                list[#list + 1] = { id = target, name = Staff.displayName(target), rank = staffRank.name, level = staffRank.level, adminMode = AdminMode.isOn(target) }
+                list[#list + 1] = { id = target, name = rpNameOf(target), rank = staffRank.name, level = staffRank.level, adminMode = AdminMode.isOn(target) }
             end
         end
 

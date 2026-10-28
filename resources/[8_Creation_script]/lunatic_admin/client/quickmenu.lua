@@ -69,17 +69,9 @@ local function paint()
         items[#items + 1] = { label = item.label, right = item.right, toggle = item.toggle, on = item.on, disabled = item.disabled, info = item.info }
     end
 
-    -- Fiche du joueur affichée à côté tant qu'on est dans ses menus
-    local sheet
-
-    for index = #stack, 1, -1 do
-        if stack[index].sheet then
-            sheet = stack[index].sheet
-            break
-        end
-    end
-
+    -- Fiche du joueur affichée à côté seulement sur l'entrée « Fiche du joueur »
     local selected = menu.items[menu.index]
+    local sheet = selected and selected.sheet or nil
     SendNUIMessage({
         action = 'quick', data = {
             title = 'Administration', subtitle = menu.title, items = items, index = menu.index, desc = selected and selected.desc or menu.desc,
@@ -150,6 +142,7 @@ end
 -- Menus d'un joueur (client/quickplayer.lua) : outils du menu rapide partagés
 local ctx = {
     can = can, ask = ask, run = run, input = input, reasonRows = reasonRows,
+    open = function(build) open(build) end,
     closeQuick = function() closeQuick() end,
     -- Revenir de n menus en arrière (ex. après le choix d'un métier)
     back = function(count)
@@ -170,7 +163,7 @@ local function playersMenu()
     local items = {}
 
     for _, player in ipairs(list) do
-        items[#items + 1] = { label = ('%d · %s'):format(player.id, player.name), right = player.rank, submenu = playerMenu(player) }
+        items[#items + 1] = { label = ('%d · %s'):format(player.id, player.name), right = player.rank or player.pseudo, submenu = playerMenu(player) }
     end
 
     if #items == 0 then
@@ -268,26 +261,14 @@ local function reportsMenu()
     return { title = ('Reports (%d)'):format(#list), items = items }
 end
 
--- Joueurs hors ligne : recherche (nom RP ou licence), puis bannissement ou fiche dans le panel
+-- Joueurs hors ligne : recherche (nom RP ou licence), puis le menu du joueur (client/quickplayer.lua)
 local function offlineMenu(query)
     return function()
         local result = ask('offline.search', { query = query })
         local items = {}
 
         for _, player in ipairs(result and result.players or {}) do
-            items[#items + 1] = { label = player.name, right = player.online and ('en ligne · %d'):format(player.online) or nil, submenu = function()
-                local actions = {}
-
-                if can('sanctions.ban') then
-                    actions[#actions + 1] = { label = 'Bannir', onSelect = function()
-                        local values = input(('Bannir %s'):format(player.name), reasonRows({ { type = 'number', label = 'Durée (heures)', required = true, min = 1, default = 24 } }))
-                        if values then run('sanction.ban', { identifier = player.identifier, duration = values[1], reason = values[2] }, 'Joueur banni.') end
-                    end }
-                end
-
-                actions[#actions + 1] = { label = 'Ouvrir dans le panel', onSelect = function() closeQuick() OpenPanelOn('offline') end }
-                return { title = player.name, items = actions }
-            end }
+            items[#items + 1] = { label = player.name, right = player.online and ('en ligne · %d'):format(player.online) or nil, submenu = QuickOfflineMenu(player.identifier, ctx) }
         end
 
         if #items == 0 then
@@ -359,6 +340,10 @@ local function rootMenu()
             local values = input('Joueurs hors ligne', { { type = 'input', label = 'Nom RP ou licence', required = true, min = 2, max = 60 } })
             if values then open(offlineMenu(values[1])) end
         end }
+    end
+
+    if can('players.offline') or can('sanctions.view') then
+        items[#items + 1] = { label = 'Joueurs bannis', submenu = QuickBannedMenu(ctx) }
     end
 
     if summary.tools then

@@ -179,6 +179,9 @@ Panel.actions['player.info'] = function(src, actor, data)
         info.dateofbirth = xPlayer.get('dateofbirth')
         info.sex = xPlayer.get('sex')
         info.height = xPlayer.get('height')
+        -- Nom RP (prénom nom) de l'identité ESX ; info.name peut être le pseudo si l'état réseau n'est pas encore rempli
+        local first, last = xPlayer.get('firstName'), xPlayer.get('lastName')
+        info.rpName = type(first) == 'string' and first ~= '' and type(last) == 'string' and last ~= '' and ('%s %s'):format(first, last) or xPlayer.getName()
     end
 
     -- Profil (tuile Joueurs) : Discord, temps de jeu, warns, crew, ban, personnages liés, véhicules, planques

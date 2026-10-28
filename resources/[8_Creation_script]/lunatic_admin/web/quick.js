@@ -59,15 +59,15 @@ function paintQuickSheet(info) {
                 h("div", { class: "crew-pic" }, mugshotImg(info.identifier, "mug-head")),
                 h("div", { class: "crew-id-text" },
                     h("b", null, info.name),
-                    h("span", { class: "muted" }, `ID ${info.serverId} · ${info.pseudo || "—"}`),
+                    h("span", { class: "muted" }, info.serverId ? `ID ${info.serverId} · ${info.pseudo || "—"}` : "Hors ligne"),
                     h("span", { class: "mono muted" }, shortLicense(info.license)),
                     h("div", { class: "btn-row" }, info.rank ? rankPill(info.rank) : null, info.isSelf ? h("span", { class: "you" }, "Vous") : null,
                         info.premium ? h("span", { class: "badge ok" }, info.premium.label) : null))),
-            h("div", { class: "card" },
+            info.serverId ? h("div", { class: "card" },
                 bar("Santé", health === null ? "—" : down ? "Au sol" : `${Math.round(healthPct)} %`, healthPct, down ? "var(--danger)" : "var(--ok)"),
                 bar("Armure", typeof info.armor === "number" ? `${info.armor} %` : "—", info.armor || 0, "var(--info)"),
                 h("div", { class: "info-cols" }, infoRow("Ping", `${info.ping} ms`), infoRow("Figé", info.frozen ? "Oui" : "Non"),
-                    info.jail ? infoRow("Prison", `${Math.ceil(info.jail.remaining / 60)} min`) : null)),
+                    info.jail ? infoRow("Prison", `${Math.ceil(info.jail.remaining / 60)} min`) : null)) : null,
             profileCard(info)));
 }
 
