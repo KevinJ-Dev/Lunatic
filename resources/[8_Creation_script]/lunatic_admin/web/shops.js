@@ -7,7 +7,7 @@
 // ====================================================================
 
 const SHOP_ICONS = {
-    ltd: "i-store", binco: "i-shirt", vangelico: "i-gem", barber: "i-scissors", ammunation: "i-crosshair", rental: "i-key", bikes: "i-car", dealer: "i-car", boats: "i-boat", aircraft: "i-plane",
+    ltd: "i-store", binco: "i-shirt", vangelico: "i-gem", barber: "i-scissors", ammunation: "i-crosshair", rental: "i-key", bikes: "i-car", dealer: "i-car", boats: "i-boat", aircraft: "i-plane", garage: "i-key", impound: "i-lock",
     masquerade: "i-mask", shenails: "i-sparkle", skateshop: "i-skate", tattoo: "i-edit", wholesale: "i-truck",
 };
 
@@ -78,7 +78,7 @@ async function loadShopList() {
 
 // Partie de la fiche enregistrée par « Enregistrer » (les emplacements sont enregistrés tout de suite)
 function shopSnapshot(d) {
-    return JSON.stringify([d.label, d.slug, d.blip, d.header || "", d.jobs, (d.items || []).map((e) => [e.item, e.price, e.license || null]), d.defaultPrice || 0, d.maxPeriods || 4, d.accountJob || "", d.companyShare ?? 30]);
+    return JSON.stringify([d.label, d.slug, d.blip, d.header || "", d.jobs, (d.items || []).map((e) => [e.item, e.price, e.license || null]), d.defaultPrice || 0, d.maxPeriods || 4, d.accountJob || "", d.companyShare ?? 30, d.vehicleType || "car"]);
 }
 
 // Image d'un véhicule : celle du panel, sinon la photo officielle des véhicules du jeu (docs FiveM)
@@ -129,11 +129,15 @@ async function shopAct(action, payload, okMessage) {
 
 // Magasin de véhicules : location ou vente (Vespucci Bike)
 const vehicleKind = (kind) => kind === "rental" || kind === "vehicles";
+// Garage public et fourrière (lunatic_garage) : seulement des emplacements et leur sortie
+const garageKind = (kind) => kind === "garage" || kind === "impound";
+const GARAGE_TYPES = [["car", "Voitures et motos"], ["boat", "Bateaux"], ["aircraft", "Hélicoptères et avions"]];
 
 // Ce qui empêche un magasin de fonctionner en jeu (counts = nombres, ou la fiche en cours d'édition)
-function shopProblems(counts, vehicleShop) {
+function shopProblems(counts, vehicleShop, garage) {
     const problems = [];
     if (!counts.locations) problems.push("aucun emplacement");
+    if (garage) return problems;
     if (vehicleShop && !counts.vehicles) problems.push("aucun véhicule");
     if (!vehicleShop && !counts.items) problems.push("aucun article");
     if (counts.missing) problems.push(`${counts.missing} objet${counts.missing > 1 ? "s" : ""} inconnu${counts.missing > 1 ? "s" : ""}`);
@@ -149,7 +153,7 @@ function paintShopCategory() {
         h("button", { class: "shops-back", onclick: closeShopCategory }, icon("i-back"), category.label),
         h("div", { class: "side-scroll" }, !list ? h("div", { class: "muted side-empty" }, "Chargement…")
             : list.length ? list.map((s) => h("div", { class: `list-row shop-row${s.id === shopState.selected ? " active" : ""}`, onclick: () => selectShop(s.id) },
-                readyDot(shopProblems(s, vehicleKind(category.kind))),
+                readyDot(shopProblems(s, vehicleKind(category.kind), garageKind(category.kind))),
                 h("span", { class: "name" }, s.label),
                 h("span", { class: "cnt", title: "Articles" }, String(s.items)),
                 h("button", { class: "shop-x", title: "Supprimer", onclick: (e) => { e.stopPropagation(); deleteShop(s); } }, icon("i-x"))))
@@ -201,6 +205,10 @@ function shopForm() {
     // Agence de location ou vente de véhicules : véhicules proposés, rangés par catégorie
     const rental = shopState.category.kind === "rental";
     const vehicleShop = vehicleKind(shopState.category.kind);
+    const garageShop = garageKind(shopState.category.kind);
+    const impound = shopState.category.kind === "impound";
+    const vehicleType = h("select", { class: "input" }, GARAGE_TYPES.map(([value, label]) => h("option", { value, selected: (d.vehicleType || "car") === value }, label)));
+    vehicleType.addEventListener("change", () => { d.vehicleType = vehicleType.value; });
     const maxPeriods = bind(h("input", { class: "input mono", type: "number", min: "1", max: "24", value: String(d.maxPeriods || 4) }), (v) => { d.maxPeriods = Math.max(1, Math.min(24, Math.floor(Number(v) || 1))); });
     const showroomText = (s) => (s ? `${s.x.toFixed(1)}, ${s.y.toFixed(1)}, ${s.z.toFixed(1)} · ${Math.round(s.h)}°` : "celle de la config (garage par défaut)");
     const showroomCoords = h("span", { class: "mono muted" }, showroomText(d.showroom));
@@ -251,11 +259,11 @@ function shopForm() {
     // Emplacements (enregistrés tout de suite, à la position du staff)
     const locations = d.locations.map((l, i) => h("div", { class: "row point-row" },
         h("span", { class: "pid mono" }, String(i + 1)),
-        h("div", { class: "who" }, h("b", null, `Emplacement ${i + 1}`), h("span", null, `${l.x.toFixed(1)}, ${l.y.toFixed(1)}, ${l.z.toFixed(1)}${vehicleShop ? (l.spawn ? " · sortie définie" : " · sortie : devant le comptoir") : ""}${sale ? (l.showroom ? " · vitrine sur place" : " · vitrine commune") : ""}`)),
+        h("div", { class: "who" }, h("b", null, `Emplacement ${i + 1}`), h("span", null, `${l.x.toFixed(1)}, ${l.y.toFixed(1)}, ${l.z.toFixed(1)}${vehicleShop || garageShop ? (l.spawn ? " · sortie définie" : " · sortie : devant le comptoir") : ""}${sale ? (l.showroom ? " · vitrine sur place" : " · vitrine commune") : ""}`)),
         h("div", { class: "btn-row" },
             sale ? h("button", { class: "btn small", title: "Placez-vous là où le véhicule doit être montré (plateau, quai…), dans le sens voulu", onclick: () => shopAct("shops.setLocationShowroom", { locationId: l.id }, "Vitrine placée à votre position.") }, icon("i-crosshair"), "Vitrine") : null,
             sale && l.showroom ? h("button", { class: "btn small ghost", title: "Revenir à la vitrine commune", onclick: () => shopAct("shops.setLocationShowroom", { locationId: l.id, clear: true }, "Vitrine sur place retirée.") }, icon("i-x")) : null,
-            vehicleShop ? h("button", { class: "btn small", title: "Placez-vous là où le véhicule doit apparaître, dans le sens de sortie", onclick: () => shopAct("shops.setSpawn", { locationId: l.id }, "Sortie des véhicules définie à votre position.") }, icon("i-car"), "Sortie") : null,
+            vehicleShop || garageShop ? h("button", { class: "btn small", title: "Placez-vous là où le véhicule doit apparaître, dans le sens de sortie", onclick: () => shopAct("shops.setSpawn", { locationId: l.id }, "Sortie des véhicules définie à votre position.") }, icon("i-car"), "Sortie") : null,
             h("button", { class: "btn small", onclick: () => shopAct("shops.moveLocation", { locationId: l.id }, "Emplacement replacé à votre position.") }, icon("i-crosshair"), "Définir"),
             h("button", { class: "btn small ghost", onclick: () => act("shops.tpLocation", { locationId: l.id }, null) }, icon("i-goto"), "TP"),
             h("button", { class: "btn small ghost", title: "Supprimer", onclick: () => shopAct("shops.deleteLocation", { locationId: l.id }, "Emplacement supprimé.") }, icon("i-trash")))));
@@ -266,14 +274,14 @@ function shopForm() {
         const res = await shopAct("shops.save", {
         id: d.id, label: d.label.trim(), slug: d.slug.trim(), blipSprite: d.blip.sprite, blipColor: d.blip.color, blipScale: d.blip.scale,
         blipLabel: (d.blip.label || "").trim(), header: (d.header || "").trim(), jobs: d.jobs, defaultPrice: d.defaultPrice || 0, maxPeriods: d.maxPeriods || 4,
-        accountJob: d.accountJob || "", companyShare: d.companyShare ?? 30,
+        accountJob: d.accountJob || "", companyShare: d.companyShare ?? 30, vehicleType: d.vehicleType || "car",
         items: d.items.map((e) => ({ item: e.item, price: e.price, license: e.license || null })),
     }, "Magasin enregistré.");
         if (res) shopState.saved = snapshot;
         paintUnsaved();
     });
 
-    const problems = shopProblems({ locations: d.locations.length, vehicles: (d.vehicles || []).length, items: d.items.length, missing: d.items.filter((e) => e.missing).length }, vehicleShop);
+    const problems = shopProblems({ locations: d.locations.length, vehicles: (d.vehicles || []).length, items: d.items.length, missing: d.items.filter((e) => e.missing).length }, vehicleShop, garageShop);
     return h("div", { class: "content shop-form" },
         h("div", { class: "page-head" }, h("div", { class: "grow" }, h("h1", { class: "page-title" }, d.label, readyBadge(problems)), h("div", { class: "page-sub mono" }, d.slug))),
         h("div", { class: "scroll" },
@@ -284,9 +292,15 @@ function shopForm() {
                 field("Blip sprite / couleur / taille", h("div", { class: "blip-row" }, sprite, color, scale)),
                 field("Blip label (sur la carte)", blipLabel),
                 field("Image (en-tête)", header),
-                vehicleShop ? null : field(buyback ? "Prix de rachat par défaut" : "Prix par défaut des articles", h("div", { class: "blip-row" }, defaultPrice, applyDefault)),
+                vehicleShop || garageShop ? null : field(buyback ? "Prix de rachat par défaut" : "Prix par défaut des articles", h("div", { class: "blip-row" }, defaultPrice, applyDefault)),
                 field(buyback ? "Jobs autorisés à revendre" : "Jobs autorisés", jobs)),
-            vehicleShop ? h("div", { class: "card", style: "margin-top:16px" },
+            garageShop ? h("div", { class: "card", style: "margin-top:16px" },
+                h("div", { class: "card-head dev-head" }, h("h3", { class: "card-title" }, impound ? "Fourrière" : "Garage public")),
+                field("Véhicules accueillis", vehicleType),
+                h("p", { class: "hint-line" }, impound
+                    ? "Les véhicules perdus, détruits ou mis en fourrière par le staff se récupèrent ici contre les frais de la tuile Économie (selon le type). Ils sortent au point « Sortie » de l'emplacement."
+                    : "Les joueurs y rangent (au volant, [E]) et y sortent leurs véhicules. Un véhicule rangé ressort de n'importe quel garage public du même type. La sortie de chaque emplacement sert aussi d'aperçu."))
+            : vehicleShop ? h("div", { class: "card", style: "margin-top:16px" },
                 h("div", { class: "card-head dev-head" }, h("h3", { class: "card-title" }, `Véhicules (${(d.vehicles || []).length})`),
                     h("button", { class: "btn small primary", onclick: () => openRentalVehicle(d, null) }, icon("i-plus"), "Ajouter")),
                 vehicles.length ? vehicles : h("p", { class: "hint-line", style: "margin:0" }, rental ? "Aucun véhicule à louer." : "Aucun véhicule à vendre."),

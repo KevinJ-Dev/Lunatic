@@ -167,6 +167,8 @@ Config.ShopCategories = {
     { id = 'dealer', label = 'Concessionnaire', kind = 'vehicles', blip = { sprite = 326, color = 3 } }, -- voitures et motos
     { id = 'boats', label = 'Concessionnaire bateau', kind = 'vehicles', blip = { sprite = 427, color = 3 } }, -- vitrine sur l'eau
     { id = 'aircraft', label = 'Concessionnaire aérien', kind = 'vehicles', blip = { sprite = 64, color = 3 } }, -- hélicoptères et avions
+    { id = 'garage', label = 'Garage public', kind = 'garage', blip = { sprite = 357, color = 3 } }, -- véhicules des joueurs (lunatic_garage)
+    { id = 'impound', label = 'Fourrière', kind = 'impound', blip = { sprite = 68, color = 47 } },
     { id = 'masquerade', label = 'Masquerade', kind = 'clothing', blip = { sprite = 362, color = 27 } },
     { id = 'shenails', label = 'Shenails', kind = 'clothing', blip = { sprite = 621, color = 8 } },
     { id = 'skateshop', label = 'Skateshop', kind = 'items', blip = { sprite = 59, color = 5 } },

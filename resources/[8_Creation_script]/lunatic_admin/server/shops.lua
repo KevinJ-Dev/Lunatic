@@ -57,6 +57,8 @@ local function load()
             maxPeriods = tonumber(row.rental_periods) or 4,
             -- Vente de véhicules : compte de société crédité (job, '' = aucun) et sa part du prix en achat libre (%)
             accountJob = row.account_job or '', companyShare = tonumber(row.company_share) or 30,
+            -- Garage public et fourrière : type de véhicules accueillis (car, boat, aircraft)
+            vehicleType = row.vehicle_type or 'car',
         }
     end
 
@@ -200,6 +202,7 @@ table.insert(Panel.readyHooks, function()
             ADD COLUMN IF NOT EXISTS `account_job` VARCHAR(50) NOT NULL DEFAULT '',
             ADD COLUMN IF NOT EXISTS `company_share` INT NOT NULL DEFAULT 30
     ]])
+    MySQL.query.await("ALTER TABLE `lunatic_shops` ADD COLUMN IF NOT EXISTS `vehicle_type` VARCHAR(16) NOT NULL DEFAULT 'car'")
 
     -- Interactions : PNJ, rayon, blip par emplacement
     MySQL.query.await([[
@@ -279,7 +282,7 @@ Panel.actions['shops.categories'] = function(_, actor)
     local list = {}
 
     for _, entry in ipairs(Config.ShopCategories) do
-        list[#list + 1] = { id = entry.id, label = entry.label, kind = entry.kind, ready = entry.kind == 'items' or entry.kind == 'rental' or entry.kind == 'vehicles' or entry.kind == 'buyback', count = counts[entry.id] or 0 }
+        list[#list + 1] = { id = entry.id, label = entry.label, kind = entry.kind, ready = entry.kind == 'items' or entry.kind == 'rental' or entry.kind == 'vehicles' or entry.kind == 'buyback' or entry.kind == 'garage' or entry.kind == 'impound', count = counts[entry.id] or 0 }
     end
 
     return { ok = true, silent = true, categories = list }
@@ -336,6 +339,7 @@ Panel.actions['shops.info'] = function(_, actor, data)
         id = shop.id, category = shop.category, slug = shop.slug, label = shop.label, blip = shop.blip, header = shop.header,
         jobs = shop.jobs, items = items, locations = shop.locations, vehicles = shop.vehicles, kind = shop.kind, defaultPrice = shop.defaultPrice,
         maxPeriods = shop.maxPeriods, showroom = GlobalState.lunaticRentalShowroom, accountJob = shop.accountJob, companyShare = shop.companyShare,
+        vehicleType = shop.vehicleType,
     }, licenses = licenseList, jobs = jobList }
 end
 
@@ -397,6 +401,7 @@ Panel.actions['shops.save'] = function(src, actor, data)
     local defaultPrice = number(data.defaultPrice or 0, 0, LIMITS.price, true)
     local maxPeriods = number(data.maxPeriods or 4, 1, 24, true)
     local companyShare = number(data.companyShare or 30, 0, 100, true)
+    local vehicleType = ({ car = 'car', boat = 'boat', aircraft = 'aircraft' })[data.vehicleType] or 'car'
     local accountJob = type(data.accountJob) == 'string' and data.accountJob or ''
 
     if accountJob ~= '' and not ESX.GetJobs()[accountJob] then
@@ -445,8 +450,8 @@ Panel.actions['shops.save'] = function(src, actor, data)
     end
 
     local queries = {
-        { query = 'UPDATE `lunatic_shops` SET `slug` = ?, `label` = ?, `blip_sprite` = ?, `blip_color` = ?, `blip_scale` = ?, `blip_label` = ?, `header` = ?, `jobs` = ?, `default_price` = ?, `rental_periods` = ?, `account_job` = ?, `company_share` = ? WHERE `id` = ?',
-            values = { slug, label, sprite, color, scale, blipLabel, header, json.encode(jobs), defaultPrice, maxPeriods, accountJob, companyShare, shop.id } },
+        { query = 'UPDATE `lunatic_shops` SET `slug` = ?, `label` = ?, `blip_sprite` = ?, `blip_color` = ?, `blip_scale` = ?, `blip_label` = ?, `header` = ?, `jobs` = ?, `default_price` = ?, `rental_periods` = ?, `account_job` = ?, `company_share` = ?, `vehicle_type` = ? WHERE `id` = ?',
+            values = { slug, label, sprite, color, scale, blipLabel, header, json.encode(jobs), defaultPrice, maxPeriods, accountJob, companyShare, vehicleType, shop.id } },
         { query = 'DELETE FROM `lunatic_shop_items` WHERE `shop_id` = ?', values = { shop.id } },
     }
 

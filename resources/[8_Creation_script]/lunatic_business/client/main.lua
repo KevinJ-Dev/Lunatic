@@ -1518,6 +1518,17 @@ local function openShop(target)
         return openRental(target)
     end
 
+    -- Garage public et fourrière : gérés par lunatic_garage (au volant d'un garage : ranger le véhicule)
+    if target.shop.kind == 'garage' or target.shop.kind == 'impound' then
+        local storing = target.shop.kind == 'garage' and IsPedInAnyVehicle(PlayerPedId(), false)
+
+        if GetResourceState('lunatic_garage') ~= 'started' then
+            return notify("Les garages ne sont pas disponibles (lunatic_garage n'est pas démarré).", 'error')
+        end
+
+        return TriggerEvent(storing and 'lunatic_garage:store' or 'lunatic_garage:open', { slug = target.shop.slug, index = target.index, kind = target.shop.kind })
+    end
+
     notify(("« %s » n'est pas encore disponible."):format(target.label), 'info')
 end
 
@@ -1533,9 +1544,13 @@ CreateThread(function()
         local sleep = 750
         local coords = GetEntityCoords(PlayerPedId())
         local closest, closestDistance
+        local inVehicle = IsPedInAnyVehicle(PlayerPedId(), false)
 
         for _, target in ipairs(shopTargets) do
             local distance = #(coords - vector3(target.x, target.y, target.z))
+            -- Au volant : seulement les garages publics, de plus loin, pour ranger
+            local storing = inVehicle and target.shop.kind == 'garage'
+            local reach = storing and Config.GarageStoreDistance or (not inVehicle and (target.radius or Config.InteractDistance) or 0.0)
 
             if distance < Config.MarkerDistance then
                 sleep = 0
@@ -1544,8 +1559,11 @@ CreateThread(function()
                     DrawMarker(25, target.x, target.y, target.z + 0.02, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.1, 1.1, 1.0, color[1], color[2], color[3], color[4], false, false, 2, false, nil, nil, false)
                 end
 
-                if distance < (target.radius or Config.InteractDistance) and (not closestDistance or distance < closestDistance) then
-                    closest, closestDistance = { id = ('shop_%s_%d'):format(target.shop.slug, target.index), type = 'shop', label = target.label, target = target }, distance
+                if distance < reach and (not closestDistance or distance < closestDistance) then
+                    closest, closestDistance = {
+                        id = ('shop_%s_%d%s'):format(target.shop.slug, target.index, storing and '_store' or ''), type = 'shop', store = storing,
+                        label = storing and 'Ranger le véhicule' or target.label, target = target,
+                    }, distance
                 end
             end
         end
@@ -1575,7 +1593,7 @@ CreateThread(function()
                 lib.showTextUI(('[E] %s'):format(closest.type == 'doorbell' and 'Sonner' or (closest.type == 'garage' and IsPedInAnyVehicle(PlayerPedId(), false)) and 'Ranger le véhicule' or closest.label))
             end
 
-            if IsControlJustReleased(0, 38) and (closest.type == 'garage' or not IsPedInAnyVehicle(PlayerPedId(), false)) then
+            if IsControlJustReleased(0, 38) and (closest.type == 'garage' or closest.store or not IsPedInAnyVehicle(PlayerPedId(), false)) then
                 local handler = handlers[closest.type]
 
                 if closest.type == 'shop' then
