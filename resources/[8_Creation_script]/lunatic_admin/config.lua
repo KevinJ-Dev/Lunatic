@@ -4,6 +4,7 @@ Config = {}
 -- (modifiable par chaque joueur : Échap > Paramètres > Raccourcis clavier > catégorie FiveM)
 Config.Command = 'staff'
 Config.DefaultKey = 'F10'
+Config.QuickMenuKey = 'F9' -- menu rapide du staff (mode administration, reports…), réglable dans les touches de FiveM
 
 -- Niveau réservé au rang Fondateur : aucun autre rang ne peut l'atteindre
 Config.OwnerLevel = 100

@@ -83,6 +83,7 @@ client_scripts {
     'client/event_zones.lua',
     'client/dev.lua',
     'client/context.lua',
+    'client/quickmenu.lua',
     'client/blips.lua',
     'client/mugshots.lua',
     'client/interactions.lua',
@@ -141,6 +142,7 @@ files {
     'web/search.js',
     'web/help.js',
     'web/reports.js',
+    'web/quick.js',
     'web/logo.png',
     'web/fonts/*.woff2',
     'generated_*.lua', -- copie de secours des objets de la tuile Items (lue par ox_inventory)

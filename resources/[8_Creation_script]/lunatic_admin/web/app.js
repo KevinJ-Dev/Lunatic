@@ -1660,6 +1660,15 @@ window.addEventListener("message", (event) => {
         go("players");
         if (playersTab !== "online") switchPlayersTab("online");
         selectPlayer(Number(msg.serverId));
+    } else if (msg.action === "goto") {
+        // Menu rapide : page demandée (avec ses repli si la permission manque)
+        const target = msg.target;
+        if (target === "offline" && can("players.offline")) {
+            go("players");
+            if (playersTab !== "offline") switchPlayersTab("offline");
+        } else if (target === "members") go(can("staff.view") ? "members" : "dashboard");
+        else if (NAV.some((n) => n.id === target && n.show())) go(target);
+        else go("home");
     } else if (msg.action === "warning") {
         showWarning(msg.warning);
     } else if (msg.action === "close") {

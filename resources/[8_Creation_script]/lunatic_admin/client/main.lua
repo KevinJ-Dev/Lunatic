@@ -124,6 +124,15 @@ function OpenPanelOnPlayer(serverId)
     end
 end
 
+-- Menu rapide (client/quickmenu.lua) : ouvre le panel sur une page (reports, players, members, offline, tools, home)
+function OpenPanelOn(target)
+    open()
+
+    if isOpen then
+        SendNUIMessage({ action = 'goto', target = target })
+    end
+end
+
 RegisterCommand(Config.Command, open, false)
 RegisterKeyMapping(Config.Command, 'Ouvrir le panel staff', 'keyboard', Config.DefaultKey)
 
