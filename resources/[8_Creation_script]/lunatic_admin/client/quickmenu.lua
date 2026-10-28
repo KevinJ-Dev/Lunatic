@@ -350,7 +350,11 @@ local function rootMenu()
         items[#items + 1] = { label = 'Outils de modération', submenu = toolsMenu }
     end
 
-    items[#items + 1] = { label = 'Gestion', desc = 'Ouvre le panel staff complet.', onSelect = function() closeQuick() OpenPanelOn('home') end }
+    -- Pages du panel hors joueurs (client/quickpages.lua), selon les permissions
+    for _, entry in ipairs(QuickPageEntries(ctx)) do
+        items[#items + 1] = entry
+    end
+
     return { title = summary.name, items = items }
 end
 

@@ -85,6 +85,7 @@ client_scripts {
     'client/dev.lua',
     'client/context.lua',
     'client/quickplayer.lua',
+    'client/quickpages.lua',
     'client/quickmenu.lua',
     'client/blips.lua',
     'client/mugshots.lua',
