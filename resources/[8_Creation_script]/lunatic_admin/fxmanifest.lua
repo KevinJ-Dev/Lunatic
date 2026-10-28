@@ -71,6 +71,7 @@ server_scripts {
     'server/context.lua',
     'server/adminmode.lua',
     'server/reports.lua',
+    'server/quickmenu.lua',
 }
 
 client_scripts {

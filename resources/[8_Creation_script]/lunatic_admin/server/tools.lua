@@ -36,6 +36,8 @@ local function modesOf(src)
     return modes
 end
 
+Panel.toolModesOf = modesOf
+
 -- Modes actifs envoyés au panel (interrupteurs de la page Outils)
 table.insert(Panel.stateHooks, function(state, src)
     state.tools = modesOf(src)

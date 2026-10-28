@@ -109,6 +109,8 @@ local function open()
         return
     end
 
+    TriggerEvent('lunatic_admin:closeQuick')
+
     isOpen = true
     SetNuiFocus(true, true)
     SendNUIMessage({ action = 'open', state = state, toggleKey = toggleKey() })

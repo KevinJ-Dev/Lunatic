@@ -1,84 +1,64 @@
 "use strict";
 
 // ====================================================================
-//  lunatic_admin — Menu rapide du staff (menu admin, doc Vision) : ouvert par une touche (F9 par défaut) panel fermé.
-//  Mode administration, reports, joueurs, staff, joueurs hors ligne, outils, gestion ; chaque entrée ouvre le panel
-//  sur la bonne page. Souris, ou flèches + Entrée ; Échap ou F9 pour fermer.
+//  lunatic_admin — Menu rapide du staff (menu admin, doc Vision) : affichage seulement. Le jeu (client/quickmenu.lua)
+//  gère le clavier pendant que le personnage reste libre, et envoie le menu à afficher : titre, entrées, sélection,
+//  description. Au plus 10 entrées visibles, la liste défile avec la sélection.
 // ====================================================================
 
-let quickData = null;
-let quickIndex = 0;
+const QUICK_VISIBLE = 10;
 
-function quickEntries() {
-    const can = quickData.can || {};
-    return [
-        { id: "adminMode", label: "Mode administration", toggle: true, on: quickData.adminMode },
-        can.reports ? { id: "reports", label: "Liste des reports", badge: quickData.reports } : null,
-        can.players ? { id: "players", label: "Liste des joueurs" } : null,
-        can.staff ? { id: "members", label: "Liste des modérateurs et staff" } : null,
-        can.offline ? { id: "offline", label: "Joueurs hors ligne" } : null,
-        can.tools ? { id: "tools", label: "Outils de modération" } : null,
-        { id: "home", label: "Gestion" },
-    ].filter(Boolean);
+function paintQuick(data) {
+    const items = data.items || [];
+    const start = Math.max(0, Math.min(data.index - 1 - Math.floor(QUICK_VISIBLE / 2), items.length - QUICK_VISIBLE));
+    const visible = items.slice(start, start + QUICK_VISIBLE);
+    const stats = data.stats;
+
+    $("quick").replaceChildren(...[
+        h("header", { class: "quick-head" }, h("b", null, data.title || "Administration")),
+        h("div", { class: "quick-sub" }, h("span", null, data.subtitle || ""), h("span", null, `${data.index}/${items.length}`)),
+        stats && data.depth === 1 ? h("div", { class: "quick-stats" },
+            h("span", null, h("b", null, String(stats.online ?? 0)), " en ligne"),
+            h("span", null, h("b", null, String(stats.staff ?? 0)), " en service"),
+            h("span", null, h("b", null, String(stats.reports ?? 0)), " reports")) : null,
+        h("div", { class: "quick-list" }, visible.map((item, i) => {
+            const index = start + i + 1;
+            return h("div", { class: `quick-item${index === data.index ? " on" : ""}${item.disabled ? " disabled" : ""}${item.info ? " info" : ""}` },
+                h("span", null, item.label),
+                item.toggle ? h("i", { class: `quick-switch${item.on ? " on" : ""}` }, h("i"))
+                    : item.right ? h("i", { class: "quick-right" }, item.right)
+                    : item.info ? null : h("i", { class: "quick-arrow" }, "›"));
+        })),
+        items.length > QUICK_VISIBLE ? h("div", { class: "quick-more" }, start > 0 ? "▲" : "", start + QUICK_VISIBLE < items.length ? "▼" : "") : null,
+        data.desc ? h("div", { class: "quick-desc" }, data.desc) : null,
+        h("footer", { class: "quick-foot" }, data.depth > 1 ? "Flèches · Entrée · Retour arrière : revenir" : "Flèches · Entrée · Retour arrière ou F9 : fermer"),
+    ].filter(Boolean));
 }
-
-function paintQuick() {
-    const entries = quickEntries();
-    quickIndex = Math.max(0, Math.min(quickIndex, entries.length - 1));
-    const stat = (value, label) => h("span", null, h("b", null, String(value ?? 0)), label);
-
-    $("quick").replaceChildren(
-        h("header", { class: "quick-head" }, h("b", null, "Administration"), h("small", null, quickData.name || "")),
-        h("div", { class: "quick-stats" }, stat(quickData.online, " en ligne"), stat(quickData.staff, " en service"), stat(quickData.reports, " reports")),
-        h("div", { class: "quick-list" }, entries.map((entry, index) => h("button", {
-            class: `quick-item${index === quickIndex ? " on" : ""}`,
-            onmouseenter: () => { if (quickIndex !== index) { quickIndex = index; paintQuick(); } },
-            onclick: () => chooseQuick(entry),
-        }, h("span", null, entry.label),
-            entry.toggle ? h("i", { class: `quick-switch${entry.on ? " on" : ""}` }, h("i"))
-                : entry.badge ? h("i", { class: "quick-badge" }, String(entry.badge)) : h("i", { class: "quick-arrow" }, "›")))),
-        h("footer", { class: "quick-foot" }, "Flèches + Entrée · Échap pour fermer"));
-}
-
-function chooseQuick(entry) {
-    nui("quickAction", { id: entry.id });
-}
-
-function closeQuickMenu() {
-    if (!quickData) return;
-    quickData = null;
-    document.body.classList.remove("quick-open");
-    nui("quickClose");
-}
-
-// Clavier : capté avant les raccourcis du panel tant que le menu rapide est ouvert
-document.addEventListener("keydown", (e) => {
-    if (!quickData) return;
-    const entries = quickEntries();
-    if (e.key === "ArrowDown") quickIndex = (quickIndex + 1) % entries.length;
-    else if (e.key === "ArrowUp") quickIndex = (quickIndex - 1 + entries.length) % entries.length;
-    else if (e.key === "Enter") chooseQuick(entries[quickIndex]);
-    else if (e.key === "Escape" || e.key === "F9") closeQuickMenu();
-    else return;
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    if (quickData) paintQuick();
-}, true);
 
 window.addEventListener("message", (event) => {
     const msg = event.data;
     if (!msg || typeof msg !== "object") return;
     if (msg.action === "quick" && msg.data) {
-        quickData = msg.data;
         document.body.classList.add("quick-open");
-        paintQuick();
+        paintQuick(msg.data);
     } else if (msg.action === "quickClose") {
-        quickData = null;
         document.body.classList.remove("quick-open");
     }
 });
 
 // Aperçu hors jeu : index.html#quick
 if (typeof GetParentResourceName !== "function" && location.hash.includes("quick")) {
-    window.postMessage({ action: "quick", data: { name: "Kévin", adminMode: true, online: 94, staff: 12, reports: 3, can: { reports: true, players: true, staff: true, offline: true, tools: true } } }, "*");
+    window.postMessage({ action: "quick", data: {
+        title: "Administration", subtitle: "Kévin", index: 2, depth: 1, stats: { online: 94, staff: 12, reports: 3 },
+        desc: null,
+        items: [
+            { label: "Mode administration", toggle: true, on: true },
+            { label: "Liste des reports", right: "3" },
+            { label: "Liste des joueurs", right: "94" },
+            { label: "Liste des modérateurs et staff" },
+            { label: "Joueurs hors ligne" },
+            { label: "Outils de modération" },
+            { label: "Gestion" },
+        ],
+    } }, "*");
 }

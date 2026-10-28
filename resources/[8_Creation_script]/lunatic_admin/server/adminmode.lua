@@ -1,6 +1,6 @@
 -- Mode administration (menu admin, doc Vision) : le staff le met quand il est en service, l'enlève quand il joue en RP.
 -- Activé : alertes de reports (server/reports.lua) et noms / ID au-dessus des têtes (avec la permission Noms et ID).
--- Coupé à la déconnexion. Bascule depuis le panel (barre du haut) ou la commande /modeadmin.
+-- Coupé à la déconnexion. Bascule depuis le menu rapide (F9), la page Reports du panel ou la commande /modeadmin.
 
 AdminMode = {}
 
@@ -46,30 +46,6 @@ Panel.actions['adminmode.toggle'] = function(src, _, data)
     set(src, enabled)
     return { ok = true, adminMode = enabled }
 end
-
--- Menu rapide (client/quickmenu.lua) : chiffres du moment et entrées autorisées
-local TOOLS = { 'tools.noclip', 'tools.invisible', 'tools.godmode', 'tools.ghost', 'tools.names', 'tools.coords', 'tools.tpm', 'tools.vehicles' }
-
-lib.callback.register('lunatic_admin:quick', function(src)
-    if not Staff.can(src, 'panel.open') then
-        return false
-    end
-
-    local tools = false
-
-    for _, permission in ipairs(TOOLS) do
-        tools = tools or Staff.can(src, permission)
-    end
-
-    return {
-        name = Staff.displayName(src), adminMode = on[src] == true, online = #GetPlayers(), staff = AdminMode.count(),
-        reports = Reports and Reports.pendingCount() or 0,
-        can = {
-            reports = Staff.can(src, 'reports.manage'), players = Staff.can(src, 'players.view'),
-            staff = Staff.can(src, 'staff.view') or Staff.can(src, 'staff.online'), offline = Staff.can(src, 'players.offline'), tools = tools,
-        },
-    }
-end)
 
 table.insert(Panel.stateHooks, function(state, src)
     state.me.adminMode = on[src] == true

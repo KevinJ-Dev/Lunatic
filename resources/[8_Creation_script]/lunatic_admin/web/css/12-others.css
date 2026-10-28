@@ -139,3 +139,12 @@ body.quick-open .quick { display: block; }
 .quick-switch.on i { left: 19px; }
 .quick-item.on .quick-switch:not(.on) { background: #0000002e; }
 .quick-foot { padding: 8px 18px 12px; color: var(--ink-3, #ffffff70); font-size: 11px; text-align: center; }
+
+.quick { pointer-events: none; }
+.quick-sub { display: flex; justify-content: space-between; padding: 8px 18px; border-bottom: 1px solid var(--glass-line); color: var(--ink-2); font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.quick-item.disabled { opacity: .4; }
+.quick-item.info { height: auto; min-height: 30px; padding-top: 6px; padding-bottom: 6px; text-transform: none; font-weight: 500; white-space: normal; }
+.quick-right { color: var(--ink-2); font-size: 11.5px; font-style: normal; font-weight: 600; text-transform: none; }
+.quick-item.on .quick-right { color: #444; }
+.quick-more { display: flex; justify-content: center; gap: 10px; padding: 0 0 4px; color: var(--ink-3, #ffffff70); font-size: 10px; }
+.quick-desc { margin: 0 8px 4px; padding: 8px 10px; border-radius: 9px; background: #ffffff0a; color: var(--ink-2); font-size: 12px; line-height: 1.4; }

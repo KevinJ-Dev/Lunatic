@@ -174,6 +174,31 @@ local function addMessage(report, author, name, text)
     end
 end
 
+-- Reports en cours pour le menu rapide (en attente d'abord), avec leur discussion
+function Reports.activeList()
+    local active = {}
+
+    for _, report in pairs(list) do
+        if report.status ~= 'closed' then
+            local online = sourceOf(report.license)
+            active[#active + 1] = {
+                id = report.id, name = report.name, message = report.message, status = report.status, staff = report.staff,
+                online = online ~= nil, serverId = online, messages = report.messages,
+            }
+        end
+    end
+
+    table.sort(active, function(a, b)
+        if a.status ~= b.status then
+            return a.status == 'open'
+        end
+
+        return a.id < b.id
+    end)
+
+    return active
+end
+
 function Reports.pendingCount()
     local count = 0
 
