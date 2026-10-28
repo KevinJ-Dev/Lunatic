@@ -103,3 +103,101 @@ if (typeof GetParentResourceName !== "function" && location.hash.includes("quick
         ],
     } }, "*");
 }
+
+// ---------- Fenêtre de saisie du menu rapide (raison, montant, durée…) ----------
+// rows : { type = input | number | select | checkbox, label, required, min, max, default, options = { { value, label } } }
+
+let quickDialogRows = null;
+
+function closeQuickDialog(values) {
+    if (!quickDialogRows) return;
+    quickDialogRows = null;
+    $("quickDialog").classList.remove("on");
+    nui("quickInputDone", { values: values || null });
+}
+
+function openQuickDialog(title, rows) {
+    quickDialogRows = Array.isArray(rows) ? rows : [];
+    const error = h("p", { class: "quick-dialog-error" });
+    const fields = quickDialogRows.map((row) => {
+        let control;
+        if (row.type === "select") {
+            control = h("select", { class: "input" }, (row.options || []).map((o) => h("option", { value: String(o.value), selected: String(o.value) === String(row.default ?? "") }, o.label)));
+        } else if (row.type === "checkbox") {
+            control = h("input", { type: "checkbox", checked: !!row.checked || row.default === true });
+        } else {
+            control = h("input", { class: "input", type: row.type === "number" ? "number" : "text", value: row.default ?? "", placeholder: row.placeholder || "" });
+            if (row.type === "number") {
+                if (row.min !== undefined) control.setAttribute("min", row.min);
+                if (row.max !== undefined) control.setAttribute("max", row.max);
+            } else if (row.max) control.setAttribute("maxlength", row.max);
+        }
+        const label = h("label", null, row.label, row.required ? h("b", null, " *") : null);
+        return { row, control, el: row.type === "checkbox" ? h("label", { class: "quick-check" }, control, h("span", null, row.label)) : h("div", { class: "quick-field" }, label, control) };
+    });
+
+    const submit = () => {
+        const values = [];
+        for (const f of fields) {
+            const { row, control } = f;
+            let value;
+            if (row.type === "checkbox") value = control.checked;
+            else if (row.type === "number") {
+                value = control.value === "" ? null : Number(control.value);
+                if (value !== null && (!Number.isFinite(value) || (row.min !== undefined && value < row.min) || (row.max !== undefined && value > row.max))) {
+                    error.textContent = `${row.label} : valeur hors limites.`;
+                    return control.focus();
+                }
+            } else value = control.value.trim();
+            if (row.required && (value === null || value === "" || value === false)) {
+                error.textContent = `${row.label} : obligatoire.`;
+                return control.focus && control.focus();
+            }
+            if (row.type !== "checkbox" && row.type !== "number" && row.type !== "select" && row.min && value.length > 0 && value.length < row.min) {
+                error.textContent = `${row.label} : ${row.min} caractères minimum.`;
+                return control.focus();
+            }
+            values.push(value);
+        }
+        closeQuickDialog(values);
+    };
+
+    $("quickDialog").replaceChildren(
+        h("header", { class: "quick-head" }, h("b", null, title || "Saisie")),
+        h("div", { class: "quick-dialog-body" }, fields.map((f) => f.el), error),
+        h("footer", { class: "quick-dialog-foot" },
+            h("button", { class: "btn ghost", onclick: () => closeQuickDialog(null) }, "Annuler"),
+            h("button", { class: "btn primary", onclick: submit }, "Valider")));
+    $("quickDialog").classList.add("on");
+    $("quickDialog").onkeydown = (e) => {
+        if (e.key === "Enter" && e.target.tagName !== "SELECT") { e.preventDefault(); submit(); }
+    };
+    const first = fields.find((f) => f.row.type !== "checkbox");
+    setTimeout(() => (first ? first.control : $("quickDialog").querySelector(".btn.primary")).focus(), 30);
+}
+
+// Échap : annule la saisie (capté avant les raccourcis du panel)
+document.addEventListener("keydown", (e) => {
+    if (!quickDialogRows) return;
+    if (e.key === "Escape") closeQuickDialog(null);
+    else return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+}, true);
+
+window.addEventListener("message", (event) => {
+    const msg = event.data;
+    if (msg && msg.action === "quickInput") openQuickDialog(msg.title, msg.rows);
+    if (msg && msg.action === "quickClose" && quickDialogRows) {
+        quickDialogRows = null;
+        $("quickDialog").classList.remove("on");
+    }
+});
+
+// Aperçu hors jeu : index.html#quickinput
+if (typeof GetParentResourceName !== "function" && location.hash.includes("quickinput")) {
+    window.postMessage({ action: "quickInput", title: "Bannir Jean Dupont", rows: [
+        { type: "select", label: "Durée", required: true, default: "24", options: [{ value: "24", label: "24 heures" }, { value: "72", label: "3 jours" }, { value: "permanent", label: "Définitif" }] },
+        { type: "input", label: "Raison", required: true, min: 3, max: 200 },
+    ] }, "*");
+}

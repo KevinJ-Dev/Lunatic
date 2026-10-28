@@ -41,12 +41,29 @@ local function run(action, payload, okMessage)
     return result
 end
 
+-- Saisie (raison, montant, durée…) : fenêtre aux couleurs du menu rapide (web/quick.js), mêmes champs que
+-- lib.inputDialog (input, number, select, checkbox). Renvoie la liste des valeurs, ou nil si annulée.
+local dialog = nil
+
 local function input(title, rows)
     busy = true
-    local values = lib.inputDialog(title, rows)
+    dialog = promise.new()
+    SetNuiFocus(true, true)
+    SendNUIMessage({ action = 'quickInput', title = title, rows = rows })
+    local values = Citizen.Await(dialog)
+    dialog = nil
+    SetNuiFocus(false, false)
     busy = false
     return values
 end
+
+RegisterNUICallback('quickInputDone', function(data, cb)
+    cb({})
+
+    if dialog then
+        dialog:resolve(type(data.values) == 'table' and data.values or nil)
+    end
+end)
 
 ---------------------------------------------------------------------
 -- Affichage
@@ -87,6 +104,11 @@ local function closeQuick()
 
     stack = nil
     SendNUIMessage({ action = 'quickClose' })
+
+    -- Saisie en cours : annulée
+    if dialog then
+        dialog:resolve(nil)
+    end
 end
 
 local function push(menu)
