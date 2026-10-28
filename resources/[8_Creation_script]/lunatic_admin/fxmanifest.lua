@@ -69,6 +69,7 @@ server_scripts {
     'server/dev.lua',
     'server/commands.lua',
     'server/context.lua',
+    'server/adminmode.lua',
     'server/reports.lua',
 }
 

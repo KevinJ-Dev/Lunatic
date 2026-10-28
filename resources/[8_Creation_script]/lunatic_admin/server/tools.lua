@@ -23,6 +23,9 @@ local function setMode(src, mode, enabled)
     TriggerClientEvent('lunatic_admin:tool', src, mode, enabled)
 end
 
+-- Pour les autres fichiers du panel (mode administration : noms et ID au-dessus des têtes)
+Panel.setToolMode = setMode
+
 local function modesOf(src)
     local modes = {}
 

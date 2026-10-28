@@ -564,3 +564,10 @@ AddEventHandler('onResourceStop', function(resource)
         clearBlips()
     end
 end)
+
+-- Mode administration (/modeadmin) : alertes de reports et noms au-dessus des têtes ; le serveur vérifie l'accès au panel
+RegisterCommand('modeadmin', function()
+    CreateThread(function()
+        notifyError(ask('adminmode.toggle', {}))
+    end)
+end, false)

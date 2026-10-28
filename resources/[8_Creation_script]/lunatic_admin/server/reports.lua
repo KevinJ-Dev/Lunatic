@@ -1,15 +1,21 @@
 -- Reports (menu admin, doc Vision) : le joueur écrit /report <message> en jeu, le staff les traite dans la page Reports
--- du panel (prendre en charge, aller vers, ramener, fermer avec une réponse). Un report ouvert à la fois par joueur.
--- Table lunatic_reports ; les reports en cours et les 30 derniers fermés sont gardés en mémoire pour le panel.
+-- du panel (prendre en charge, discuter, aller vers, ramener, fermer avec une réponse). Un report ouvert à la fois par
+-- joueur : un nouveau /report pendant qu'il est ouvert ajoute un message à la discussion.
+-- Alertes (nouveau report, message du joueur, rappel) : seulement aux staff en mode administration (server/adminmode.lua).
+-- Tables lunatic_reports et lunatic_report_messages ; les reports en cours et les 30 derniers fermés sont en mémoire.
 
 Reports = {}
 
 local MESSAGE_MIN, MESSAGE_MAX, ANSWER_MAX = 5, 300, 300
-local COOLDOWN = 60 -- secondes entre deux reports d'un même joueur
+local COOLDOWN = 60          -- secondes entre deux nouveaux reports d'un même joueur
+local REPLY_COOLDOWN = 5     -- secondes entre deux messages d'un joueur dans son report
 local CLOSED_KEPT = 30
+local MESSAGES_KEPT = 40     -- messages gardés par report pour le panel
+local REMINDER = 300         -- rappel des reports en attente aux staff en mode administration (secondes)
 
 local list = {}     -- id -> report
 local lastSent = {} -- license -> os.time du dernier report
+local lastReply = {} -- license -> os.time du dernier message
 
 local function licenseOf(src)
     return GetPlayerIdentifierByType(src, 'license')
@@ -46,6 +52,7 @@ local function fromRow(row)
         id = tonumber(row.id), license = row.reporter_license, name = row.reporter_name, message = row.message, status = row.status,
         staff = row.staff_name ~= '' and row.staff_name or nil, staffLicense = row.staff_license ~= '' and row.staff_license or nil,
         answer = row.answer ~= '' and row.answer or nil, created = tonumber(row.created_at), taken = tonumber(row.taken_at), closed = tonumber(row.closed_at),
+        messages = {},
     }
 end
 
@@ -68,6 +75,18 @@ table.insert(Panel.readyHooks, function()
             KEY `idx_lunatic_reports_reporter` (`reporter_license`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ]])
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `lunatic_report_messages` (
+            `id` INT NOT NULL AUTO_INCREMENT,
+            `report_id` INT NOT NULL,
+            `author` VARCHAR(10) NOT NULL,
+            `name` VARCHAR(80) NOT NULL,
+            `message` VARCHAR(400) NOT NULL,
+            `created_at` BIGINT NOT NULL,
+            PRIMARY KEY (`id`),
+            KEY `idx_lunatic_report_messages_report` (`report_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ]])
 
     list = {}
 
@@ -77,6 +96,28 @@ table.insert(Panel.readyHooks, function()
 
     for _, row in ipairs(MySQL.query.await("SELECT * FROM `lunatic_reports` WHERE `status` = 'closed' ORDER BY `id` DESC LIMIT ?", { CLOSED_KEPT }) or {}) do
         list[tonumber(row.id)] = fromRow(row)
+    end
+
+    local ids = {}
+
+    for id in pairs(list) do
+        ids[#ids + 1] = id
+    end
+
+    if #ids > 0 then
+        local rows = MySQL.query.await(('SELECT * FROM `lunatic_report_messages` WHERE `report_id` IN (%s) ORDER BY `id`'):format(('?,'):rep(#ids):sub(1, -2)), ids) or {}
+
+        for _, row in ipairs(rows) do
+            local report = list[tonumber(row.report_id)]
+
+            if report then
+                report.messages[#report.messages + 1] = { author = row.author, name = row.name, text = row.message, created = tonumber(row.created_at) }
+
+                if #report.messages > MESSAGES_KEPT then
+                    table.remove(report.messages, 1)
+                end
+            end
+        end
     end
 end)
 
@@ -97,19 +138,40 @@ local function trimClosed()
     end
 end
 
--- Staff connectés pouvant traiter les reports (la partie « mode administration » filtrera ensuite)
-local function staffToAlert()
-    local targets = {}
-
+-- Staff à prévenir : connectés, autorisés à traiter les reports et en mode administration (pas pendant leur RP)
+local function alert(text)
     for _, id in ipairs(GetPlayers()) do
         local src = tonumber(id)
 
-        if Staff.can(src, 'reports.manage') then
-            targets[#targets + 1] = src
+        if AdminMode.isOn(src) and Staff.can(src, 'reports.manage') then
+            Panel.notify(src, text, 'info')
         end
     end
+end
 
-    return targets
+-- Message du staff envoyé au joueur : dans le tchat (lunatic_chat) et en notification
+local function tellPlayer(report, staffName, text)
+    local target = sourceOf(report.license)
+
+    if not target then
+        return false
+    end
+
+    TriggerClientEvent('lunatic_chat:message', target, { kind = 'staff', author = ('Report #%d · %s'):format(report.id, staffName), text = text })
+    Panel.notify(target, ('Report #%d · %s : %s'):format(report.id, staffName, text), 'info')
+    return true
+end
+
+local function addMessage(report, author, name, text)
+    local now = os.time()
+    MySQL.insert.await('INSERT INTO `lunatic_report_messages` (`report_id`, `author`, `name`, `message`, `created_at`) VALUES (?, ?, ?, ?, ?)', {
+        report.id, author, name:sub(1, 80), text, now,
+    })
+    report.messages[#report.messages + 1] = { author = author, name = name, text = text, created = now }
+
+    if #report.messages > MESSAGES_KEPT then
+        table.remove(report.messages, 1)
+    end
 end
 
 function Reports.pendingCount()
@@ -125,7 +187,7 @@ function Reports.pendingCount()
 end
 
 ---------------------------------------------------------------------
--- /report <message>
+-- /report <message> : nouveau report, ou message ajouté au report en cours
 ---------------------------------------------------------------------
 
 RegisterCommand('report', function(src, args)
@@ -144,9 +206,21 @@ RegisterCommand('report', function(src, args)
         return Panel.notify(src, ('Utilisation : /report <message> (de %d à %d caractères).'):format(MESSAGE_MIN, MESSAGE_MAX), 'error')
     end
 
+    local name = playerName(src)
+
+    -- Report en cours : le message rejoint sa discussion
     for _, report in pairs(list) do
         if report.license == license and report.status ~= 'closed' then
-            return Panel.notify(src, ('Votre report #%d est déjà en cours de traitement.'):format(report.id), 'error')
+            if (lastReply[license] or 0) > os.time() - REPLY_COOLDOWN then
+                return Panel.notify(src, 'Patientez quelques secondes entre deux messages.', 'error')
+            end
+
+            lastReply[license] = os.time()
+            addMessage(report, 'player', name, message)
+            Panel.notify(src, ('Message ajouté à votre report #%d.'):format(report.id), 'success')
+            alert(('Report #%d · %s : %s'):format(report.id, name, message))
+            Staff.broadcastRefresh()
+            return
         end
     end
 
@@ -155,7 +229,6 @@ RegisterCommand('report', function(src, args)
     end
 
     lastSent[license] = os.time()
-    local name = playerName(src)
     local now = os.time()
     local id = MySQL.insert.await('INSERT INTO `lunatic_reports` (`reporter_license`, `reporter_name`, `message`, `created_at`) VALUES (?, ?, ?, ?)', {
         license, name:sub(1, 80), message, now,
@@ -165,21 +238,31 @@ RegisterCommand('report', function(src, args)
         return Panel.notify(src, 'Report impossible pour le moment, réessayez.', 'error')
     end
 
-    list[id] = { id = id, license = license, name = name, message = message, status = 'open', created = now }
-    Panel.notify(src, ('Report #%d envoyé au staff : restez disponible, un membre va vous répondre.'):format(id), 'success')
-
-    for _, staff in ipairs(staffToAlert()) do
-        Panel.notify(staff, ('Nouveau report #%d de %s : %s'):format(id, name, message), 'info')
-    end
-
+    list[id] = { id = id, license = license, name = name, message = message, status = 'open', created = now, messages = {} }
+    Panel.notify(src, ('Report #%d envoyé au staff. Pour lui écrire ensuite : /report <message>.'):format(id), 'success')
+    alert(('Nouveau report #%d de %s : %s'):format(id, name, message))
     Staff.broadcastRefresh()
 end, false)
+
+-- Rappel régulier des reports en attente aux staff en mode administration
+CreateThread(function()
+    while true do
+        Wait(REMINDER * 1000)
+        local pending = Reports.pendingCount()
+
+        if pending > 0 then
+            alert(('%d report%s en attente : page Reports du panel.'):format(pending, pending > 1 and 's' or ''))
+        end
+    end
+end)
 
 ---------------------------------------------------------------------
 -- Panel : liste (état du panel) et actions
 ---------------------------------------------------------------------
 
 table.insert(Panel.stateHooks, function(state, _, rank)
+    state.reportsPending = Reports.pendingCount()
+
     if not Ranks.hasPermission(rank, 'reports.manage') then
         return
     end
@@ -192,6 +275,7 @@ table.insert(Panel.stateHooks, function(state, _, rank)
             id = report.id, name = report.name, message = report.message, status = report.status, staff = report.staff,
             mine = report.staffLicense ~= nil and report.staffLicense == state.me.license, answer = report.answer,
             created = report.created, taken = report.taken, closed = report.closed, online = online ~= nil, serverId = online,
+            messages = report.messages,
         }
     end
 
@@ -213,17 +297,8 @@ local function reportFor(actor, data)
     return report
 end
 
-Panel.actions['reports.take'] = function(src, actor, data)
-    local report, err = reportFor(actor, data)
-
-    if not report then
-        return err
-    end
-
-    if report.status ~= 'open' then
-        return Panel.fail(report.status == 'closed' and 'Ce report est déjà fermé.' or ('Ce report est déjà pris en charge par %s.'):format(report.staff or 'un autre staff'))
-    end
-
+-- Prise en charge (aussi au premier message du staff)
+local function take(src, report)
     local now = os.time()
     report.status, report.staff, report.staffLicense, report.taken = 'taken', Staff.displayName(src), Staff.licenseOf(src), now
     MySQL.update.await("UPDATE `lunatic_reports` SET `status` = 'taken', `staff_license` = ?, `staff_name` = ?, `taken_at` = ? WHERE `id` = ?", {
@@ -237,7 +312,50 @@ Panel.actions['reports.take'] = function(src, actor, data)
     end
 
     Logs.add(src, 'reports.take', report.name, { report = report.id })
-    return { ok = true, message = ('Report #%d pris en charge.'):format(report.id) }
+end
+
+Panel.actions['reports.take'] = function(src, actor, data)
+    local report, err = reportFor(actor, data)
+
+    if not report then
+        return err
+    end
+
+    if report.status ~= 'open' then
+        return Panel.fail(report.status == 'closed' and 'Ce report est déjà fermé.' or ('Ce report est déjà pris en charge par %s.'):format(report.staff or 'un autre staff'))
+    end
+
+    take(src, report)
+    return { ok = true }
+end
+
+-- Discussion : message du staff au joueur
+Panel.actions['reports.message'] = function(src, actor, data)
+    local report, err = reportFor(actor, data)
+
+    if not report then
+        return err
+    end
+
+    if report.status == 'closed' then
+        return Panel.fail('Ce report est fermé.')
+    end
+
+    local text = cleanText(data.text, MESSAGE_MAX)
+
+    if not text or text == '' then
+        return Panel.fail(('Message : de 1 à %d caractères.'):format(MESSAGE_MAX))
+    end
+
+    if report.status == 'open' then
+        take(src, report)
+    end
+
+    local name = Staff.displayName(src)
+    addMessage(report, 'staff', name, text)
+    local delivered = tellPlayer(report, name, text)
+
+    return { ok = true, delivered = delivered }
 end
 
 Panel.actions['reports.close'] = function(src, actor, data)
@@ -273,7 +391,7 @@ Panel.actions['reports.close'] = function(src, actor, data)
 
     trimClosed()
     Logs.add(src, 'reports.close', report.name, { report = report.id, answer = answer ~= '' and answer or nil })
-    return { ok = true, message = ('Report #%d fermé.'):format(report.id) }
+    return { ok = true }
 end
 
 -- Aller vers / ramener l'auteur : actions de la fiche joueur (mêmes permissions et protections)
@@ -297,3 +415,11 @@ end
 
 Panel.actions['reports.goto'] = playerAction('player.goto')
 Panel.actions['reports.bring'] = playerAction('player.bring')
+
+AddEventHandler('playerDropped', function()
+    local license = licenseOf(source)
+
+    if license then
+        lastReply[license] = nil
+    end
+end)

@@ -119,6 +119,8 @@ const ACTION_LABELS = {
     "sanction.warn": "a averti",
     "sanction.ban": "a banni",
     "reports.take": "a pris en charge le report de",
+    "adminmode.on": "a activé le mode administration",
+    "adminmode.off": "a coupé le mode administration",
     "reports.close": "a fermé le report de",
     "sanction.revoke": "a révoqué une sanction de",
     "sanction.jail": "a mis en prison",

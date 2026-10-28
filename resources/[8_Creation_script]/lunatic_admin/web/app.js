@@ -497,6 +497,7 @@ function renderTabs() {
 
         const el = h("div", { class: `tab${index === activeTab ? " active" : ""}`, title: `${info.label} · glisser pour déplacer`, onclick: () => { if (!ignoreTabClick) selectTab(index); } },
             icon(info.icon), h("span", { class: "tab-label" }, info.label),
+            tab.view === "reports" && state && state.reportsPending ? h("i", { class: "tab-dot" }, String(state.reportsPending)) : null,
             h("button", { class: "tab-x", title: "Fermer l'onglet (Ctrl+W)", onclick: (e) => { e.stopPropagation(); if (!ignoreTabClick) closeTab(index); } }, icon("i-x")));
         // Clic molette : fermer l'onglet, comme un navigateur
         el.addEventListener("auxclick", (e) => { if (e.button === 1) closeTab(index); });
@@ -627,13 +628,16 @@ let homeSignature = null;
 let dashboardSignature = null;
 
 function renderHome() {
-    const signature = JSON.stringify([homeKpis().map((k) => k.textContent), tiles().map((t) => t.target)]);
+    const pending = state.reportsPending || 0;
+    const signature = JSON.stringify([homeKpis().map((k) => k.textContent), tiles().map((t) => t.target), pending]);
     if (signature === homeSignature && $("view-home").childElementCount) return;
     homeSignature = signature;
     replaceKeepingScroll($("view-home"), h("div", { class: "home menu" },
         h("div", { class: "kpis menu-kpis" }, homeKpis()),
         h("div", { class: "tiles" }, tiles().map((t) =>
-            h("button", { class: "tile", onclick: () => go(t.target) }, icon(t.icon), h("span", null, t.label))))
+            h("button", { class: "tile", onclick: () => go(t.target) }, icon(t.icon), h("span", null, t.label),
+                // Reports en attente : pastille de rappel
+                t.target === "reports" && pending ? h("i", { class: "tile-dot", title: `${pending} report(s) en attente` }, String(pending)) : null)))
     ));
 }
 
@@ -1670,9 +1674,11 @@ function demoState() {
     return {
         me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["reports.manage", "illegal.manage", "others.manage", "crews.manage", "catalogs.manage", "companies.manage", "publics.manage", "players.crash", "vehicles.give", "dev.manage", "events.manage", "poles.manage", "server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "players.characters", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
+        reportsPending: 1,
         reports: [
             { id: 14, name: "Jean Dupont", message: "Je suis bloqué sous la map près du LTD de Grove Street.", status: "open", created: Math.floor(Date.now() / 1000) - 120, online: true, serverId: 7 },
-            { id: 13, name: "Lisa Moreau", message: "Un joueur me tire dessus sans RP à la banque centrale.", status: "taken", staff: "Kévin", mine: true, created: Math.floor(Date.now() / 1000) - 900, taken: Math.floor(Date.now() / 1000) - 600, online: true, serverId: 12 },
+            { id: 13, name: "Lisa Moreau", message: "Un joueur me tire dessus sans RP à la banque centrale.", status: "taken", staff: "Kévin", mine: true, created: Math.floor(Date.now() / 1000) - 900, taken: Math.floor(Date.now() / 1000) - 600, online: true, serverId: 12,
+                messages: [{ author: "staff", name: "Kévin", text: "J'arrive, reste où tu es.", created: Math.floor(Date.now() / 1000) - 580 }, { author: "player", name: "Lisa Moreau", text: "Merci, je suis devant l'entrée.", created: Math.floor(Date.now() / 1000) - 540 }] },
             { id: 12, name: "Marc Petit", message: "Mon véhicule a disparu après le reboot.", status: "closed", staff: "Kévin", answer: "Récupère-le à la fourrière, frais remboursés.", created: Math.floor(Date.now() / 1000) - 7200, closed: Math.floor(Date.now() / 1000) - 6000, online: false },
         ],
         catalogue: {
