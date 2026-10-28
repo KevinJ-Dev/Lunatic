@@ -64,3 +64,15 @@ button:disabled { cursor: default; }
 .btn.ghost:hover { color: var(--ink); background: #ffffff16; }
 
 .hint { position: absolute; right: 18px; bottom: 18px; padding: 4px 10px; border-radius: 999px; background: #0000008c; color: #ffffffb3; font-size: 11.5px; }
+
+/* Fourrière : bannière à bandes jaunes et noires, onglets, frais */
+.banner.pound { background: repeating-linear-gradient(135deg, #f5c400 0 18px, #1a1a1a 18px 36px); }
+.banner.pound b { padding: 2px 14px; border-radius: 6px; background: #f5c400; color: #111; letter-spacing: .04em; }
+.banner.pound small { padding: 1px 8px; border-radius: 5px; background: #000000b0; color: #fff; }
+.tabs { display: flex; gap: 4px; margin-bottom: 4px; }
+.tab { flex: 1; height: 32px; border: 1px solid var(--line); border-radius: 9px; background: #ffffff08; color: var(--muted); font-size: 12px; font-weight: 600; }
+.tab.on { border-color: transparent; background: var(--accent); color: #fff; }
+.tab:disabled:not(.on) { opacity: .45; }
+.veh .tag.fee { background: #f5c400; color: #111; }
+.pay { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pay .btn { font-size: 13px; }

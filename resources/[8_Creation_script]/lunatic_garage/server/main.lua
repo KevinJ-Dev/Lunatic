@@ -1,7 +1,11 @@
--- Garage public : véhicules des joueurs (table owned_vehicles d'ESX) rangés et sortis aux emplacements des catégories
--- « Garage public » de la tuile Catalogues (lunatic_admin, GlobalState.lunaticShops).
+-- Garage public et fourrière : véhicules des joueurs (table owned_vehicles d'ESX) rangés, sortis et récupérés aux
+-- emplacements des catégories « Garage public » et « Fourrière » de la tuile Catalogues (lunatic_admin, GlobalState.lunaticShops).
 -- État d'un véhicule : rangé (stored = 1), dehors (stored = 0 et présent sur la carte) ou en fourrière (stored = 0 et
--- absent : détruit, disparu, serveur redémarré).
+-- absent : détruit, disparu, serveur redémarré, ou mis en fourrière par le staff : lunatic_impound = 1).
+
+MySQL.ready(function()
+    MySQL.query.await('ALTER TABLE `owned_vehicles` ADD COLUMN IF NOT EXISTS `lunatic_impound` TINYINT NOT NULL DEFAULT 0')
+end)
 
 local busy = {}
 
@@ -119,6 +123,18 @@ local function slotsOf(src)
     return slots
 end
 
+-- Frais de fourrière de la tuile Économie (lunatic_admin), par catégorie de véhicule. La catégorie vient du jeu du
+-- joueur (classe du modèle), limitée à celles possibles pour le type du garage.
+local FEE_CLASSES = { car = { car = true, bike = true, truck = true }, boat = { boat = true }, aircraft = { heli = true, plane = true } }
+local FEE_DEFAULT = { car = 'car', boat = 'boat', aircraft = 'heli' }
+
+local function feeOf(vehicleType, feeClass)
+    local allowed = FEE_CLASSES[vehicleType] or FEE_CLASSES.car
+    feeClass = allowed[feeClass] and feeClass or FEE_DEFAULT[vehicleType] or 'car'
+    local fees = type(GlobalState.lunaticEconomy) == 'table' and GlobalState.lunaticEconomy.impound or {}
+    return math.max(0, math.floor(tonumber(fees[feeClass]) or 0)), feeClass
+end
+
 local function storedCount(identifier)
     return tonumber(MySQL.scalar.await('SELECT COUNT(*) FROM `owned_vehicles` WHERE `owner` = ? AND `stored` = 1', { identifier })) or 0
 end
@@ -127,12 +143,10 @@ end
 -- Ouverture : véhicules du joueur pour ce type de garage, avec leur état
 ---------------------------------------------------------------------
 
+-- Garage public : tous ses véhicules du type ; fourrière : seulement ceux à récupérer (staff = mis en fourrière par le staff)
 lib.callback.register('lunatic_garage:open', function(src, slug, index, kind)
-    if kind == 'impound' then
-        return fail('La fourrière arrive bientôt.')
-    end
-
-    local shop, location, xPlayer, err = locationAt(src, slug, index, 'garage', Config.ActionDistance)
+    kind = kind == 'impound' and 'impound' or 'garage'
+    local shop, location, xPlayer, err = locationAt(src, slug, index, kind, Config.ActionDistance)
 
     if not shop then
         return fail(err)
@@ -141,17 +155,21 @@ lib.callback.register('lunatic_garage:open', function(src, slug, index, kind)
     local world = worldPlates()
     local vehicles = {}
 
-    for _, row in ipairs(MySQL.query.await('SELECT `plate`, `vehicle`, `type`, `stored` FROM `owned_vehicles` WHERE `owner` = ?', { xPlayer.identifier }) or {}) do
+    for _, row in ipairs(MySQL.query.await('SELECT `plate`, `vehicle`, `type`, `stored`, `lunatic_impound` FROM `owned_vehicles` WHERE `owner` = ?', { xPlayer.identifier }) or {}) do
         if (row.type or 'car') == (shop.vehicleType or 'car') then
             local props = decode(row.vehicle)
             local state = isStored(row) and 'stored' or world[plateKey(row.plate)] and 'out' or 'impound'
-            vehicles[#vehicles + 1] = { plate = row.plate, model = tonumber(props.model) or 0, props = props, state = state }
+
+            if kind == 'garage' or state == 'impound' then
+                vehicles[#vehicles + 1] = { plate = row.plate, model = tonumber(props.model) or 0, props = props, state = state, staff = tonumber(row.lunatic_impound) == 1 }
+            end
         end
     end
 
     return {
-        ok = true, kind = 'garage', label = shop.label, vehicleType = shop.vehicleType or 'car', vehicles = vehicles,
+        ok = true, kind = kind, label = shop.label, vehicleType = shop.vehicleType or 'car', vehicles = vehicles,
         slots = slotsOf(src), stored = storedCount(xPlayer.identifier), spawn = spawnOf(location),
+        cash = xPlayer.getAccount('money').money, bank = xPlayer.getAccount('bank').money,
     }
 end)
 
@@ -198,7 +216,7 @@ lib.callback.register('lunatic_garage:takeOut', function(src, slug, index, plate
     busy[src] = true
 
     -- Marqué sorti avant d'apparaître : un double clic ne le sort pas deux fois
-    local changed = MySQL.update.await('UPDATE `owned_vehicles` SET `stored` = 0 WHERE `owner` = ? AND `plate` = ? AND `stored` = 1', { xPlayer.identifier, row.plate })
+    local changed = MySQL.update.await('UPDATE `owned_vehicles` SET `stored` = 0, `lunatic_impound` = 0 WHERE `owner` = ? AND `plate` = ? AND `stored` = 1', { xPlayer.identifier, row.plate })
 
     if (tonumber(changed) or 0) == 0 then
         busy[src] = nil
@@ -288,6 +306,101 @@ lib.callback.register('lunatic_garage:store', function(src, slug, index, netId, 
 
     log(src, 'garage.store', row.plate, { garage = shop.label })
     return { ok = true, plate = row.plate }
+end)
+
+---------------------------------------------------------------------
+-- Fourrière : véhicule absent de la carte récupéré contre les frais, posé à la sortie de la fourrière
+---------------------------------------------------------------------
+
+lib.callback.register('lunatic_garage:retrieve', function(src, slug, index, plate, entityType, feeClass, account)
+    if busy[src] then
+        return fail('Patientez un instant.')
+    end
+
+    local shop, location, xPlayer, err = locationAt(src, slug, index, 'impound', Config.ActionDistance)
+
+    if not shop then
+        return fail(err)
+    end
+
+    local row = type(plate) == 'string' and MySQL.single.await('SELECT `plate`, `vehicle`, `type`, `stored` FROM `owned_vehicles` WHERE `owner` = ? AND `plate` = ?', { xPlayer.identifier, plate })
+
+    if not row or isStored(row) then
+        return fail("Ce véhicule n'est pas en fourrière.")
+    end
+
+    if worldPlates()[plateKey(row.plate)] then
+        return fail("Ce véhicule est encore sur la carte : il n'est pas en fourrière.")
+    end
+
+    if (row.type or 'car') ~= (shop.vehicleType or 'car') then
+        return fail("Cette fourrière n'accueille pas ce type de véhicule.")
+    end
+
+    local props = decode(row.vehicle)
+
+    if not tonumber(props.model) then
+        return fail('Véhicule illisible : prévenez le staff.')
+    end
+
+    local fee = feeOf(shop.vehicleType or 'car', feeClass)
+    account = account == 'bank' and 'bank' or 'money'
+
+    if fee > 0 and xPlayer.getAccount(account).money < fee then
+        return fail(account == 'bank' and 'Solde bancaire insuffisant.' or "Vous n'avez pas assez de liquide.")
+    end
+
+    local spawn = spawnOf(location)
+    local spawnCoords = vector3(spawn.x, spawn.y, spawn.z)
+
+    for _, vehicle in ipairs(GetAllVehicles()) do
+        if #(GetEntityCoords(vehicle) - spawnCoords) < 3.0 then
+            return fail('La sortie est encombrée : dégagez-la puis réessayez.')
+        end
+    end
+
+    busy[src] = true
+
+    if fee > 0 then
+        xPlayer.removeAccountMoney(account, fee, ('Fourrière : %s'):format(row.plate))
+    end
+
+    local vehicle = CreateVehicleServerSetter(math.floor(tonumber(props.model)), ENTITY_TYPES[entityType] and entityType or 'automobile', spawn.x, spawn.y, spawn.z, spawn.h or 0.0)
+    local timeout = GetGameTimer() + 3000
+
+    while (not vehicle or vehicle == 0 or not DoesEntityExist(vehicle)) and GetGameTimer() < timeout do
+        Wait(0)
+    end
+
+    if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then
+        if fee > 0 then
+            xPlayer.addAccountMoney(account, fee, 'Remboursement fourrière')
+        end
+
+        busy[src] = nil
+        return fail("Le véhicule n'a pas pu sortir. Vous avez été remboursé.")
+    end
+
+    SetEntityRoutingBucket(vehicle, GetPlayerRoutingBucket(src))
+    SetVehicleNumberPlateText(vehicle, row.plate)
+    MySQL.update.await('UPDATE `owned_vehicles` SET `lunatic_impound` = 0 WHERE `owner` = ? AND `plate` = ?', { xPlayer.identifier, row.plate })
+    busy[src] = nil
+
+    log(src, 'garage.impound_out', row.plate, { impound = shop.label, fee = fee, account = account })
+    return { ok = true, netId = NetworkGetNetworkIdFromEntity(vehicle), props = props, plate = row.plate, fee = fee }
+end)
+
+-- Mise en fourrière par le staff (menu staff sur un véhicule, lunatic_admin) : véhicule retiré de la carte et, s'il
+-- appartient à un joueur, marqué « mis en fourrière par le staff ». Renvoie { ok, owned = true s'il avait un propriétaire }.
+exports('impoundVehicle', function(vehicle)
+    if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then
+        return { ok = false }
+    end
+
+    local plate = plateKey(GetVehicleNumberPlateText(vehicle))
+    local changed = plate ~= '' and MySQL.update.await('UPDATE `owned_vehicles` SET `stored` = 0, `lunatic_impound` = 1 WHERE UPPER(TRIM(`plate`)) = ?', { plate }) or 0
+    DeleteEntity(vehicle)
+    return { ok = true, owned = (tonumber(changed) or 0) > 0 }
 end)
 
 AddEventHandler('playerDropped', function()

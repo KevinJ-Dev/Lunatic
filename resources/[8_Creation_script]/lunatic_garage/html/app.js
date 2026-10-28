@@ -1,7 +1,8 @@
 "use strict";
 
 // Garage public (lunatic_garage) : véhicules du joueur pour ce type de garage, places libres, véhicules à récupérer à la
-// fourrière, aperçu sur place (géré par le jeu) et sortie. Le serveur revérifie tout.
+// fourrière, aperçu sur place (géré par le jeu) et sortie. Fourrière (data.kind = 'impound') : véhicules à récupérer
+// contre les frais, onglets Personnel / Entreprise / Crew. Le serveur revérifie tout.
 
 const $ = (id) => document.getElementById(id);
 const inGame = typeof GetParentResourceName === "function";
@@ -37,14 +38,18 @@ let selected = null;
 
 const STATES = { out: "Dehors", impound: "Fourrière" };
 const imageOf = (v) => `https://docs.fivem.net/vehicles/${v.name}.webp`;
+const money = (n) => `${Math.round(n).toLocaleString("fr-FR")} ${data.currency || "$"}`;
+const TABS = [["personal", "Personnel"], ["company", "Entreprise"], ["crew", "Crew"]];
 const vehicleOf = (id) => data.vehicles.find((v) => v.id === id) || null;
 
 function open(msg) {
     data = msg;
     const first = data.vehicles.find((v) => v.state === "stored") || data.vehicles[0];
     selected = first ? first.id : null;
-    $("title").textContent = "GARAGE";
-    $("sub").textContent = data.label || "Public";
+    const impound = data.kind === "impound";
+    $("title").textContent = impound ? "FOURRIÈRE" : "GARAGE";
+    $("sub").textContent = data.label || (impound ? "Fourrière" : "Public");
+    $("banner").classList.toggle("pound", impound);
     $("garage").classList.remove("hidden");
     paint();
     if (first) nui("preview", { id: first.id });
@@ -63,10 +68,35 @@ function row(v) {
     return h("button", { class: `veh ${v.state}${v.id === selected ? " on" : ""}`, onclick: () => choose(v) },
         h("span", { class: "pic" }, img),
         h("span", null, h("b", null, v.label), h("small", null, v.plate)),
-        STATES[v.state] ? h("i", { class: "tag" }, STATES[v.state]) : null);
+        data.kind === "impound" ? h("i", { class: "tag fee" }, v.staff ? `Staff · ${money(v.fee)}` : money(v.fee))
+            : STATES[v.state] ? h("i", { class: "tag" }, STATES[v.state]) : null);
+}
+
+// Fourrière : onglets (Personnel seulement pour le moment), véhicules à récupérer, frais payés en liquide ou par carte
+function paintImpound() {
+    const tabs = h("div", { class: "tabs" }, TABS.map(([key, label]) => h("button", {
+        class: `tab${key === "personal" ? " on" : ""}`, disabled: key !== "personal", title: key === "personal" ? null : "Bientôt",
+    }, label)));
+    $("list").replaceChildren(tabs, h("div", { class: "section" }, "Véhicules"),
+        ...(data.vehicles.length ? data.vehicles.map(row) : [h("p", { class: "empty-text" }, "Aucun véhicule à récupérer ici.")]));
+
+    const v = selected ? vehicleOf(selected) : null;
+    const fee = v ? v.fee : 0;
+    const pay = (account, label, balance) => h("button", {
+        class: "btn", disabled: !v || (fee > 0 && balance < fee), onclick: () => v && nui("retrieve", { id: v.id, account }),
+    }, label);
+    $("foot").replaceChildren(...[
+        h("div", { class: "places" }, h("span", null, "Frais de fourrière"), h("b", null, v ? (fee > 0 ? money(fee) : "Gratuit") : "—")),
+        v && v.staff ? h("p", { class: "note" }, "Mis en fourrière par le staff.") : null,
+        fee > 0 ? h("div", { class: "pay" }, pay("money", "Payer en liquide", data.cash), pay("bank", "Payer par carte", data.bank))
+            : h("button", { class: "btn", disabled: !v, onclick: () => v && nui("retrieve", { id: v.id, account: "money" }) }, "Récupérer"),
+        h("button", { class: "btn ghost", onclick: close }, "Fermer"),
+    ].filter(Boolean));
 }
 
 function paint() {
+    if (data.kind === "impound") return paintImpound();
+
     const kept = data.vehicles.filter((v) => v.state !== "impound");
     const impound = data.vehicles.filter((v) => v.state === "impound");
     // Places libres, tous garages confondus (data.stored = véhicules rangés partout)
@@ -112,7 +142,15 @@ window.addEventListener("message", (event) => {
 
 // ---------- Aperçu navigateur ----------
 
-if (!inGame) {
+if (!inGame && location.hash.includes("impound")) {
+    window.postMessage({
+        action: "open", kind: "impound", label: "Fourrière de Davis", currency: "$", cash: 420, bank: 15800,
+        vehicles: [
+            { id: 1, plate: "CLB 0021", label: "Club", name: "club", state: "impound", fee: 300 },
+            { id: 2, plate: "ARG 4410", label: "Argento", name: "argento", state: "impound", fee: 300, staff: true },
+        ],
+    }, "*");
+} else if (!inGame) {
     window.postMessage({
         action: "open", kind: "garage", label: "Garage de Pillbox Hill", slots: 5, stored: 2,
         vehicles: [

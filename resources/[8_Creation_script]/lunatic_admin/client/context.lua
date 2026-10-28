@@ -22,8 +22,8 @@ end
 
 local function done(result, okMessage)
     if result and result.ok then
-        if okMessage then
-            ESX.ShowNotification(okMessage, 'success')
+        if okMessage or result.message then
+            ESX.ShowNotification(okMessage or result.message, 'success')
         end
 
         return true
@@ -191,6 +191,7 @@ local function vehicleMenu(ECM, vehicle)
     ECM:AddItem(0, 'Retourner', run('flip', flip, 'Véhicule retourné.'))
     ECM:AddItem(0, 'Monter dedans', run('enter', enter, nil))
     ECM:AddItem(0, 'Propriétaire', run('owner', showOwner, nil))
+    ECM:AddItem(0, 'Mettre en fourrière', run('impound', nil, nil))
     ECM:AddItem(0, 'Supprimer', run('delete', nil, 'Véhicule supprimé.'))
 end
 

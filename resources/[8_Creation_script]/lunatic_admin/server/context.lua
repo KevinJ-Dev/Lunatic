@@ -100,6 +100,32 @@ Panel.actions['context.vehicle'] = function(src, actor, data)
         return { ok = true, silent = true }
     end
 
+    -- Mise en fourrière : véhicule d'un joueur récupérable à la fourrière (lunatic_garage), les autres sont seulement retirés
+    if operation == 'impound' then
+        for seat = -1, 6 do
+            local ped = GetPedInVehicleSeat(vehicle, seat)
+
+            if ped and ped ~= 0 and IsPedAPlayer(ped) then
+                return Panel.fail('Un joueur est dans ce véhicule.')
+            end
+        end
+
+        if GetResourceState('lunatic_garage') ~= 'started' then
+            return Panel.fail("lunatic_garage n'est pas démarré.")
+        end
+
+        local ok, result = pcall(function() return exports.lunatic_garage:impoundVehicle(vehicle) end)
+        local owned = ok and type(result) == 'table' and result.owned == true
+
+        if not ok or type(result) ~= 'table' or not result.ok then
+            return Panel.fail('Mise en fourrière impossible.')
+        end
+
+        Logs.add(src, 'context.vehicle', plate, { operation = 'impound', plate = plate, owned = owned })
+        return { ok = true, message = owned and ('Véhicule %s mis en fourrière : son propriétaire le récupère à la fourrière.'):format(plate)
+            or "Véhicule retiré : il n'appartient à aucun joueur." }
+    end
+
     if operation == 'delete' then
         for seat = -1, 6 do
             local ped = GetPedInVehicleSeat(vehicle, seat)

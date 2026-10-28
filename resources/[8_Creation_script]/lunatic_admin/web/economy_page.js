@@ -262,7 +262,7 @@ function ecoOther() {
     }
     const pending = tab === "aid" ? null : h("p", { class: "hint-line" }, tab === "bank"
         ? "Enregistré pour le futur script de banque : pas encore utilisé en jeu."
-        : "Enregistré pour le futur script de garage / fourrière : pas encore utilisé en jeu.");
+        : "Payés pour récupérer un véhicule à la fourrière (lunatic_garage), selon son type.");
 
     return h("section", { class: "eco-main eco-scroll eco-wide" },
         tabs,

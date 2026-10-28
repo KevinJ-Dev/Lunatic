@@ -32,6 +32,25 @@ local function entityType(model)
     return 'automobile'
 end
 
+-- Catégorie des frais de fourrière (tuile Économie) selon le modèle et le type du garage
+local function feeClass(model, vehicleType)
+    if vehicleType == 'boat' then
+        return 'boat'
+    elseif vehicleType == 'aircraft' then
+        return IsThisModelAPlane(model) and 'plane' or 'heli'
+    end
+
+    local class = GetVehicleClassFromName(model)
+
+    if class == 8 or class == 13 then
+        return 'bike'
+    elseif class == 10 or class == 11 or class == 20 then
+        return 'truck'
+    end
+
+    return 'car'
+end
+
 -- Nom affiché et nom du modèle (photo des véhicules du jeu)
 local function vehicleName(model)
     local display = GetDisplayNameFromVehicleModel(model)
@@ -158,10 +177,15 @@ AddEventHandler('lunatic_garage:open', function(target)
     end
 
     local list = {}
+    local fees = type(GlobalState.lunaticEconomy) == 'table' and GlobalState.lunaticEconomy.impound or {}
 
     for index, entry in ipairs(info.vehicles) do
         local label, name = vehicleName(entry.model)
-        list[#list + 1] = { id = index, plate = entry.plate, label = label, name = name, state = entry.state }
+        entry.feeClass = feeClass(entry.model, info.vehicleType)
+        list[#list + 1] = {
+            id = index, plate = entry.plate, label = label, name = name, state = entry.state, staff = entry.staff,
+            fee = math.floor(tonumber(fees[entry.feeClass]) or 0),
+        }
     end
 
     garage = { target = target, data = info, entries = info.vehicles, token = 0, cam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true) }
@@ -169,7 +193,10 @@ AddEventHandler('lunatic_garage:open', function(target)
     SetCamCoord(garage.cam, coords.x, coords.y, coords.z + 1.0)
     RenderScriptCams(true, true, 500, true, true)
     SetNuiFocus(true, true)
-    SendNUIMessage({ action = 'open', kind = info.kind, label = info.label, vehicles = list, slots = info.slots, stored = info.stored })
+    SendNUIMessage({
+        action = 'open', kind = info.kind, label = info.label, vehicles = list, slots = info.slots, stored = info.stored,
+        cash = info.cash, bank = info.bank, currency = GlobalState.lunaticCurrency or '$',
+    })
 
     CreateThread(function()
         while garage do
@@ -221,6 +248,40 @@ RegisterNUICallback('takeOut', function(data, cb)
         end
 
         notify(('Véhicule %s sorti du garage.'):format(result.plate), 'success')
+    end
+
+    DoScreenFadeIn(400)
+end)
+
+-- Fourrière : frais payés, véhicule posé à la sortie, joueur au volant
+RegisterNUICallback('retrieve', function(data, cb)
+    cb({})
+    local entry = garage and garage.data.kind == 'impound' and garage.entries[tonumber(data.id) or -1]
+
+    if not entry then
+        return
+    end
+
+    local target = garage.target
+    closeGarage()
+    DoScreenFadeOut(250)
+
+    while not IsScreenFadedOut() do
+        Wait(0)
+    end
+
+    local result = lib.callback.await('lunatic_garage:retrieve', false, target.slug, target.index, entry.plate, entityType(entry.model), entry.feeClass,
+        data.account == 'bank' and 'bank' or 'money')
+
+    if not failed(result) then
+        local vehicle = seatWhenReady(result.netId, 8000)
+
+        if vehicle then
+            lib.setVehicleProperties(vehicle, result.props)
+            SetVehicleNumberPlateText(vehicle, result.plate)
+        end
+
+        notify(('Véhicule %s récupéré à la fourrière%s.'):format(result.plate, result.fee > 0 and (' pour ' .. result.fee .. ' ' .. (GlobalState.lunaticCurrency or '$')) or ''), 'success')
     end
 
     DoScreenFadeIn(400)
