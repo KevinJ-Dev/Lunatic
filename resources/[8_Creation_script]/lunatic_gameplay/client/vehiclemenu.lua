@@ -1,16 +1,13 @@
 -- Menu véhicule des joueurs dans le menu contextuel (ressource ContextMenu : Alt gauche maintenu + clic droit sur un
--- véhicule proche, ou n'importe où depuis l'intérieur de son véhicule) : état et essence, moteur, conduite automatique
--- vers le point GPS, limiteur de vitesse, portes et vitres.
--- Moteur, conduite automatique et limiteur : conducteur seulement. Le staff garde son propre menu (lunatic_admin) à côté.
+-- véhicule proche, ou n'importe où depuis l'intérieur de son véhicule) : état du véhicule, conduite automatique vers le
+-- point GPS (conducteur seulement), portes et vitres. Le staff garde son propre menu (lunatic_admin) à côté.
 
 local RESOURCE = 'ContextMenu'
 local REACH = 5.0 -- distance maximale au véhicule cliqué de l'extérieur
-local LIMITS = { 30, 50, 70, 90, 110, 130 } -- km/h proposés par le limiteur
 local DOORS = { { 4, 'Capot' }, { 5, 'Coffre' }, { 0, 'Avant gauche' }, { 1, 'Avant droite' }, { 2, 'Arrière gauche' }, { 3, 'Arrière droite' } }
 local WINDOWS = { { 0, 'Avant gauche' }, { 1, 'Avant droite' }, { 2, 'Arrière gauche' }, { 3, 'Arrière droite' } }
 local NO_WINDOWS = { [8] = true, [13] = true, [14] = true } -- motos, vélos, bateaux
 
-local limiters = {}    -- véhicule -> km/h du limiteur
 local windowsDown = {} -- véhicule -> { [vitre] = true }
 local autopilot = nil  -- conduite automatique en cours : { vehicle }
 
@@ -49,16 +46,8 @@ local function async(fn)
 end
 
 ---------------------------------------------------------------------
--- Moteur, conduite automatique, limiteur (conducteur)
+-- Conduite automatique (conducteur)
 ---------------------------------------------------------------------
-
-local function toggleEngine(vehicle)
-    local running = GetIsVehicleEngineRunning(vehicle)
-
-    -- Éteint : ne redémarre pas tout seul en accélérant
-    SetVehicleEngineOn(vehicle, not running, false, running)
-    Notify(running and 'Moteur éteint.' or 'Moteur allumé.', 'info')
-end
 
 local function stopAutopilot(message)
     local current = autopilot
@@ -105,12 +94,6 @@ local function startAutopilot(vehicle)
             end
         end
     end)
-end
-
-local function setLimiter(vehicle, kmh)
-    limiters[vehicle] = kmh
-    SetVehicleMaxSpeed(vehicle, kmh and kmh / 3.6 or 0.0)
-    Notify(kmh and ('Limiteur réglé à %d km/h.'):format(kmh) or 'Limiteur désactivé.', 'info')
 end
 
 ---------------------------------------------------------------------
@@ -175,14 +158,10 @@ local function build(_, _, _, entity)
 
     local ECM = exports[RESOURCE]
     local health = math.min(100, math.floor(math.max(0.0, GetVehicleEngineHealth(vehicle)) / 10 + 0.5))
-    local fuel = tonumber(Entity(vehicle).state.fuel) or GetVehicleFuelLevel(vehicle)
 
-    ECM:AddTextItem(0, ('%s · %s'):format(vehicleLabel(vehicle), GetVehicleNumberPlateText(vehicle)))
-    ECM:AddTextItem(0, ('État %d %% · Essence %d %%'):format(health, math.floor(fuel + 0.5)))
+    ECM:AddTextItem(0, ('%s · %s · état %d %%'):format(vehicleLabel(vehicle), GetVehicleNumberPlateText(vehicle), health))
 
     if isDriver(vehicle) then
-        ECM:AddItem(0, GetIsVehicleEngineRunning(vehicle) and 'Éteindre le moteur' or 'Allumer le moteur', function() toggleEngine(vehicle) end)
-
         local driving = autopilot and autopilot.vehicle == vehicle
         ECM:AddItem(0, driving and 'Arrêter la conduite automatique' or 'Conduite automatique', function()
             if driving then
@@ -191,13 +170,6 @@ local function build(_, _, _, entity)
                 startAutopilot(vehicle)
             end
         end)
-
-        local limiter = ECM:AddSubmenu(0, limiters[vehicle] and ('Limiteur de vitesse (%d km/h)'):format(limiters[vehicle]) or 'Limiteur de vitesse')
-        ECM:AddItem(limiter, limiters[vehicle] and 'Désactivé' or 'Désactivé (actif)', function() setLimiter(vehicle, nil) end)
-
-        for _, kmh in ipairs(LIMITS) do
-            ECM:AddItem(limiter, ('%d km/h%s'):format(kmh, limiters[vehicle] == kmh and ' (actif)' or ''), function() setLimiter(vehicle, kmh) end)
-        end
     end
 
     -- Portes existantes du véhicule

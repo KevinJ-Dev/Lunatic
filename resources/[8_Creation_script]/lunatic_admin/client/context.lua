@@ -185,8 +185,16 @@ local function vehicleMenu(ECM, vehicle)
         end)
     end
 
-    local model = GetDisplayNameFromVehicleModel(GetEntityModel(vehicle)):lower()
-    ECM:AddTextItem(0, ('%s · %s'):format(model, GetVehicleNumberPlateText(vehicle)))
+    -- Nom et plaque déjà affichés par le menu véhicule des joueurs (lunatic_gameplay) : son véhicule, ou un véhicule à 5 m
+    local ped = PlayerPedId()
+    local inside = GetVehiclePedIsIn(ped, false)
+    local shown = GetResourceState('lunatic_gameplay') == 'started'
+        and (inside == vehicle or (inside == 0 and #(GetEntityCoords(ped) - GetEntityCoords(vehicle)) <= 5.0))
+
+    if not shown then
+        local model = GetDisplayNameFromVehicleModel(GetEntityModel(vehicle)):lower()
+        ECM:AddTextItem(0, ('%s · %s'):format(model, GetVehicleNumberPlateText(vehicle)))
+    end
     ECM:AddItem(0, 'Réparer', run('repair', repair, 'Véhicule réparé.'))
     ECM:AddItem(0, 'Retourner', run('flip', flip, 'Véhicule retourné.'))
     ECM:AddItem(0, 'Monter dedans', run('enter', enter, nil))
