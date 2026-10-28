@@ -13,9 +13,14 @@ function fuelNui(name, payload) {
 
 const fuelMoney = (n) => `${Math.round(n).toLocaleString("fr-FR")} ${fuel.data.currency || "$"}`;
 
+// Volume, prix et réservoir (niveau de départ + litres versés) en direct
 function paintFuelCounters() {
     $("fuelVolume").textContent = fuel.liters.toFixed(2);
     $("fuelPrice").textContent = (fuel.liters * fuel.price).toFixed(2);
+    const level = Math.min(100, (Number(fuel.data && fuel.data.level) || 0) + fuel.liters);
+    $("fuelLevel").textContent = `${Math.floor(level)} %`;
+    $("fuelBar").style.width = `${level}%`;
+    $("fuelBar").classList.toggle("low", level < 20);
 }
 
 function paintFuel() {
@@ -38,7 +43,7 @@ function paintFuel() {
     $("fuelClose").classList.toggle("hidden", fuel.state === "running" || fuel.state === "starting");
     $("fuelInfo").textContent = fuel.state === "done"
         ? (fuel.liters > 0 ? `Payé : ${fuelMoney(fuel.liters * fuel.price)} pour ${fuel.liters.toFixed(0)} L.` : "Aucun litre versé.")
-        : `Réservoir à ${d.level} % · ${String(fuel.price).replace(".", ",")} ${d.currency || "$"} le litre`;
+        : `${String(fuel.price).replace(".", ",")} ${d.currency || "$"} le litre`;
     paintFuelCounters();
 }
 

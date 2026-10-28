@@ -103,3 +103,12 @@ html, body { margin: 0; background: transparent; font-family: "Segoe UI", Arial,
 .fuel-go.stop { background: #e5484d; }
 .fuel-go:disabled { opacity: .5; cursor: default; }
 .fuel-close { height: 36px; margin-top: 0; border: 1px solid #e9e1ff1a; background: #ffffff0a; color: #ffffff94; font-size: 13px; font-weight: 600; }
+
+/* Pompe : jauge du réservoir qui monte pendant le plein */
+.fuel-gauge { display: grid; gap: 6px; margin: 0 16px; padding: 10px 14px; border: 1px solid #e9e1ff1a; border-radius: 12px; background: #00000040; }
+.fuel-gauge-head { display: flex; justify-content: space-between; align-items: baseline; }
+.fuel-gauge-head span { color: #ffffff94; font-size: 12px; font-weight: 700; text-transform: uppercase; }
+.fuel-gauge-head b { font: 700 18px Consolas, "Courier New", monospace; }
+.fuel-gauge i { display: block; height: 8px; overflow: hidden; border-radius: 4px; background: #ffffff14; }
+.fuel-gauge em { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #2e9e4f, #5fd3a0); transition: width .12s linear; }
+.fuel-gauge em.low { background: linear-gradient(90deg, #e5484d, #ff8a5c); }
