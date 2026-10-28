@@ -209,6 +209,7 @@ const NAV = [
     { id: "home", label: "Gestion", icon: "i-home", show: () => true, tile: false, render: () => renderHome() },
     { id: "dashboard", label: "Tableau de bord", icon: "i-pulse", show: () => true, render: () => renderDashboard() },
     { id: "players", label: "Joueurs", icon: "i-player", show: () => can("players.view"), render: () => renderPlayers() },
+    { id: "reports", label: "Reports", icon: "i-flag", show: () => can("reports.manage"), render: () => renderReports() },
     { id: "sanctions", label: "Sanctions", icon: "i-gavel", show: () => can("sanctions.view"), render: () => renderSanctions() },
     { id: "tools", label: "Outils", icon: "i-tool", show: () => hasAnyTool(), render: () => renderTools() },
     { id: "logs", label: "Logs", icon: "i-list", show: () => can("logs.view") || can("logs.chat"), render: () => renderLogs() },
@@ -1667,8 +1668,13 @@ window.addEventListener("message", (event) => {
 
 function demoState() {
     return {
-        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["illegal.manage", "others.manage", "crews.manage", "catalogs.manage", "companies.manage", "publics.manage", "players.crash", "vehicles.give", "dev.manage", "events.manage", "poles.manage", "server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "players.characters", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
+        me: { serverId: 1, license: "license:aaa111", name: "Kévin", rank: { id: 1, name: "Fondateur", color: "#9650ff", level: 100, owner: true }, permissions: ["reports.manage", "illegal.manage", "others.manage", "crews.manage", "catalogs.manage", "companies.manage", "publics.manage", "players.crash", "vehicles.give", "dev.manage", "events.manage", "poles.manage", "server.manage", "premium.manage", "shop.manage", "players.offline", "tools.ghost", "staff.online", "players.licenses", "players.copy_appearance", "players.wipe", "world.weather", "world.time", "sanctions.jail", "players.appearance", "players.recreate", "players.characters", "logs.view", "logs.chat", "economy.money", "economy.black_money", "economy.job", "economy.items", "economy.clear", "tools.noclip", "tools.invisible", "tools.godmode", "tools.names", "tools.coords", "tools.tpm", "tools.vehicles", "sanctions.view", "sanctions.warn", "sanctions.ban", "sanctions.ban_permanent", "sanctions.revoke", "players.view", "players.goto", "players.bring", "players.spectate", "players.freeze", "players.heal", "players.kick", "panel.open", "ranks.view", "ranks.manage", "staff.view", "staff.manage"] },
         ownerLevel: 100,
+        reports: [
+            { id: 14, name: "Jean Dupont", message: "Je suis bloqué sous la map près du LTD de Grove Street.", status: "open", created: Math.floor(Date.now() / 1000) - 120, online: true, serverId: 7 },
+            { id: 13, name: "Lisa Moreau", message: "Un joueur me tire dessus sans RP à la banque centrale.", status: "taken", staff: "Kévin", mine: true, created: Math.floor(Date.now() / 1000) - 900, taken: Math.floor(Date.now() / 1000) - 600, online: true, serverId: 12 },
+            { id: 12, name: "Marc Petit", message: "Mon véhicule a disparu après le reboot.", status: "closed", staff: "Kévin", answer: "Récupère-le à la fourrière, frais remboursés.", created: Math.floor(Date.now() / 1000) - 7200, closed: Math.floor(Date.now() / 1000) - 6000, online: false },
+        ],
         catalogue: {
             families: [{ id: "players", label: "Joueurs" }, { id: "sanctions", label: "Sanctions" }, { id: "tools", label: "Outils" }, { id: "manage", label: "Gestion" }],
             groups: [{ id: "player", label: "Joueur" }, { id: "server", label: "Serveur" }, { id: "commands", label: "Commandes" }, { id: "access", label: "Accès", sub: "Menu de gestion" }],

@@ -35,6 +35,7 @@ Permissions.List = {
     { id = 'players.offline', family = 'players', label = 'Gérer les joueurs offline (recherche en base et actions)' },
     { id = 'players.kick',     family = 'players', label = 'Expulser un joueur du serveur' },
     { id = 'players.crash',    family = 'players', label = 'Crash Player : déconnecter un joueur sans raison affichée (/crash)' },
+    { id = 'reports.manage',   family = 'players', label = 'Reports : voir, prendre en charge et fermer les reports des joueurs (/report)' },
 
     -- Lot H : gestion globale
     { id = 'server.manage', family = 'server', label = 'Gestion Global : redémarrage planifié, maintenance, actions de masse' },
@@ -133,7 +134,7 @@ local SHORT = {
     ['players.view'] = 'Fiche joueur', ['players.goto'] = 'Goto', ['players.bring'] = 'Bring / Return', ['players.spectate'] = 'Spectate',
     ['players.freeze'] = 'Freeze un joueur', ['players.heal'] = 'Heal / Revive', ['players.appearance'] = 'Menu apparence',
     ['players.recreate'] = 'Recréer le personnage', ['players.licenses'] = 'Give un permis', ['players.copy_appearance'] = "Récupérer l'apparence",
-    ['players.wipe'] = 'Wipe un joueur', ['players.characters'] = 'Gérer les personnages', ['players.offline'] = 'Gérer les joueurs offline', ['players.kick'] = 'Kick', ['players.crash'] = 'Crash Player',
+    ['players.wipe'] = 'Wipe un joueur', ['players.characters'] = 'Gérer les personnages', ['players.offline'] = 'Gérer les joueurs offline', ['players.kick'] = 'Kick', ['players.crash'] = 'Crash Player', ['reports.manage'] = 'Reports',
     ['server.manage'] = 'Gestion Global', ['dev.manage'] = 'Gestion Développeur', ['events.manage'] = 'Gestion des events', ['poles.manage'] = 'Pôle emploi',
     ['illegal.manage'] = 'Illégal', ['crews.manage'] = 'Crews', ['companies.manage'] = 'Entreprises', ['items.manage'] = 'Items', ['blips.manage'] = 'Blips', ['economy.manage'] = 'Économie', ['images.manage'] = 'Images', ['interactions.manage'] = 'Interactions', ['features.manage'] = 'Fonctionnalités', ['others.manage'] = 'Autres',
     ['catalogs.manage'] = 'Catalogues', ['publics.manage'] = 'Services publics', ['premium.manage'] = 'VIP', ['shop.manage'] = 'Gestion Boutique',

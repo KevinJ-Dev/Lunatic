@@ -118,6 +118,8 @@ const ACTION_LABELS = {
     "inventory.open": "a ouvert l'inventaire de",
     "sanction.warn": "a averti",
     "sanction.ban": "a banni",
+    "reports.take": "a pris en charge le report de",
+    "reports.close": "a fermé le report de",
     "sanction.revoke": "a révoqué une sanction de",
     "sanction.jail": "a mis en prison",
     "sanction.unjail": "a libéré de prison",

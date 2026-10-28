@@ -98,3 +98,9 @@
 .creator-spawn-head b { flex: 1; }
 .creator-spawn-toggle { min-width: 220px; }
 .creator-spawn-toggle .perm { padding: 4px 10px; }
+
+/* Reports (/report) : message sur toute la largeur, actions à droite */
+.row.report-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px; }
+.row.report-row .who { display: grid; gap: 2px; min-width: 0; }
+.row.report-row .who > span { white-space: normal; overflow-wrap: anywhere; }
+.row.report-row .btn-row { flex-wrap: nowrap; }

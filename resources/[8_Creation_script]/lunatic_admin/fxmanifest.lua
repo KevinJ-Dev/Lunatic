@@ -69,6 +69,7 @@ server_scripts {
     'server/dev.lua',
     'server/commands.lua',
     'server/context.lua',
+    'server/reports.lua',
 }
 
 client_scripts {
@@ -138,6 +139,7 @@ files {
     'web/dev.js',
     'web/search.js',
     'web/help.js',
+    'web/reports.js',
     'web/logo.png',
     'web/fonts/*.woff2',
     'generated_*.lua', -- copie de secours des objets de la tuile Items (lue par ox_inventory)
