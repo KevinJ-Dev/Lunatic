@@ -8,6 +8,13 @@
 
 const QUICK_VISIBLE = 10;
 
+// En-tête : bannière de la tuile Images (« Bannière du menu rapide staff »), sinon le dégradé violet
+function quickHead(title, banner) {
+    const head = h("header", { class: `quick-head${banner ? " with-banner" : ""}` }, h("b", null, title));
+    if (banner) head.style.backgroundImage = `linear-gradient(180deg, #0000 30%, #0009), url("${banner}")`;
+    return head;
+}
+
 function paintQuick(data) {
     const items = data.items || [];
     const start = Math.max(0, Math.min(data.index - 1 - Math.floor(QUICK_VISIBLE / 2), items.length - QUICK_VISIBLE));
@@ -15,7 +22,7 @@ function paintQuick(data) {
     const stats = data.stats;
 
     $("quick").replaceChildren(...[
-        h("header", { class: "quick-head" }, h("b", null, data.title || "Administration")),
+        quickHead(data.title || "Administration", data.banner),
         h("div", { class: "quick-sub" }, h("span", null, data.subtitle || ""), h("span", null, `${data.index}/${items.length}`)),
         stats && data.depth === 1 ? h("div", { class: "quick-stats" },
             h("span", null, h("b", null, String(stats.online ?? 0)), " en ligne"),
@@ -87,7 +94,7 @@ window.addEventListener("message", (event) => {
 // Aperçu hors jeu : index.html#quick
 if (typeof GetParentResourceName !== "function" && location.hash.includes("quick")) {
     window.postMessage({ action: "quick", data: {
-        title: "Administration", subtitle: "7 · RiderCool", index: 2, depth: 2, stats: { online: 94, staff: 12, reports: 3 },
+        title: "Administration", subtitle: "7 · RiderCool", banner: location.hash.includes("banner") ? "https://docs.fivem.net/vehicles/adder.webp" : null, index: 2, depth: 2, stats: { online: 94, staff: 12, reports: 3 },
         sheet: { serverId: 7, name: "RiderCool", pseudo: "RiderCool", license: "license:25c26900000000000000000000000000000009be3", identifier: "char1:aaa", rank: { name: "Fondateur", color: "#9650ff" }, isSelf: true,
             health: 200, maxHealth: 200, armor: 0, ping: 32, frozen: false, money: 90, bank: 169625, job: { label: "Burger Shot", grade: "Patron" }, onDuty: true,
             dateofbirth: "16/12/1987", sex: "m", height: 194, profile: { discord: "327980186615488328", firstSeen: 1792873740, playtime: 1179, warns: 0, crew: { label: "Ballas", rank: "Rang S" }, linked: [] } },
@@ -108,6 +115,7 @@ if (typeof GetParentResourceName !== "function" && location.hash.includes("quick
 // rows : { type = input | number | select | checkbox, label, required, min, max, default, options = { { value, label } } }
 
 let quickDialogRows = null;
+let quickDialogBanner = null;
 
 function closeQuickDialog(values) {
     if (!quickDialogRows) return;
@@ -163,7 +171,7 @@ function openQuickDialog(title, rows) {
     };
 
     $("quickDialog").replaceChildren(
-        h("header", { class: "quick-head" }, h("b", null, title || "Saisie")),
+        quickHead(title || "Saisie", quickDialogBanner),
         h("div", { class: "quick-dialog-body" }, fields.map((f) => f.el), error),
         h("footer", { class: "quick-dialog-foot" },
             h("button", { class: "btn ghost", onclick: () => closeQuickDialog(null) }, "Annuler"),
@@ -187,7 +195,10 @@ document.addEventListener("keydown", (e) => {
 
 window.addEventListener("message", (event) => {
     const msg = event.data;
-    if (msg && msg.action === "quickInput") openQuickDialog(msg.title, msg.rows);
+    if (msg && msg.action === "quickInput") {
+        quickDialogBanner = typeof msg.banner === "string" && msg.banner !== "" ? msg.banner : null;
+        openQuickDialog(msg.title, msg.rows);
+    }
     if (msg && msg.action === "quickClose" && quickDialogRows) {
         quickDialogRows = null;
         $("quickDialog").classList.remove("on");

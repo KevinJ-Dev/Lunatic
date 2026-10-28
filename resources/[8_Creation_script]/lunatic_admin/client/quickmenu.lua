@@ -49,7 +49,7 @@ local function input(title, rows)
     busy = true
     dialog = promise.new()
     SetNuiFocus(true, true)
-    SendNUIMessage({ action = 'quickInput', title = title, rows = rows })
+    SendNUIMessage({ action = 'quickInput', title = title, rows = rows, banner = (GlobalState.lunaticImages or {}).quick_banner })
     local values = Citizen.Await(dialog)
     dialog = nil
     SetNuiFocus(false, false)
@@ -93,6 +93,7 @@ local function paint()
         action = 'quick', data = {
             title = 'Administration', subtitle = menu.title, items = items, index = menu.index, desc = selected and selected.desc or menu.desc,
             stats = summary and { online = summary.online, staff = summary.staff, reports = summary.reports } or nil, depth = #stack, sheet = sheet,
+            banner = (GlobalState.lunaticImages or {}).quick_banner,
         },
     })
 end
