@@ -7,7 +7,7 @@
 // ====================================================================
 
 const SHOP_ICONS = {
-    ltd: "i-store", binco: "i-shirt", vangelico: "i-gem", barber: "i-scissors", ammunation: "i-crosshair", rental: "i-key", bikes: "i-car", dealer: "i-car",
+    ltd: "i-store", binco: "i-shirt", vangelico: "i-gem", barber: "i-scissors", ammunation: "i-crosshair", rental: "i-key", bikes: "i-car", dealer: "i-car", boats: "i-boat", aircraft: "i-plane",
     masquerade: "i-mask", shenails: "i-sparkle", skateshop: "i-skate", tattoo: "i-edit", wholesale: "i-truck",
 };
 

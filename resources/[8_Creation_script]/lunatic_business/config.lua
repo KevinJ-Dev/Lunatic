@@ -42,6 +42,7 @@ Config.RentalShowroom = vector4(228.7, -991.6, -99.0, 200.0)
 -- Vente de véhicules (concessionnaire, Vespucci Bike) : essai routier, seul dans une instance à part
 Config.TestDriveTime = 120            -- durée de l'essai (secondes)
 Config.TestDriveRadius = 800.0        -- distance maximale à la sortie du magasin, sinon l'essai s'arrête
+Config.TestDriveRadiusByType = { boat = 2500.0, heli = 4000.0, plane = 6000.0 } -- bateaux et aérien : plus loin
 Config.TestDriveBucket = 7000         -- instance de l'essai = ce numéro + id du joueur
 -- Touche pour terminer l'essai et revenir au comptoir (contrôle GTA ; label = touche affichée dans l'aide, X par défaut)
 Config.TestDriveKey = { control = 73, label = '~INPUT_VEH_DUCK~' }

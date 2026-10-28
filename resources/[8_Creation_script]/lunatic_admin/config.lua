@@ -165,6 +165,8 @@ Config.ShopCategories = {
     { id = 'rental', label = 'Location', kind = 'rental', blip = { sprite = 225, color = 3 } },
     { id = 'bikes', label = 'Vespucci Bike', kind = 'vehicles', blip = { sprite = 226, color = 5 } }, -- vente de véhicules (vélos)
     { id = 'dealer', label = 'Concessionnaire', kind = 'vehicles', blip = { sprite = 326, color = 3 } }, -- voitures et motos
+    { id = 'boats', label = 'Concessionnaire bateau', kind = 'vehicles', blip = { sprite = 427, color = 3 } }, -- vitrine sur l'eau
+    { id = 'aircraft', label = 'Concessionnaire aérien', kind = 'vehicles', blip = { sprite = 64, color = 3 } }, -- hélicoptères et avions
     { id = 'masquerade', label = 'Masquerade', kind = 'clothing', blip = { sprite = 362, color = 27 } },
     { id = 'shenails', label = 'Shenails', kind = 'clothing', blip = { sprite = 621, color = 8 } },
     { id = 'skateshop', label = 'Skateshop', kind = 'items', blip = { sprite = 59, color = 5 } },

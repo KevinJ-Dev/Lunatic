@@ -1560,6 +1560,7 @@ lib.callback.register('lunatic_business:testDrive', function(src, slug, index, v
 
     tests[src] = {
         vehicle = vehicle, previous = previous, origin = vector3(spawn.x, spawn.y, spawn.z), endsAt = os.time() + Config.TestDriveTime, label = offer.label,
+        radius = Config.TestDriveRadiusByType[offer.type] or Config.TestDriveRadius,
         back = { x = location.x, y = location.y, z = location.z, h = location.h or 0.0 },
     }
 
@@ -1581,7 +1582,7 @@ CreateThread(function()
 
             if now >= test.endsAt then
                 endTest(src, "Fin de l'essai : le véhicule est rendu.")
-            elseif ped ~= 0 and #(GetEntityCoords(ped) - test.origin) > Config.TestDriveRadius then
+            elseif ped ~= 0 and #(GetEntityCoords(ped) - test.origin) > test.radius then
                 endTest(src, 'Trop loin de la concession : essai terminé.')
             end
         end

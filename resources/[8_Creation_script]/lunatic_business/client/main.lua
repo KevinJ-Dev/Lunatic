@@ -807,6 +807,11 @@ local function rentalCamera()
     local spot = rental.info.showroom
     local h, p = math.rad(rental.heading), math.rad(rental.pitch)
     local target = vector3(spot.x, spot.y, spot.z + 0.5)
+
+    -- Centre du véhicule montré (bateau sur l'eau, hélicoptère, avion)
+    if rental.vehicle and DoesEntityExist(rental.vehicle) then
+        target = GetEntityCoords(rental.vehicle) + vector3(0.0, 0.0, rental.lookHeight or 0.3)
+    end
     local position = target + vector3(-math.sin(h) * math.cos(p) * rental.distance, math.cos(h) * math.cos(p) * rental.distance, math.sin(p) * rental.distance)
 
     SetCamCoord(rental.cam, position.x, position.y, position.z)
@@ -841,9 +846,21 @@ local function previewVehicle(offer)
     end
 
     local spot = rental.info.showroom
-    local vehicle = CreateVehicle(model, spot.x, spot.y, spot.z, spot.h or 0.0, false, false)
+    local z = spot.z
+
+    -- Bateau : posé à la surface de l'eau sous la vitrine (placée depuis le quai)
+    if offer.type == 'boat' then
+        local found, height = GetWaterHeight(spot.x, spot.y, spot.z)
+        z = found and height or z
+    end
+
+    local vehicle = CreateVehicle(model, spot.x, spot.y, z, spot.h or 0.0, false, false)
     SetModelAsNoLongerNeeded(model)
-    SetVehicleOnGroundProperly(vehicle)
+
+    if offer.type ~= 'boat' then
+        SetVehicleOnGroundProperly(vehicle)
+    end
+
     FreezeEntityPosition(vehicle, true)
     SetEntityInvincible(vehicle, true)
     SetVehicleDirtLevel(vehicle, 0.0)
@@ -856,8 +873,11 @@ local function previewVehicle(offer)
     rental.base = { p, s }
     paintVehicle(vehicle, rental.colors.primary, rental.colors.secondary, rental.base)
 
+    -- Caméra reculée selon la taille (jusqu'aux avions), zoom permis jusqu'à 1,6 fois plus loin
     local min, max = GetModelDimensions(model)
     rental.distance = math.max(4.0, #(max - min) * 1.15)
+    rental.maxDistance = math.max(14.0, rental.distance * 1.6)
+    rental.lookHeight = math.max(0.3, (max.z - min.z) * 0.15)
     rentalCamera()
 end
 
@@ -917,10 +937,11 @@ local function vehicleStats(vehicles)
 
         if IsModelInCdimage(model) then
             local speed = GetVehicleModelEstimatedMaxSpeed(model)
+            local reference = ({ boat = 40.0, heli = 80.0, plane = 140.0 })[offer.type] or 60.0
             stats[tostring(offer.id)] = {
                 speed = math.floor(speed * 3.6 + 0.5),
                 bars = {
-                    { label = 'Vitesse', value = math.min(1.0, speed / 60.0) },
+                    { label = 'Vitesse', value = math.min(1.0, speed / reference) },
                     { label = 'Accélération', value = math.min(1.0, GetVehicleModelAcceleration(model) / 0.5) },
                     { label = 'Freinage', value = math.min(1.0, GetVehicleModelMaxBraking(model) / 1.6) },
                     { label = 'Traction', value = math.min(1.0, GetVehicleModelMaxTraction(model) / 3.0) },
@@ -1058,7 +1079,7 @@ RegisterNUICallback('rentalRotate', function(data, cb)
     elseif rental then
         rental.heading = rental.heading - (tonumber(data.dx) or 0) * 0.4
         rental.pitch = math.max(-5.0, math.min(60.0, rental.pitch + (tonumber(data.dy) or 0) * 0.25))
-        rental.distance = math.max(2.5, math.min(14.0, rental.distance + (tonumber(data.zoom) or 0)))
+        rental.distance = math.max(2.5, math.min(rental.maxDistance or 14.0, rental.distance + (tonumber(data.zoom) or 0) * math.max(1.0, (rental.maxDistance or 14.0) / 14.0)))
         rentalCamera()
     end
 end)
