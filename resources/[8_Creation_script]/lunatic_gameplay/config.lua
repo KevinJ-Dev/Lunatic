@@ -25,7 +25,7 @@ Config.FuelStations = {
     vector3(-1800.4, 803.7, 138.7), vector3(-1437.6, -276.7, 46.2), vector3(-2096.2, -320.3, 13.2), vector3(-724.6, -935.2, 19.2),
     vector3(-526.0, -1211.0, 18.2), vector3(-70.2, -1761.8, 29.5), vector3(265.6, -1261.3, 29.3), vector3(819.7, -1028.8, 26.4),
     vector3(1208.9, -1402.6, 35.2), vector3(1181.4, -330.8, 69.3), vector3(620.8, 269.1, 103.1), vector3(2581.3, 362.0, 108.5),
-    vector3(176.6, -1562.0, 29.3), vector3(-319.3, -1471.7, 30.5),
+    vector3(176.6, -1562.0, 29.3), vector3(-319.3, -1471.7, 30.5), vector3(1784.3, 3330.6, 41.3),
 }
 -- Consommation par classe de véhicule (GetVehicleClass) : multiplicateur de la consommation de base
 Config.FuelClassUsage = {

@@ -250,18 +250,24 @@ CreateThread(function()
         if not busy and settings().enabled ~= false and not IsPedInAnyVehicle(ped, false) and nearStation(coords) then
             wait = 250
             local pump = nearPump(coords)
-            local vehicle = pump and vehicleNear(coords)
 
-            if vehicle then
+            -- [E] à chaque pompe ; le plein demande un véhicule garé à côté
+            if pump then
                 wait = 0
+                local vehicle = vehicleNear(coords)
+                local label = vehicle and ('[E] Pompe à essence (réservoir %d %%)'):format(math.floor(fuelOf(vehicle))) or '[E] Pompe à essence'
 
-                if not shown then
-                    shown = true
-                    lib.showTextUI(('[E] Faire le plein (%d %%)'):format(math.floor(fuelOf(vehicle))))
+                if shown ~= label then
+                    shown = label
+                    lib.showTextUI(label)
                 end
 
                 if IsControlJustReleased(0, 38) then
-                    refuel(vehicle)
+                    if vehicle then
+                        refuel(vehicle)
+                    else
+                        Notify('Garez un véhicule à côté de la pompe pour faire le plein.', 'info')
+                    end
                 end
             elseif shown then
                 shown = false

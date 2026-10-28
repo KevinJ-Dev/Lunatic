@@ -20,6 +20,7 @@ local BASE = {
     { 'Banque Fleeca', 108, 2, -350.9, -49.9, 49.0 }, { 'Banque Fleeca', 108, 2, -1213.0, -330.9, 37.8 },
     { 'Banque Fleeca', 108, 2, -2962.6, 482.6, 15.7 }, { 'Banque Fleeca', 108, 2, 1175.0, 2706.6, 38.1 },
     { 'Pacific Standard', 108, 2, 241.7, 220.7, 106.3 }, { 'Blaine County Savings', 108, 2, -112.2, 6469.3, 31.6 },
+    { 'Station-service', 361, 4, 1784.3, 3330.6, 41.3 }, -- route 68, à l'est de Sandy Shores
     { 'Station-service', 361, 4, 49.4, 2778.8, 58.0 }, { 'Station-service', 361, 4, 263.9, 2606.5, 44.9 },
     { 'Station-service', 361, 4, 1039.9, 2671.1, 39.5 }, { 'Station-service', 361, 4, 1207.3, 2660.2, 37.9 },
     { 'Station-service', 361, 4, 2539.7, 2594.2, 37.9 }, { 'Station-service', 361, 4, 2679.9, 3263.9, 55.2 },
