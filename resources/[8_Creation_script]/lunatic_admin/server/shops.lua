@@ -877,6 +877,42 @@ Panel.actions['shops.tpShowroom'] = function(src, actor, data)
     return { ok = true, silent = true }
 end
 
+---------------------------------------------------------------------
+-- Réglages des garages publics et de la fourrière (lunatic_garage) : places sans Premium, véhicules dehors au
+-- redémarrage du serveur (fourrière payante ou retour gratuit au garage). KVP 'garage_settings', GlobalState.lunaticGarage.
+---------------------------------------------------------------------
+
+local garageSaved = GetResourceKvpString('garage_settings')
+local garageSettings = garageSaved and json.decode(garageSaved) or {}
+GlobalState.lunaticGarage = garageSettings
+
+Panel.actions['garage.settings'] = function(_, actor)
+    if not Ranks.hasPermission(actor, 'catalogs.manage') then
+        return denied()
+    end
+
+    return { ok = true, silent = true, settings = { baseSlots = garageSettings.baseSlots or 3, restart = garageSettings.restart or 'impound' } }
+end
+
+Panel.actions['garage.saveSettings'] = function(src, actor, data)
+    if not Ranks.hasPermission(actor, 'catalogs.manage') then
+        return denied()
+    end
+
+    local baseSlots = number(data.baseSlots, 0, 50, true)
+
+    if not baseSlots then
+        return Panel.fail('Places de garage : de 0 à 50.')
+    end
+
+    garageSettings = { baseSlots = baseSlots, restart = data.restart == 'garage' and 'garage' or 'impound' }
+    SetResourceKvp('garage_settings', json.encode(garageSettings))
+    GlobalState.lunaticGarage = garageSettings
+    Logs.add(src, 'shops.save', nil, { operation = 'réglages des garages', baseSlots = baseSlots, restart = garageSettings.restart })
+
+    return { ok = true, silent = true }
+end
+
 -- Page Blips : blips des magasins (affichés avec les autres) et modification de leur nom, icône, couleur et taille
 function Shops.blipList()
     local list = {}

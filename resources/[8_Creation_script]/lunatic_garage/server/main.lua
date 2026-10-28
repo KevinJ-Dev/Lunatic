@@ -110,7 +110,8 @@ end
 
 -- Places : base de la config, ou celles du rang Premium (tuile Boutique) si plus nombreuses
 local function slotsOf(src)
-    local slots = Config.BaseSlots
+    local settings = type(GlobalState.lunaticGarage) == 'table' and GlobalState.lunaticGarage or {}
+    local slots = tonumber(settings.baseSlots) or Config.BaseSlots
 
     if GetResourceState('lunatic_admin') == 'started' then
         local ok, perks = pcall(function() return exports.lunatic_admin:getPremiumPerks(src) end)
@@ -401,6 +402,38 @@ exports('impoundVehicle', function(vehicle)
     local changed = plate ~= '' and MySQL.update.await('UPDATE `owned_vehicles` SET `stored` = 0, `lunatic_impound` = 1 WHERE UPPER(TRIM(`plate`)) = ?', { plate }) or 0
     DeleteEntity(vehicle)
     return { ok = true, owned = (tonumber(changed) or 0) > 0 }
+end)
+
+-- Redémarrage du serveur : si le panel le demande, les véhicules dehors absents de la carte reviennent gratuitement au
+-- garage (sinon ils restent à récupérer en fourrière). Pas au simple redémarrage de la resource en cours de partie, ni
+-- pour les véhicules mis en fourrière par le staff.
+MySQL.ready(function()
+    if GetGameTimer() > 300000 then
+        return
+    end
+
+    CreateThread(function()
+        Wait(15000)
+        local settings = GlobalState.lunaticGarage
+
+        if type(settings) ~= 'table' or settings.restart ~= 'garage' then
+            return
+        end
+
+        local world = worldPlates()
+        local count = 0
+
+        for _, row in ipairs(MySQL.query.await('SELECT `owner`, `plate` FROM `owned_vehicles` WHERE `stored` = 0 AND `lunatic_impound` = 0') or {}) do
+            if not world[plateKey(row.plate)] then
+                MySQL.update.await('UPDATE `owned_vehicles` SET `stored` = 1 WHERE `owner` = ? AND `plate` = ?', { row.owner, row.plate })
+                count = count + 1
+            end
+        end
+
+        if count > 0 then
+            print(('[lunatic_garage] %d véhicule(s) dehors rendu(s) au garage après le redémarrage.'):format(count))
+        end
+    end)
 end)
 
 AddEventHandler('playerDropped', function()

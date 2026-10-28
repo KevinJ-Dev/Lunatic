@@ -162,7 +162,8 @@ function paintShopCategory() {
     );
 
     let content;
-    if (!shopState.selected) content = h("div", { class: "content" }, h("div", { class: "empty" }, icon(SHOP_ICONS[category.id] || "i-store"), `Choisissez un magasin ${category.label} ou créez-en un.`));
+    if (!shopState.selected && garageKind(category.kind)) content = garageSettingsView();
+    else if (!shopState.selected) content = h("div", { class: "content" }, h("div", { class: "empty" }, icon(SHOP_ICONS[category.id] || "i-store"), `Choisissez un magasin ${category.label} ou créez-en un.`));
     else if (!shopState.draft) content = h("div", { class: "content" }, h("div", { class: "empty" }, icon("i-store"), "Chargement du magasin…"));
     else content = shopForm();
 
@@ -172,6 +173,30 @@ function paintShopCategory() {
     body.replaceChildren(sidebar, content);
     const scroller = body.querySelector(".shop-form .scroll");
     if (scroller) scroller.scrollTop = keepScroll;
+}
+
+// Garage public et fourrière : réglages communs (lunatic_garage), affichés tant qu'aucun garage n'est choisi
+function garageSettingsView() {
+    const body = h("div", { class: "scroll" }, h("div", { class: "card" }, h("div", { class: "empty" }, icon("i-clock"), "Chargement…")));
+    nui("action", { action: "garage.settings", payload: {} }).catch(() => null).then((res) => {
+        if (!res || !res.ok) return;
+        const s = res.settings;
+        const slots = h("input", { class: "input mono", type: "number", min: "0", max: "50", value: String(s.baseSlots) });
+        const restart = h("select", { class: "input" }, [["impound", "En fourrière (frais de la tuile Économie)"], ["garage", "Au garage (gratuit)"]]
+            .map(([value, label]) => h("option", { value, selected: s.restart === value }, label)));
+        const save = h("button", { class: "btn primary" }, icon("i-save"), "Enregistrer");
+        save.addEventListener("click", () => act("garage.saveSettings", { baseSlots: Number(slots.value), restart: restart.value }, "Réglages des garages enregistrés."));
+        body.replaceChildren(h("div", { class: "card shop-fields" },
+            h("div", { class: "shop-field" }, h("label", null, "Places de garage sans Premium"), slots),
+            h("p", { class: "hint-line" }, "Véhicules rangés en même temps, tous garages publics confondus. Premium et Premium+ ont celles de la tuile Boutique si elles sont plus nombreuses."),
+            h("div", { class: "shop-field" }, h("label", null, "Véhicules dehors au redémarrage du serveur"), restart),
+            h("p", { class: "hint-line" }, "En fourrière : le joueur paie les frais pour le récupérer. Au garage : il revient gratuitement (même garage plein). Les véhicules mis en fourrière par le staff y restent toujours."),
+            h("div", { class: "btn-row", style: "justify-content:flex-end" }, save)));
+    });
+    return h("div", { class: "content shop-form" },
+        h("div", { class: "page-head" }, h("div", { class: "grow" }, h("h1", { class: "page-title" }, "Réglages des garages"),
+            h("div", { class: "page-sub" }, "Communs aux garages publics et aux fourrières. Choisissez un garage à gauche pour régler ses emplacements."))),
+        body);
 }
 
 function shopForm() {
