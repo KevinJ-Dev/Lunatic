@@ -21,8 +21,20 @@ Config.ServerDistance = 6.0 -- distance revérifiée par le serveur à chaque op
 -- Montants proposés au retrait et au dépôt (montant libre à côté)
 Config.Shortcuts = { 100, 500, 1000, 5000 }
 
--- Montant maximal par opération (les plafonds par carte arrivent avec les cartes bancaires)
+-- Montant maximal par opération
 Config.MaxAmount = 1000000
+
+-- Plafonds par défaut sur 24 h glissantes, selon la carte (abonnement) : standard = carte verte, premium = jaune (VIP),
+-- premium_plus = noire (VIP+). Ceux réglés dans le panel (Économie → Autre → Banque) les remplacent.
+Config.Limits = {
+    withdraw = { standard = 5000, premium = 15000, premium_plus = 50000 },
+    deposit = { standard = 2000, premium = 4000, premium_plus = 6000 },
+    transfer = { standard = 10000, premium = 50000, premium_plus = 250000 },
+}
+
+-- Distributeurs : modèles de la carte, distance du [E]
+Config.AtmModels = { 'prop_atm_01', 'prop_atm_02', 'prop_atm_03', 'prop_fleeca_atm' }
+Config.AtmDistance = 1.5
 
 Config.HistoryLimit = 50     -- transactions affichées
 Config.TransferCooldown = 3  -- secondes entre deux virements

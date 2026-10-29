@@ -1,4 +1,5 @@
--- Braquage ATM côté client : devant un distributeur, avec l'outil demandé sur soi, [E] le pirate.
+-- Braquage ATM côté client : devant un distributeur, avec l'outil demandé sur soi, [G] le pirate
+-- ([E] y ouvre le distributeur de la banque, lunatic_bank).
 -- Mini-jeu ox_lib selon la difficulté réglée, puis les billets sortent (cercle de progression, sans bouger).
 -- Le serveur revérifie tout et paie.
 
@@ -150,11 +151,11 @@ CreateThread(function()
         end
 
         if atm and hasTool() then
-            showPrompt('[E] Pirater le distributeur')
+            showPrompt('[E] Distributeur · [G] Pirater')
             local untilAt = GetGameTimer() + 500
 
             while GetGameTimer() < untilAt and not busy do
-                if IsControlJustPressed(0, 38) then
+                if IsControlJustPressed(0, 47) then -- G
                     hackAtm(atm)
                     break
                 end
@@ -169,6 +170,11 @@ CreateThread(function()
 
         Wait(wait)
     end
+end)
+
+-- lunatic_bank n'affiche pas son propre [E] tant que ce message (qui le reprend) est affiché
+exports('atmPromptShown', function()
+    return promptText ~= nil
 end)
 
 AddEventHandler('onResourceStop', function(resource)

@@ -84,8 +84,18 @@ nav button.on { background: var(--accent); color: #fff; }
 .balance span, .cash-line span { color: var(--muted); }
 .balance strong { font-size: 20px; }
 .cash-line { margin: 10px 0 8px; font-size: 12px; }
-.bank-card { display: flex; flex-direction: column; justify-content: space-between; height: 112px; padding: 13px 16px; border-radius: 14px;
+.bank-card { position: relative; display: flex; flex-direction: column; justify-content: space-between; height: 112px; padding: 13px 16px; overflow: hidden; border-radius: 14px;
     background: linear-gradient(135deg, #1f7a43, #2fae5e 55%, #1b5e36); box-shadow: 0 12px 24px -12px #000c; }
+.bank-card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 40%, #ffffff1f 50%, transparent 60%); pointer-events: none; }
+/* Couleur selon l'abonnement : verte (aucun), jaune (VIP), noire (VIP+) */
+.bank-card.gold { background: linear-gradient(135deg, #a8781c, #e7b93f 55%, #8d6214); }
+.bank-card.black { background: linear-gradient(135deg, #0b0b0f, #2a2a33 55%, #08080b); border: 1px solid #ffffff1f; }
+.bank-card.black .card-logo b { color: var(--green); }
+.bank-card .card-tier { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; opacity: .85; }
+.bank-card.big { flex: none; width: 380px; height: 230px; padding: 24px 26px; border-radius: 20px; }
+.bank-card.big .card-number { font-size: 28px; }
+.bank-card.big .chip { width: 44px; height: 32px; }
+.bank-card.big .card-bottom { font-size: 14px; }
 .card-top, .card-bottom { display: flex; align-items: center; justify-content: space-between; }
 .chip { width: 30px; height: 22px; border-radius: 5px; background: linear-gradient(135deg, #e9c46a, #b88a2b); }
 .card-logo { font-weight: 700; font-style: italic; }
@@ -132,3 +142,28 @@ nav button.on { background: var(--accent); color: #fff; }
 .tr .minus { color: var(--red); font-weight: 600; }
 .tr .muted { color: var(--muted); }
 .empty { padding: 30px 0; color: var(--muted); text-align: center; }
+
+/* Vue Cartes */
+.tier { padding: 4px 10px; border-radius: 20px; background: var(--box); border: 1px solid var(--line); font-size: 12px; font-weight: 600; }
+.cards-layout { display: flex; align-items: flex-start; gap: 34px; padding: 18px 8px; }
+.limits { flex: 1; }
+.limits h3 { margin: 0 0 14px; font-size: 14px; }
+.limit { margin-bottom: 16px; }
+.limit-head { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.limit-head span { color: var(--muted); }
+.gauge { height: 8px; overflow: hidden; border-radius: 4px; background: #0000004d; }
+.gauge i { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+.gauge i.full { background: var(--red); }
+.note { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.t-green { color: var(--green); }
+.t-gold { color: #e7b93f; }
+.t-black { color: var(--ink); }
+
+/* Distributeur */
+.atm { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 380px; padding: 22px; border: 1px solid var(--glass-line); border-radius: 22px; background:
+    radial-gradient(70% 30% at 50% 0%, rgba(var(--accent-rgb), .18), transparent 75%), var(--panel); box-shadow: 0 30px 60px -30px #000c; }
+.atm-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.atm-head h2 { margin: 0; font-size: 22px; font-weight: 600; }
+.atm .balance { justify-content: space-between; margin-bottom: 12px; }
+.atm .balance strong { font-size: 26px; }
+.quit.small { margin: 0; padding: 6px 10px; font-size: 12px; }

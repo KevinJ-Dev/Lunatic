@@ -12,6 +12,7 @@
             <nav id="nav">
                 <button data-view="global" class="on">Global</button>
                 <button data-view="transactions">Transactions</button>
+                <button data-view="cards">Cartes</button>
             </nav>
             <div class="grow"></div>
             <div class="agency" id="agency"></div>
@@ -37,18 +38,14 @@
                 </div>
 
                 <div class="card-box cash">
-                    <div class="box-head"><h2>Retrait &amp; dépôt</h2><div class="balance"><span>Solde</span><strong id="balance"></strong></div></div>
-                    <div class="bank-card" id="card">
-                        <div class="card-top"><span class="chip"></span><span class="card-logo">FL<b>EE</b>CA</span></div>
-                        <div class="card-number" id="card-iban"></div>
-                        <div class="card-bottom"><span id="card-name"></span><span class="contactless">)))</span></div>
-                    </div>
-                    <div class="cash-line"><span>Liquide sur vous</span><strong id="cash"></strong></div>
-                    <div class="shortcuts" id="shortcuts"></div>
-                    <label class="field"><input id="amount" type="number" min="1" step="1" placeholder="Montant libre"></label>
+                    <div class="box-head"><h2>Retrait &amp; dépôt</h2><div class="balance"><span>Solde</span><strong data-balance></strong></div></div>
+                    <div class="bank-card" data-card></div>
+                    <div class="cash-line"><span>Liquide sur vous</span><strong data-cash></strong></div>
+                    <div class="shortcuts" data-shortcuts></div>
+                    <label class="field"><input data-amount type="number" min="1" step="1" placeholder="Montant libre"></label>
                     <div class="row-buttons">
-                        <button class="btn" id="withdraw">Retirer</button>
-                        <button class="btn ghost" id="deposit">Déposer</button>
+                        <button class="btn" data-withdraw>Retirer</button>
+                        <button class="btn ghost" data-deposit>Déposer</button>
                     </div>
                 </div>
 
@@ -82,7 +79,36 @@
                     <div class="table" id="history"></div>
                 </div>
             </section>
+
+            <!-- Carte et plafonds -->
+            <section class="view hidden" id="view-cards">
+                <div class="card-box full cards-view">
+                    <div class="box-head"><h2>Ma carte</h2><span class="tier" id="tier"></span></div>
+                    <div class="cards-layout">
+                        <div class="bank-card big" data-card></div>
+                        <div class="limits">
+                            <h3>Plafonds sur 24 h</h3>
+                            <div id="limits"></div>
+                            <p class="note">La carte dépend de votre abonnement : <b class="t-green">verte</b> sans abonnement, <b class="t-gold">jaune</b> avec le VIP, <b class="t-black">noire</b> avec le VIP+. Les plafonds se libèrent 24 h après chaque opération.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
+    </div>
+
+    <!-- Distributeur : compte, carte, retrait et dépôt -->
+    <div class="atm hidden" id="atm">
+        <div class="atm-head"><h2>Mon compte</h2><button class="quit small" id="atm-close">Fermer <small>Échap</small></button></div>
+        <div class="balance big"><span>Solde</span><strong data-balance></strong></div>
+        <div class="bank-card" data-card></div>
+        <div class="cash-line"><span>Liquide sur vous</span><strong data-cash></strong></div>
+        <div class="shortcuts" data-shortcuts></div>
+        <label class="field"><input data-amount type="number" min="1" step="1" placeholder="Montant libre"></label>
+        <div class="row-buttons">
+            <button class="btn" data-withdraw>Retrait</button>
+            <button class="btn ghost" data-deposit>Dépôt</button>
+        </div>
     </div>
     <script src="app.js"></script>
 </body>
