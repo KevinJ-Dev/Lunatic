@@ -108,3 +108,5 @@ Config.ContextProps = {
 
 -- Fouille depuis le menu contextuel : distance maximale (mains levées ou inconscient)
 Config.SearchDistance = 2.5
+-- Liquide suspect par défaut (le panel le remplace : Économie → Autre → Banque)
+Config.SuspiciousCash = 30000

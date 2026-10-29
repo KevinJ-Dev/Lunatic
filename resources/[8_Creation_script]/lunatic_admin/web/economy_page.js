@@ -108,7 +108,7 @@ function ecoDraft() {
         base = { key, unemployed: d.unemployed, allowances: { ...s.allowances } };
         label = "Aide de l'État";
     } else if (key === "other:bank") {
-        base = { key, bank: { ...s.bank }, bankWithdraw: { ...s.bankWithdraw }, bankTransfer: { ...s.bankTransfer } };
+        base = { key, bank: { ...s.bank }, bankWithdraw: { ...s.bankWithdraw }, bankTransfer: { ...s.bankTransfer }, suspiciousCash: s.suspiciousCash };
         label = "Plafonds de banque";
     } else if (key === "other:impound") {
         base = { key, impound: { ...s.impound } };
@@ -261,7 +261,8 @@ function ecoOther() {
         defaults = () => { d.unemployed = data.defaultUnemployed; d.allowances = { ...data.defaults.allowances }; };
     } else if (tab === "bank") {
         cards = ECO_BANK_GROUPS.flatMap((g) => ECO_BANK_TIERS.map((t) => ecoCard(`${g.label} · ${t.label}`, d[g.group][t.key], data.limits.bank, (v) => { d[g.group][t.key] = v; }, "Sur 24 h glissantes")));
-        defaults = () => { for (const g of ECO_BANK_GROUPS) d[g.group] = { ...data.defaults[g.group] }; };
+        cards.push(ecoCard("Liquide suspect", d.suspiciousCash, data.limits.bank, (v) => { d.suspiciousCash = v; }, "À partir de ce montant sur lui, le policier qui fouille un joueur est averti (0 = jamais)"));
+        defaults = () => { for (const g of ECO_BANK_GROUPS) d[g.group] = { ...data.defaults[g.group] }; d.suspiciousCash = data.defaults.suspiciousCash; };
     } else {
         cards = ECO_IMPOUND.map((i) => ecoCard(i.label, d.impound[i.key], data.limits.impound, (v) => { d.impound[i.key] = v; }));
         defaults = () => { d.impound = { ...data.defaults.impound }; };

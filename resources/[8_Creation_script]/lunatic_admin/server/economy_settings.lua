@@ -14,6 +14,7 @@ local DEFAULTS = {
     bank = { standard = 2000, premium = 4000, premium_plus = 6000 },            -- dépôts sur 24 h
     bankWithdraw = { standard = 5000, premium = 15000, premium_plus = 50000 },   -- retraits sur 24 h
     bankTransfer = { standard = 10000, premium = 50000, premium_plus = 250000 }, -- virements émis sur 24 h
+    suspiciousCash = 30000, -- liquide à partir duquel un policier qui fouille est averti (argent à justifier)
     impound = { car = 300, bike = 300, truck = 300, boat = 300, heli = 300, plane = 300 },
     currency = '$',
 }
@@ -55,6 +56,10 @@ local function merge(saved)
                 end
             end
         end
+    end
+
+    if tonumber(saved.suspiciousCash) then
+        result.suspiciousCash = math.floor(tonumber(saved.suspiciousCash))
     end
 
     if type(saved.currency) == 'string' and saved.currency ~= '' then
@@ -323,6 +328,12 @@ local SECTIONS = {
             end
 
             values[group[1]] = read
+        end
+
+        values.suspiciousCash = wholeNumber(data.suspiciousCash, LIMITS.bank)
+
+        if not values.suspiciousCash then
+            return nil, Panel.fail(('Liquide suspect : nombre entier de 0 à %d.'):format(LIMITS.bank))
         end
 
         return values
