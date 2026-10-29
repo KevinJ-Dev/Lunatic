@@ -11,6 +11,11 @@ end
 
 local backObject, backWeapon = nil, nil
 
+-- Objet de l'arme dans le dos (épargné par « Détacher l'objet » du menu contextuel)
+function BackWeaponObject()
+    return backObject
+end
+
 local function removeBack()
     if backObject and DoesEntityExist(backObject) then
         DeleteEntity(backObject)

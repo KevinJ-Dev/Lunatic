@@ -83,3 +83,28 @@ Config.DocumentOffices = {
 }
 Config.OfficeDistance = 2.0
 Config.OfficeBlip = { sprite = 498, color = 29, scale = 0.75 }
+
+-- Menu contextuel (Alt + clic droit sur soi) : emotes rapides. flag 49 = haut du corps, en boucle, on peut marcher ;
+-- 48 = haut du corps, une fois ; 1 = corps entier, en boucle.
+Config.HandsUp = { label = 'Lever les mains', dict = 'missminuteman_1ig_2', anim = 'handsup_base', flag = 49 }
+Config.ContextEmotes = {
+    Config.HandsUp,
+    { label = 'Saluer', dict = 'gestures@m@standing@casual', anim = 'gesture_hello', flag = 48 },
+    { label = 'Applaudir', dict = 'amb@world_human_cheering@male_a', anim = 'base', flag = 49 },
+    { label = 'Croiser les bras', dict = 'amb@world_human_hang_out_street@female_arms_crossed@base', anim = 'base', flag = 49 },
+    { label = 'Pointer du doigt', dict = 'gestures@f@standing@casual', anim = 'gesture_point', flag = 48 },
+    { label = 'Pouce levé', dict = 'anim@mp_player_intselfiethumbs_up', anim = 'idle_a', flag = 48 },
+    { label = 'Facepalm', dict = 'anim@mp_player_intcelebrationmale@face_palm', anim = 'face_palm', flag = 48 },
+    { label = 'Réfléchir', dict = 'misscarsteal4@aliens', anim = 'rehearsal_base_idle_director', flag = 49 },
+    { label = "S'asseoir par terre", dict = 'anim@heists@fleeca_bank@ig_7_jetski_owner', anim = 'owner_idle', flag = 1 },
+}
+
+-- Objets tenus en main depuis le menu contextuel (os 57005 = main droite)
+Config.ContextPropsOrder = { 'umbrella', 'boombox' }
+Config.ContextProps = {
+    umbrella = { label = 'Parapluie', model = 'p_amb_brollie_01', bone = 57005, offset = vector3(0.15, 0.005, 0.0), rotation = vector3(87.0, -20.0, 180.0), dict = 'amb@world_human_drinking@coffee@male@base', anim = 'base', flag = 49 },
+    boombox = { label = 'Boombox', model = 'prop_boombox_01', bone = 57005, offset = vector3(0.27, 0.0, 0.0), rotation = vector3(0.0, 263.0, 58.0), dict = 'move_weapon@jerrycan@generic', anim = 'idle', flag = 49 },
+}
+
+-- Fouille depuis le menu contextuel : distance maximale (mains levées ou inconscient)
+Config.SearchDistance = 2.5

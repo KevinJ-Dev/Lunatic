@@ -181,6 +181,30 @@ RegisterNetEvent('lunatic_gameplay:idcardShow', function(kind)
     Notify(src, ('Vous montrez votre %s (%d personne%s).'):format(DOCUMENTS[kind].label, count, count > 1 and 's' or ''), 'info')
 end)
 
+-- Menu contextuel : montrer sa carte ou son permis à un joueur précis, à côté
+RegisterNetEvent('lunatic_gameplay:idcardShowTo', function(kind, target)
+    local src = source
+    local xPlayer = ESX.GetPlayerFromId(src)
+    local now = os.time()
+    kind = kind == 'license' and 'license' or 'idcard'
+    target = tonumber(target)
+
+    if not xPlayer or not target or target == src or not hasItem(src, kind) or (lastShow[src] or 0) > now - 3 then
+        return
+    end
+
+    lastShow[src] = now
+    local ped, targetPed = GetPlayerPed(src), GetPlayerPed(target)
+    local radius = tonumber(settings().showRadius) or 3.0
+
+    if targetPed == 0 or GetPlayerRoutingBucket(target) ~= GetPlayerRoutingBucket(src) or #(GetEntityCoords(targetPed) - GetEntityCoords(ped)) > radius then
+        return Notify(src, 'Personne trop loin.', 'error')
+    end
+
+    TriggerClientEvent('lunatic_gameplay:idcardDisplay', target, documentOf(xPlayer, kind))
+    Notify(src, ('Vous montrez votre %s.'):format(DOCUMENTS[kind].label), 'info')
+end)
+
 -- Guichet : état de la carte du joueur et prix
 lib.callback.register('lunatic_gameplay:officeInfo', function(src, index)
     local xPlayer = ESX.GetPlayerFromId(src)

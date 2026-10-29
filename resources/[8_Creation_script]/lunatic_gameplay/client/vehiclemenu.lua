@@ -1,5 +1,5 @@
 -- Menu véhicule des joueurs dans le menu contextuel (lunatic_context : Alt gauche maintenu + clic droit sur un
--- véhicule proche, ou n'importe où depuis l'intérieur de son véhicule) : état du véhicule, conduite automatique vers le
+-- véhicule proche, ou sur le sien depuis l'intérieur) : état du véhicule, conduite automatique vers le
 -- point GPS (conducteur seulement), portes et vitres. Le staff garde son propre menu (lunatic_admin) à côté.
 
 local RESOURCE = 'lunatic_context'
