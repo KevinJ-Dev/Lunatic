@@ -1,8 +1,36 @@
--- Menu véhicule des joueurs dans le menu contextuel (ressource ContextMenu : Alt gauche maintenu + clic droit sur un
+-- Menu véhicule des joueurs dans le menu contextuel (lunatic_context : Alt gauche maintenu + clic droit sur un
 -- véhicule proche, ou n'importe où depuis l'intérieur de son véhicule) : état du véhicule, conduite automatique vers le
 -- point GPS (conducteur seulement), portes et vitres. Le staff garde son propre menu (lunatic_admin) à côté.
 
-local RESOURCE = 'ContextMenu'
+local RESOURCE = 'lunatic_context'
+
+-- Entrées pour lunatic_context, construites avec les mêmes appels que l'ancien ContextMenu (AddItem, AddSubmenu…)
+local function menuBuilder()
+    local menus = { [0] = {} }
+    local count = 0
+    local builder = {}
+
+    function builder:AddTextItem(menuId, text)
+        table.insert(menus[menuId], { label = text, header = true })
+    end
+
+    function builder:AddItem(menuId, text, onSelect)
+        table.insert(menus[menuId], { label = text, onSelect = onSelect })
+    end
+
+    function builder:AddSeparator()
+    end
+
+    function builder:AddSubmenu(menuId, text)
+        count = count + 1
+        menus[count] = {}
+        table.insert(menus[menuId], { label = text, submenu = menus[count] })
+        return count
+    end
+
+    return builder, menus[0]
+end
+
 local REACH = 5.0 -- distance maximale au véhicule cliqué de l'extérieur
 local DOORS = { { 4, 'Capot' }, { 5, 'Coffre' }, { 0, 'Avant gauche' }, { 1, 'Avant droite' }, { 2, 'Arrière gauche' }, { 3, 'Arrière droite' } }
 local WINDOWS = { { 0, 'Avant gauche' }, { 1, 'Avant droite' }, { 2, 'Arrière gauche' }, { 3, 'Arrière droite' } }
@@ -142,7 +170,8 @@ end
 -- Menu
 ---------------------------------------------------------------------
 
-local function build(_, _, _, entity)
+local function build(ctx)
+    local entity = ctx.entity
     local ped = PlayerPedId()
     local inside = GetVehiclePedIsIn(ped, false)
     local vehicle = inside ~= 0 and inside or nil
@@ -156,7 +185,7 @@ local function build(_, _, _, entity)
         vehicle = entity
     end
 
-    local ECM = exports[RESOURCE]
+    local ECM, root = menuBuilder()
     local health = math.min(100, math.floor(math.max(0.0, GetVehicleEngineHealth(vehicle)) / 10 + 0.5))
 
     ECM:AddTextItem(0, ('%s · %s · état %d %%'):format(vehicleLabel(vehicle), GetVehicleNumberPlateText(vehicle), health))
@@ -200,11 +229,13 @@ local function build(_, _, _, entity)
             ECM:AddItem(menu, ('%s : %s'):format(window[2], down and 'monter' or 'descendre'), async(function() toggleWindow(vehicle, window[1]) end))
         end
     end
+
+    return root
 end
 
 local function register()
     local ok, err = pcall(function()
-        exports[RESOURCE]:Register(build)
+        exports[RESOURCE]:register('vehicle', build, 30)
     end)
 
     if not ok then
@@ -218,7 +249,7 @@ CreateThread(function()
     end
 end)
 
--- ContextMenu (re)démarré après nous
+-- lunatic_context (re)démarré après nous
 AddEventHandler('onClientResourceStart', function(resource)
     if resource == RESOURCE then
         register()

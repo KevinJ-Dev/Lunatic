@@ -1,8 +1,36 @@
--- Lot M : menu contextuel staff avec la resource ContextMenu (Kiminaze, dans [0_Libs]).
--- Maintenir Alt gauche, clic droit sur un joueur (soi-même compris), un véhicule, un PNJ ou un objet, clic gauche pour choisir.
+-- Lot M : menu contextuel staff, dans le menu contextuel de lunatic_context (Alt gauche + clic droit).
+-- « Action joueur » (rouge) sur un joueur, « Action staff » sur un véhicule, « Action développeur » (bleu) sur tout.
 -- Les options visibles dépendent des droits envoyés par le serveur (server/context.lua), qui revérifie chaque action.
 
-local RESOURCE = 'ContextMenu'
+local RESOURCE = 'lunatic_context'
+
+-- Entrées pour lunatic_context, construites avec les mêmes appels que l'ancien ContextMenu (AddItem, AddSubmenu…)
+local function menuBuilder()
+    local menus = { [0] = {} }
+    local count = 0
+    local builder = {}
+
+    function builder:AddTextItem(menuId, text)
+        table.insert(menus[menuId], { label = text, header = true })
+    end
+
+    function builder:AddItem(menuId, text, onSelect)
+        table.insert(menus[menuId], { label = text, onSelect = onSelect })
+    end
+
+    function builder:AddSeparator()
+    end
+
+    function builder:AddSubmenu(menuId, text)
+        count = count + 1
+        menus[count] = {}
+        table.insert(menus[menuId], { label = text, submenu = menus[count] })
+        return count
+    end
+
+    return builder, menus[0]
+end
+
 
 ---@type table<string, true> droits du menu
 local flags = {}
@@ -37,7 +65,7 @@ local function allowed(key)
     return flags.use == true and flags[key] == true
 end
 
--- Les actions du menu tournent hors de la boucle d'affichage de ContextMenu (les appels serveur attendent une réponse)
+-- Les actions du menu tournent dans leur propre thread (les appels serveur attendent une réponse)
 local function async(func)
     return function()
         CreateThread(func)
@@ -185,16 +213,8 @@ local function vehicleMenu(ECM, vehicle)
         end)
     end
 
-    -- Nom et plaque déjà affichés par le menu véhicule des joueurs (lunatic_gameplay) : son véhicule, ou un véhicule à 5 m
-    local ped = PlayerPedId()
-    local inside = GetVehiclePedIsIn(ped, false)
-    local shown = GetResourceState('lunatic_gameplay') == 'started'
-        and (inside == vehicle or (inside == 0 and #(GetEntityCoords(ped) - GetEntityCoords(vehicle)) <= 5.0))
-
-    if not shown then
-        local model = GetDisplayNameFromVehicleModel(GetEntityModel(vehicle)):lower()
-        ECM:AddTextItem(0, ('%s · %s'):format(model, GetVehicleNumberPlateText(vehicle)))
-    end
+    local model = GetDisplayNameFromVehicleModel(GetEntityModel(vehicle)):lower()
+    ECM:AddTextItem(0, ('%s · %s'):format(model, GetVehicleNumberPlateText(vehicle)))
     ECM:AddItem(0, 'Réparer', run('repair', repair, 'Véhicule réparé.'))
     ECM:AddItem(0, 'Retourner', run('flip', flip, 'Véhicule retourné.'))
     ECM:AddItem(0, 'Monter dedans', run('enter', enter, nil))
@@ -279,56 +299,65 @@ local function devItems(ECM, menuId, entity)
 end
 
 ---------------------------------------------------------------------
--- Enregistrement dans ContextMenu
+-- Enregistrement dans lunatic_context
 ---------------------------------------------------------------------
 
-local function build(_, _, _, entity)
+local function build(ctx)
+    local entity = ctx.entity
+
     if not (flags.use or flags.dev) or not entity or entity == 0 or not DoesEntityExist(entity) then
-        return
+        return nil
     end
 
-    local ECM = exports[RESOURCE]
     local kind = GetEntityType(entity)
     local isPlayer = kind == 1 and IsPedAPlayer(entity)
+    local items = {}
 
-    if isPlayer then
-        playerMenu(ECM, entity)
-    elseif kind == 2 then
-        vehicleMenu(ECM, entity)
-    end
+    -- Modération : joueurs et véhicules
+    if flags.use and (isPlayer or kind == 2) then
+        local staff, root = menuBuilder()
 
-    if flags.dev then
-        -- Joueurs et véhicules : sous-menu ; PNJ et objets : directement dans le menu
-        if isPlayer or kind == 2 then
-            local devMenu = ECM:AddSubmenu(0, 'Dév')
-            devItems(ECM, devMenu, entity)
+        if isPlayer then
+            playerMenu(staff, entity)
         else
-            ECM:AddTextItem(0, kind == 1 and 'PNJ' or 'Objet')
-            devItems(ECM, 0, entity)
+            vehicleMenu(staff, entity)
+        end
+
+        if #root > 0 then
+            items[#items + 1] = { label = isPlayer and 'Action joueur' or 'Action staff', color = 'red', submenu = root }
         end
     end
+
+    -- Développeur : toutes les entités
+    if flags.dev then
+        local dev, root = menuBuilder()
+        devItems(dev, 0, entity)
+
+        if #root > 0 then
+            items[#items + 1] = { label = 'Action développeur', color = 'blue', submenu = root }
+        end
+    end
+
+    return items
 end
 
 local function register()
     local ok, err = pcall(function()
-        exports[RESOURCE]:Register(build)
+        exports[RESOURCE]:register('lunatic_admin', build, 90)
     end)
 
-    print(ok and '[lunatic_admin] Menu contextuel enregistré dans ContextMenu (Alt gauche + clic droit).'
-        or ('[lunatic_admin] Menu contextuel : enregistrement impossible : %s'):format(err))
+    if not ok then
+        print(('[lunatic_admin] Menu contextuel : enregistrement impossible : %s'):format(err))
+    end
 end
 
 CreateThread(function()
-    local state = GetResourceState(RESOURCE)
-
-    if state == 'started' then
+    if GetResourceState(RESOURCE) == 'started' then
         register()
-    else
-        print(("[lunatic_admin] Menu contextuel : la resource %s n'est pas démarrée (état : %s)."):format(RESOURCE, state))
     end
 end)
 
--- ContextMenu (re)démarré après nous
+-- lunatic_context (re)démarré après nous
 AddEventHandler('onClientResourceStart', function(resource)
     if resource == RESOURCE then
         register()
