@@ -2,9 +2,14 @@
 
 // Menu contextuel : affiché à la souris, sous-menus ouverts au survol (à droite, ou à gauche s'il n'y a pas la place).
 // Le jeu envoie les entrées (sans leurs actions) ; un clic renvoie l'id de l'entrée choisie.
+// Le menu reste affiché tant qu'Alt est maintenu : après une action, le jeu renvoie les entrées à jour ("update"),
+// un clic droit ailleurs vise autre chose ("retarget"), relâcher Alt ou Échap ferme.
 
 const layer = document.getElementById("layer");
 const resource = typeof GetParentResourceName === "function" ? GetParentResourceName() : null;
+
+let origin = { x: 0, y: 0 }; // position du menu principal, en pixels
+let openPath = []; // index de l'entrée ouverte à chaque profondeur (rouverte après une mise à jour)
 
 function nui(name, payload) {
     if (!resource) return Promise.resolve({});
@@ -22,29 +27,33 @@ function el(tag, className, text) {
 function buildMenu(items, depth) {
     const menu = el("div", "menu");
     menu.dataset.depth = String(depth);
-    for (const item of items) {
-        if (item.separator) { menu.append(el("div", "sep")); continue; }
+    menu.rows = [];
+    items.forEach((item, index) => {
+        if (item.separator) { menu.append(el("div", "sep")); menu.rows.push(null); return; }
         const row = el("div", ["item", item.color, item.header && "header", item.disabled && "disabled"].filter(Boolean).join(" "));
         row.append(el("span", null, item.label));
         if (item.children) row.append(el("i", "arrow", "›"));
         else if (item.right) row.append(el("small", null, item.right));
 
-        row.addEventListener("mouseenter", () => {
+        row.open = () => {
             closeDeeper(depth);
             menu.querySelectorAll(".item.open").forEach((r) => r.classList.remove("open"));
+            openPath.length = depth;
             if (item.children && !item.disabled) {
                 row.classList.add("open");
+                openPath[depth] = index;
                 openSubmenu(item.children, row, depth + 1);
             }
-        });
+        };
+        row.addEventListener("mouseenter", row.open);
         row.addEventListener("click", (e) => {
             e.stopPropagation();
             if (item.header || item.disabled || item.children) return;
-            close();
             nui("select", { id: item.id });
         });
         menu.append(row);
-    }
+        menu.rows.push(row);
+    });
     return menu;
 }
 
@@ -67,29 +76,63 @@ function openSubmenu(items, row, depth) {
     const fitsRight = rect.right + menu.offsetWidth + 4 < window.innerWidth;
     const x = fitsRight ? rect.right + 4 : rect.left - menu.offsetWidth - 4;
     place(menu, x, rect.top - 4);
+    return menu;
+}
+
+// Menu principal à la position retenue ; keepPath : rouvre les sous-menus ouverts avant la mise à jour
+function render(items, keepPath) {
+    const path = keepPath ? openPath.slice() : [];
+    layer.replaceChildren();
+    openPath = [];
+    if (!items.length) return;
+    let menu = buildMenu(items, 0);
+    place(menu, origin.x, origin.y);
+    for (const index of path) {
+        const row = menu.rows[index];
+        if (!row) break;
+        row.open();
+        menu = layer.querySelector(`.menu[data-depth="${Number(menu.dataset.depth) + 1}"]`);
+        if (!menu) break;
+    }
 }
 
 function open(msg) {
-    layer.replaceChildren();
+    origin = { x: msg.x * window.innerWidth, y: msg.y * window.innerHeight };
     layer.classList.add("on");
-    place(buildMenu(msg.items || [], 0), msg.x * window.innerWidth, msg.y * window.innerHeight);
+    render(msg.items || [], false);
 }
 
 function close() {
     layer.classList.remove("on");
     layer.replaceChildren();
+    openPath = [];
 }
 
-// Clic en dehors, clic droit ou Échap : fermé
-layer.addEventListener("mousedown", (e) => {
-    if (!e.target.closest(".menu")) { close(); nui("close"); }
+function closeAndTell() {
+    if (!layer.classList.contains("on")) return;
+    close();
+    nui("close");
+}
+
+// Clic droit hors du menu : nouvelle cible à cet endroit ; clic gauche hors du menu : rien
+document.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    if (!layer.classList.contains("on") || e.target.closest(".menu")) return;
+    nui("retarget", { x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight });
 });
-document.addEventListener("contextmenu", (e) => { e.preventDefault(); if (!e.target.closest(".menu")) { close(); nui("close"); } });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && layer.classList.contains("on")) { close(); nui("close"); } });
+
+// Alt relâché ou Échap : fermé
+document.addEventListener("keyup", (e) => { if (e.key === "Alt") { e.preventDefault(); closeAndTell(); } });
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Alt") e.preventDefault();
+    if (e.key === "Escape") closeAndTell();
+});
+window.addEventListener("blur", closeAndTell);
 
 window.addEventListener("message", (event) => {
     const msg = event.data || {};
     if (msg.action === "open") open(msg);
+    if (msg.action === "update" && layer.classList.contains("on")) render(msg.items || [], true);
     if (msg.action === "close") close();
 });
 

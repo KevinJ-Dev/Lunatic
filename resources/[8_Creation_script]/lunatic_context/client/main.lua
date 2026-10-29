@@ -1,8 +1,11 @@
--- Menu contextuel (doc Vision) : Alt gauche maintenu fait apparaître le curseur (l'entité visée est surlignée),
--- clic droit ouvre le menu à la souris sur ce qui est visé : soi-même, un joueur, un PNJ, un véhicule, un objet ou le sol.
+-- Menu contextuel (doc Vision) : Alt gauche maintenu fait apparaître le curseur, clic droit ouvre le menu à la souris
+-- sur ce qui est visé : soi-même, un joueur, un PNJ, un véhicule, un objet ou le sol.
+-- Le menu reste ouvert tant qu'Alt est maintenu : une action le met à jour, un clic droit ailleurs vise autre chose,
+-- relâcher Alt (ou Échap) le ferme.
 -- Les scripts y ajoutent leurs entrées : exports.lunatic_context:register(nom, fonction(ctx) -> entrées, ordre).
 --   ctx   = { entity, kind = 'self' | 'player' | 'ped' | 'vehicle' | 'object' | 'ground', serverId, coords, inVehicle }
---   entrée = { label, right?, color? ('red' | 'blue'), header? (texte seul), disabled?, onSelect? = fonction, submenu? = entrées }
+--   entrée = { label, right?, color? ('red' | 'blue'), header? (texte seul), disabled?, onSelect? = fonction,
+--              close? (ferme le menu après l'action : téléportation, autre interface…), submenu? = entrées }
 -- Ce moteur ne décide de rien : chaque script vérifie ses droits, et ses actions passent par son serveur.
 
 -- Clic droit : visée à pied (25), visée en véhicule (68), clic droit du curseur (238)
@@ -11,10 +14,11 @@ local RANGE = 60.0
 -- Carte, véhicules, PNJ, objets : la carte arrête le rayon (pas de sélection à travers un mur)
 local RAY_FLAGS = 1 | 2 | 4 | 8 | 16
 local LOOK_CONTROLS = { 1, 2, 24, 25, 68, 69, 70, 91, 92, 106, 140, 141, 142, 257, 263, 264 }
+-- Délai avant de relire les entrées après une action (le temps que l'état du jeu change)
+local REFRESH_DELAY = 250
 
 local providers = {} -- nom -> { fn, order, resource }
-local openMenu = nil -- menu ouvert : { items = { [id] = entrée } }
-local outlined = 0
+local openMenu = nil -- menu ouvert : { ctx, items = { [id] = entrée } }
 local held = false -- touche du menu (Alt gauche par défaut) maintenue
 local lastOpen = 0
 
@@ -68,15 +72,11 @@ local function validEntity(entity)
     return 0
 end
 
-local function ray(x, y)
+-- Rayon depuis la caméra à travers le point de l'écran, seulement au clic (pas de test à chaque image,
+-- pas de contour : les deux ont été retirés après des crashs du jeu)
+local function aim(x, y)
     local from, direction = GetWorldCoordFromScreenCoord(x, y)
     local to = from + direction * RANGE
-    return from, to
-end
-
--- Rayon depuis la caméra à travers le point de l'écran (au clic) : entité touchée (ou 0) et point d'impact
-local function aim(x, y)
-    local from, to = ray(x, y)
     local handle = StartExpensiveSynchronousShapeTestLosProbe(from.x, from.y, from.z, to.x, to.y, to.z, RAY_FLAGS, 0, 4)
     local _, hit, coords, _, entity = GetShapeTestResult(handle)
 
@@ -85,26 +85,6 @@ local function aim(x, y)
     end
 
     return validEntity(entity), coords
-end
-
--- Survol : test non bloquant, lu aux images suivantes (1 = encore en cours)
-local probe = nil
-
-local function hoverAim(x, y)
-    if probe then
-        local status, hit, _, _, entity = GetShapeTestResult(probe)
-
-        if status == 1 then
-            return nil
-        end
-
-        probe = nil
-        return hit == 1 and validEntity(entity) or 0
-    end
-
-    local from, to = ray(x, y)
-    probe = StartShapeTestLosProbe(from.x, from.y, from.z, to.x, to.y, to.z, RAY_FLAGS, 0, 4)
-    return nil
 end
 
 local function contextOf(entity, coords)
@@ -128,34 +108,6 @@ local function contextOf(entity, coords)
     end
 
     return ctx
-end
-
--- Contour seulement sur les PNJ, joueurs et véhicules : sur les objets (décors de la carte surtout), le contour peut faire crasher le jeu
-local function canOutline(entity)
-    if entity == 0 or not DoesEntityExist(entity) then
-        return false
-    end
-
-    local kind = GetEntityType(entity)
-    return kind == 1 or kind == 2
-end
-
-local function setOutline(entity)
-    if entity == outlined then
-        return
-    end
-
-    if outlined ~= 0 and canOutline(outlined) then
-        SetEntityDrawOutline(outlined, false)
-    end
-
-    outlined = 0
-
-    if canOutline(entity) then
-        SetEntityDrawOutlineColor(150, 80, 255, 255)
-        SetEntityDrawOutline(entity, true)
-        outlined = entity
-    end
 end
 
 ---------------------------------------------------------------------
@@ -223,43 +175,89 @@ local function closeMenu()
     SendNUIMessage({ action = 'close' })
 end
 
+-- Ouvre (ou remplace) le menu ; sans entrée (ciel, sol…) la page reste active, vide, jusqu'au relâchement d'Alt
 local function showMenu(entity, coords, x, y)
     local ctx = contextOf(entity, coords)
     local tree, byId = collect(ctx)
 
-    if #tree == 0 then
-        return
-    end
-
-    openMenu = { items = byId }
+    openMenu = { ctx = ctx, items = byId }
     SetNuiFocus(true, true)
     SendNUIMessage({ action = 'open', x = x, y = y, items = tree })
 end
 
+-- Après une action : entrées relues pour la même cible (libellés à jour, entrées disparues…)
+local function refreshMenu(menu)
+    if openMenu ~= menu then
+        return
+    end
+
+    local ctx = menu.ctx
+
+    if ctx.entity ~= 0 and not DoesEntityExist(ctx.entity) then
+        ctx.entity, ctx.kind, ctx.serverId = 0, 'ground', nil
+    end
+
+    local tree, byId = collect(ctx)
+    menu.items = byId
+    SendNUIMessage({ action = 'update', items = tree })
+end
+
 RegisterNUICallback('select', function(data, cb)
     cb({})
-    local item = openMenu and openMenu.items[tostring(data.id)]
-    closeMenu()
+    local menu = openMenu
+    local item = menu and menu.items[tostring(data.id)]
+
+    if not item then
+        return
+    end
+
+    if item.close then
+        closeMenu()
+    end
 
     -- onSelect peut venir d'un autre script (référence de fonction appelable)
-    if item and item.onSelect then
-        CreateThread(function()
+    CreateThread(function()
+        if item.onSelect then
             local ok, err = pcall(item.onSelect)
 
             if not ok then
                 print(('[lunatic_context] Action « %s » : %s'):format(item.label, tostring(err)))
             end
-        end)
-    end
+        end
+
+        if not item.close then
+            Wait(REFRESH_DELAY)
+            refreshMenu(menu)
+        end
+    end)
 end)
 
+-- Clic droit ailleurs, menu ouvert : nouvelle cible à cet endroit
+RegisterNUICallback('retarget', function(data, cb)
+    cb({})
+
+    if not openMenu then
+        return
+    end
+
+    local x, y = tonumber(data.x), tonumber(data.y)
+
+    if not x or not y then
+        return
+    end
+
+    local entity, coords = aim(x, y)
+    showMenu(entity, coords, x, y)
+end)
+
+-- Alt relâché, Échap
 RegisterNUICallback('close', function(_, cb)
     cb({})
     closeMenu()
 end)
 
 ---------------------------------------------------------------------
--- Alt maintenu : curseur, entité surlignée ; clic droit : menu
+-- Alt maintenu : curseur ; clic droit : menu
 ---------------------------------------------------------------------
 
 local function rightClicked()
@@ -281,24 +279,15 @@ CreateThread(function()
                 DisableControlAction(0, control, true)
             end
 
-            local x, y = cursor()
-
-            local hovered = hoverAim(x, y)
-
-            if hovered then
-                setOutline(hovered)
-            end
-
             if rightClicked() and GetGameTimer() - lastOpen > 250 then
                 lastOpen = GetGameTimer()
+                local x, y = cursor()
                 local entity, coords = aim(x, y)
-                setOutline(0)
                 showMenu(entity, coords, x, y)
             end
 
             Wait(0)
         else
-            setOutline(0)
             Wait(openMenu and 100 or 0)
         end
     end
@@ -306,7 +295,6 @@ end)
 
 AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
-        setOutline(0)
         closeMenu()
     end
 end)

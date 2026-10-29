@@ -14,8 +14,9 @@ local function menuBuilder()
         table.insert(menus[menuId], { label = text, header = true })
     end
 
-    function builder:AddItem(menuId, text, onSelect)
-        table.insert(menus[menuId], { label = text, onSelect = onSelect })
+    -- close : ferme le menu après l'action (autre interface, téléportation…) ; sinon il reste ouvert et se met à jour
+    function builder:AddItem(menuId, text, onSelect, close)
+        table.insert(menus[menuId], { label = text, onSelect = onSelect, close = close == true })
     end
 
     function builder:AddSeparator()
@@ -123,11 +124,11 @@ local function playerMenu(ECM, ped)
     if allowed('view') then
         ECM:AddItem(0, 'Ouvrir la fiche', async(function()
             OpenPanelOnPlayer(serverId)
-        end))
+        end), true)
     end
 
     if not isSelf and allowed('teleport') then
-        ECM:AddItem(0, 'Aller vers', run('player.goto', nil))
+        ECM:AddItem(0, 'Aller vers', run('player.goto', nil), true)
     end
 
     if not isSelf and allowed('bring') then
@@ -144,11 +145,11 @@ local function playerMenu(ECM, ped)
     end
 
     if not isSelf and allowed('spectate') then
-        ECM:AddItem(0, 'Observer', run('player.spectate', nil))
+        ECM:AddItem(0, 'Observer', run('player.spectate', nil), true)
     end
 
     if not isSelf and allowed('items') then
-        ECM:AddItem(0, 'Inventaire', run('inventory.open', nil))
+        ECM:AddItem(0, 'Inventaire', run('inventory.open', nil), true)
     end
 end
 
@@ -217,7 +218,7 @@ local function vehicleMenu(ECM, vehicle)
     ECM:AddTextItem(0, ('%s · %s'):format(model, GetVehicleNumberPlateText(vehicle)))
     ECM:AddItem(0, 'Réparer', run('repair', repair, 'Véhicule réparé.'))
     ECM:AddItem(0, 'Retourner', run('flip', flip, 'Véhicule retourné.'))
-    ECM:AddItem(0, 'Monter dedans', run('enter', enter, nil))
+    ECM:AddItem(0, 'Monter dedans', run('enter', enter, nil), true)
     ECM:AddItem(0, 'Propriétaire', run('owner', showOwner, nil))
     ECM:AddItem(0, 'Mettre en fourrière', run('impound', nil, nil))
     ECM:AddItem(0, 'Supprimer', run('delete', nil, 'Véhicule supprimé.'))
