@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <title>Lunatic - Banque</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="bank hidden" id="bank">
+        <aside class="side">
+            <div class="logo">FL<b>EE</b>CA<small>Bank</small></div>
+            <nav id="nav">
+                <button data-view="global" class="on">Global</button>
+                <button data-view="transactions">Transactions</button>
+            </nav>
+            <div class="grow"></div>
+            <div class="agency" id="agency"></div>
+            <div class="owner"><span class="avatar" id="avatar"></span><div><strong id="owner"></strong><small>Compte personnel</small></div></div>
+            <button class="quit" id="close">Fermer <small>Échap</small></button>
+        </aside>
+
+        <main class="main">
+
+            <!-- Vue globale -->
+            <section class="view grid" id="view-global">
+                <div class="card-box analysis">
+                    <div class="box-head">
+                        <h2>Analyse</h2>
+                        <div class="periods" id="periods">
+                            <button data-period="week" class="on">7 jours</button>
+                            <button data-period="month">4 semaines</button>
+                            <button data-period="year">12 mois</button>
+                        </div>
+                        <div class="legend"><i class="dot credit"></i>Crédit<i class="dot debit"></i>Débit</div>
+                    </div>
+                    <div class="chart" id="chart"></div>
+                </div>
+
+                <div class="card-box cash">
+                    <div class="box-head"><h2>Retrait &amp; dépôt</h2><div class="balance"><span>Solde</span><strong id="balance"></strong></div></div>
+                    <div class="bank-card" id="card">
+                        <div class="card-top"><span class="chip"></span><span class="card-logo">FL<b>EE</b>CA</span></div>
+                        <div class="card-number" id="card-iban"></div>
+                        <div class="card-bottom"><span id="card-name"></span><span class="contactless">)))</span></div>
+                    </div>
+                    <div class="cash-line"><span>Liquide sur vous</span><strong id="cash"></strong></div>
+                    <div class="shortcuts" id="shortcuts"></div>
+                    <label class="field"><input id="amount" type="number" min="1" step="1" placeholder="Montant libre"></label>
+                    <div class="row-buttons">
+                        <button class="btn" id="withdraw">Retirer</button>
+                        <button class="btn ghost" id="deposit">Déposer</button>
+                    </div>
+                </div>
+
+                <div class="card-box recent">
+                    <div class="box-head"><h2>Transactions</h2><button class="link" data-go="transactions">Tout voir</button></div>
+                    <div class="table" id="recent"></div>
+                </div>
+
+                <div class="card-box transfer">
+                    <div class="box-head"><h2>Virements</h2></div>
+                    <div class="pair">
+                        <label class="field"><span>IBAN</span><input id="t-iban" maxlength="12" placeholder="LN00000000"></label>
+                        <label class="field"><span>Montant</span><input id="t-amount" type="number" min="1" step="1" placeholder="0 $"></label>
+                    </div>
+                    <label class="field"><span>Message</span><input id="t-message" maxlength="120" placeholder="Facultatif"></label>
+                    <button class="btn" id="send">Envoyer</button>
+                </div>
+            </section>
+
+            <!-- Historique complet -->
+            <section class="view hidden" id="view-transactions">
+                <div class="card-box full">
+                    <div class="box-head">
+                        <h2>Transactions</h2>
+                        <div class="periods" id="filters">
+                            <button data-filter="all" class="on">Tout</button>
+                            <button data-filter="credit">Crédits</button>
+                            <button data-filter="debit">Débits</button>
+                        </div>
+                    </div>
+                    <div class="table" id="history"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
