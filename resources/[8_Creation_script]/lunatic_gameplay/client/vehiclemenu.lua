@@ -173,17 +173,20 @@ end
 local function build(ctx)
     local entity = ctx.entity
     local ped = PlayerPedId()
-    local inside = GetVehiclePedIsIn(ped, false)
-    local vehicle = inside ~= 0 and inside or nil
 
-    -- De l'extérieur : véhicule cliqué, à portée
-    if not vehicle then
-        if not entity or entity == 0 or not DoesEntityExist(entity) or GetEntityType(entity) ~= 2 or #(GetEntityCoords(ped) - GetEntityCoords(entity)) > REACH then
-            return
-        end
-
-        vehicle = entity
+    -- Véhicule cliqué (le sien, ou un autre à portée) ; un clic dans le ciel ou à côté n'ouvre rien
+    if not entity or entity == 0 or not DoesEntityExist(entity) or GetEntityType(entity) ~= 2 then
+        return
     end
+
+    -- Dans ce véhicule : son véhicule (0 sinon)
+    local inside = GetVehiclePedIsIn(ped, false) == entity and entity or 0
+
+    if inside == 0 and #(GetEntityCoords(ped) - GetEntityCoords(entity)) > REACH then
+        return
+    end
+
+    local vehicle = entity
 
     local ECM, root = menuBuilder()
     local health = math.min(100, math.floor(math.max(0.0, GetVehicleEngineHealth(vehicle)) / 10 + 0.5))

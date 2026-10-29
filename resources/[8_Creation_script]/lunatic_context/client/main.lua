@@ -5,7 +5,8 @@
 --   entrée = { label, right?, color? ('red' | 'blue'), header? (texte seul), disabled?, onSelect? = fonction, submenu? = entrées }
 -- Ce moteur ne décide de rien : chaque script vérifie ses droits, et ses actions passent par son serveur.
 
-local ALT, RIGHT_CLICK = 19, 25
+-- Clic droit : visée à pied (25), visée en véhicule (68), clic droit du curseur (238)
+local RIGHT_CLICKS = { 25, 68, 238 }
 local RANGE = 60.0
 -- Carte, véhicules, PNJ, objets : la carte arrête le rayon (pas de sélection à travers un mur)
 local RAY_FLAGS = 1 | 2 | 4 | 8 | 16
@@ -14,6 +15,14 @@ local LOOK_CONTROLS = { 1, 2, 24, 25, 68, 69, 70, 91, 92, 106, 140, 141, 142, 25
 local providers = {} -- nom -> { fn, order, resource }
 local openMenu = nil -- menu ouvert : { items = { [id] = entrée } }
 local outlined = 0
+local held = false -- touche du menu (Alt gauche par défaut) maintenue
+local lastOpen = 0
+
+-- Touche réglable dans Paramètres > Raccourcis clavier > FiveM ; marche à pied comme en véhicule
+-- (le contrôle 19 du jeu, la roue des armes, ne répond pas dans tous les cas)
+RegisterCommand('+lunatic_context', function() held = true end, false)
+RegisterCommand('-lunatic_context', function() held = false end, false)
+RegisterKeyMapping('+lunatic_context', 'Menu contextuel (maintenir, puis clic droit)', 'keyboard', 'LMENU')
 
 ---------------------------------------------------------------------
 -- Enregistrement des scripts
@@ -208,6 +217,8 @@ local function closeMenu()
     end
 
     openMenu = nil
+    -- Alt relâché pendant le menu : le jeu n'a pas reçu le relâchement (focus sur la page)
+    held = false
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'close' })
 end
@@ -251,9 +262,19 @@ end)
 -- Alt maintenu : curseur, entité surlignée ; clic droit : menu
 ---------------------------------------------------------------------
 
+local function rightClicked()
+    for _, control in ipairs(RIGHT_CLICKS) do
+        if IsDisabledControlJustPressed(0, control) or IsControlJustPressed(0, control) then
+            return true
+        end
+    end
+
+    return false
+end
+
 CreateThread(function()
     while true do
-        if not openMenu and IsControlPressed(0, ALT) and not IsPauseMenuActive() and not IsNuiFocused() then
+        if not openMenu and held and not IsPauseMenuActive() and not IsNuiFocused() then
             SetMouseCursorActiveThisFrame()
 
             for _, control in ipairs(LOOK_CONTROLS) do
@@ -268,7 +289,8 @@ CreateThread(function()
                 setOutline(hovered)
             end
 
-            if IsDisabledControlJustPressed(0, RIGHT_CLICK) then
+            if rightClicked() and GetGameTimer() - lastOpen > 250 then
+                lastOpen = GetGameTimer()
                 local entity, coords = aim(x, y)
                 setOutline(0)
                 showMenu(entity, coords, x, y)
