@@ -1,7 +1,8 @@
 -- Menu contextuel (doc Vision) : Alt gauche maintenu fait apparaître le curseur, clic droit ouvre le menu à la souris
 -- sur ce qui est visé : soi-même, un joueur, un PNJ, un véhicule, un objet ou le sol.
 -- Le menu reste ouvert tant qu'Alt est maintenu : une action le met à jour, un clic droit ailleurs vise autre chose,
--- relâcher Alt (ou Échap) le ferme.
+-- relâcher Alt (ou Échap) le ferme. Menu ouvert, le personnage marche et conduit normalement (seules la caméra
+-- et les attaques sont bloquées, la souris servant au menu).
 -- Les scripts y ajoutent leurs entrées : exports.lunatic_context:register(nom, fonction(ctx) -> entrées, ordre).
 --   ctx   = { entity, kind = 'self' | 'player' | 'ped' | 'vehicle' | 'object' | 'ground', serverId, coords, inVehicle }
 --   entrée = { label, right?, color? ('red' | 'blue'), header? (texte seul), disabled?, onSelect? = fonction,
@@ -14,6 +15,8 @@ local RANGE = 60.0
 -- Carte, véhicules, PNJ, objets : la carte arrête le rayon (pas de sélection à travers un mur)
 local RAY_FLAGS = 1 | 2 | 4 | 8 | 16
 local LOOK_CONTROLS = { 1, 2, 24, 25, 68, 69, 70, 91, 92, 106, 140, 141, 142, 257, 263, 264 }
+-- Menu ouvert : en plus, Échap (menu pause) et la roue des armes, le clavier allant aussi au jeu
+local MENU_CONTROLS = { 37, 199, 200, 322 }
 -- Délai avant de relire les entrées après une action (le temps que l'état du jeu change)
 local REFRESH_DELAY = 250
 
@@ -169,8 +172,9 @@ local function closeMenu()
     end
 
     openMenu = nil
-    -- Alt relâché pendant le menu : le jeu n'a pas reçu le relâchement (focus sur la page)
+    -- Alt relâché pendant le menu : le jeu n'a pas forcément reçu le relâchement (focus sur la page)
     held = false
+    SetNuiFocusKeepInput(false)
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'close' })
 end
@@ -182,6 +186,8 @@ local function showMenu(entity, coords, x, y)
 
     openMenu = { ctx = ctx, items = byId }
     SetNuiFocus(true, true)
+    -- Le jeu reçoit aussi le clavier : on peut marcher, courir, conduire avec le menu ouvert
+    SetNuiFocusKeepInput(true)
     SendNUIMessage({ action = 'open', x = x, y = y, items = tree })
 end
 
@@ -287,8 +293,24 @@ CreateThread(function()
             end
 
             Wait(0)
+        elseif openMenu then
+            -- Souris réservée au menu : pas de caméra ni de tir ; Échap ferme le menu, pas le jeu
+            for _, control in ipairs(LOOK_CONTROLS) do
+                DisableControlAction(0, control, true)
+            end
+
+            for _, control in ipairs(MENU_CONTROLS) do
+                DisableControlAction(0, control, true)
+            end
+
+            -- Alt relâché (le jeu reçoit le clavier) ou menu pause ouvert : fermé
+            if not held or IsPauseMenuActive() then
+                closeMenu()
+            end
+
+            Wait(0)
         else
-            Wait(openMenu and 100 or 0)
+            Wait(0)
         end
     end
 end)
