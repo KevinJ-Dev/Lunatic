@@ -3,7 +3,7 @@
 --   - salaires : tables ESX job_grades puis ESX.RefreshJob (comme le Pôle emploi) ;
 --   - réglages : GlobalState.lunaticEconomy (lu par la paie d'ESX, es_extended/server/modules/paycheck.lua)
 --     et GlobalState.lunaticCurrency (symbole affiché par nos scripts).
--- Les plafonds de banque et les frais de fourrière sont enregistrés pour les futurs scripts de banque et de garage.
+-- Plafonds de banque (retraits, dépôts, virements sur 24 h, par carte) : lus par lunatic_bank ; frais de fourrière : lunatic_garage.
 
 local UNEMPLOYED = 'unemployed'
 
@@ -11,7 +11,9 @@ local UNEMPLOYED = 'unemployed'
 local DEFAULTS = {
     paycheckMinutes = 15,
     allowances = { premium = 35, premium_plus = 70 },
-    bank = { standard = 2000, premium = 4000, premium_plus = 6000 },
+    bank = { standard = 2000, premium = 4000, premium_plus = 6000 },            -- dépôts sur 24 h
+    bankWithdraw = { standard = 5000, premium = 15000, premium_plus = 50000 },   -- retraits sur 24 h
+    bankTransfer = { standard = 10000, premium = 50000, premium_plus = 250000 }, -- virements émis sur 24 h
     impound = { car = 300, bike = 300, truck = 300, boat = 300, heli = 300, plane = 300 },
     currency = '$',
 }
@@ -45,7 +47,7 @@ local function merge(saved)
         result.paycheckMinutes = math.floor(tonumber(saved.paycheckMinutes))
     end
 
-    for _, group in ipairs({ 'allowances', 'bank', 'impound' }) do
+    for _, group in ipairs({ 'allowances', 'bank', 'bankWithdraw', 'bankTransfer', 'impound' }) do
         if type(saved[group]) == 'table' then
             for key in pairs(result[group]) do
                 if tonumber(saved[group][key]) then
@@ -311,8 +313,19 @@ local SECTIONS = {
         return { allowances = allowances }
     end,
     bank = function(_, data)
-        local bank, err = readGroup(data.bank, DEFAULTS.bank, LIMITS.bank, 'Plafonds de dépôt')
-        return bank and { bank = bank }, err
+        local values = {}
+
+        for _, group in ipairs({ { 'bank', 'Plafonds de dépôt' }, { 'bankWithdraw', 'Plafonds de retrait' }, { 'bankTransfer', 'Plafonds de virement' } }) do
+            local read, err = readGroup(data[group[1]], DEFAULTS[group[1]], LIMITS.bank, group[2])
+
+            if not read then
+                return nil, err
+            end
+
+            values[group[1]] = read
+        end
+
+        return values
     end,
     impound = function(_, data)
         local impound, err = readGroup(data.impound, DEFAULTS.impound, LIMITS.impound, 'Frais de fourrière')

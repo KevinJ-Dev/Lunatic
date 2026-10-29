@@ -18,7 +18,7 @@ const ECO_CATEGORIES = [
 ];
 const ECO_OTHER_TABS = [
     { id: "aid", label: "Aide de l'État", sub: "Allocations et subventions", color: "#3ecf8e" },
-    { id: "bank", label: "Banque", sub: "Plafonds de dépôt", color: "#7c8cff" },
+    { id: "bank", label: "Banque", sub: "Plafonds par carte", color: "#7c8cff" },
     { id: "impound", label: "Fourrière", sub: "Frais par type de véhicule", color: "#f2994a" },
 ];
 const ECO_CURRENCIES = [
@@ -29,10 +29,16 @@ const ECO_CURRENCIES = [
     { symbol: "د.إ", label: "Dirham" },
     { symbol: "₽", label: "Rouble" },
 ];
-const ECO_BANK = [
-    { key: "standard", label: "Plafond de dépôt" },
-    { key: "premium", label: "Plafond de dépôt VIP" },
-    { key: "premium_plus", label: "Plafond de dépôt VIP+" },
+// Plafonds de lunatic_bank sur 24 h glissantes : un groupe par opération, une valeur par carte (abonnement)
+const ECO_BANK_GROUPS = [
+    { group: "bankWithdraw", label: "Retraits" },
+    { group: "bank", label: "Dépôts" },
+    { group: "bankTransfer", label: "Virements émis" },
+];
+const ECO_BANK_TIERS = [
+    { key: "standard", label: "carte verte" },
+    { key: "premium", label: "carte jaune (VIP)" },
+    { key: "premium_plus", label: "carte noire (VIP+)" },
 ];
 const ECO_IMPOUND = [
     { key: "car", label: "Voiture" },
@@ -102,7 +108,7 @@ function ecoDraft() {
         base = { key, unemployed: d.unemployed, allowances: { ...s.allowances } };
         label = "Aide de l'État";
     } else if (key === "other:bank") {
-        base = { key, bank: { ...s.bank } };
+        base = { key, bank: { ...s.bank }, bankWithdraw: { ...s.bankWithdraw }, bankTransfer: { ...s.bankTransfer } };
         label = "Plafonds de banque";
     } else if (key === "other:impound") {
         base = { key, impound: { ...s.impound } };
@@ -254,14 +260,14 @@ function ecoOther() {
         ];
         defaults = () => { d.unemployed = data.defaultUnemployed; d.allowances = { ...data.defaults.allowances }; };
     } else if (tab === "bank") {
-        cards = ECO_BANK.map((b) => ecoCard(b.label, d.bank[b.key], data.limits.bank, (v) => { d.bank[b.key] = v; }));
-        defaults = () => { d.bank = { ...data.defaults.bank }; };
+        cards = ECO_BANK_GROUPS.flatMap((g) => ECO_BANK_TIERS.map((t) => ecoCard(`${g.label} · ${t.label}`, d[g.group][t.key], data.limits.bank, (v) => { d[g.group][t.key] = v; }, "Sur 24 h glissantes")));
+        defaults = () => { for (const g of ECO_BANK_GROUPS) d[g.group] = { ...data.defaults[g.group] }; };
     } else {
         cards = ECO_IMPOUND.map((i) => ecoCard(i.label, d.impound[i.key], data.limits.impound, (v) => { d.impound[i.key] = v; }));
         defaults = () => { d.impound = { ...data.defaults.impound }; };
     }
     const pending = tab === "aid" ? null : h("p", { class: "hint-line" }, tab === "bank"
-        ? "Enregistré pour le futur script de banque : pas encore utilisé en jeu."
+        ? "Appliqués par la banque (lunatic_bank) au guichet comme au distributeur. La carte suit l'abonnement : verte sans abonnement, jaune avec le VIP, noire avec le VIP+."
         : "Payés pour récupérer un véhicule à la fourrière (lunatic_garage), selon son type.");
 
     return h("section", { class: "eco-main eco-scroll eco-wide" },

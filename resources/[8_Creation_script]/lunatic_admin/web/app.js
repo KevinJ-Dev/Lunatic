@@ -1980,8 +1980,8 @@ async function demoNui(name, data) {
     ] };
     if (name === "action" && data && data.action === "mugshots.get") return { ok: true, images: {} };
     if (name === "action" && data && data.action === "economy.overview") return { ok: true, unemployed: 20, defaultUnemployed: 20,
-        settings: { paycheckMinutes: 15, allowances: { premium: 35, premium_plus: 70 }, bank: { standard: 2000, premium: 4000, premium_plus: 6000 }, impound: { car: 300, bike: 300, truck: 300, boat: 300, heli: 300, plane: 300 }, currency: "$" },
-        defaults: { paycheckMinutes: 15, allowances: { premium: 35, premium_plus: 70 }, bank: { standard: 2000, premium: 4000, premium_plus: 6000 }, impound: { car: 300, bike: 300, truck: 300, boat: 300, heli: 300, plane: 300 }, currency: "$" },
+        settings: { paycheckMinutes: 15, allowances: { premium: 35, premium_plus: 70 }, bank: { standard: 2000, premium: 4000, premium_plus: 6000 }, bankWithdraw: { standard: 5000, premium: 15000, premium_plus: 50000 }, bankTransfer: { standard: 10000, premium: 50000, premium_plus: 250000 }, impound: { car: 300, bike: 300, truck: 300, boat: 300, heli: 300, plane: 300 }, currency: "$" },
+        defaults: { paycheckMinutes: 15, allowances: { premium: 35, premium_plus: 70 }, bank: { standard: 2000, premium: 4000, premium_plus: 6000 }, bankWithdraw: { standard: 5000, premium: 15000, premium_plus: 50000 }, bankTransfer: { standard: 10000, premium: 50000, premium_plus: 250000 }, impound: { car: 300, bike: 300, truck: 300, boat: 300, heli: 300, plane: 300 }, currency: "$" },
         limits: { salary: 100000, allowance: 100000, bank: 100000000, impound: 1000000, paycheckMin: 1, paycheckMax: 240 },
         jobs: {
             company: [
