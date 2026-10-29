@@ -61,11 +61,10 @@ RegisterNUICallback('close', function(_, cb)
     close()
 end)
 
--- Retrait, dépôt, virement, période du graphique : réponse du serveur renvoyée telle quelle à la page
-for _, name in ipairs({ 'withdraw', 'deposit', 'transfer', 'chart' }) do
+-- Retrait, dépôt, virement, changement de compte ou de période : réponse du serveur renvoyée telle quelle à la page
+for _, name in ipairs({ 'withdraw', 'deposit', 'transfer', 'state' }) do
     RegisterNUICallback(name, function(data, cb)
-        local payload = name == 'chart' and data.period or data
-        local result = lib.callback.await('lunatic_bank:' .. name, false, payload) or { error = 'Banque indisponible.' }
+        local result = lib.callback.await('lunatic_bank:' .. name, false, data) or { error = 'Banque indisponible.' }
 
         if result.error then
             notify(result.error, 'error')

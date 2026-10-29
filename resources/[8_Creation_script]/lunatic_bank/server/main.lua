@@ -2,8 +2,10 @@
 -- L'argent reste celui d'ESX (compte « bank », liquide « money ») : cette ressource n'ajoute qu'un numéro et un historique.
 -- Tout mouvement du compte bancaire est noté, même ceux des autres scripts (salaires, achats…), via les événements d'ESX.
 -- Carte selon l'abonnement (lunatic_admin) : verte, jaune (VIP), noire (VIP+), avec ses plafonds sur 24 h glissantes.
--- Guichet des agences : tout ; distributeur : retrait et dépôt.
--- Le client n'est jamais cru : guichet ou distributeur ouvert, distance, montants, plafonds et soldes sont revérifiés ici.
+-- Comptes d'entreprise : le patron (grade boss) d'une structure du panel gère au guichet le compte de lunatic_business
+-- (solde et historique restent les siens) ; l'entreprise a son propre IBAN pour recevoir des virements.
+-- Guichet des agences : tout ; distributeur : retrait et dépôt sur le compte personnel.
+-- Le client n'est jamais cru : guichet ou distributeur ouvert, distance, compte, montants, plafonds et soldes sont revérifiés ici.
 
 local internal = {}     -- joueur -> true pendant une opération de la banque (déjà notée, pas de doublon)
 local sessions = {}     -- joueur -> { bank = index } ou { atm = vector3 }
@@ -24,12 +26,18 @@ local CARDS = {
 }
 -- Plafond -> groupe des réglages de l'économie (panel : Économie → Autre → Banque)
 local LIMIT_GROUPS = { withdraw = 'bankWithdraw', deposit = 'bank', transfer = 'bankTransfer' }
+-- Mouvements d'un compte pour le graphique : compte personnel (cette ressource) ou d'entreprise (lunatic_business)
+local CHART_SOURCES = {
+    personal = 'FROM `lunatic_bank_transactions` WHERE `identifier` = ?',
+    company = 'FROM `lunatic_business_account_log` WHERE `job` = ?',
+}
 
 ---------------------------------------------------------------------
 -- Base de données
 ---------------------------------------------------------------------
 
 MySQL.ready(function()
+    -- identifier : celui du personnage, ou « job:<métier> » pour une entreprise
     MySQL.query.await([[
         CREATE TABLE IF NOT EXISTS `lunatic_bank_accounts` (
             `identifier` VARCHAR(64) NOT NULL,
@@ -62,7 +70,7 @@ local function record(identifier, kind, amount, label, counterpart, message)
         { identifier, kind, amount, label:sub(1, 80), counterpart, message, os.time() })
 end
 
--- IBAN du personnage, créé à la première demande
+-- IBAN du personnage (ou de l'entreprise), créé à la première demande
 local function ibanOf(identifier)
     local iban = MySQL.scalar.await('SELECT `iban` FROM `lunatic_bank_accounts` WHERE `identifier` = ?', { identifier })
 
@@ -168,6 +176,60 @@ local function overLimit(src, identifier, kind, amount)
 end
 
 ---------------------------------------------------------------------
+-- Comptes d'entreprise (lunatic_business)
+---------------------------------------------------------------------
+
+local function jobLabel(job)
+    local data = ESX.GetJobs()[job]
+    return data and data.label or job
+end
+
+-- Appel à lunatic_business ; nil s'il est arrêté
+local function business(name, ...)
+    if GetResourceState('lunatic_business') ~= 'started' then
+        return nil
+    end
+
+    local args = { ... }
+    local ok, result = pcall(function() return exports.lunatic_business[name](exports.lunatic_business, table.unpack(args)) end)
+    return ok and result or nil
+end
+
+-- Entreprise dont le joueur est le patron (structure du panel), nil sinon
+local function companyOf(xPlayer)
+    local job = xPlayer.getJob()
+
+    if not job or job.grade_name ~= 'boss' or GetResourceState('lunatic_business') ~= 'started' then
+        return nil
+    end
+
+    local ok, structure = pcall(function() return exports.lunatic_admin:getStructure(job.name) end)
+
+    if not ok or not structure then
+        return nil
+    end
+
+    return { job = job.name, label = job.label or jobLabel(job.name), identifier = 'job:' .. job.name }
+end
+
+local function companyHistory(job)
+    local rows = MySQL.query.await('SELECT `amount`, `reason`, `actor`, `created_at` FROM `lunatic_business_account_log` WHERE `job` = ? ORDER BY `id` DESC LIMIT ?',
+        { job, Config.HistoryLimit }) or {}
+    local list = {}
+
+    for _, row in ipairs(rows) do
+        local amount = tonumber(row.amount) or 0
+        list[#list + 1] = {
+            kind = amount > 0 and 'credit' or 'debit', amount = amount,
+            label = row.reason ~= '' and row.reason or (amount > 0 and 'Crédit' or 'Débit'),
+            counterpart = row.actor ~= '' and row.actor or nil, at = tonumber(row.created_at),
+        }
+    end
+
+    return list
+end
+
+---------------------------------------------------------------------
 -- Session au guichet ou au distributeur
 ---------------------------------------------------------------------
 
@@ -196,6 +258,17 @@ local function sessionOf(src)
     return ESX.GetPlayerFromId(src), session
 end
 
+-- Compte visé : celui de l'entreprise si demandé (patron, au guichet), sinon le compte personnel (nil)
+---@return table|nil company, string|nil error
+local function accountOf(xPlayer, session, wanted)
+    if wanted ~= 'company' then
+        return nil
+    end
+
+    local company = not session.atm and companyOf(xPlayer)
+    return company or nil, not company and "Compte d'entreprise réservé au patron, au guichet d'une agence." or nil
+end
+
 local function rpName(xPlayer)
     local first, last = xPlayer.get('firstName'), xPlayer.get('lastName')
 
@@ -206,19 +279,32 @@ local function rpName(xPlayer)
     return xPlayer.getName()
 end
 
-local function nameOf(identifier)
+-- Nom affiché du titulaire d'un compte : entreprise, joueur connecté ou personnage hors ligne
+local function holderName(identifier)
+    local job = identifier:match('^job:(.+)$')
+
+    if job then
+        return jobLabel(job)
+    end
+
+    local player = ESX.GetPlayerFromIdentifier(identifier)
+
+    if player then
+        return rpName(player)
+    end
+
     local row = MySQL.single.await('SELECT `firstname`, `lastname` FROM `users` WHERE `identifier` = ?', { identifier })
     return row and row.firstname and ('%s %s'):format(row.firstname, row.lastname or '') or 'Titulaire inconnu'
 end
 
 -- Crédits et débits par période glissante (le plus récent à droite)
-local function chartOf(identifier, period)
+local function chartOf(key, period, source)
     local spec = PERIODS[period] or PERIODS.week
     local now = os.time()
-    local rows = MySQL.query.await([[
+    local rows = MySQL.query.await(([[
         SELECT FLOOR((? - `created_at`) / ?) AS `bucket`, SUM(GREATEST(`amount`, 0)) AS `credit`, SUM(GREATEST(-`amount`, 0)) AS `debit`
-        FROM `lunatic_bank_transactions` WHERE `identifier` = ? AND `created_at` > ? GROUP BY `bucket`
-    ]], { now, spec.size, identifier, now - spec.buckets * spec.size }) or {}
+        %s AND `created_at` > ? GROUP BY `bucket`
+    ]]):format(CHART_SOURCES[source] or CHART_SOURCES.personal), { now, spec.size, key, now - spec.buckets * spec.size }) or {}
 
     local byBucket = {}
 
@@ -240,29 +326,51 @@ local function chartOf(identifier, period)
     return bars
 end
 
-local function stateOf(xPlayer, period)
+local function stateOf(xPlayer, period, account)
     local src = xPlayer.source
-    local identifier = xPlayer.identifier
     local session = sessions[src] or {}
     local bank = session.bank and Banks()[session.bank]
     local atm = session.atm ~= nil
+    local boss = not atm and companyOf(xPlayer) or nil
+    local company = account == 'company' and boss or nil
+    period = PERIODS[period] and period or 'week'
 
-    return {
+    local state = {
         atm = atm,
         bank = atm and 'Distributeur' or bank and bank.label or 'Banque',
         name = rpName(xPlayer),
-        iban = ibanOf(identifier),
-        balance = xPlayer.getAccount('bank').money,
         cash = xPlayer.getAccount('money').money,
-        card = cardOf(src, identifier),
-        -- Le distributeur n'affiche que le compte : pas d'historique ni d'analyse à charger
-        history = not atm and MySQL.query.await('SELECT `kind`, `amount`, `label`, `counterpart`, `message`, `created_at` AS `at` FROM `lunatic_bank_transactions` WHERE `identifier` = ? ORDER BY `id` DESC LIMIT ?',
-            { identifier, Config.HistoryLimit }) or {},
-        period = PERIODS[period] and period or 'week',
-        chart = not atm and chartOf(identifier, period) or {},
+        period = period,
         shortcuts = Config.Shortcuts,
         max = Config.MaxAmount,
+        account = company and 'company' or 'personal',
+        accounts = { { id = 'personal', label = 'Compte personnel' } },
     }
+
+    if boss then
+        state.accounts[2] = { id = 'company', label = boss.label }
+    end
+
+    if company then
+        state.holder = company.label
+        state.iban = ibanOf(company.identifier)
+        state.balance = business('getBalance', company.job) or 0
+        state.card = { color = 'company', label = 'Entreprise' }
+        state.history = companyHistory(company.job)
+        state.chart = chartOf(company.job, period, 'company')
+        return state
+    end
+
+    local identifier = xPlayer.identifier
+    state.holder = state.name
+    state.iban = ibanOf(identifier)
+    state.balance = xPlayer.getAccount('bank').money
+    state.card = cardOf(src, identifier)
+    -- Le distributeur n'affiche que le compte : pas d'historique ni d'analyse à charger
+    state.history = not atm and MySQL.query.await('SELECT `kind`, `amount`, `label`, `counterpart`, `message`, `created_at` AS `at` FROM `lunatic_bank_transactions` WHERE `identifier` = ? ORDER BY `id` DESC LIMIT ?',
+        { identifier, Config.HistoryLimit }) or {}
+    state.chart = not atm and chartOf(identifier, period, 'personal') or {}
+    return state
 end
 
 local function log(src, action, details)
@@ -286,7 +394,7 @@ lib.callback.register('lunatic_bank:open', function(src, index)
     end
 
     sessions[src] = { bank = tonumber(index) }
-    return stateOf(xPlayer, 'week')
+    return stateOf(xPlayer, 'week', 'personal')
 end)
 
 -- Distributeur : le serveur ne voit pas les objets de la carte, il vérifie que le joueur est bien à l'endroit indiqué
@@ -299,16 +407,24 @@ lib.callback.register('lunatic_bank:openAtm', function(src, coords)
     end
 
     sessions[src] = { atm = vector3(x, y, z) }
-    return stateOf(xPlayer, 'week')
+    return stateOf(xPlayer, 'week', 'personal')
 end)
 
 RegisterNetEvent('lunatic_bank:close', function()
     sessions[source] = nil
 end)
 
-lib.callback.register('lunatic_bank:chart', function(src, period)
-    local xPlayer = sessionOf(src)
-    return xPlayer and { period = PERIODS[period] and period or 'week', chart = chartOf(xPlayer.identifier, period) } or fail('Guichet fermé.')
+-- Changement de compte affiché (personnel / entreprise) ou de période du graphique
+lib.callback.register('lunatic_bank:state', function(src, data)
+    local xPlayer, session = sessionOf(src)
+    data = type(data) == 'table' and data or {}
+
+    if not xPlayer then
+        return fail('Guichet fermé.')
+    end
+
+    local _, err = accountOf(xPlayer, session, data.account)
+    return err and fail(err) or { ok = true, state = stateOf(xPlayer, data.period, data.account) }
 end)
 
 ---------------------------------------------------------------------
@@ -329,13 +445,36 @@ end
 
 lib.callback.register('lunatic_bank:withdraw', function(src, data)
     local xPlayer, session = sessionOf(src)
-    local amount = amountOf(type(data) == 'table' and data.amount)
+    data = type(data) == 'table' and data or {}
+    local amount = amountOf(data.amount)
 
     if not xPlayer then
         return fail('Guichet fermé.')
     elseif not amount then
         return fail(('Montant entre 1 et %d $.'):format(Config.MaxAmount))
-    elseif xPlayer.getAccount('bank').money < amount then
+    end
+
+    local company, err = accountOf(xPlayer, session, data.account)
+    local label = ('Retrait %s'):format(placeOf(session))
+
+    if err then
+        return fail(err)
+    elseif company then
+        -- Compte de l'entreprise -> liquide du patron
+        if not business('removeMoney', company.job, amount, label, rpName(xPlayer)) then
+            return fail("Solde de l'entreprise insuffisant.")
+        end
+
+        if not xPlayer.addAccountMoney('money', amount, label) then
+            business('addMoney', company.job, amount, 'Retrait annulé', rpName(xPlayer))
+            return fail('Retrait impossible (poches pleines ?).')
+        end
+
+        log(src, 'bank.companyWithdraw', { amount = amount, company = company.label })
+        return { ok = true, message = ('Retrait de %d $ du compte %s.'):format(amount, company.label), state = stateOf(xPlayer, data.period, 'company') }
+    end
+
+    if xPlayer.getAccount('bank').money < amount then
         return fail('Solde insuffisant.')
     end
 
@@ -345,7 +484,6 @@ lib.callback.register('lunatic_bank:withdraw', function(src, data)
         return fail(limit)
     end
 
-    local label = ('Retrait %s'):format(placeOf(session))
     local ok = quietly(src, function()
         if not xPlayer.removeAccountMoney('bank', amount, label) then
             return false
@@ -365,12 +503,13 @@ lib.callback.register('lunatic_bank:withdraw', function(src, data)
 
     record(xPlayer.identifier, 'withdraw', -amount, label)
     log(src, 'bank.withdraw', { amount = amount, atm = session.atm ~= nil })
-    return { ok = true, message = ('Retrait de %d $.'):format(amount), state = stateOf(xPlayer, data.period) }
+    return { ok = true, message = ('Retrait de %d $.'):format(amount), state = stateOf(xPlayer, data.period, 'personal') }
 end)
 
 lib.callback.register('lunatic_bank:deposit', function(src, data)
     local xPlayer, session = sessionOf(src)
-    local amount = amountOf(type(data) == 'table' and data.amount)
+    data = type(data) == 'table' and data or {}
+    local amount = amountOf(data.amount)
 
     if not xPlayer then
         return fail('Guichet fermé.')
@@ -380,13 +519,28 @@ lib.callback.register('lunatic_bank:deposit', function(src, data)
         return fail("Vous n'avez pas assez de liquide.")
     end
 
+    local company, err = accountOf(xPlayer, session, data.account)
+    local label = ('Dépôt %s'):format(placeOf(session))
+
+    if err then
+        return fail(err)
+    elseif company then
+        -- Liquide du patron -> compte de l'entreprise
+        if not xPlayer.removeAccountMoney('money', amount, label) then
+            return fail('Dépôt impossible.')
+        end
+
+        business('addMoney', company.job, amount, label, rpName(xPlayer))
+        log(src, 'bank.companyDeposit', { amount = amount, company = company.label })
+        return { ok = true, message = ('Dépôt de %d $ sur le compte %s.'):format(amount, company.label), state = stateOf(xPlayer, data.period, 'company') }
+    end
+
     local limit = overLimit(src, xPlayer.identifier, 'deposit', amount)
 
     if limit then
         return fail(limit)
     end
 
-    local label = ('Dépôt %s'):format(placeOf(session))
     local ok = quietly(src, function()
         if not xPlayer.removeAccountMoney('money', amount, label) then
             return false
@@ -402,8 +556,34 @@ lib.callback.register('lunatic_bank:deposit', function(src, data)
 
     record(xPlayer.identifier, 'deposit', amount, label)
     log(src, 'bank.deposit', { amount = amount, atm = session.atm ~= nil })
-    return { ok = true, message = ('Dépôt de %d $.'):format(amount), state = stateOf(xPlayer, data.period) }
+    return { ok = true, message = ('Dépôt de %d $.'):format(amount), state = stateOf(xPlayer, data.period, 'personal') }
 end)
+
+-- Crédite le compte qui porte l'IBAN : entreprise, joueur connecté, ou personnage hors ligne (compte ESX en base)
+---@return boolean
+local function credit(target, amount, fromName, fromIban, message)
+    local job = target:match('^job:(.+)$')
+
+    if job then
+        return business('addMoney', job, amount, ('Virement de %s%s'):format(fromName, message and (' : ' .. message) or ''), fromName) == true
+    end
+
+    local receiver = ESX.GetPlayerFromIdentifier(target)
+
+    if receiver then
+        quietly(receiver.source, function() return receiver.addAccountMoney('bank', amount, 'Virement reçu') end)
+        TriggerClientEvent('esx:showNotification', receiver.source, ('Virement reçu : %d $ de %s.'):format(amount, fromName), 'success')
+    else
+        local changed = MySQL.update.await("UPDATE `users` SET `accounts` = JSON_SET(`accounts`, '$.bank', COALESCE(JSON_EXTRACT(`accounts`, '$.bank'), 0) + ?) WHERE `identifier` = ?", { amount, target })
+
+        if not changed or changed == 0 then
+            return false
+        end
+    end
+
+    record(target, 'transfer_in', amount, ('Virement de %s'):format(fromName), fromIban, message)
+    return true
+end
 
 lib.callback.register('lunatic_bank:transfer', function(src, data)
     local xPlayer, session = sessionOf(src)
@@ -411,6 +591,7 @@ lib.callback.register('lunatic_bank:transfer', function(src, data)
     local amount = amountOf(data.amount)
     local iban = type(data.iban) == 'string' and data.iban:upper():gsub('%s', '') or ''
     local message = type(data.message) == 'string' and data.message:gsub('[%c<>]', ''):sub(1, 120) or ''
+    message = message ~= '' and message or nil
     local now = os.time()
 
     if not xPlayer or session.atm then
@@ -423,51 +604,64 @@ lib.callback.register('lunatic_bank:transfer', function(src, data)
         return fail('Patientez un instant entre deux virements.')
     end
 
+    local company, err = accountOf(xPlayer, session, data.account)
+
+    if err then
+        return fail(err)
+    end
+
     lastTransfer[src] = now
+    local origin = company and company.identifier or xPlayer.identifier
     local target = MySQL.scalar.await('SELECT `identifier` FROM `lunatic_bank_accounts` WHERE `iban` = ?', { iban })
 
     if not target then
         return fail('Aucun compte avec cet IBAN.')
-    elseif target == xPlayer.identifier then
-        return fail('Vous ne pouvez pas vous faire un virement à vous-même.')
-    elseif xPlayer.getAccount('bank').money < amount then
-        return fail('Solde insuffisant.')
+    elseif target == origin then
+        return fail('Impossible de faire un virement vers le même compte.')
     end
 
-    local limit = overLimit(src, xPlayer.identifier, 'transfer', amount)
+    local receiverName = holderName(target)
+    local senderName = company and company.label or rpName(xPlayer)
+    local senderIban = ibanOf(origin)
 
-    if limit then
-        return fail(limit)
-    end
-
-    if not quietly(src, function() return xPlayer.removeAccountMoney('bank', amount, 'Virement émis') end) then
-        return fail('Virement impossible.')
-    end
-
-    local senderName, senderIban = rpName(xPlayer), ibanOf(xPlayer.identifier)
-    local receiver = ESX.GetPlayerFromIdentifier(target)
-    local receiverName
-
-    if receiver then
-        receiverName = rpName(receiver)
-        quietly(receiver.source, function() return receiver.addAccountMoney('bank', amount, 'Virement reçu') end)
-        TriggerClientEvent('esx:showNotification', receiver.source, ('Virement reçu : %d $ de %s.'):format(amount, senderName), 'success')
+    -- Débit de l'émetteur
+    if company then
+        if not business('removeMoney', company.job, amount, ('Virement à %s (%s)'):format(receiverName, iban), rpName(xPlayer)) then
+            return fail("Solde de l'entreprise insuffisant.")
+        end
     else
-        -- Destinataire hors ligne : son compte ESX est modifié directement en base
-        receiverName = nameOf(target)
-        local changed = MySQL.update.await("UPDATE `users` SET `accounts` = JSON_SET(`accounts`, '$.bank', COALESCE(JSON_EXTRACT(`accounts`, '$.bank'), 0) + ?) WHERE `identifier` = ?", { amount, target })
+        if xPlayer.getAccount('bank').money < amount then
+            return fail('Solde insuffisant.')
+        end
 
-        if not changed or changed == 0 then
-            quietly(src, function() return xPlayer.addAccountMoney('bank', amount, 'Virement annulé') end)
-            return fail('Compte du destinataire introuvable.')
+        local limit = overLimit(src, xPlayer.identifier, 'transfer', amount)
+
+        if limit then
+            return fail(limit)
+        end
+
+        if not quietly(src, function() return xPlayer.removeAccountMoney('bank', amount, 'Virement émis') end) then
+            return fail('Virement impossible.')
         end
     end
 
-    record(xPlayer.identifier, 'transfer_out', -amount, ('Virement à %s'):format(receiverName), iban, message ~= '' and message or nil)
-    record(target, 'transfer_in', amount, ('Virement de %s'):format(senderName), senderIban, message ~= '' and message or nil)
-    log(src, 'bank.transfer', { amount = amount, iban = iban, to = receiverName })
+    -- Crédit du destinataire, remboursement s'il échoue
+    if not credit(target, amount, senderName, senderIban, message) then
+        if company then
+            business('addMoney', company.job, amount, 'Virement annulé', rpName(xPlayer))
+        else
+            quietly(src, function() return xPlayer.addAccountMoney('bank', amount, 'Virement annulé') end)
+        end
 
-    return { ok = true, message = ('Virement de %d $ envoyé à %s.'):format(amount, receiverName), state = stateOf(xPlayer, data.period) }
+        return fail('Compte du destinataire introuvable.')
+    end
+
+    if not company then
+        record(xPlayer.identifier, 'transfer_out', -amount, ('Virement à %s'):format(receiverName), iban, message)
+    end
+
+    log(src, 'bank.transfer', { amount = amount, iban = iban, to = receiverName, from = senderName })
+    return { ok = true, message = ('Virement de %d $ envoyé à %s.'):format(amount, receiverName), state = stateOf(xPlayer, data.period, company and 'company' or 'personal') }
 end)
 
 AddEventHandler('playerDropped', function()
@@ -475,10 +669,14 @@ AddEventHandler('playerDropped', function()
     lastTransfer[source] = nil
 end)
 
--- Pour d'autres scripts (téléphone, factures…) : IBAN d'un joueur connecté
+-- Pour d'autres scripts (téléphone, factures…) : IBAN d'un joueur connecté, ou d'une entreprise (getCompanyIban('police'))
 exports('getIban', function(src)
     local xPlayer = ESX.GetPlayerFromId(src)
     return xPlayer and ibanOf(xPlayer.identifier) or nil
+end)
+
+exports('getCompanyIban', function(job)
+    return type(job) == 'string' and ibanOf('job:' .. job) or nil
 end)
 
 -- Agences par défaut, pour la page « Banques » du panel

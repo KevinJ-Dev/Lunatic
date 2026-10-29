@@ -39,6 +39,13 @@ nav { display: flex; flex-direction: column; gap: 4px; }
 nav button { padding: 10px 14px; border-radius: 10px; text-align: left; font-weight: 600; color: var(--muted); }
 nav button:hover { background: var(--box); color: var(--ink); }
 nav button.on { background: var(--accent); color: #fff; }
+.accounts { margin-top: 22px; }
+.accounts h4 { margin: 0 0 6px 14px; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.accounts button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 14px; border-radius: 10px; text-align: left; font-weight: 600; color: var(--muted); }
+.accounts button:hover { background: var(--box); color: var(--ink); }
+.accounts button.on { color: var(--ink); background: var(--box); box-shadow: inset 3px 0 0 var(--accent); }
+.accounts button i { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+.accounts button.company i { background: var(--accent-2); }
 .agency { margin-bottom: 12px; color: var(--muted); font-size: 12px; text-align: center; }
 .owner { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 12px; background: var(--box); }
 .owner strong { display: block; }
@@ -91,6 +98,7 @@ nav button.on { background: var(--accent); color: #fff; }
 .bank-card.gold { background: linear-gradient(135deg, #a8781c, #e7b93f 55%, #8d6214); }
 .bank-card.black { background: linear-gradient(135deg, #0b0b0f, #2a2a33 55%, #08080b); border: 1px solid #ffffff1f; }
 .bank-card.black .card-logo b { color: var(--green); }
+.bank-card.company { background: linear-gradient(135deg, #3a1f6e, #7b46d6 55%, #2a1652); }
 .bank-card .card-tier { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; opacity: .85; }
 .bank-card.big { flex: none; width: 380px; height: 230px; padding: 24px 26px; border-radius: 20px; }
 .bank-card.big .card-number { font-size: 28px; }
@@ -155,6 +163,7 @@ nav button.on { background: var(--accent); color: #fff; }
 .gauge i { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
 .gauge i.full { background: var(--red); }
 .note { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.no-limits { padding: 12px; border-radius: 10px; background: #0000004d; color: var(--muted); }
 .t-green { color: var(--green); }
 .t-gold { color: #e7b93f; }
 .t-black { color: var(--ink); }

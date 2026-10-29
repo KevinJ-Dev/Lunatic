@@ -40,8 +40,11 @@ const spacedIban = (iban) => String(iban || "").replace(/^(\D+)(\d{4})(\d{4})$/,
 function render() {
     if (!state) return;
     $("agency").textContent = state.bank;
-    $("owner").textContent = state.name;
-    $("avatar").textContent = (state.name || "?").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+    const company = state.account === "company";
+    $("owner").textContent = state.holder || state.name;
+    $("owner-kind").textContent = company ? "Compte d'entreprise" : "Compte personnel";
+    $("avatar").textContent = (state.holder || state.name || "?").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+    renderAccounts();
     all("[data-balance]").forEach((n) => { n.textContent = money(state.balance); });
     all("[data-cash]").forEach((n) => { n.textContent = money(state.cash); });
     all("[data-card]").forEach(renderCard);
@@ -63,8 +66,26 @@ function renderCard(node) {
     logo.append("FL", el("b", null, "EE"), "CA");
     top.append(el("span", "chip"), logo);
     const bottom = el("div", "card-bottom");
-    bottom.append(el("span", null, state.name), el("span", "card-tier", card.label));
+    bottom.append(el("span", null, state.holder || state.name), el("span", "card-tier", card.label));
     node.replaceChildren(top, el("div", "card-number", spacedIban(state.iban)), bottom);
+}
+
+// Comptes accessibles : personnel, et celui de l'entreprise pour un patron
+function renderAccounts() {
+    const accounts = state.accounts || [];
+    $("accounts-box").classList.toggle("hidden", accounts.length < 2);
+    $("accounts").replaceChildren(...accounts.map((account) => {
+        const button = el("button", `${account.id}${account.id === state.account ? " on" : ""}`);
+        button.append(el("i"), el("span", null, account.label));
+        button.addEventListener("click", () => switchAccount(account.id));
+        return button;
+    }));
+}
+
+async function switchAccount(account) {
+    if (account === state.account || busy) return;
+    const result = await nui("state", { account, period: state.period });
+    if (result && result.state) { state = result.state; render(); }
 }
 
 function renderShortcuts(box) {
@@ -80,6 +101,9 @@ function renderLimits() {
     const card = state.card;
     if (!card) return;
     $("tier").textContent = card.label;
+    if (!card.limits) {
+        return $("limits").replaceChildren(el("div", "no-limits", `Pas de plafond de carte sur un compte d'entreprise : ${money(state.max)} au maximum par opération. Seul le patron y a accès.`));
+    }
     $("limits").replaceChildren(...LIMITS.map(([key, label]) => {
         const limit = card.limits[key] || { used: 0, max: 0 };
         const ratio = limit.max > 0 ? Math.min(1, limit.used / limit.max) : 1;
@@ -165,7 +189,7 @@ async function operate(name, payload) {
     if (busy) return null;
     busy = true;
     all(".btn").forEach((b) => { b.disabled = true; });
-    const result = await nui(name, { ...payload, period: state.period });
+    const result = await nui(name, { ...payload, period: state.period, account: state.account });
     busy = false;
     all(".btn").forEach((b) => { b.disabled = false; });
     if (result && result.state) { state = result.state; render(); }
@@ -186,8 +210,8 @@ $("send").addEventListener("click", async () => {
 });
 
 all("#periods button").forEach((button) => button.addEventListener("click", async () => {
-    const result = await nui("chart", { period: button.dataset.period });
-    if (result && result.chart) { state.chart = result.chart; state.period = result.period; renderChart(); }
+    const result = await nui("state", { period: button.dataset.period, account: state.account });
+    if (result && result.state) { state = result.state; render(); }
 }));
 
 all("#filters button").forEach((button) => button.addEventListener("click", () => {
@@ -230,9 +254,14 @@ window.addEventListener("message", (event) => {
 // ---------- Aperçu hors jeu (?atm pour le distributeur, ?gold / ?black pour les cartes) ----------
 
 function demoReply(name, payload) {
-    if (name === "chart") return { period: payload.period, chart: demoChart(payload.period === "year" ? 12 : payload.period === "month" ? 4 : 7) };
+    if (name === "state") {
+        const company = payload.account === "company";
+        return { ok: true, state: { ...state, period: payload.period, account: payload.account, holder: company ? "Benny's Motorworks" : state.name, iban: company ? "LN70031552" : "LN04821937",
+            balance: company ? 184200 : 25510, card: company ? { color: "company", label: "Entreprise" } : demoCard, chart: demoChart(payload.period === "year" ? 12 : payload.period === "month" ? 4 : 7) } };
+    }
     return { error: "Aperçu hors jeu." };
 }
+let demoCard = null;
 
 function demoChart(count) {
     return Array.from({ length: count }, (_, i) => ({ label: `${String(20 + i).padStart(2, "0")}/10`, credit: 2000 + ((i * 3793) % 9000), debit: 800 + ((i * 2741) % 4000) }));
@@ -245,7 +274,8 @@ if (!resource) {
     const labels = { green: "Carte verte", gold: "Carte jaune", black: "Carte noire" };
     window.postMessage({ action: "open", state: {
         atm: query.includes("atm"), bank: "Fleeca Legion Square", name: "Bryan Anderson", iban: "LN04821937", balance: 25510, cash: 1340, period: "week", shortcuts: [100, 500, 1000, 5000], max: 1000000,
-        card: { tier: "standard", color, label: labels[color], limits: { withdraw: { used: 1500, max: 5000 }, deposit: { used: 2000, max: 2000 }, transfer: { used: 2500, max: 10000 } } },
+        card: (demoCard = { tier: "standard", color, label: labels[color], limits: { withdraw: { used: 1500, max: 5000 }, deposit: { used: 2000, max: 2000 }, transfer: { used: 2500, max: 10000 } } }),
+        holder: "Bryan Anderson", account: "personal", accounts: [{ id: "personal", label: "Compte personnel" }, { id: "company", label: "Benny's Motorworks" }],
         chart: demoChart(7),
         history: [
             { kind: "transfer_out", amount: -2500, label: "Virement à Emma Clarke", counterpart: "LN55120387", message: "Loyer octobre", at: now - 3600 },
