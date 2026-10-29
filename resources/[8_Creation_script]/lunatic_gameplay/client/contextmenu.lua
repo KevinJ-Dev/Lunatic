@@ -1,12 +1,14 @@
 -- Actions RP du menu contextuel (lunatic_context : Alt gauche maintenu + clic droit).
 -- Sur soi : emotes rapides, arrêter l'animation, détacher un objet coincé, parapluie, boombox, regarder ses papiers.
 -- Sur un joueur : montrer sa carte d'identité ou son permis, le fouiller (mains levées ou inconscient, vérifié par le serveur).
--- Mains levées : emote « Lever les mains » ou touche réglable (X par défaut) ; partagé par le statebag handsUp.
+-- Touche réglable (X par défaut) : arrête l'emote ou l'objet en main en cours, sinon lève / baisse les mains.
+-- Mains levées partagées par le statebag handsUp (fouille).
 
 local RESOURCE = 'lunatic_context'
 local HANDS_UP = Config.HandsUp
 
 local carried = nil -- objet porté : { key, entity, dict, anim, since }
+local current = nil -- emote lancée depuis le menu : { dict, anim }
 
 ---------------------------------------------------------------------
 -- Animations et objets portés
@@ -56,6 +58,7 @@ end
 local function stopAnimation()
     local ped = PlayerPedId()
     dropCarried()
+    current = nil
     setHandsUp(false)
     ClearPedTasks(ped)
 end
@@ -74,6 +77,7 @@ local function playEmote(emote)
     dropCarried()
     TaskPlayAnim(ped, emote.dict, emote.anim, 3.0, 3.0, -1, emote.flag or 49, 0.0, false, false, false)
     RemoveAnimDict(emote.dict)
+    current = { dict = emote.dict, anim = emote.anim }
     setHandsUp(emote.dict == HANDS_UP.dict and emote.anim == HANDS_UP.anim)
 end
 
@@ -151,19 +155,22 @@ CreateThread(function()
     end
 end)
 
--- Mains levées / baissées
+-- X : arrête ce qui est en cours (mains levées, emote, objet en main), sinon lève les mains
 RegisterCommand('lunatic_handsup', function()
     local ped = PlayerPedId()
 
     if IsEntityPlayingAnim(ped, HANDS_UP.dict, HANDS_UP.anim, 3) then
         StopAnimTask(ped, HANDS_UP.dict, HANDS_UP.anim, 2.0)
+        current = nil
         setHandsUp(false)
+    elseif carried or (current and IsEntityPlayingAnim(ped, current.dict, current.anim, 3)) then
+        stopAnimation()
     -- X annule aussi les barres de progression d'ox_lib : pas de mains levées pendant l'une d'elles
     elseif not IsNuiFocused() and not lib.progressActive() then
         playEmote(HANDS_UP)
     end
 end, false)
-RegisterKeyMapping('lunatic_handsup', 'Lever / baisser les mains', 'keyboard', 'X')
+RegisterKeyMapping('lunatic_handsup', 'Lever les mains / arrêter l’animation', 'keyboard', 'X')
 
 ---------------------------------------------------------------------
 -- Entrées du menu
