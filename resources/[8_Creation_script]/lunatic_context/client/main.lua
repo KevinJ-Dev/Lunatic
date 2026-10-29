@@ -7,6 +7,8 @@
 
 local ALT, RIGHT_CLICK = 19, 25
 local RANGE = 60.0
+-- Carte, véhicules, PNJ, objets : la carte arrête le rayon (pas de sélection à travers un mur)
+local RAY_FLAGS = 1 | 2 | 4 | 8 | 16
 local LOOK_CONTROLS = { 1, 2, 24, 25, 68, 69, 70, 91, 92, 106, 140, 141, 142, 257, 263, 264 }
 
 local providers = {} -- nom -> { fn, order, resource }
@@ -42,18 +44,58 @@ local function cursor()
     return GetDisabledControlNormal(0, 239), GetDisabledControlNormal(0, 240)
 end
 
--- Rayon depuis la caméra à travers le point de l'écran : entité touchée (ou 0) et point d'impact
-local function aim(x, y)
+-- Entité réelle (PNJ, véhicule, objet) ; un bâtiment ou un décor de la carte touché par le rayon donne 0
+local function validEntity(entity)
+    if not entity or entity == 0 or not DoesEntityExist(entity) then
+        return 0
+    end
+
+    local kind = GetEntityType(entity)
+
+    if kind == 1 or kind == 2 or kind == 3 then
+        return entity
+    end
+
+    return 0
+end
+
+local function ray(x, y)
     local from, direction = GetWorldCoordFromScreenCoord(x, y)
     local to = from + direction * RANGE
-    local handle = StartExpensiveSynchronousShapeTestLosProbe(from.x, from.y, from.z, to.x, to.y, to.z, -1, 0, 4)
+    return from, to
+end
+
+-- Rayon depuis la caméra à travers le point de l'écran (au clic) : entité touchée (ou 0) et point d'impact
+local function aim(x, y)
+    local from, to = ray(x, y)
+    local handle = StartExpensiveSynchronousShapeTestLosProbe(from.x, from.y, from.z, to.x, to.y, to.z, RAY_FLAGS, 0, 4)
     local _, hit, coords, _, entity = GetShapeTestResult(handle)
 
     if hit ~= 1 then
         return 0, nil
     end
 
-    return entity or 0, coords
+    return validEntity(entity), coords
+end
+
+-- Survol : test non bloquant, lu aux images suivantes (1 = encore en cours)
+local probe = nil
+
+local function hoverAim(x, y)
+    if probe then
+        local status, hit, _, _, entity = GetShapeTestResult(probe)
+
+        if status == 1 then
+            return nil
+        end
+
+        probe = nil
+        return hit == 1 and validEntity(entity) or 0
+    end
+
+    local from, to = ray(x, y)
+    probe = StartShapeTestLosProbe(from.x, from.y, from.z, to.x, to.y, to.z, RAY_FLAGS, 0, 4)
+    return nil
 end
 
 local function contextOf(entity, coords)
@@ -79,20 +121,31 @@ local function contextOf(entity, coords)
     return ctx
 end
 
+-- Contour seulement sur les PNJ, joueurs et véhicules : sur les objets (décors de la carte surtout), le contour peut faire crasher le jeu
+local function canOutline(entity)
+    if entity == 0 or not DoesEntityExist(entity) then
+        return false
+    end
+
+    local kind = GetEntityType(entity)
+    return kind == 1 or kind == 2
+end
+
 local function setOutline(entity)
     if entity == outlined then
         return
     end
 
-    if outlined ~= 0 and DoesEntityExist(outlined) then
+    if outlined ~= 0 and canOutline(outlined) then
         SetEntityDrawOutline(outlined, false)
     end
 
-    outlined = entity
+    outlined = 0
 
-    if entity ~= 0 and DoesEntityExist(entity) then
+    if canOutline(entity) then
         SetEntityDrawOutlineColor(150, 80, 255, 255)
         SetEntityDrawOutline(entity, true)
+        outlined = entity
     end
 end
 
@@ -199,8 +252,6 @@ end)
 ---------------------------------------------------------------------
 
 CreateThread(function()
-    local nextAim = 0
-
     while true do
         if not openMenu and IsControlPressed(0, ALT) and not IsPauseMenuActive() and not IsNuiFocused() then
             SetMouseCursorActiveThisFrame()
@@ -211,10 +262,10 @@ CreateThread(function()
 
             local x, y = cursor()
 
-            if GetGameTimer() >= nextAim then
-                nextAim = GetGameTimer() + 100
-                local entity = aim(x, y)
-                setOutline(entity ~= 0 and GetEntityType(entity) ~= 0 and entity or 0)
+            local hovered = hoverAim(x, y)
+
+            if hovered then
+                setOutline(hovered)
             end
 
             if IsDisabledControlJustPressed(0, RIGHT_CLICK) then

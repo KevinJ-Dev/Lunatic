@@ -20,7 +20,7 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
 .layer { position: fixed; inset: 0; display: none; }
 .layer.on { display: block; }
 
-.menu { position: absolute; min-width: 200px; max-width: 280px; padding: 4px; border: 1px solid var(--glass-line); border-radius: 10px; background: var(--panel); box-shadow: 0 18px 40px -12px #0009; backdrop-filter: blur(2px); animation: pop .12s ease-out; }
+.menu { position: absolute; min-width: 200px; max-width: 280px; padding: 4px; border: 1px solid var(--glass-line); border-radius: 10px; background: var(--panel); box-shadow: 0 18px 40px -12px #0009; animation: pop .12s ease-out; }
 @keyframes pop { from { transform: scale(.97); opacity: 0; } }
 
 .item { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 28px; padding: 0 10px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
