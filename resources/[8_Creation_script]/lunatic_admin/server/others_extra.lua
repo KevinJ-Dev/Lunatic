@@ -574,13 +574,16 @@ local function pointList(spec)
 
     publish()
 
+    -- Points de la config de la ressource concernée (lunatic_gameplay par défaut)
+    local resource = spec.resource or 'lunatic_gameplay'
+
     local function defaults()
-        if GetResourceState('lunatic_gameplay') ~= 'started' then
+        if GetResourceState(resource) ~= 'started' then
             return {}
         end
 
         local ok, entries = pcall(function()
-            local api = exports.lunatic_gameplay
+            local api = exports[resource]
             return api[spec.defaults](api)
         end)
 
@@ -639,5 +642,6 @@ end
 
 pointList({ prefix = 'hospitals', kvp = 'hospitals', global = 'lunaticHospitals', defaults = 'getDefaultHospitals', name = 'Hôpitaux', item = 'Hôpital' })
 pointList({ prefix = 'offices', kvp = 'document_offices', global = 'lunaticDocumentOffices', defaults = 'getDefaultOffices', name = 'Guichets', item = 'Guichet', ped = true })
+pointList({ prefix = 'banks', kvp = 'banks', global = 'lunaticBanks', defaults = 'getDefaultBanks', resource = 'lunatic_bank', name = 'Agences bancaires', item = 'Agence' })
 
-print('[lunatic_admin] Modules Ascenseurs, Heal Items, Tarifs mécano, Zone AFK, Création perso, Hôpitaux et Guichets chargés.')
+print('[lunatic_admin] Modules Ascenseurs, Heal Items, Tarifs mécano, Zone AFK, Création perso, Hôpitaux, Guichets et Banques chargés.')

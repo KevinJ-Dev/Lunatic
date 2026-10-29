@@ -20,6 +20,7 @@ const OTHERS_TILES = [
     { id: "creator", label: "Création perso", icon: "i-player", show: () => can("others.manage") },
     { id: "hospitals", label: "Hôpitaux", icon: "i-heart", show: () => can("others.manage") },
     { id: "offices", label: "Guichets de documents", icon: "i-book", show: () => can("others.manage") },
+    { id: "banks", label: "Banques", icon: "i-bank", show: () => can("others.manage") },
     { id: "clothing", label: "Magasins de vêtements", icon: "i-shirt", show: () => can("others.manage") },
 ];
 
@@ -35,6 +36,7 @@ function renderOthers() {
     if (othersState.page === "creator") return renderCreatorSettings(root);
     if (othersState.page === "hospitals") return renderHospitals(root);
     if (othersState.page === "offices") return renderOffices(root);
+    if (othersState.page === "banks") return renderBanks(root);
     if (othersState.page === "clothing") return renderClothing(root);
     if (othersState.page === "driving") {
         if (drivingState.data && root.querySelector(".driving-page")) return;
@@ -67,6 +69,7 @@ function closeOthersPage() {
         creatorState.draft = null;
         pointStates.hospitals.draft = null;
         pointStates.offices.draft = null;
+        pointStates.banks.draft = null;
         clothingState.draft = null;
         othersState.page = null;
         renderOthers();

@@ -525,7 +525,7 @@ async function saveCreatorSettings() {
 }
 
 // ====================================================================
-//  Listes de points (lunatic_gameplay) : hôpitaux et guichets de documents. Même page pour les deux :
+//  Listes de points : hôpitaux et guichets de documents (lunatic_gameplay), agences bancaires (lunatic_bank). Même page :
 //  points de la config affichés d'office, actifs ou non, position prise en jeu, ordre, PNJ éventuel.
 // ====================================================================
 
@@ -538,8 +538,12 @@ const POINT_PAGES = {
         title: "Guichets de documents", item: "Guichet", placeholder: "Commissariat de Mission Row", spot: "Guichet ([E])", toggle: "Ouvert aux joueurs", ped: true,
         hint: "Les joueurs y retirent leur carte d'identité (première gratuite, puis duplicata) et leur permis. Réglages : Fonctionnalités → Carte d'identité.",
     },
+    banks: {
+        title: "Banques", item: "Agence", placeholder: "Fleeca Legion Square", spot: "Guichet ([E])", toggle: "Ouverte aux joueurs", saved: "Agences bancaires enregistrées.",
+        hint: "Au guichet, les joueurs consultent leur compte (IBAN, historique, analyse), retirent, déposent et font des virements. Blips des agences : tuile Blips.",
+    },
 };
-const pointStates = { hospitals: { data: null, draft: null, saved: "" }, offices: { data: null, draft: null, saved: "" } };
+const pointStates = { hospitals: { data: null, draft: null, saved: "" }, offices: { data: null, draft: null, saved: "" }, banks: { data: null, draft: null, saved: "" } };
 
 function renderPoints(root, kind) {
     if (pointStates[kind].data && root.querySelector(`.points-page-${kind}`)) return;
@@ -549,6 +553,7 @@ function renderPoints(root, kind) {
 
 const renderHospitals = (root) => renderPoints(root, "hospitals");
 const renderOffices = (root) => renderPoints(root, "offices");
+const renderBanks = (root) => renderPoints(root, "banks");
 
 async function loadPoints(kind) {
     const res = await nui("action", { action: `${kind}.get`, payload: {} }).catch(() => null);
@@ -611,7 +616,7 @@ function paintPoints(kind) {
 
 async function savePoints(kind) {
     const st = pointStates[kind];
-    const res = await act(`${kind}.save`, { points: st.draft.points }, `${POINT_PAGES[kind].title} enregistrés.`);
+    const res = await act(`${kind}.save`, { points: st.draft.points }, POINT_PAGES[kind].saved || `${POINT_PAGES[kind].title} enregistrés.`);
     if (!res) return;
     untrackUnsaved("others");
     st.draft = null;
