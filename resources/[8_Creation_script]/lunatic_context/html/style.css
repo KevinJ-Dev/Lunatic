@@ -27,17 +27,23 @@ html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
 .item span { overflow: hidden; text-overflow: ellipsis; }
 .item small { color: var(--muted); font-size: 11px; }
 .item .arrow { color: var(--muted); font-size: 13px; }
-.item:hover, .item.open { background: var(--accent); color: #fff; }
-.item:hover small, .item.open small, .item:hover .arrow, .item.open .arrow { color: #ffffffcc; }
+.item:hover, .item.hover, .item.open { background: var(--accent); color: #fff; }
+.item:hover small, .item.hover small, .item.open small, .item:hover .arrow, .item.hover .arrow, .item.open .arrow { color: #ffffffcc; }
+.item.pressed { filter: brightness(1.25); }
 
 /* Couleurs Vision : rouge = Action joueur (staff), bleu = Action développeur */
 .item.red { background: #e5484d33; box-shadow: inset 3px 0 0 var(--red); }
-.item.red:hover, .item.red.open { background: var(--red); }
+.item.red:hover, .item.red.hover, .item.red.open { background: var(--red); }
 .item.blue { background: #3e63dd33; box-shadow: inset 3px 0 0 var(--blue); }
-.item.blue:hover, .item.blue.open { background: var(--blue); }
+.item.blue:hover, .item.blue.hover, .item.blue.open { background: var(--blue); }
 
 .item.header { height: 26px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; cursor: default; }
-.item.header:hover { background: transparent; color: var(--muted); }
+.item.header:hover, .item.header.hover { background: transparent; color: var(--muted); }
 .item.disabled { opacity: .4; cursor: default; }
-.item.disabled:hover { background: transparent; color: var(--ink); }
+.item.disabled:hover, .item.disabled.hover { background: transparent; color: var(--ink); }
 .sep { height: 1px; margin: 4px 6px; background: var(--line); }
+
+/* Pointeur de souris (la page n'a pas le focus : le jeu envoie la position) */
+.pointer { position: fixed; left: 0; top: 0; width: 14px; height: 20px; pointer-events: none; display: none; z-index: 10;
+    background: #fff; clip-path: polygon(0 0, 0 85%, 28% 64%, 46% 100%, 60% 94%, 43% 59%, 80% 59%); filter: drop-shadow(0 1px 1px #000a); }
+.pointer.on { display: block; }

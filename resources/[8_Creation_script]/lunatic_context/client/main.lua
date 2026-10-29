@@ -1,8 +1,8 @@
 -- Menu contextuel (doc Vision) : Alt gauche maintenu fait apparaître le curseur, clic droit ouvre le menu à la souris
 -- sur ce qui est visé : soi-même, un joueur, un PNJ, un véhicule, un objet ou le sol.
 -- Le menu reste ouvert tant qu'Alt est maintenu : une action le met à jour, un clic droit ailleurs vise autre chose,
--- relâcher Alt (ou Échap) le ferme. Menu ouvert, le personnage marche et conduit normalement (seules la caméra
--- et les attaques sont bloquées, la souris servant au menu).
+-- relâcher Alt (ou Échap) le ferme. La page n'a jamais le focus : le jeu lit la souris et envoie survol et clics
+-- à la page ; le clavier reste au jeu, le personnage marche et conduit normalement (caméra et tir bloqués).
 -- Les scripts y ajoutent leurs entrées : exports.lunatic_context:register(nom, fonction(ctx) -> entrées, ordre).
 --   ctx   = { entity, kind = 'self' | 'player' | 'ped' | 'vehicle' | 'object' | 'ground', serverId, coords, inVehicle }
 --   entrée = { label, right?, color? ('red' | 'blue'), header? (texte seul), disabled?, onSelect? = fonction,
@@ -15,8 +15,10 @@ local RANGE = 60.0
 -- Carte, véhicules, PNJ, objets : la carte arrête le rayon (pas de sélection à travers un mur)
 local RAY_FLAGS = 1 | 2 | 4 | 8 | 16
 local LOOK_CONTROLS = { 1, 2, 24, 25, 68, 69, 70, 91, 92, 106, 140, 141, 142, 257, 263, 264 }
--- Menu ouvert : en plus, Échap (menu pause) et la roue des armes, le clavier allant aussi au jeu
+-- Menu ouvert : en plus, Échap (menu pause) et la roue des armes
 local MENU_CONTROLS = { 37, 199, 200, 322 }
+-- Clic gauche : attaque à pied (24), en véhicule (69), clic du curseur (237)
+local LEFT_CLICKS = { 24, 69, 237 }
 -- Délai avant de relire les entrées après une action (le temps que l'état du jeu change)
 local REFRESH_DELAY = 250
 
@@ -172,22 +174,15 @@ local function closeMenu()
     end
 
     openMenu = nil
-    -- Alt relâché pendant le menu : le jeu n'a pas forcément reçu le relâchement (focus sur la page)
-    held = false
-    SetNuiFocusKeepInput(false)
-    SetNuiFocus(false, false)
     SendNUIMessage({ action = 'close' })
 end
 
--- Ouvre (ou remplace) le menu ; sans entrée (ciel, sol…) la page reste active, vide, jusqu'au relâchement d'Alt
+-- Ouvre (ou remplace) le menu ; sans entrée (ciel, sol…) rien n'est affiché jusqu'au relâchement d'Alt
 local function showMenu(entity, coords, x, y)
     local ctx = contextOf(entity, coords)
     local tree, byId = collect(ctx)
 
     openMenu = { ctx = ctx, items = byId }
-    SetNuiFocus(true, true)
-    -- Le jeu reçoit aussi le clavier : on peut marcher, courir, conduire avec le menu ouvert
-    SetNuiFocusKeepInput(true)
     SendNUIMessage({ action = 'open', x = x, y = y, items = tree })
 end
 
@@ -208,6 +203,7 @@ local function refreshMenu(menu)
     SendNUIMessage({ action = 'update', items = tree })
 end
 
+-- La page a trouvé l'entrée sous le clic (message "click")
 RegisterNUICallback('select', function(data, cb)
     cb({})
     local menu = openMenu
@@ -238,36 +234,12 @@ RegisterNUICallback('select', function(data, cb)
     end)
 end)
 
--- Clic droit ailleurs, menu ouvert : nouvelle cible à cet endroit
-RegisterNUICallback('retarget', function(data, cb)
-    cb({})
-
-    if not openMenu then
-        return
-    end
-
-    local x, y = tonumber(data.x), tonumber(data.y)
-
-    if not x or not y then
-        return
-    end
-
-    local entity, coords = aim(x, y)
-    showMenu(entity, coords, x, y)
-end)
-
--- Alt relâché, Échap
-RegisterNUICallback('close', function(_, cb)
-    cb({})
-    closeMenu()
-end)
-
 ---------------------------------------------------------------------
 -- Alt maintenu : curseur ; clic droit : menu
 ---------------------------------------------------------------------
 
-local function rightClicked()
-    for _, control in ipairs(RIGHT_CLICKS) do
+local function pressed(controls)
+    for _, control in ipairs(controls) do
         if IsDisabledControlJustPressed(0, control) or IsControlJustPressed(0, control) then
             return true
         end
@@ -276,36 +248,50 @@ local function rightClicked()
     return false
 end
 
-CreateThread(function()
-    while true do
-        if not openMenu and held and not IsPauseMenuActive() and not IsNuiFocused() then
-            SetMouseCursorActiveThisFrame()
+local function disable(controls)
+    for _, control in ipairs(controls) do
+        DisableControlAction(0, control, true)
+    end
+end
 
-            for _, control in ipairs(LOOK_CONTROLS) do
-                DisableControlAction(0, control, true)
+CreateThread(function()
+    local lastX, lastY = -1, -1
+
+    while true do
+        if openMenu and (not held or IsPauseMenuActive() or IsNuiFocused()) then
+            -- Alt relâché, menu pause ou autre interface ouverte : fermé
+            closeMenu()
+        end
+
+        if held and not IsPauseMenuActive() and not IsNuiFocused() then
+            SetMouseCursorActiveThisFrame()
+            disable(LOOK_CONTROLS)
+
+            local x, y = cursor()
+
+            if openMenu then
+                disable(MENU_CONTROLS)
+
+                if x ~= lastX or y ~= lastY then
+                    lastX, lastY = x, y
+                    SendNUIMessage({ action = 'mouse', x = x, y = y })
+                end
+
+                if pressed(LEFT_CLICKS) then
+                    SendNUIMessage({ action = 'click', x = x, y = y })
+                end
+
+                if IsDisabledControlJustPressed(0, 200) or IsDisabledControlJustPressed(0, 322) then
+                    closeMenu()
+                end
             end
 
-            if rightClicked() and GetGameTimer() - lastOpen > 250 then
+            -- Clic droit : menu sur ce qui est visé (ou nouvelle cible, menu déjà ouvert)
+            if pressed(RIGHT_CLICKS) and GetGameTimer() - lastOpen > 250 then
                 lastOpen = GetGameTimer()
-                local x, y = cursor()
                 local entity, coords = aim(x, y)
                 showMenu(entity, coords, x, y)
-            end
-
-            Wait(0)
-        elseif openMenu then
-            -- Souris réservée au menu : pas de caméra ni de tir ; Échap ferme le menu, pas le jeu
-            for _, control in ipairs(LOOK_CONTROLS) do
-                DisableControlAction(0, control, true)
-            end
-
-            for _, control in ipairs(MENU_CONTROLS) do
-                DisableControlAction(0, control, true)
-            end
-
-            -- Alt relâché (le jeu reçoit le clavier) ou menu pause ouvert : fermé
-            if not held or IsPauseMenuActive() then
-                closeMenu()
+                lastX, lastY = -1, -1
             end
 
             Wait(0)

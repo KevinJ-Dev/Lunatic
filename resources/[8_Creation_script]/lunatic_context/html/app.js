@@ -2,14 +2,16 @@
 
 // Menu contextuel : affiché à la souris, sous-menus ouverts au survol (à droite, ou à gauche s'il n'y a pas la place).
 // Le jeu envoie les entrées (sans leurs actions) ; un clic renvoie l'id de l'entrée choisie.
-// Le menu reste affiché tant qu'Alt est maintenu : après une action, le jeu renvoie les entrées à jour ("update"),
-// un clic droit ailleurs vise autre chose ("retarget"), relâcher Alt ou Échap ferme.
+// La page n'a jamais le focus (le clavier reste au jeu) : le jeu envoie la position de la souris ("mouse") et les clics
+// ("click"), la page retrouve l'entrée sous le pointeur. Après une action, le jeu renvoie les entrées à jour ("update").
 
 const layer = document.getElementById("layer");
 const resource = typeof GetParentResourceName === "function" ? GetParentResourceName() : null;
 
 let origin = { x: 0, y: 0 }; // position du menu principal, en pixels
 let openPath = []; // index de l'entrée ouverte à chaque profondeur (rouverte après une mise à jour)
+let hovered = null; // entrée sous le pointeur
+const pointer = document.getElementById("pointer");
 
 function nui(name, payload) {
     if (!resource) return Promise.resolve({});
@@ -46,11 +48,13 @@ function buildMenu(items, depth) {
             }
         };
         row.addEventListener("mouseenter", row.open);
-        row.addEventListener("click", (e) => {
-            e.stopPropagation();
+        row.choose = () => {
             if (item.header || item.disabled || item.children) return;
+            row.classList.add("pressed");
+            setTimeout(() => row.classList.remove("pressed"), 120);
             nui("select", { id: item.id });
-        });
+        };
+        row.addEventListener("click", (e) => { e.stopPropagation(); row.choose(); });
         menu.append(row);
         menu.rows.push(row);
     });
@@ -106,34 +110,37 @@ function close() {
     layer.classList.remove("on");
     layer.replaceChildren();
     openPath = [];
+    hovered = null;
+    pointer.classList.remove("on");
 }
 
-function closeAndTell() {
-    if (!layer.classList.contains("on")) return;
-    close();
-    nui("close");
+// Entrée sous le point (x, y en fraction de l'écran) ; survol comme avec une vraie souris
+function rowAt(x, y) {
+    const target = document.elementFromPoint(x * window.innerWidth, y * window.innerHeight);
+    return target ? target.closest(".item") : null;
 }
 
-// Clic droit hors du menu : nouvelle cible à cet endroit ; clic gauche hors du menu : rien
-document.addEventListener("contextmenu", (e) => {
-    e.preventDefault();
-    if (!layer.classList.contains("on") || e.target.closest(".menu")) return;
-    nui("retarget", { x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight });
-});
-
-// Alt relâché ou Échap : fermé
-document.addEventListener("keyup", (e) => { if (e.key === "Alt") { e.preventDefault(); closeAndTell(); } });
-document.addEventListener("keydown", (e) => {
-    if (e.key === "Alt") e.preventDefault();
-    if (e.key === "Escape") closeAndTell();
-});
-window.addEventListener("blur", closeAndTell);
+function mouse(x, y) {
+    pointer.style.transform = `translate(${x * window.innerWidth}px, ${y * window.innerHeight}px)`;
+    const row = rowAt(x, y);
+    // Pointeur dessiné seulement sur le menu (celui du jeu passe dessous)
+    pointer.classList.toggle("on", !!(row || (document.elementFromPoint(x * window.innerWidth, y * window.innerHeight) || layer).closest(".menu")));
+    if (row === hovered) return;
+    if (hovered) hovered.classList.remove("hover");
+    hovered = row;
+    if (row) { row.classList.add("hover"); if (row.open) row.open(); }
+}
 
 window.addEventListener("message", (event) => {
     const msg = event.data || {};
-    if (msg.action === "open") open(msg);
-    if (msg.action === "update" && layer.classList.contains("on")) render(msg.items || [], true);
+    if (msg.action === "open") { open(msg); hovered = null; }
+    if (msg.action === "update" && layer.classList.contains("on")) { render(msg.items || [], true); hovered = null; }
     if (msg.action === "close") close();
+    if (msg.action === "mouse" && layer.classList.contains("on")) mouse(msg.x, msg.y);
+    if (msg.action === "click" && layer.classList.contains("on")) {
+        const row = rowAt(msg.x, msg.y);
+        if (row && row.choose) row.choose();
+    }
 });
 
 // Aperçu hors jeu
