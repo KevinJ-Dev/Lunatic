@@ -645,4 +645,82 @@ pointList({ prefix = 'offices', kvp = 'document_offices', global = 'lunaticDocum
 pointList({ prefix = 'banks', kvp = 'banks', global = 'lunaticBanks', defaults = 'getDefaultBanks', resource = 'lunatic_bank', name = 'Agences bancaires', item = 'Agence' })
 pointList({ prefix = 'jobcenters', kvp = 'job_centers', global = 'lunaticJobCenters', defaults = 'getDefaultCenters', resource = 'lunatic_interim', name = 'Job Centers', item = 'Job Center' })
 
-print('[lunatic_admin] Modules Ascenseurs, Heal Items, Tarifs mécano, Zone AFK, Création perso, Hôpitaux, Guichets, Banques et Job Centers chargés.')
+---------------------------------------------------------------------
+-- Métiers d'intérim (lunatic_interim) : activé, salaire par mission, nombre d'arrêts, véhicule, dépôt et sortie du véhicule.
+-- KVP 'interim_jobs', diffusé dans GlobalState.lunaticInterim ({ [id] = réglages }) ; ce qui manque vient de la config du jeu.
+---------------------------------------------------------------------
+
+local INTERIM_LIMITS = { salary = 100000, stops = 15 }
+local interimSaved = GetResourceKvpString('interim_jobs')
+local interimSettings = interimSaved and json.decode(interimSaved) or {}
+GlobalState.lunaticInterim = interimSettings
+
+-- Fiches des métiers (config de lunatic_interim : nom, entreprise, valeurs par défaut)
+local function interimJobs()
+    if GetResourceState('lunatic_interim') ~= 'started' then
+        return {}
+    end
+
+    local ok, list = pcall(function() return exports.lunatic_interim:getJobDefinitions() end)
+    return ok and type(list) == 'table' and list or {}
+end
+
+Panel.actions['interim.get'] = function(_, actor)
+    if not allowed(actor) then
+        return denied()
+    end
+
+    return { ok = true, silent = true, jobs = interimJobs(), settings = interimSettings }
+end
+
+Panel.actions['interim.save'] = function(src, actor, data)
+    if not allowed(actor) then
+        return denied()
+    end
+
+    local known = {}
+
+    for _, job in ipairs(interimJobs()) do
+        known[job.id] = job
+    end
+
+    if not next(known) then
+        return Panel.fail("lunatic_interim n'est pas démarré.")
+    elseif type(data) ~= 'table' or type(data.jobs) ~= 'table' then
+        return Panel.fail('Réglages invalides.')
+    end
+
+    local result, count = {}, 0
+
+    for id, entry in pairs(data.jobs) do
+        local job = known[id]
+
+        if job and type(entry) == 'table' then
+            local salary = whole(entry.salary, 0, INTERIM_LIMITS.salary)
+            local stops = whole(entry.stops, 1, INTERIM_LIMITS.stops)
+            local vehicle = cleanText(entry.vehicle or '', 0, 40)
+
+            if not salary then
+                return Panel.fail(('%s : salaire de 0 à %d.'):format(job.label, INTERIM_LIMITS.salary))
+            elseif not stops then
+                return Panel.fail(('%s : de 1 à %d arrêts.'):format(job.label, INTERIM_LIMITS.stops))
+            elseif not vehicle or (vehicle ~= '' and not vehicle:match('^[%w_]+$')) then
+                return Panel.fail(('%s : modèle de véhicule invalide.'):format(job.label))
+            end
+
+            result[id] = {
+                enabled = entry.enabled ~= false, salary = salary, stops = stops, vehicle = vehicle ~= '' and vehicle or nil,
+                depot = entry.depot and position(entry.depot) or nil, spawn = entry.spawn and position(entry.spawn) or nil,
+            }
+            count = count + 1
+        end
+    end
+
+    interimSettings = result
+    SetResourceKvp('interim_jobs', json.encode(result))
+    GlobalState.lunaticInterim = result
+    Logs.add(src, 'interim.settings', nil, { jobs = count })
+    return { ok = true, silent = true }
+end
+
+print('[lunatic_admin] Modules Ascenseurs, Heal Items, Tarifs mécano, Zone AFK, Création perso, Hôpitaux, Guichets, Banques, Job Centers et métiers d\u{2019}intérim chargés.')

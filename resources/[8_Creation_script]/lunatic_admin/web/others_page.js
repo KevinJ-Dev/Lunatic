@@ -22,6 +22,7 @@ const OTHERS_TILES = [
     { id: "offices", label: "Guichets de documents", icon: "i-book", show: () => can("others.manage") },
     { id: "banks", label: "Banques", icon: "i-bank", show: () => can("others.manage") },
     { id: "jobcenters", label: "Job Center", icon: "i-briefcase", show: () => can("others.manage") },
+    { id: "interim", label: "Métiers d'intérim", icon: "i-truck", show: () => can("others.manage") },
     { id: "clothing", label: "Magasins de vêtements", icon: "i-shirt", show: () => can("others.manage") },
 ];
 
@@ -39,6 +40,7 @@ function renderOthers() {
     if (othersState.page === "offices") return renderOffices(root);
     if (othersState.page === "banks") return renderBanks(root);
     if (othersState.page === "jobcenters") return renderJobCenters(root);
+    if (othersState.page === "interim") return renderInterim(root);
     if (othersState.page === "clothing") return renderClothing(root);
     if (othersState.page === "driving") {
         if (drivingState.data && root.querySelector(".driving-page")) return;
@@ -73,6 +75,7 @@ function closeOthersPage() {
         pointStates.offices.draft = null;
         pointStates.banks.draft = null;
         pointStates.jobcenters.draft = null;
+        interimState.draft = null;
         clothingState.draft = null;
         othersState.page = null;
         renderOthers();

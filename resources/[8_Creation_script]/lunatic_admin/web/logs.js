@@ -177,6 +177,8 @@ const ACTION_LABELS = {
     "interim.accept": "a pris le métier d'intérim",
     "interim.quit": "a quitté le métier d'intérim",
     "interim.outfit": "a réglé la tenue du métier d'intérim",
+    "interim.settings": "a modifié les métiers d'intérim",
+    "interim.mission": "a terminé une mission d'intérim :",
     "vehicle.rent": "a loué",
     "vehicle.rent_return": "a rendu",
     "vehicle.service_out": "a sorti",

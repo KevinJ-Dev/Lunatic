@@ -619,6 +619,96 @@ function paintPoints(kind) {
             d.points.map(card))));
 }
 
+// ====================================================================
+//  Métiers d'intérim (lunatic_interim) : un bloc par métier, réglages communs + dépôt et sortie du véhicule
+// ====================================================================
+
+const interimState = { data: null, draft: null, saved: "" };
+
+function renderInterim(root) {
+    if (interimState.data && root.querySelector(".interim-page")) return;
+    paintInterim();
+    if (!interimState.data) loadInterim();
+}
+
+async function loadInterim() {
+    const res = await nui("action", { action: "interim.get", payload: {} }).catch(() => null);
+    if (!res || !res.ok) return;
+    interimState.data = res;
+    if (othersState.page === "interim") paintInterim();
+}
+
+function paintInterim() {
+    const st = interimState;
+    const root = $("view-others");
+    if (!st.data) return root.replaceChildren(h("div", { class: "content interim-page" }, othersHead("Métiers d'intérim"), h("div", { class: "empty" }, icon("i-clock"), "Chargement…")));
+    if (!st.data.jobs.length) return root.replaceChildren(h("div", { class: "content interim-page" }, othersHead("Métiers d'intérim"), h("div", { class: "empty" }, icon("i-warn"), "lunatic_interim n'est pas démarré.")));
+    if (!st.draft) {
+        const jobs = {};
+        for (const job of st.data.jobs) {
+            const saved = (st.data.settings || {})[job.id] || {};
+            jobs[job.id] = {
+                enabled: saved.enabled !== false, salary: saved.salary ?? job.salary, stops: saved.stops ?? job.stops, vehicle: saved.vehicle ?? job.vehicle ?? "",
+                depot: saved.depot || null, spawn: saved.spawn || null,
+            };
+        }
+        st.draft = { key: "interim", jobs };
+        st.saved = JSON.stringify(st.draft);
+        othersTrack("Métiers d'intérim", st, saveInterim, paintInterim);
+    }
+    const d = st.draft;
+
+    const spot = (entry, key, label) => {
+        const coords = h("span", { class: "mono muted" }, afkCoords(entry[key]));
+        return h("div", { class: "driving-spot" }, h("b", null, label), coords,
+            h("button", { class: "btn small ghost", onclick: async () => {
+                const p = await othersMyPosition();
+                if (!p) return;
+                entry[key] = p;
+                coords.textContent = afkCoords(p);
+            } }, icon("i-crosshair"), "Définir position"),
+            h("button", { class: "btn small ghost", onclick: () => (entry[key] ? act("others.tp", entry[key], null) : toast("Position non définie.", "error")) }, icon("i-goto"), "TP"));
+    };
+
+    const number = (entry, key, min, max) => {
+        const input = h("input", { class: "input mono", type: "number", min: String(min), max: String(max), value: String(entry[key]) });
+        input.addEventListener("input", () => { entry[key] = Math.floor(Number(input.value) || 0); });
+        return input;
+    };
+
+    const card = (job) => {
+        const entry = d.jobs[job.id];
+        const vehicle = h("input", { class: "input mono", maxlength: "40", placeholder: job.vehicle || "modèle", value: entry.vehicle || "" });
+        vehicle.addEventListener("input", () => { entry.vehicle = vehicle.value.trim(); });
+        const ready = job.kind === "route";
+        return h("div", { class: "card creator-spawn" },
+            h("div", { class: "creator-spawn-head" }, h("b", null, `${job.label} · ${job.company}`),
+                ready ? null : h("span", { class: "badge muted" }, "missions à venir"),
+                h("div", { class: "creator-spawn-toggle" }, draftToggle(entry, "enabled", "Actif", "Proposé au Job Center"))),
+            h("div", { class: "event-form-row" },
+                fieldRow(`Salaire par mission (${currencySymbol()})`, number(entry, "salary", 0, 100000)),
+                ready ? fieldRow("Arrêts par tournée", number(entry, "stops", 1, 15)) : null,
+                ready ? fieldRow("Véhicule de service", vehicle) : null),
+            ready ? spot(entry, "depot", "Dépôt ([E] : commencer / terminer)") : null,
+            ready ? spot(entry, "spawn", "Sortie du véhicule (dans le sens de départ)") : null);
+    };
+
+    root.replaceChildren(h("div", { class: "content interim-page" }, othersHead("Métiers d'intérim"),
+        h("div", { class: "scroll others-editor" },
+            h("div", { class: "card" }, h("p", { class: "hint-line", style: "margin:0" },
+                "Les joueurs prennent ces métiers au Job Center (page Job Center). Tournées (Livreur, Facteur, Éboueur) : placez-vous au dépôt puis « Définir position », et de même pour la sortie du véhicule. Les arrêts sont tirés au hasard sur les routes de la carte ; la paie va sur le compte bancaire à la fin de la tournée.")),
+            st.data.jobs.map(card))));
+}
+
+async function saveInterim() {
+    const res = await act("interim.save", { jobs: interimState.draft.jobs }, "Métiers d'intérim enregistrés.");
+    if (!res) return;
+    untrackUnsaved("others");
+    interimState.draft = null;
+    interimState.data = null;
+    await loadInterim();
+}
+
 async function savePoints(kind) {
     const st = pointStates[kind];
     const res = await act(`${kind}.save`, { points: st.draft.points }, POINT_PAGES[kind].saved || `${POINT_PAGES[kind].title} enregistrés.`);
