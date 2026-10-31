@@ -97,6 +97,35 @@ Panel.actions['tool.tpm'] = function(src, actor)
     return { ok = true, silent = true }
 end
 
+-- /tpm d'ESX remplacé : il suit la permission « TP au marqueur » des rangs du panel au lieu des groupes ESX.
+-- ESX.RegisterCommand sait remplacer une commande ; ouverte à tous les groupes, c'est le rang qui décide.
+local function registerTpm()
+    ESX.RegisterCommand('tpm', { 'user', 'admin', 'owner' }, function(xPlayer)
+        local src = xPlayer and xPlayer.source
+
+        if not src then
+            return
+        end
+
+        local actor = Staff.rankOf(src)
+
+        if not actor or not Ranks.hasPermission(actor, 'tools.tpm') then
+            return Panel.notify(src, "Vous n'avez pas la permission (TP au marqueur).", 'error')
+        end
+
+        TriggerClientEvent('lunatic_admin:tpm', src)
+    end, false, { help = 'Se téléporter au marqueur de la carte (staff)' })
+end
+
+CreateThread(registerTpm)
+
+-- es_extended redémarré : il a remis son /tpm
+AddEventHandler('onResourceStart', function(resource)
+    if resource == 'es_extended' then
+        SetTimeout(2000, registerTpm)
+    end
+end)
+
 -- Couleurs de rang des membres connectés (noms au-dessus des têtes)
 lib.callback.register('lunatic_admin:staffColors', function(src)
     if not Staff.can(src, 'tools.names') then

@@ -87,7 +87,7 @@ Permissions.List = {
     { id = 'tools.godmode',   family = 'tools', label = 'Se rendre invincible' },
     { id = 'tools.names',     family = 'tools', label = 'Voir les noms et ID au-dessus des têtes' },
     { id = 'tools.coords',    family = 'tools', label = 'Afficher et copier ses coordonnées' },
-    { id = 'tools.tpm',       family = 'tools', label = 'Se téléporter au marqueur de la carte' },
+    { id = 'tools.tpm',       family = 'tools', label = 'Se téléporter au marqueur de la carte (/tpm)' },
     { id = 'tools.ghost',     family = 'tools', label = 'Godmod invisible (mode fantôme en un clic)' },
     { id = 'tools.vehicles',  family = 'tools', label = 'Faire apparaître, réparer et supprimer des véhicules' },
 
