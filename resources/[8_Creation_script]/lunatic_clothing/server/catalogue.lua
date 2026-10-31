@@ -81,6 +81,20 @@ local function staff(src)
     return (sessions[src] or 0) > os.time()
 end
 
+-- exports.lunatic_clothing:startStaffDressing(source, persist, back) : habillage libre homme / femme, ouvert par le staff
+-- (lunatic_admin : fiche joueur → Apparence, persist = true ; lunatic_interim : tenues d'intérim, back = 'interim').
+-- Rien n'est écrit ici : l'apparence validée est enregistrée par illenium-appearance comme dans son propre menu.
+exports('startStaffDressing', function(src, persist, back)
+    src = tonumber(src)
+
+    if not src or not GetPlayerName(src) then
+        return false
+    end
+
+    TriggerClientEvent('lunatic_clothing:staffDressing', src, persist == true, type(back) == 'string' and back or nil)
+    return true
+end)
+
 RegisterNetEvent('lunatic_clothing:catalogueClosed', function()
     sessions[source] = nil
 end)

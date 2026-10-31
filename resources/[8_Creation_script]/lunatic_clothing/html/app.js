@@ -105,6 +105,7 @@ const money = (n) => `${n} ${data.currency}`;
 const itemOf = (c, drawable) => (data.items && data.items[c.key] && data.items[c.key][String(drawable)]) || null;
 // Prix d'une pièce dans ce magasin : prix de la fiche × coefficient de l'enseigne, sinon prix de la catégorie
 function piecePrice(c, drawable) {
+    if (data.staff) return 0; // habillage staff : gratuit
     if (drawable < 0) return 0;
     const item = itemOf(c, drawable);
     return item && item.price != null ? Math.floor(item.price * (data.coef || 1) + 0.5) : c.price;
@@ -570,6 +571,15 @@ function cartLines() {
 }
 
 function paintCart() {
+    // Habillage staff : pas de panier, la tenue portée est validée telle quelle (homme ou femme)
+    if (data.staff) {
+        $("cart").replaceChildren(
+            h("div", { class: "cart-head" }, h("span", null, "Habillage staff"), h("b", null, data.sex === "female" ? "Femme" : "Homme")),
+            h("div", { class: "pay" },
+                h("button", { class: "btn wide", onclick: () => buy("money") }, "Valider la tenue"),
+                h("button", { class: "btn ghost wide", onclick: quit }, "Quitter sans valider")));
+        return;
+    }
     // Tenue prêt-à-porter essayée : payée à son prix, pas pièce par pièce
     const outfit = tried && (data.ready || []).find((o) => o.id === tried);
     if (outfit) {
@@ -621,7 +631,11 @@ function paintBar() {
 
 function paintTools() {
     const barber = data.kind === "barber" || data.kind === "tattoo";
+    // Habillage staff : choix homme / femme (personnage de base du sexe choisi)
+    const sexes = data.staff ? [["male", "Homme"], ["female", "Femme"]].map(([sex, label]) =>
+        h("button", { class: `tool${data.sex === sex ? " on" : ""}`, onclick: () => { if (data.sex !== sex) nui("staffSex", { sex }); } }, label)) : [];
     $("tools").replaceChildren(
+        ...sexes,
         ...(data.kind === "tattoo" ? TATTOO_CAMERAS : barber ? BARBER_CAMERAS : CAMERAS).map(([key, label]) => h("button", { class: `tool${camera === key ? " on" : ""}`, onclick: () => { setCamera(key); paintTools(); } }, label)),
         ...(barber ? [] : [h("button", { class: `tool${armsUp ? " on" : ""}`, onclick: () => { armsUp = !armsUp; nui("armsUp", { on: armsUp }); paintTools(); } }, svg("arms"), "Bras levés")]));
 }

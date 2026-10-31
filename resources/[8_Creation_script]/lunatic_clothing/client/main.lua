@@ -485,6 +485,10 @@ local function closeShop(restore)
         appearanceApi:setPlayerAppearance(shop.original)
         ped = PlayerPedId()
         TriggerServerEvent('lunatic_clothing:catalogueClosed')
+    elseif shop.mode == 'staff' and restore then
+        -- Habillage staff quitté sans valider : personnage d'avant, sexe compris
+        appearanceApi:setPlayerAppearance(shop.initial)
+        ped = PlayerPedId()
     elseif restore and shop.original then
         appearanceApi:setPedAppearance(ped, shop.original)
     end
@@ -764,6 +768,25 @@ end)
 RegisterNUICallback('buy', function(data, cb)
     if not shop then
         return cb({ ok = false })
+    end
+
+    -- Habillage staff : « Valider la tenue », sans paiement
+    if shop.mode == 'staff' then
+        cb({ ok = true })
+        local persist, back = shop.persist, shop.back
+        local appearance = appearanceApi:getPedAppearance(PlayerPedId())
+        closeShop(false)
+
+        if persist then
+            TriggerServerEvent('illenium-appearance:server:saveAppearance', appearance)
+            notify('Apparence enregistrée.', 'success')
+        end
+
+        if back == 'interim' then
+            TriggerEvent('lunatic_interim:dressed')
+        end
+
+        return
     end
 
     local result = lib.callback.await('lunatic_clothing:buy', false, shop.index, type(data.changes) == 'table' and data.changes or {}, data.account)
@@ -1265,6 +1288,70 @@ RegisterNUICallback('batch', function(data, cb)
             SendNUIMessage({ action = 'batchDone', done = done, failed = failed, data = toolData(sexOf(PlayerPedId()), shop.screenshot) })
         end
     end)
+end)
+
+---------------------------------------------------------------------
+-- Habillage staff (panel : fiche joueur → Apparence ; Job Center : tenues d'intérim) : écran des magasins avec tout le
+-- catalogue, gratuit, et le choix homme / femme. persist : la tenue validée est enregistrée sur le personnage
+-- (illenium-appearance) ; back = 'interim' : retour au Job Center après validation.
+---------------------------------------------------------------------
+
+local function staffData(ped)
+    local sex = sexOf(ped)
+
+    return {
+        store = shop.persist and 'Apparence du personnage' or 'Tenue de travail', staff = true,
+        brand = { label = 'Habillage staff', color = '#9650ff', showText = true },
+        kind = 'clothing', pages = { catalogue = true, ready = false, outfits = false, favorites = false }, groups = groupsFor(nil),
+        worn = wornAll(ped), sex = sex, currency = currency(), items = catalogueFor(sex), coef = 1,
+        images = (GlobalState.lunaticCreator or {}).clothesImages or Config.ClothesImages, renderer = Config.RendererImages,
+        ready = {}, outfits = {}, maxOutfits = 0, favorites = {}, undress = Config.Undress,
+    }
+end
+
+RegisterNetEvent('lunatic_clothing:staffDressing', function(persist, back)
+    if shop then
+        return
+    end
+
+    local ped = PlayerPedId()
+
+    if IsPedInAnyVehicle(ped, false) then
+        return notify('Descendez du véhicule.', 'error')
+    end
+
+    pcall(lib.hideContext, false)
+    ClearPedTasksImmediately(ped)
+    local coords = GetEntityCoords(ped)
+    local appearance = appearanceApi:getPedAppearance(ped)
+    shop = {
+        mode = 'staff', persist = persist, back = back, original = appearance, initial = appearance,
+        anchor = vector4(coords.x, coords.y, coords.z, GetEntityHeading(ped)), favorites = {}, hidden = {},
+    }
+    FreezeEntityPosition(ped, true)
+    setHud(false)
+    setCamera('torso', true)
+    SendNUIMessage({ action = 'open', data = staffData(ped) })
+    SetNuiFocus(true, true)
+end)
+
+-- Homme / femme : personnage de base du sexe choisi, catalogue de ce sexe
+RegisterNUICallback('staffSex', function(data, cb)
+    cb({})
+
+    if not shop or shop.mode ~= 'staff' then
+        return
+    end
+
+    local sex = data.sex == 'female' and 'female' or 'male'
+
+    if sexOf(PlayerPedId()) ~= sex then
+        baseCharacter(sex)
+        local ped = PlayerPedId()
+        shop.original = appearanceApi:getPedAppearance(ped)
+        setCamera('torso', true)
+        SendNUIMessage({ action = 'open', data = staffData(ped) })
+    end
 end)
 
 ---------------------------------------------------------------------
