@@ -20,6 +20,10 @@
 html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; color: var(--ink); font: 400 13px/1.4 var(--font); user-select: none; }
 button { font: inherit; color: inherit; cursor: pointer; }
 .hidden { display: none !important; }
+/* Listes déroulantes : couleurs du panel au lieu du blanc et du bleu du navigateur */
+select { color-scheme: dark; }
+select option { background: #16121f; color: var(--ink); }
+select option:checked { background: var(--accent); color: #fff; }
 
 .rental { position: fixed; inset: 0; display: flex; }
 
