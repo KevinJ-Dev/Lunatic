@@ -246,142 +246,212 @@ end
 
 local appearance = exports['illenium-appearance']
 
-local MODEL_LABELS = { m = 'Homme', f = 'Femme' }
+-- Image d'en-tête : lien direct, ou clé de la tuile Images du panel
+local function headerImage(value)
+    if type(value) ~= 'string' or value == '' then
+        return nil
+    end
+
+    if value:match('^https?://') or value:match('^nui://') then
+        return value
+    end
+
+    return (GlobalState.lunaticImages or {})[value]
+end
+
+-- Vestiaire (doc Vision) : écran à gauche (html/wardrobe.js), personnage face à une caméra. Cliquer une tenue l'essaie,
+-- « Récupérer » la garde ; fermer sans récupérer remet la tenue d'avant. Le patron crée et gère les tenues dans l'écran
+-- (« ma tenue » = celle qu'il portait en ouvrant le vestiaire).
+
+local wardrobe = nil -- { point, data, original, cam, heading }
 
 local function currentOutfit()
     local ped = PlayerPedId()
     return { components = appearance:getPedComponents(ped), props = appearance:getPedProps(ped) }
 end
 
-local function wearOutfit(outfit)
+local function applyOutfit(outfit)
     local ped = PlayerPedId()
-    appearance:setPedComponents(ped, outfit.outfit.components)
-    appearance:setPedProps(ped, outfit.outfit.props)
-    notify(('Tenue « %s » enfilée.'):format(outfit.label), 'success')
+    appearance:setPedComponents(ped, outfit.components)
+    appearance:setPedProps(ped, outfit.props)
 end
 
-local function gradeChoices(grades)
-    local choices = {}
-
-    for _, grade in ipairs(grades) do
-        choices[#choices + 1] = { value = grade.grade, label = grade.label }
+-- Haut de la tenue (composant 11) : vignette du Clothes Renderer s'il est installé dans lunatic_clothing
+local function topOf(outfit)
+    for _, component in ipairs(outfit.components or {}) do
+        if tonumber(component.component_id) == 11 then
+            return tonumber(component.drawable)
+        end
     end
-
-    return choices
 end
 
-local openWardrobe
-
--- Patron : une tenue (nom, grade, vêtements, suppression)
-local function manageOutfit(point, data, outfit)
-    local options = {
-        { title = 'Renommer / changer le grade', description = ('%s · à partir de : %s'):format(outfit.label, outfit.gradeLabel), icon = 'pen', onSelect = function()
-            local input = lib.inputDialog(outfit.label, {
-                { type = 'input', label = 'Nom de la tenue', default = outfit.label, required = true, min = 2, max = 40 },
-                { type = 'select', label = 'Grade minimum', options = gradeChoices(data.grades), default = outfit.minGrade, required = true },
-            })
-
-            if input and not failed(lib.callback.await('lunatic_business:editOutfit', false, point.id, outfit.id, { label = input[1], minGrade = input[2] })) then
-                notify('Tenue modifiée.', 'success')
-            end
-
-            openWardrobe(point, true)
-        end },
-        { title = 'Remplacer par ma tenue actuelle', description = outfit.wearable and 'Les vêtements que vous portez deviennent ceux de cette tenue' or ('Tenue pour un personnage %s'):format(MODEL_LABELS[outfit.model]:lower()),
-            icon = 'shirt', disabled = not outfit.wearable, onSelect = function()
-            if not failed(lib.callback.await('lunatic_business:saveOutfit', false, point.id, { id = outfit.id }, currentOutfit())) then
-                notify('Tenue mise à jour.', 'success')
-            end
-
-            openWardrobe(point, true)
-        end },
-        { title = 'Supprimer', icon = 'trash', iconColor = '#ff4d5e', onSelect = function()
-            local answer = lib.alertDialog({ header = ('Supprimer « %s » ?'):format(outfit.label), content = 'La tenue disparaît du vestiaire.', centered = true, cancel = true, labels = { confirm = 'Supprimer', cancel = 'Annuler' } })
-
-            if answer == 'confirm' and not failed(lib.callback.await('lunatic_business:deleteOutfit', false, point.id, outfit.id)) then
-                notify('Tenue supprimée.', 'success')
-            end
-
-            openWardrobe(point, true)
-        end },
-    }
-
-    lib.registerContext({ id = 'lb_outfit', title = ('%s (%s)'):format(outfit.label, MODEL_LABELS[outfit.model]), menu = 'lb_outfits', options = options })
-    lib.showContext('lb_outfit')
-end
-
--- Patron : toutes les tenues, homme et femme
-local function manageOutfits(point, data)
-    local options = {}
+-- Données envoyées à l'écran (sans les vêtements)
+local function wardrobeView(data)
+    local outfits = {}
 
     for _, outfit in ipairs(data.outfits) do
-        options[#options + 1] = {
-            title = outfit.label, description = ('%s · à partir de : %s'):format(MODEL_LABELS[outfit.model], outfit.gradeLabel),
-            icon = outfit.model == 'f' and 'person-dress' or 'person', onSelect = function() manageOutfit(point, data, outfit) end,
+        outfits[#outfits + 1] = {
+            id = outfit.id, label = outfit.label, model = outfit.model, minGrade = outfit.minGrade, gradeLabel = outfit.gradeLabel,
+            wearable = outfit.wearable, top = topOf(outfit.outfit),
         }
     end
 
-    if #options == 0 then
-        options[1] = { title = 'Aucune tenue', readOnly = true }
-    end
-
-    lib.registerContext({ id = 'lb_outfits', title = ('Tenues (%d / %d)'):format(#data.outfits, data.max), menu = 'lb_wardrobe', options = options })
-    lib.showContext('lb_outfits')
+    return {
+        label = data.label, header = headerImage(data.banner), logo = headerImage(data.logo), color = data.color,
+        model = data.model, isBoss = data.isBoss, grades = data.grades, max = data.max, outfits = outfits,
+    }
 end
 
--- Vestiaire : tenues portables (modèle et grade du joueur), tenue civile ; le patron crée et gère les tenues
-openWardrobe = function(point, manage)
+local function outfitById(id)
+    for _, outfit in ipairs(wardrobe and wardrobe.data.outfits or {}) do
+        if outfit.id == tonumber(id) then
+            return outfit
+        end
+    end
+end
+
+-- Caméra face au personnage, un peu décalée pour qu'il apparaisse à droite du panneau
+local function wardrobeCamera()
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    local h = math.rad(GetEntityHeading(ped))
+    local forward, right = vector3(-math.sin(h), math.cos(h), 0.0), vector3(math.cos(h), math.sin(h), 0.0)
+    local position = coords + forward * 2.4 + vector3(0.0, 0.0, 0.25)
+    local target = coords + right * 0.55 + vector3(0.0, 0.0, 0.05)
+
+    local cam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
+    SetCamCoord(cam, position.x, position.y, position.z)
+    PointCamAtCoord(cam, target.x, target.y, target.z)
+    SetCamFov(cam, 45.0)
+    RenderScriptCams(true, true, 500, true, true)
+    return cam
+end
+
+local function closeWardrobe(keep)
+    if not wardrobe then
+        return
+    end
+
+    if not keep and wardrobe.original then
+        applyOutfit(wardrobe.original)
+    end
+
+    if wardrobe.cam then
+        RenderScriptCams(false, true, 400, true, true)
+        DestroyCam(wardrobe.cam, false)
+    end
+
+    FreezeEntityPosition(PlayerPedId(), false)
+    wardrobe = nil
+    SetNuiFocus(false, false)
+    SendNUIMessage({ action = 'wardrobeClose' })
+end
+
+local function openWardrobe(point)
+    if wardrobe then
+        return
+    end
+
     local data = lib.callback.await('lunatic_business:outfits', false, point.id)
 
     if failed(data) then
         return
     end
 
-    local options = {}
+    local ped = PlayerPedId()
+    FreezeEntityPosition(ped, true)
+    wardrobe = { point = point, data = data, original = currentOutfit(), heading = GetEntityHeading(ped) }
+    wardrobe.cam = wardrobeCamera()
+    SetNuiFocus(true, true)
+    SendNUIMessage({ action = 'wardrobeOpen', wardrobe = wardrobeView(data) })
+end
 
-    for _, outfit in ipairs(data.outfits) do
-        if outfit.wearable then
-            options[#options + 1] = { title = outfit.label, description = ('À partir de : %s'):format(outfit.gradeLabel), icon = 'shirt', onSelect = function() wearOutfit(outfit) end }
-        end
-    end
+-- Tenues relues après une modification du patron
+local function refreshWardrobe()
+    local data = wardrobe and lib.callback.await('lunatic_business:outfits', false, wardrobe.point.id)
 
-    if not data.model then
-        options[#options + 1] = { title = 'Aucune tenue', description = 'Les tenues ne concernent que les personnages homme ou femme du jeu.', readOnly = true }
-    elseif #options == 0 then
-        options[#options + 1] = { title = 'Aucune tenue pour vous', description = ('Tenues %s de votre grade : aucune pour le moment.'):format(MODEL_LABELS[data.model]:lower()), readOnly = true }
-    end
-
-    options[#options + 1] = { title = 'Reprendre ma tenue civile', icon = 'user', onSelect = function()
-        TriggerEvent('illenium-appearance:client:reloadSkin', true)
-    end }
-
-    if data.isBoss and data.model then
-        options[#options + 1] = { title = 'Nouvelle tenue', description = 'La tenue que vous portez, avec un nom et un grade minimum', icon = 'plus', onSelect = function()
-            local input = lib.inputDialog('Nouvelle tenue', {
-                { type = 'input', label = 'Nom de la tenue', placeholder = 'Uniforme caisse', required = true, min = 2, max = 40 },
-                { type = 'select', label = 'Grade minimum', options = gradeChoices(data.grades), default = data.grades[1] and data.grades[1].grade, required = true },
-            })
-
-            if input and not failed(lib.callback.await('lunatic_business:saveOutfit', false, point.id, { label = input[1], minGrade = input[2] }, currentOutfit())) then
-                notify(('Tenue « %s » enregistrée (%s).'):format(input[1], MODEL_LABELS[data.model]:lower()), 'success')
-            end
-
-            openWardrobe(point)
-        end }
-
-        options[#options + 1] = { title = 'Gérer les tenues', description = ('%d tenue%s, homme et femme'):format(#data.outfits, #data.outfits > 1 and 's' or ''), icon = 'list', onSelect = function()
-            manageOutfits(point, data)
-        end }
-    end
-
-    lib.registerContext({ id = 'lb_wardrobe', title = 'Vestiaire', options = options })
-
-    if manage then
-        manageOutfits(point, data)
-    else
-        lib.showContext('lb_wardrobe')
+    if wardrobe and data and data.ok then
+        wardrobe.data = data
+        SendNUIMessage({ action = 'wardrobeData', wardrobe = wardrobeView(data) })
     end
 end
+
+RegisterNUICallback('wardrobePreview', function(data, cb)
+    cb({})
+    local outfit = outfitById(data.id)
+
+    if outfit and outfit.wearable then
+        applyOutfit(outfit.outfit)
+    end
+end)
+
+RegisterNUICallback('wardrobeTake', function(data, cb)
+    cb({})
+    local outfit = outfitById(data.id)
+
+    if outfit and outfit.wearable then
+        applyOutfit(outfit.outfit)
+        closeWardrobe(true)
+        notify(('Tenue « %s » enfilée.'):format(outfit.label), 'success')
+    end
+end)
+
+RegisterNUICallback('wardrobeCivil', function(_, cb)
+    cb({})
+    closeWardrobe(true)
+    TriggerEvent('illenium-appearance:client:reloadSkin', true)
+end)
+
+RegisterNUICallback('wardrobeClose', function(_, cb)
+    cb({})
+    closeWardrobe(false)
+end)
+
+-- Glisser à droite du panneau : le personnage tourne
+RegisterNUICallback('wardrobeRotate', function(data, cb)
+    cb({})
+
+    if wardrobe then
+        wardrobe.heading = wardrobe.heading + (tonumber(data.dx) or 0) * 0.5
+        SetEntityHeading(PlayerPedId(), wardrobe.heading)
+    end
+end)
+
+-- Patron : créer (tenue portée à l'ouverture), modifier, remplacer, supprimer
+local function bossAction(cb, name, ...)
+    if not wardrobe then
+        return cb({ ok = false, error = 'Vestiaire fermé.' })
+    end
+
+    local result = lib.callback.await('lunatic_business:' .. name, false, wardrobe.point.id, ...) or { ok = false, error = 'Action impossible.' }
+    cb(result)
+
+    if result.ok then
+        refreshWardrobe()
+    end
+end
+
+RegisterNUICallback('wardrobeCreate', function(data, cb)
+    bossAction(cb, 'saveOutfit', { label = data.label, minGrade = tonumber(data.minGrade) }, wardrobe and wardrobe.original)
+end)
+
+RegisterNUICallback('wardrobeReplace', function(data, cb)
+    bossAction(cb, 'saveOutfit', { id = tonumber(data.id) }, wardrobe and wardrobe.original)
+end)
+
+RegisterNUICallback('wardrobeEdit', function(data, cb)
+    bossAction(cb, 'editOutfit', tonumber(data.id), { label = data.label, minGrade = tonumber(data.minGrade) })
+end)
+
+RegisterNUICallback('wardrobeDelete', function(data, cb)
+    bossAction(cb, 'deleteOutfit', tonumber(data.id))
+end)
+
+AddEventHandler('onResourceStop', function(resource)
+    if resource == GetCurrentResourceName() then
+        closeWardrobe(false)
+    end
+end)
 
 ---------------------------------------------------------------------
 -- Interaction avec un point
@@ -1512,19 +1582,6 @@ end
 ---------------------------------------------------------------------
 
 local store = nil -- magasin ouvert : { target }, ou catalogue de vente : { catalog = point }
-
--- Image d'en-tête : lien direct, ou clé de la tuile Images du panel
-local function headerImage(value)
-    if type(value) ~= 'string' or value == '' then
-        return nil
-    end
-
-    if value:match('^https?://') or value:match('^nui://') then
-        return value
-    end
-
-    return (GlobalState.lunaticImages or {})[value]
-end
 
 local function closeStore()
     if not store then

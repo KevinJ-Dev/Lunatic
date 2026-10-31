@@ -531,7 +531,13 @@ lib.callback.register('lunatic_business:outfits', function(src, pointId)
         end
     end
 
-    return { ok = true, model = model, isBoss = isBoss, grades = grades, outfits = outfits, max = Config.WardrobeMax }
+    local found, structure = pcall(function() return exports.lunatic_admin:getStructure(point.job) end)
+    structure = found and type(structure) == 'table' and structure or {}
+
+    return {
+        ok = true, model = model, isBoss = isBoss, grades = grades, outfits = outfits, max = Config.WardrobeMax,
+        label = jobLabel(point.job), banner = structure.banner or '', logo = structure.logo or '', color = structure.color,
+    }
 end)
 
 local function cleanLabel(value)

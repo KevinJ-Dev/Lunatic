@@ -105,6 +105,22 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .store-tabs button.on { border-color: transparent; background: var(--store, var(--accent)); color: #fff; }
 .store-note { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .store-foot { display: flex; gap: 6px; }
+/* Vestiaire : mêmes panneau, bannière et grille que le catalogue ; à droite, la zone où glisser pour tourner */
+.wardrobe { position: fixed; inset: 0; }
+.wardrobe-stage { position: absolute; inset: 0; cursor: grab; }
+.wardrobe-stage:active { cursor: grabbing; }
+.wardrobe .store-tabs { padding-top: 12px; }
+.wardrobe-item { grid-template-rows: 70px auto; padding-top: 18px; }
+.wardrobe-item.on { border-color: var(--store, var(--accent)); background: #ffffff1a; background: color-mix(in srgb, var(--store, var(--accent)) 22%, transparent); }
+.wardrobe-item .count { max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wardrobe-item img { max-width: 70px; max-height: 66px; object-fit: contain; }
+.wardrobe-shirt { width: 54px; height: 54px; margin-top: 6px; background: var(--store, var(--accent)); clip-path: polygon(30% 4%, 40% 12%, 60% 12%, 70% 4%, 100% 22%, 88% 44%, 78% 38%, 78% 100%, 22% 100%, 22% 38%, 12% 44%, 0 22%); }
+.wardrobe-take { width: 100%; }
+.wardrobe-boss .store-btn { padding: 0 6px; }
+.store-btn.danger { border-color: #ff4d5e; background: #ff4d5e; color: #fff; }
+.wardrobe-form { display: grid; gap: 8px; }
+.wardrobe-form b { font-size: 13px; }
+.wardrobe-form .wardrobe-input { width: 100%; height: 36px; }
 .store-foot .store-btn { flex: 1; height: 32px; padding: 0 10px; font-size: 12px; }
 .store-status { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: #ffffff0a; font-weight: 600; }
 .store-status i { width: 9px; height: 9px; border-radius: 50%; background: #f2c26b; animation: store-pulse 1.4s ease-in-out infinite; }

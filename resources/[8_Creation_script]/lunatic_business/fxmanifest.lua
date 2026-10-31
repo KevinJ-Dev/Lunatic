@@ -28,6 +28,7 @@ files {
     'html/style.css',
     'html/app.js',
     'html/store.js',
+    'html/wardrobe.js',
     'html/fonts/*.woff2',
 }
 
