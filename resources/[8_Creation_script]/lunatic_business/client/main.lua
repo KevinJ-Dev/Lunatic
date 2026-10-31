@@ -1520,6 +1520,8 @@ openSaleCatalog = function(point)
 
     if articles == 0 then
         if equipment then
+            -- Pas de catalogue « Vente » pour cette entreprise : seulement l'équipement des membres
+            notify("Aucun catalogue de vente ici (panel : fiche de l'entreprise, catalogue de type Vente) : équipement des membres.", 'info')
             return openCatalogList(point, { equipment = true })
         end
 
