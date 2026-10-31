@@ -16,6 +16,7 @@ Config.LockerWeight = 50000
 Config.RecruitDistance = 5.0       -- un joueur recruté doit être à moins de cette distance du patron
 Config.AccountMaxAction = 10000000 -- montant maximum d'un dépôt ou retrait
 Config.HistorySize = 30            -- lignes d'historique affichées
+Config.WardrobeMax = 40           -- tenues au maximum par vestiaire (homme et femme confondus)
 
 -- Catalogues
 Config.MaxPurchase = 50            -- quantité maximale par achat (par article dans le panier des magasins)

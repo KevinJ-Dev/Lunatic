@@ -35,7 +35,7 @@ MySQL.ready(function()
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ]])
 
-    -- Tenues du vestiaire : une par grade et par modèle (homme / femme)
+    -- Anciennes tenues du vestiaire (une par grade et par modèle) : gardées, reprises une fois dans la table ci-dessous
     MySQL.query.await([[
         CREATE TABLE IF NOT EXISTS `lunatic_business_outfits` (
             `job` VARCHAR(50) NOT NULL,
@@ -45,6 +45,40 @@ MySQL.ready(function()
             PRIMARY KEY (`job`, `grade`, `model`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ]])
+
+    -- Tenues du vestiaire : autant que voulu par structure, nommées, par modèle (homme / femme) et grade minimum
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `lunatic_business_wardrobe` (
+            `id` BIGINT NOT NULL AUTO_INCREMENT,
+            `job` VARCHAR(50) NOT NULL,
+            `model` CHAR(1) NOT NULL,
+            `label` VARCHAR(40) NOT NULL,
+            `min_grade` INT NOT NULL DEFAULT 0,
+            `outfit` LONGTEXT NOT NULL,
+            `created_at` BIGINT NOT NULL,
+            PRIMARY KEY (`id`),
+            KEY `idx_lunatic_business_wardrobe_job` (`job`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ]])
+
+    -- Première fois : chaque ancienne tenue de grade devient une tenue nommée d'après ce grade
+    if (tonumber(MySQL.scalar.await('SELECT COUNT(*) FROM `lunatic_business_wardrobe`')) or 0) == 0 then
+        local jobs = ESX.GetJobs() or {}
+        local moved = 0
+
+        for _, row in ipairs(MySQL.query.await('SELECT `job`, `grade`, `model`, `outfit` FROM `lunatic_business_outfits` ORDER BY `job`, `grade`') or {}) do
+            local grade = (((jobs[row.job] or {}).grades or {})[tostring(row.grade)] or {})
+            local label = (grade.label and grade.label ~= '' and grade.label or ('Grade %d'):format(row.grade)):sub(1, 40)
+
+            MySQL.insert.await('INSERT INTO `lunatic_business_wardrobe` (`job`, `model`, `label`, `min_grade`, `outfit`, `created_at`) VALUES (?, ?, ?, ?, ?, ?)',
+                { row.job, row.model, label, tonumber(row.grade) or 0, row.outfit, os.time() })
+            moved = moved + 1
+        end
+
+        if moved > 0 then
+            print(('[lunatic_business] Vestiaires : %d tenue(s) de grade reprise(s) en tenues nommées.'):format(moved))
+        end
+    end
 end)
 
 ---------------------------------------------------------------------
@@ -464,6 +498,7 @@ end)
 -- Vestiaire
 ---------------------------------------------------------------------
 
+-- Vestiaire : tenues de la structure (les deux modèles ; « wearable » = celles du modèle du joueur, de son grade ou en dessous)
 lib.callback.register('lunatic_business:outfits', function(src, pointId)
     local xPlayer, point, err = check(src, pointId, 'wardrobe')
 
@@ -473,6 +508,7 @@ lib.callback.register('lunatic_business:outfits', function(src, pointId)
 
     local model = MODELS[GetEntityModel(GetPlayerPed(src))]
     local job = xPlayer.getJob()
+    local isBoss = job.grade_name == 'boss'
     local grades = sortedGrades(point.job)
     local labels = {}
 
@@ -480,56 +516,50 @@ lib.callback.register('lunatic_business:outfits', function(src, pointId)
         labels[grade.grade] = grade.label
     end
 
-    -- Un membre voit les tenues de son grade et des grades inférieurs
     local outfits = {}
 
-    for _, row in ipairs(MySQL.query.await('SELECT `grade`, `model`, `outfit` FROM `lunatic_business_outfits` WHERE `job` = ? ORDER BY `grade`', { point.job }) or {}) do
-        local grade = tonumber(row.grade)
+    for _, row in ipairs(MySQL.query.await('SELECT `id`, `model`, `label`, `min_grade`, `outfit` FROM `lunatic_business_wardrobe` WHERE `job` = ? ORDER BY `min_grade`, `label`', { point.job }) or {}) do
+        local minGrade = tonumber(row.min_grade) or 0
+        local allowed = isBoss or minGrade <= tonumber(job.grade)
 
-        if row.model == model and (grade <= tonumber(job.grade) or job.grade_name == 'boss') then
-            outfits[#outfits + 1] = { grade = grade, label = labels[grade] or ('Grade %d'):format(grade), outfit = json.decode(row.outfit) }
+        -- Le patron voit tout ; les autres, ce que leur grade permet
+        if allowed then
+            outfits[#outfits + 1] = {
+                id = tonumber(row.id), label = row.label, model = row.model, minGrade = minGrade, gradeLabel = labels[minGrade] or ('Grade %d'):format(minGrade),
+                wearable = row.model == model, outfit = json.decode(row.outfit),
+            }
         end
     end
 
-    return { ok = true, model = model, isBoss = job.grade_name == 'boss', grades = grades, outfits = outfits }
+    return { ok = true, model = model, isBoss = isBoss, grades = grades, outfits = outfits, max = Config.WardrobeMax }
 end)
 
-lib.callback.register('lunatic_business:saveOutfit', function(src, pointId, grade, outfit)
-    local xPlayer, point, err = check(src, pointId, 'wardrobe', { boss = true })
-
-    if not xPlayer then
-        return fail(err)
+local function cleanLabel(value)
+    if type(value) ~= 'string' then
+        return nil
     end
 
-    local model = MODELS[GetEntityModel(GetPlayerPed(src))]
-    grade = tonumber(grade)
+    local label = value:gsub('[%c<>]', ''):match('^%s*(.-)%s*$')
+    local length = utf8.len(label)
+    return length and length >= 2 and length <= 40 and label or nil
+end
 
-    if not model then
-        return fail('Tenues réservées aux personnages homme ou femme du jeu (freemode).')
-    end
-
-    if not grade or not ESX.DoesJobExist(point.job, grade) then
-        return fail('Grade invalide.')
-    end
-
+local function cleanOutfit(outfit)
     if type(outfit) ~= 'table' or type(outfit.components) ~= 'table' or type(outfit.props) ~= 'table' then
-        return fail('Tenue invalide.')
+        return nil
     end
 
     local encoded = json.encode({ components = outfit.components, props = outfit.props })
+    return #encoded <= 20000 and encoded or nil
+end
 
-    if #encoded > 20000 then
-        return fail('Tenue invalide.')
-    end
+-- Tenue de la structure, par id
+local function wardrobeOutfit(job, id)
+    return MySQL.single.await('SELECT `id`, `model`, `label`, `min_grade` FROM `lunatic_business_wardrobe` WHERE `id` = ? AND `job` = ?', { tonumber(id) or -1, job })
+end
 
-    MySQL.query.await('INSERT INTO `lunatic_business_outfits` (`job`, `grade`, `model`, `outfit`) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE `outfit` = VALUES(`outfit`)', {
-        point.job, grade, model, encoded,
-    })
-
-    return { ok = true }
-end)
-
-lib.callback.register('lunatic_business:deleteOutfit', function(src, pointId, grade)
+-- Patron : nouvelle tenue (celle qu'il porte), ou remplacement des vêtements d'une tenue existante (id)
+lib.callback.register('lunatic_business:saveOutfit', function(src, pointId, data, outfit)
     local xPlayer, point, err = check(src, pointId, 'wardrobe', { boss = true })
 
     if not xPlayer then
@@ -537,8 +567,84 @@ lib.callback.register('lunatic_business:deleteOutfit', function(src, pointId, gr
     end
 
     local model = MODELS[GetEntityModel(GetPlayerPed(src))]
-    MySQL.update.await('DELETE FROM `lunatic_business_outfits` WHERE `job` = ? AND `grade` = ? AND `model` = ?', { point.job, tonumber(grade) or -1, model or '' })
+    local encoded = cleanOutfit(outfit)
+    data = type(data) == 'table' and data or {}
 
+    if not model then
+        return fail('Tenues réservées aux personnages homme ou femme du jeu (freemode).')
+    elseif not encoded then
+        return fail('Tenue invalide.')
+    end
+
+    if data.id then
+        local existing = wardrobeOutfit(point.job, data.id)
+
+        if not existing then
+            return fail('Tenue introuvable.')
+        elseif existing.model ~= model then
+            return fail(('Cette tenue est pour un personnage %s.'):format(existing.model == 'm' and 'homme' or 'femme'))
+        end
+
+        MySQL.update.await('UPDATE `lunatic_business_wardrobe` SET `outfit` = ? WHERE `id` = ?', { encoded, existing.id })
+        GameLog('companies', 'info', src, 'company.outfit', jobLabel(point.job), { label = existing.label, operation = 'replace' })
+        return { ok = true }
+    end
+
+    local label, minGrade = cleanLabel(data.label), tonumber(data.minGrade)
+
+    if not label then
+        return fail('Nom de 2 à 40 caractères.')
+    elseif not minGrade or not ESX.DoesJobExist(point.job, minGrade) then
+        return fail('Grade invalide.')
+    elseif (tonumber(MySQL.scalar.await('SELECT COUNT(*) FROM `lunatic_business_wardrobe` WHERE `job` = ?', { point.job })) or 0) >= Config.WardrobeMax then
+        return fail(('%d tenues au maximum par vestiaire.'):format(Config.WardrobeMax))
+    end
+
+    MySQL.insert.await('INSERT INTO `lunatic_business_wardrobe` (`job`, `model`, `label`, `min_grade`, `outfit`, `created_at`) VALUES (?, ?, ?, ?, ?, ?)',
+        { point.job, model, label, minGrade, encoded, os.time() })
+    GameLog('companies', 'info', src, 'company.outfit', jobLabel(point.job), { label = label, operation = 'add' })
+    return { ok = true }
+end)
+
+-- Patron : nom et grade minimum d'une tenue
+lib.callback.register('lunatic_business:editOutfit', function(src, pointId, id, data)
+    local xPlayer, point, err = check(src, pointId, 'wardrobe', { boss = true })
+
+    if not xPlayer then
+        return fail(err)
+    end
+
+    local existing = wardrobeOutfit(point.job, id)
+    data = type(data) == 'table' and data or {}
+    local label, minGrade = cleanLabel(data.label), tonumber(data.minGrade)
+
+    if not existing then
+        return fail('Tenue introuvable.')
+    elseif not label then
+        return fail('Nom de 2 à 40 caractères.')
+    elseif not minGrade or not ESX.DoesJobExist(point.job, minGrade) then
+        return fail('Grade invalide.')
+    end
+
+    MySQL.update.await('UPDATE `lunatic_business_wardrobe` SET `label` = ?, `min_grade` = ? WHERE `id` = ?', { label, minGrade, existing.id })
+    return { ok = true }
+end)
+
+lib.callback.register('lunatic_business:deleteOutfit', function(src, pointId, id)
+    local xPlayer, point, err = check(src, pointId, 'wardrobe', { boss = true })
+
+    if not xPlayer then
+        return fail(err)
+    end
+
+    local existing = wardrobeOutfit(point.job, id)
+
+    if not existing then
+        return fail('Tenue introuvable.')
+    end
+
+    MySQL.update.await('DELETE FROM `lunatic_business_wardrobe` WHERE `id` = ?', { existing.id })
+    GameLog('companies', 'info', src, 'company.outfit', jobLabel(point.job), { label = existing.label, operation = 'delete' })
     return { ok = true }
 end)
 

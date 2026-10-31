@@ -171,6 +171,7 @@ const ACTION_LABELS = {
     "company.withdraw": "a retiré du compte de",
     "company.order": "a passé une commande chez",
     "company.orderServed": "a servi une commande chez",
+    "company.outfit": "a modifié les tenues du vestiaire de",
     "vehicle.rent": "a loué",
     "vehicle.rent_return": "a rendu",
     "vehicle.service_out": "a sorti",

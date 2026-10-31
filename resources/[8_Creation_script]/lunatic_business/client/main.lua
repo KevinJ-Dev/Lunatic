@@ -246,7 +246,91 @@ end
 
 local appearance = exports['illenium-appearance']
 
-local function openWardrobe(point)
+local MODEL_LABELS = { m = 'Homme', f = 'Femme' }
+
+local function currentOutfit()
+    local ped = PlayerPedId()
+    return { components = appearance:getPedComponents(ped), props = appearance:getPedProps(ped) }
+end
+
+local function wearOutfit(outfit)
+    local ped = PlayerPedId()
+    appearance:setPedComponents(ped, outfit.outfit.components)
+    appearance:setPedProps(ped, outfit.outfit.props)
+    notify(('Tenue « %s » enfilée.'):format(outfit.label), 'success')
+end
+
+local function gradeChoices(grades)
+    local choices = {}
+
+    for _, grade in ipairs(grades) do
+        choices[#choices + 1] = { value = grade.grade, label = grade.label }
+    end
+
+    return choices
+end
+
+local openWardrobe
+
+-- Patron : une tenue (nom, grade, vêtements, suppression)
+local function manageOutfit(point, data, outfit)
+    local options = {
+        { title = 'Renommer / changer le grade', description = ('%s · à partir de : %s'):format(outfit.label, outfit.gradeLabel), icon = 'pen', onSelect = function()
+            local input = lib.inputDialog(outfit.label, {
+                { type = 'input', label = 'Nom de la tenue', default = outfit.label, required = true, min = 2, max = 40 },
+                { type = 'select', label = 'Grade minimum', options = gradeChoices(data.grades), default = outfit.minGrade, required = true },
+            })
+
+            if input and not failed(lib.callback.await('lunatic_business:editOutfit', false, point.id, outfit.id, { label = input[1], minGrade = input[2] })) then
+                notify('Tenue modifiée.', 'success')
+            end
+
+            openWardrobe(point, true)
+        end },
+        { title = 'Remplacer par ma tenue actuelle', description = outfit.wearable and 'Les vêtements que vous portez deviennent ceux de cette tenue' or ('Tenue pour un personnage %s'):format(MODEL_LABELS[outfit.model]:lower()),
+            icon = 'shirt', disabled = not outfit.wearable, onSelect = function()
+            if not failed(lib.callback.await('lunatic_business:saveOutfit', false, point.id, { id = outfit.id }, currentOutfit())) then
+                notify('Tenue mise à jour.', 'success')
+            end
+
+            openWardrobe(point, true)
+        end },
+        { title = 'Supprimer', icon = 'trash', iconColor = '#ff4d5e', onSelect = function()
+            local answer = lib.alertDialog({ header = ('Supprimer « %s » ?'):format(outfit.label), content = 'La tenue disparaît du vestiaire.', centered = true, cancel = true, labels = { confirm = 'Supprimer', cancel = 'Annuler' } })
+
+            if answer == 'confirm' and not failed(lib.callback.await('lunatic_business:deleteOutfit', false, point.id, outfit.id)) then
+                notify('Tenue supprimée.', 'success')
+            end
+
+            openWardrobe(point, true)
+        end },
+    }
+
+    lib.registerContext({ id = 'lb_outfit', title = ('%s (%s)'):format(outfit.label, MODEL_LABELS[outfit.model]), menu = 'lb_outfits', options = options })
+    lib.showContext('lb_outfit')
+end
+
+-- Patron : toutes les tenues, homme et femme
+local function manageOutfits(point, data)
+    local options = {}
+
+    for _, outfit in ipairs(data.outfits) do
+        options[#options + 1] = {
+            title = outfit.label, description = ('%s · à partir de : %s'):format(MODEL_LABELS[outfit.model], outfit.gradeLabel),
+            icon = outfit.model == 'f' and 'person-dress' or 'person', onSelect = function() manageOutfit(point, data, outfit) end,
+        }
+    end
+
+    if #options == 0 then
+        options[1] = { title = 'Aucune tenue', readOnly = true }
+    end
+
+    lib.registerContext({ id = 'lb_outfits', title = ('Tenues (%d / %d)'):format(#data.outfits, data.max), menu = 'lb_wardrobe', options = options })
+    lib.showContext('lb_outfits')
+end
+
+-- Vestiaire : tenues portables (modèle et grade du joueur), tenue civile ; le patron crée et gère les tenues
+openWardrobe = function(point, manage)
     local data = lib.callback.await('lunatic_business:outfits', false, point.id)
 
     if failed(data) then
@@ -256,18 +340,15 @@ local function openWardrobe(point)
     local options = {}
 
     for _, outfit in ipairs(data.outfits) do
-        options[#options + 1] = { title = ('Tenue : %s'):format(outfit.label), icon = 'shirt', onSelect = function()
-            local ped = PlayerPedId()
-            appearance:setPedComponents(ped, outfit.outfit.components)
-            appearance:setPedProps(ped, outfit.outfit.props)
-            notify(('Tenue « %s » enfilée.'):format(outfit.label), 'success')
-        end }
+        if outfit.wearable then
+            options[#options + 1] = { title = outfit.label, description = ('À partir de : %s'):format(outfit.gradeLabel), icon = 'shirt', onSelect = function() wearOutfit(outfit) end }
+        end
     end
 
     if not data.model then
         options[#options + 1] = { title = 'Aucune tenue', description = 'Les tenues ne concernent que les personnages homme ou femme du jeu.', readOnly = true }
-    elseif #data.outfits == 0 then
-        options[#options + 1] = { title = 'Aucune tenue pour votre grade', readOnly = true }
+    elseif #options == 0 then
+        options[#options + 1] = { title = 'Aucune tenue pour vous', description = ('Tenues %s de votre grade : aucune pour le moment.'):format(MODEL_LABELS[data.model]:lower()), readOnly = true }
     end
 
     options[#options + 1] = { title = 'Reprendre ma tenue civile', icon = 'user', onSelect = function()
@@ -275,53 +356,31 @@ local function openWardrobe(point)
     end }
 
     if data.isBoss and data.model then
-        options[#options + 1] = { title = 'Enregistrer ma tenue pour un grade', description = 'La tenue que vous portez devient celle du grade choisi', icon = 'floppy-disk', onSelect = function()
-            local choices = {}
-
-            for _, grade in ipairs(data.grades) do
-                choices[#choices + 1] = { value = grade.grade, label = grade.label }
-            end
-
-            local input = lib.inputDialog('Enregistrer la tenue', { { type = 'select', label = 'Grade', options = choices, required = true } })
-
-            if not input or input[1] == nil then
-                return openWardrobe(point)
-            end
-
-            local ped = PlayerPedId()
-            local result = lib.callback.await('lunatic_business:saveOutfit', false, point.id, input[1], {
-                components = appearance:getPedComponents(ped),
-                props = appearance:getPedProps(ped),
+        options[#options + 1] = { title = 'Nouvelle tenue', description = 'La tenue que vous portez, avec un nom et un grade minimum', icon = 'plus', onSelect = function()
+            local input = lib.inputDialog('Nouvelle tenue', {
+                { type = 'input', label = 'Nom de la tenue', placeholder = 'Uniforme caisse', required = true, min = 2, max = 40 },
+                { type = 'select', label = 'Grade minimum', options = gradeChoices(data.grades), default = data.grades[1] and data.grades[1].grade, required = true },
             })
 
-            if not failed(result) then
-                notify('Tenue enregistrée.', 'success')
+            if input and not failed(lib.callback.await('lunatic_business:saveOutfit', false, point.id, { label = input[1], minGrade = input[2] }, currentOutfit())) then
+                notify(('Tenue « %s » enregistrée (%s).'):format(input[1], MODEL_LABELS[data.model]:lower()), 'success')
             end
 
             openWardrobe(point)
         end }
 
-        if #data.outfits > 0 then
-            options[#options + 1] = { title = 'Supprimer une tenue', icon = 'trash', onSelect = function()
-                local choices = {}
-
-                for _, outfit in ipairs(data.outfits) do
-                    choices[#choices + 1] = { value = outfit.grade, label = outfit.label }
-                end
-
-                local input = lib.inputDialog('Supprimer une tenue', { { type = 'select', label = 'Grade', options = choices, required = true } })
-
-                if input and input[1] ~= nil and not failed(lib.callback.await('lunatic_business:deleteOutfit', false, point.id, input[1])) then
-                    notify('Tenue supprimée.', 'success')
-                end
-
-                openWardrobe(point)
-            end }
-        end
+        options[#options + 1] = { title = 'Gérer les tenues', description = ('%d tenue%s, homme et femme'):format(#data.outfits, #data.outfits > 1 and 's' or ''), icon = 'list', onSelect = function()
+            manageOutfits(point, data)
+        end }
     end
 
     lib.registerContext({ id = 'lb_wardrobe', title = 'Vestiaire', options = options })
-    lib.showContext('lb_wardrobe')
+
+    if manage then
+        manageOutfits(point, data)
+    else
+        lib.showContext('lb_wardrobe')
+    end
 end
 
 ---------------------------------------------------------------------
