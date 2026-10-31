@@ -172,6 +172,8 @@ const ACTION_LABELS = {
     "company.order": "a passé une commande chez",
     "company.orderServed": "a servi une commande chez",
     "company.outfit": "a modifié les tenues du vestiaire de",
+    "storage.deposit": "a déposé dans le stockage de",
+    "storage.withdraw": "a pris dans le stockage de",
     "vehicle.rent": "a loué",
     "vehicle.rent_return": "a rendu",
     "vehicle.service_out": "a sorti",

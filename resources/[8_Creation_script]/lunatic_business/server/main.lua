@@ -196,6 +196,34 @@ CreateThread(function()
     setPoints(GlobalState.lunaticStructurePoints)
 end)
 
+-- Coffres Stockage : chaque dépôt et retrait va dans les logs du panel (Entreprises), pour savoir qui a pris quoi
+CreateThread(function()
+    while GetResourceState('ox_inventory') ~= 'started' do
+        Wait(500)
+    end
+
+    ox:registerHook('swapItems', function(payload)
+        local fromStash = payload.fromType == 'stash' and tostring(payload.fromInventory):match('^lb_storage_(%d+)$') or nil
+        local toStash = payload.toType == 'stash' and tostring(payload.toInventory):match('^lb_storage_(%d+)$') or nil
+
+        -- Rangement à l'intérieur du même coffre : rien à noter
+        if fromStash == toStash then
+            return true
+        end
+
+        local point = points[tonumber(toStash or fromStash)]
+        local item = type(payload.fromSlot) == 'table' and payload.fromSlot or {}
+
+        if point then
+            GameLog('companies', 'info', payload.source, toStash and 'storage.deposit' or 'storage.withdraw', jobLabel(point.job), {
+                point = point.label, item = item.name, label = item.label, count = payload.count,
+            })
+        end
+
+        return true
+    end, { inventoryFilter = { '^lb_storage_%d+$' } })
+end)
+
 ---------------------------------------------------------------------
 -- Contrôles communs
 ---------------------------------------------------------------------
