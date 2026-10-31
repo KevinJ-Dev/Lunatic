@@ -27,6 +27,7 @@ const ACTION_LABELS = {
     "player.appearance": "a ouvert le menu d'apparence de",
     "player.recreate": "a renvoyé à la création de personnage",
     "player.copyAppearance": "a copié l'apparence de",
+    "player.appearanceUndo": "a remis l'apparence d'avant de",
     "player.wipe": "a wipe",
     "premium.set": "a donné un abonnement à",
     "premium.remove": "a retiré l'abonnement de",

@@ -429,6 +429,28 @@ Panel.actions['player.appearance'] = function(src, actor, data)
     return { ok = true, silent = true }
 end
 
+-- Remet l'apparence sauvegardée avant le dernier habillage staff enregistré (lunatic_clothing)
+Panel.actions['player.appearanceUndo'] = function(src, actor, data)
+    local target, err = check(src, actor, data, 'players.appearance', { protect = true })
+
+    if not target then
+        return err
+    end
+
+    if GetResourceState('lunatic_clothing') ~= 'started' then
+        return Panel.fail("lunatic_clothing n'est pas démarré.")
+    end
+
+    local ok, restored, reason = pcall(function() return exports.lunatic_clothing:restorePreviousAppearance(target) end)
+
+    if not ok or not restored then
+        return Panel.fail(ok and reason or 'Restauration impossible.')
+    end
+
+    Logs.add(src, 'player.appearanceUndo', Staff.displayName(target), { serverId = target })
+    return { ok = true, silent = true }
+end
+
 -- Renvoie le joueur à la création de personnage (identité puis apparence), via l'export de lunatic_creator
 Panel.actions['player.recreate'] = function(src, actor, data)
     local target, err = check(src, actor, data, 'players.recreate', { protect = true })

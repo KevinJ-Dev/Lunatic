@@ -861,6 +861,7 @@ function paintFiche() {
                         const res = await playerAction("player.appearance", info.isSelf ? null : "Menu d'apparence ouvert chez le joueur.");
                         if (res && info.isSelf) closePanel(); // le menu s'ouvre sur votre écran
                     }),
+                    button("Apparence d'avant", "i-undo", "players.appearance", { protect: true }, () => run("player.appearanceUndo", "Apparence d'avant remise.")),
                     info.isSelf
                         ? button("Mon apparence", "i-player", "players.copy_appearance", {}, () => run("player.restoreAppearance", "Votre apparence est rétablie."))
                         : button("Copier l'apparence", "i-copy", "players.copy_appearance", {}, () => run("player.copyAppearance", "Apparence copiée sur vous (non enregistrée).")),

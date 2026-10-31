@@ -88,6 +88,7 @@ local function characterMenu(ctx, player)
                     ctx.closeQuick()
                 end
             end),
+            entry(ctx, info, "Apparence d'avant", 'players.appearance', { protect = true }, function() ctx.run('player.appearanceUndo', target, "Apparence d'avant remise.") end),
             info.isSelf and entry(ctx, info, 'Rétablir mon apparence', 'players.copy_appearance', {}, function() ctx.run('player.restoreAppearance', target, 'Votre apparence est rétablie.') end)
                 or entry(ctx, info, "Copier l'apparence sur moi", 'players.copy_appearance', {}, function() ctx.run('player.copyAppearance', target, 'Apparence copiée sur vous (non enregistrée).') end),
             entry(ctx, info, 'Donner un véhicule', 'vehicles.give', {}, function()
