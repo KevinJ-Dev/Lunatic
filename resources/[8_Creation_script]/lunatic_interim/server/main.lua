@@ -40,6 +40,11 @@ local function loadPlayer(src)
     end
 
     Player(src).state:set('interimJob', JobById(id) and id or nil, true)
+
+    -- Déconnecté en pleine chasse : le fusil prêté est repris
+    if ReturnHuntWeapon then
+        ReturnHuntWeapon(src)
+    end
 end
 
 MySQL.ready(function()

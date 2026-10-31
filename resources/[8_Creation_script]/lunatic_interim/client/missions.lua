@@ -368,7 +368,7 @@ end
 local GATHER_BRIEFS = {
     mine = 'Minez %d fois les rochers de la carrière (zone sur la carte), puis revenez au dépôt.',
     fish = 'Pêchez %d poissons au bord de l\u{2019}eau dans la zone, puis revenez au dépôt.',
-    hunt = 'Ramenez %d gibiers : abattez-les avec votre arme dans la zone, dépecez-les, puis revenez au dépôt.',
+    hunt = 'Ramenez %d gibiers : abattez-les avec le fusil prêté (sans effet sur les joueurs), dépecez-les, puis revenez au dépôt.',
 }
 
 local function startGather()

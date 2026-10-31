@@ -46,11 +46,103 @@ local function deleteVehicle(mission)
     end
 end
 
+---------------------------------------------------------------------
+-- Chasseur : fusil prêté (objets marqués « interim »), repris à la fin ; il ne blesse que les animaux
+---------------------------------------------------------------------
+
+local function ox()
+    return GetResourceState('ox_inventory') == 'started' and exports.ox_inventory or nil
+end
+
+local function lendWeapon(src)
+    local inventory, gear = ox(), Config.HuntWeapon
+
+    if not inventory then
+        return false
+    end
+
+    if not inventory:CanCarryItem(src, gear.weapon, 1) or not inventory:AddItem(src, gear.weapon, 1, { interim = true }) then
+        return false
+    end
+
+    inventory:AddItem(src, gear.ammo, gear.count, { interim = true })
+    return true
+end
+
+-- Aussi appelé à la connexion (server/main.lua) : fusil resté après une déconnexion en pleine chasse
+function ReturnHuntWeapon(src)
+    local inventory, gear = ox(), Config.HuntWeapon
+
+    if not inventory then
+        return
+    end
+
+    for _, name in ipairs({ gear.weapon, gear.ammo }) do
+        local count = inventory:Search(src, 'count', name, { interim = true }) or 0
+
+        if count > 0 then
+            inventory:RemoveItem(src, name, count, { interim = true })
+        end
+    end
+end
+
+local function isPlayerPed(entity)
+    for _, id in ipairs(GetPlayers()) do
+        if GetPlayerPed(id) == entity then
+            return true
+        end
+    end
+
+    return false
+end
+
+-- Tir du fusil prêté sur un joueur : dégâts annulés
+AddEventHandler('weaponDamageEvent', function(sender, data)
+    local mission = missions[tonumber(sender)]
+
+    if not mission or mission.task ~= 'hunt' or data.weaponType ~= joaat(Config.HuntWeapon.weapon) then
+        return
+    end
+
+    local targets = type(data.hitGlobalIds) == 'table' and data.hitGlobalIds or { data.hitGlobalId }
+
+    for _, netId in ipairs(targets) do
+        local entity = netId and NetworkGetEntityFromNetworkId(netId) or 0
+
+        if entity ~= 0 and isPlayerPed(entity) then
+            CancelEvent()
+            return
+        end
+    end
+end)
+
+-- Le fusil et ses munitions prêtés ne quittent pas l'inventaire du chasseur (ni donnés, ni jetés, ni rangés)
+CreateThread(function()
+    while GetResourceState('ox_inventory') ~= 'started' do
+        Wait(1000)
+    end
+
+    local gear = Config.HuntWeapon
+    exports.ox_inventory:registerHook('swapItems', function(payload)
+        local slot = payload.fromSlot
+
+        if type(slot) == 'table' and type(slot.metadata) == 'table' and slot.metadata.interim and payload.fromInventory ~= payload.toInventory then
+            return false
+        end
+
+        return true
+    end, { itemFilter = { [gear.weapon] = true, [gear.ammo] = true } })
+end)
+
 local function stop(src, message, kind)
     local mission = missions[src]
 
     if not mission then
         return
+    end
+
+    if mission.task == 'hunt' then
+        ReturnHuntWeapon(src)
     end
 
     deleteVehicle(mission)
@@ -267,6 +359,10 @@ lib.callback.register('lunatic_interim:missionFinish', function(src)
     deleteVehicle(mission)
     missions[src] = nil
 
+    if mission.task == 'hunt' then
+        ReturnHuntWeapon(src)
+    end
+
     if mission.salary > 0 then
         xPlayer.addAccountMoney('bank', mission.salary, ("Mission d'intérim : %s"):format(mission.label))
     end
@@ -294,6 +390,10 @@ lib.callback.register('lunatic_interim:gatherStart', function(src)
         return fail('Vous avez déjà une mission en cours.')
     elseif not coords or #(coords - vec(settings.depot)) > 6.0 then
         return fail('Rendez-vous au dépôt.')
+    end
+
+    if job.task == 'hunt' and not lendWeapon(src) then
+        return fail("Impossible de vous prêter le fusil (inventaire plein ?).")
     end
 
     local rules = TaskSettings(job.task)

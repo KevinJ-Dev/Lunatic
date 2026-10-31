@@ -59,8 +59,11 @@ Config.Tasks = {
     -- Récoltes : radius = zone autour du dépôt, gatherSeconds = temps minimum entre deux récoltes (vérifié par le serveur)
     mine = { radius = 80.0, gatherSeconds = 5, finish = 10.0, rocks = 5 },        -- placez le dépôt dans la carrière
     fish = { radius = 150.0, gatherSeconds = 8, finish = 10.0 },                  -- au bord de l'eau (ponton, plage)
-    hunt = { radius = 450.0, gatherSeconds = 8, finish = 10.0, animals = 4 },     -- en forêt ; arme personnelle
+    hunt = { radius = 450.0, gatherSeconds = 8, finish = 10.0, animals = 4 },     -- en forêt
 }
+
+-- Chasseur : fusil prêté pendant la mission (repris à la fin), sans effet sur les joueurs (dégâts annulés par le serveur)
+Config.HuntWeapon = { weapon = 'WEAPON_MUSKET', ammo = 'ammo-musket', count = 20 }
 
 -- Escales du pilote : pistes de la carte (le panel ne les règle pas encore)
 Config.Airports = {
