@@ -1143,83 +1143,218 @@ lib.callback.register('lunatic_business:buy', function(src, pointId, catalogId, 
     return { ok = true, amount = amount, label = label, total = total }
 end)
 
--- Craft en deux temps : début (vérifications, heure de départ), puis fin après la durée de la recette
-local crafting = {}
+-- Craft (doc Vision) : file d'attente par joueur, au poste de craft. Chaque unité sort après la durée de la recette ;
+-- ses ingrédients sont pris à ce moment-là (rien n'est perdu si on annule, s'éloigne ou se déconnecte).
+-- S'éloigner du poste arrête la file ; ingrédients manquants ou inventaire plein : la recette attend ou s'arrête.
+local crafting = {} -- joueur -> { pointId, queue = { { catalogId, lineId, item, label, count, qty, done, duration, ingredients, started, waiting } } }
 
 AddEventHandler('playerDropped', function()
     crafting[source] = nil
 end)
 
-local function craftCheck(src, pointId, catalogId, lineId)
-    local xPlayer, point, err = check(src, pointId, 'craft')
+-- Recettes de la structure au poste, avec l'étiquette des objets et le grade requis
+local function craftRecipes(xPlayer, point)
+    local grade = tonumber(xPlayer.getJob().grade) or 0
+    local list = {}
 
-    if not xPlayer then
-        return nil, err
-    end
+    for _, catalog in pairs(GlobalState.lunaticCatalogs or {}) do
+        if catalog.kind == 'craft' and catalog.jobs and catalog.jobs[point.job] then
+            for _, line in ipairs(catalog.lines or {}) do
+                local ingredients = {}
 
-    local catalog, line = findLine(point.job, catalogId, lineId)
+                for _, ingredient in ipairs(line.ingredients or {}) do
+                    ingredients[#ingredients + 1] = { item = ingredient.item, label = itemLabel(ingredient.item), count = ingredient.count }
+                end
 
-    if not line or catalog.kind ~= 'craft' then
-        return nil, 'Recette introuvable.'
-    end
-
-    if tonumber(xPlayer.getJob().grade) < (line.minGrade or 0) then
-        return nil, 'Votre grade ne permet pas cette recette.'
-    end
-
-    for _, ingredient in ipairs(line.ingredients or {}) do
-        if (ox:GetItemCount(src, ingredient.item) or 0) < ingredient.count then
-            return nil, ('Il vous manque : %d × %s.'):format(ingredient.count, itemLabel(ingredient.item))
+                list[#list + 1] = {
+                    catalogId = catalog.id, lineId = line.id, catalog = catalog.label, item = line.item, label = itemLabel(line.item), count = line.count,
+                    duration = line.duration, minGrade = line.minGrade or 0, locked = grade < (line.minGrade or 0), ingredients = ingredients,
+                }
+            end
         end
     end
 
-    if not ox:CanCarryItem(src, line.item, line.count) then
-        return nil, "Vous n'avez pas assez de place."
-    end
-
-    return line
+    table.sort(list, function(a, b) return a.label < b.label end)
+    return list
 end
 
-lib.callback.register('lunatic_business:craftStart', function(src, pointId, catalogId, lineId)
-    local line, err = craftCheck(src, pointId, catalogId, lineId)
+-- Objets du joueur, regroupés par nom (colonne « Objets » de l'écran)
+local function inventoryOf(src)
+    local byName, list = {}, {}
 
-    if not line then
+    for _, slot in pairs(ox:GetInventoryItems(src) or {}) do
+        if type(slot) == 'table' and slot.name then
+            local entry = byName[slot.name]
+
+            if not entry then
+                entry = { name = slot.name, label = slot.label or itemLabel(slot.name), count = 0 }
+                byName[slot.name] = entry
+                list[#list + 1] = entry
+            end
+
+            entry.count = entry.count + (tonumber(slot.count) or 0)
+        end
+    end
+
+    table.sort(list, function(a, b) return a.label < b.label end)
+    return list
+end
+
+local function craftState(src)
+    local entry = crafting[src]
+    local queue = {}
+
+    for index, job in ipairs(entry and entry.queue or {}) do
+        queue[index] = {
+            item = job.item, label = job.label, count = job.count, qty = job.qty, done = job.done, duration = job.duration, waiting = job.waiting,
+            left = index == 1 and job.started and math.max(0, job.duration * 1000 - (GetGameTimer() - job.started)) or nil,
+        }
+    end
+
+    return { queue = queue, inventory = inventoryOf(src) }
+end
+
+local function pushCraftState(src)
+    TriggerClientEvent('lunatic_business:craftState', src, craftState(src))
+end
+
+lib.callback.register('lunatic_business:craftOpen', function(src, pointId)
+    local xPlayer, point, err = check(src, pointId, 'craft')
+
+    if not xPlayer then
         return fail(err)
     end
 
-    crafting[src] = { pointId = pointId, catalogId = catalogId, lineId = lineId, at = GetGameTimer(), duration = line.duration }
-    return { ok = true, duration = line.duration, label = itemLabel(line.item) }
+    return { ok = true, label = jobLabel(point.job), recipes = craftRecipes(xPlayer, point), state = craftState(src), max = Config.CraftMaxQuantity }
 end)
 
-lib.callback.register('lunatic_business:craftFinish', function(src, pointId, catalogId, lineId)
-    local pending = crafting[src]
-    crafting[src] = nil
+lib.callback.register('lunatic_business:craftAdd', function(src, pointId, catalogId, lineId, quantity)
+    local xPlayer, point, err = check(src, pointId, 'craft')
 
-    if not pending or pending.pointId ~= pointId or pending.catalogId ~= catalogId or pending.lineId ~= lineId then
-        return fail('Fabrication interrompue.')
-    end
-
-    -- Marge d'une seconde et demie pour la latence réseau
-    if GetGameTimer() - pending.at < pending.duration * 1000 - 1500 then
-        return fail('Fabrication trop rapide.')
-    end
-
-    local line, err = craftCheck(src, pointId, catalogId, lineId)
-
-    if not line then
+    if not xPlayer then
         return fail(err)
     end
 
+    local catalog, line = findLine(point.job, catalogId, lineId)
+    local qty = tonumber(quantity)
+    local entry = crafting[src]
+
+    if not line or catalog.kind ~= 'craft' then
+        return fail('Recette introuvable.')
+    elseif tonumber(xPlayer.getJob().grade) < (line.minGrade or 0) then
+        return fail('Votre grade ne permet pas cette recette.')
+    elseif not qty or qty ~= math.floor(qty) or qty < 1 or qty > Config.CraftMaxQuantity then
+        return fail(('Quantité de 1 à %d.'):format(Config.CraftMaxQuantity))
+    elseif entry and #entry.queue > 0 and entry.pointId ~= point.id then
+        return fail('Vous fabriquez déjà à un autre poste.')
+    elseif entry and #entry.queue >= Config.CraftQueueMax then
+        return fail(('File pleine : %d fabrications au maximum.'):format(Config.CraftQueueMax))
+    end
+
+    -- Assez d'ingrédients pour toute la quantité demandée (ils seront pris unité par unité)
     for _, ingredient in ipairs(line.ingredients or {}) do
+        if (ox:GetItemCount(src, ingredient.item) or 0) < ingredient.count * qty then
+            return fail(('Il vous manque : %d × %s.'):format(ingredient.count * qty, itemLabel(ingredient.item)))
+        end
+    end
+
+    entry = entry or { pointId = point.id, queue = {} }
+    entry.pointId = point.id
+    entry.queue[#entry.queue + 1] = {
+        catalogId = catalog.id, lineId = line.id, item = line.item, label = itemLabel(line.item), count = line.count, qty = qty, done = 0,
+        duration = line.duration, ingredients = line.ingredients or {}, started = #entry.queue == 0 and GetGameTimer() or nil,
+    }
+    crafting[src] = entry
+
+    return { ok = true, state = craftState(src) }
+end)
+
+lib.callback.register('lunatic_business:craftCancel', function(src, index)
+    local entry = crafting[src]
+    index = tonumber(index)
+
+    if not entry or not index or not entry.queue[index] then
+        return fail('Fabrication introuvable.')
+    end
+
+    table.remove(entry.queue, index)
+
+    if index == 1 and entry.queue[1] then
+        entry.queue[1].started = GetGameTimer()
+    end
+
+    return { ok = true, state = craftState(src) }
+end)
+
+-- Unité suivante de la file : ingrédients pris, objet fabriqué
+local function craftUnit(src, job)
+    for _, ingredient in ipairs(job.ingredients) do
+        if (ox:GetItemCount(src, ingredient.item) or 0) < ingredient.count then
+            return 'missing', itemLabel(ingredient.item)
+        end
+    end
+
+    if not ox:CanCarryItem(src, job.item, job.count) then
+        return 'full'
+    end
+
+    for _, ingredient in ipairs(job.ingredients) do
         ox:RemoveItem(src, ingredient.item, ingredient.count)
     end
 
-    ox:AddItem(src, line.item, line.count)
-    return { ok = true, amount = line.count, label = itemLabel(line.item) }
-end)
+    ox:AddItem(src, job.item, job.count)
+    return 'done'
+end
 
-RegisterNetEvent('lunatic_business:craftCancel', function()
-    crafting[source] = nil
+CreateThread(function()
+    while true do
+        Wait(500)
+
+        for src, entry in pairs(crafting) do
+            local job = entry.queue[1]
+            local point = points[entry.pointId]
+
+            if not job or not GetPlayerName(src) then
+                crafting[src] = nil
+            elseif not point or distanceTo(src, point) > Config.CraftDistance then
+                crafting[src] = nil
+                notify(src, 'Vous avez quitté le poste : fabrication arrêtée (rien n\u{2019}a été perdu).', 'error')
+                pushCraftState(src)
+            elseif GetGameTimer() - job.started >= job.duration * 1000 then
+                local result, missing = craftUnit(src, job)
+
+                if result == 'done' then
+                    job.done, job.waiting = job.done + 1, nil
+
+                    if job.done >= job.qty then
+                        table.remove(entry.queue, 1)
+                        notify(src, ('Fabrication terminée : %d × %s.'):format(job.done * job.count, job.label), 'success')
+
+                        if entry.queue[1] then
+                            entry.queue[1].started = GetGameTimer()
+                        end
+                    else
+                        job.started = GetGameTimer()
+                    end
+
+                    pushCraftState(src)
+                elseif result == 'missing' then
+                    table.remove(entry.queue, 1)
+                    notify(src, ('%s : il manque %s, fabrication arrêtée.'):format(job.label, missing), 'error')
+
+                    if entry.queue[1] then
+                        entry.queue[1].started = GetGameTimer()
+                    end
+
+                    pushCraftState(src)
+                elseif not job.waiting then
+                    job.waiting = true
+                    notify(src, ('Inventaire plein : libérez de la place pour récupérer %s.'):format(job.label), 'error')
+                    pushCraftState(src)
+                end
+            end
+        end
+    end
 end)
 
 ---------------------------------------------------------------------

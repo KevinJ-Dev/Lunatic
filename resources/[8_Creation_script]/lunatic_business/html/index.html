@@ -59,9 +59,28 @@
         </aside>
         <div class="store-toast" id="garageToast"></div>
     </div>
+    <!-- Poste de craft : recettes, table de craft et file d'attente, objets du joueur -->
+    <div class="craft hidden" id="craft">
+        <section class="craft-col">
+            <header class="craft-title"><b>Recettes</b></header>
+            <div class="craft-recipes" id="craftRecipes"></div>
+        </section>
+        <section class="craft-col craft-middle">
+            <header class="craft-title"><b>Table de craft</b><small id="craftTitle"></small><button class="craft-close" id="craftClose" title="Fermer (Échap)">✕</button></header>
+            <div class="craft-table" id="craftTable"></div>
+            <header class="craft-title"><b>File d'attente</b></header>
+            <div class="craft-queue" id="craftQueue"></div>
+        </section>
+        <section class="craft-col">
+            <header class="craft-title"><b>Objets</b></header>
+            <div class="craft-inventory" id="craftInventory"></div>
+        </section>
+        <div class="store-toast" id="craftToast"></div>
+    </div>
     <script src="app.js"></script>
     <script src="store.js"></script>
     <script src="wardrobe.js"></script>
     <script src="garage.js"></script>
+    <script src="craft.js"></script>
 </body>
 </html>

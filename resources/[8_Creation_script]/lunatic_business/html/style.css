@@ -128,6 +128,52 @@ select option:checked { background: var(--accent); color: #fff; }
 .garage-item.on { border-color: var(--store, var(--accent)); background: #ffffff1a; background: color-mix(in srgb, var(--store, var(--accent)) 22%, transparent); }
 .garage-item:disabled { opacity: .45; cursor: default; }
 .garage-go { width: 100%; }
+/* Poste de craft : trois colonnes en verre, comme la capture Vision */
+.craft { position: fixed; inset: 0; display: grid; grid-template-columns: 320px 520px 360px; justify-content: center; align-content: center; gap: 14px; padding: 18px; }
+.craft-col { display: flex; flex-direction: column; gap: 8px; max-height: calc(100vh - 36px); min-height: 0; padding: 12px; border: 1px solid var(--glass-line); border-radius: 18px; background: var(--panel); box-shadow: 0 30px 60px -30px #000c; animation: store-in .25s ease-out; }
+.craft-title { display: flex; align-items: baseline; gap: 8px; padding: 2px 4px; }
+.craft-title b { font-size: 15px; }
+.craft-title small { flex: 1; overflow: hidden; color: var(--muted); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
+.craft-close { margin-left: auto; width: 26px; height: 26px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: #ffffff0a; }
+.craft-recipes { display: grid; grid-template-columns: 1fr 1fr; align-content: start; gap: 6px; min-height: 0; overflow-y: auto; }
+.craft-recipe { position: relative; display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 10px; background: #ffffff08; text-align: left; font-size: 12px; font-weight: 600; }
+.craft-recipe:hover { background: #ffffff12; }
+.craft-recipe.on { border-color: var(--accent); background: rgba(var(--accent-rgb), .22); }
+.craft-recipe.locked { opacity: .45; }
+.craft-recipe img, .craft-recipe .noimg { width: 34px; height: 34px; flex: none; object-fit: contain; }
+.craft-recipe i { position: absolute; top: 3px; right: 5px; color: #ff9aa4; font-size: 9.5px; font-style: normal; }
+.craft .noimg { display: grid; place-items: center; border-radius: 8px; background: #ffffff10; color: var(--muted); font-weight: 700; }
+.craft-table { display: grid; gap: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: #00000026; }
+.craft-head { display: flex; align-items: center; gap: 10px; }
+.craft-head > img, .craft-head > .noimg { width: 52px; height: 52px; flex: none; object-fit: contain; }
+.craft-name { display: grid; flex: 1; }
+.craft-name b { font-size: 15px; }
+.craft-name small { color: var(--muted); font-size: 11.5px; }
+.craft-ingredients { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.craft-ingredient { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 9px; background: #ffffff08; font-size: 12px; }
+.craft-ingredient img, .craft-ingredient .noimg { width: 26px; height: 26px; flex: none; object-fit: contain; }
+.craft-ingredient span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.craft-ingredient b { color: #5fd3a0; font-variant-numeric: tabular-nums; }
+.craft-ingredient.short { border-color: #ff4d5e66; }
+.craft-ingredient.short b { color: #ff7a86; }
+.craft-go { width: 100%; height: 40px; }
+.craft-queue { display: grid; align-content: start; gap: 6px; min-height: 120px; overflow-y: auto; }
+.craft-job { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: #ffffff08; }
+.craft-job.waiting { border-color: #f2c26b88; }
+.craft-job img, .craft-job .noimg { width: 32px; height: 32px; flex: none; object-fit: contain; }
+.craft-job-main { display: grid; flex: 1; gap: 6px; }
+.craft-job-line { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; }
+.craft-job-line small { color: var(--muted); }
+.craft .gauge { height: 6px; overflow: hidden; border-radius: 3px; background: #0000004d; }
+.craft-bar { display: block; width: 0; height: 100%; border-radius: 3px; background: var(--accent); transition: width .2s linear; }
+.craft-cancel { width: 24px; height: 24px; padding: 0; border: 1px solid var(--line); border-radius: 7px; background: #ffffff0a; color: var(--muted); }
+.craft-cancel:hover { border-color: #ff4d5e; color: #ff7a86; }
+.craft-inventory { display: grid; grid-template-columns: repeat(4, 1fr); align-content: start; gap: 6px; min-height: 0; overflow-y: auto; }
+.craft-item { position: relative; display: grid; justify-items: center; gap: 2px; padding: 16px 4px 6px; border: 1px solid var(--line); border-radius: 10px; background: #ffffff08; font-size: 10.5px; text-align: center; }
+.craft-item img, .craft-item .noimg { width: 40px; height: 40px; object-fit: contain; }
+.craft-item small { overflow: hidden; width: 100%; text-overflow: ellipsis; white-space: nowrap; }
+.craft-item .qty { position: absolute; top: 3px; right: 5px; color: var(--muted); font-size: 10px; font-weight: 700; }
+.craft-item.need { border-color: var(--accent); background: rgba(var(--accent-rgb), .2); }
 .wardrobe-boss .store-btn { padding: 0 6px; }
 .store-btn.danger { border-color: #ff4d5e; background: #ff4d5e; color: #fff; }
 .wardrobe-form { display: grid; gap: 8px; }

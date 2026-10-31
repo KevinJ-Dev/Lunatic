@@ -30,6 +30,7 @@ files {
     'html/store.js',
     'html/wardrobe.js',
     'html/garage.js',
+    'html/craft.js',
     'html/fonts/*.woff2',
 }
 

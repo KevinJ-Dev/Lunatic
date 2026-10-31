@@ -575,66 +575,62 @@ openCatalogList = function(point, kinds)
     lib.showContext('lb_catalogs')
 end
 
-local function craft(point, catalog, line)
-    local start = lib.callback.await('lunatic_business:craftStart', false, point.id, catalog.id, line.id)
+-- Craft (doc Vision) : écran (html/craft.js) avec les recettes, la table de craft (quantité, ingrédients), la file
+-- d'attente et les objets du joueur. La file tourne côté serveur : on peut fermer l'écran, pas quitter le poste.
 
-    if failed(start) then
+local craftPoint = nil -- poste dont l'écran est ouvert
+
+local function closeCraft()
+    if not craftPoint then
         return
     end
 
-    local done = lib.progressBar({
-        duration = start.duration * 1000,
-        label = ('Fabrication : %s'):format(start.label),
-        canCancel = true,
-        disable = { move = true, car = true, combat = true },
-        anim = { dict = 'mini@repair', clip = 'fixing_a_ped' },
-    })
-
-    if not done then
-        TriggerServerEvent('lunatic_business:craftCancel')
-        return notify('Fabrication annulée.', 'error')
-    end
-
-    local result = lib.callback.await('lunatic_business:craftFinish', false, point.id, catalog.id, line.id)
-
-    if not failed(result) then
-        notify(('%d × %s fabriqué.'):format(result.amount, result.label), 'success')
-    end
+    craftPoint = nil
+    SetNuiFocus(false, false)
+    SendNUIMessage({ action = 'craftClose' })
 end
 
 local function openCraft(point)
-    local grade = myGrade(point.job)
-    local options = {}
+    local data = lib.callback.await('lunatic_business:craftOpen', false, point.id)
 
-    for _, catalog in ipairs(catalogsFor(point.job, { craft = true })) do
-        for _, line in ipairs(catalog.lines or {}) do
-            local parts = {}
-
-            for _, ingredient in ipairs(line.ingredients or {}) do
-                parts[#parts + 1] = ('%d × %s'):format(ingredient.count, itemLabel(ingredient.item))
-            end
-
-            local locked = grade < (line.minGrade or 0)
-            options[#options + 1] = {
-                title = ('%s%s'):format(line.count > 1 and (line.count .. ' × ') or '', itemLabel(line.item)),
-                description = locked and ('Grade minimum : %d'):format(line.minGrade) or ('%s · %d s'):format(table.concat(parts, ' + '), line.duration),
-                image = itemImage(line.item),
-                icon = 'hammer',
-                disabled = locked,
-                onSelect = function()
-                    craft(point, catalog, line)
-                end,
-            }
-        end
+    if failed(data) then
+        return
     end
 
-    if #options == 0 then
+    if #data.recipes == 0 then
         return notify('Aucune recette disponible ici.', 'info')
     end
 
-    lib.registerContext({ id = 'lb_craft', title = 'Fabrication', options = options })
-    lib.showContext('lb_craft')
+    craftPoint = point
+    SetNuiFocus(true, true)
+    SendNUIMessage({ action = 'craftOpen', craft = { label = data.label, point = point.label, recipes = data.recipes, state = data.state, max = data.max } })
 end
+
+RegisterNUICallback('craftAdd', function(data, cb)
+    if not craftPoint then
+        return cb({ ok = false, error = 'Poste fermé.' })
+    end
+
+    local result = lib.callback.await('lunatic_business:craftAdd', false, craftPoint.id, tonumber(data.catalogId), tonumber(data.lineId), tonumber(data.qty))
+    cb(result or { ok = false, error = 'Fabrication impossible.' })
+end)
+
+RegisterNUICallback('craftCancel', function(data, cb)
+    local result = lib.callback.await('lunatic_business:craftCancel', false, tonumber(data.index))
+    cb(result or { ok = false, error = 'Annulation impossible.' })
+end)
+
+RegisterNUICallback('craftClose', function(_, cb)
+    cb({})
+    closeCraft()
+end)
+
+-- File mise à jour par le serveur (unité terminée, poste quitté…) : l'écran suit s'il est ouvert
+RegisterNetEvent('lunatic_business:craftState', function(state)
+    if craftPoint then
+        SendNUIMessage({ action = 'craftState', state = state })
+    end
+end)
 
 local openSaleCatalog -- défini avec les magasins (même écran)
 
