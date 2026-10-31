@@ -680,23 +680,24 @@ function paintInterim() {
         const entry = d.jobs[job.id];
         const vehicle = h("input", { class: "input mono", maxlength: "40", placeholder: job.vehicle || "modèle", value: entry.vehicle || "" });
         vehicle.addEventListener("input", () => { entry.vehicle = vehicle.value.trim(); });
-        const ready = job.kind === "route";
+        const ready = job.kind === "route" || job.kind === "gather";
+        const route = job.kind === "route";
         return h("div", { class: "card creator-spawn" },
             h("div", { class: "creator-spawn-head" }, h("b", null, `${job.label} · ${job.company}`),
                 ready ? null : h("span", { class: "badge muted" }, "missions à venir"),
                 h("div", { class: "creator-spawn-toggle" }, draftToggle(entry, "enabled", "Actif", "Proposé au Job Center"))),
             h("div", { class: "event-form-row" },
                 fieldRow(`Salaire par mission (${currencySymbol()})`, number(entry, "salary", 0, 100000)),
-                ready ? fieldRow("Arrêts par tournée", number(entry, "stops", 1, 15)) : null,
-                ready ? fieldRow("Véhicule de service", vehicle) : null),
-            ready ? spot(entry, "depot", "Dépôt ([E] : commencer / terminer)") : null,
-            ready ? spot(entry, "spawn", "Sortie du véhicule (dans le sens de départ)") : null);
+                ready ? fieldRow(route ? "Arrêts par tournée" : "Quantité à récolter", number(entry, "stops", 1, route ? 15 : 50)) : null,
+                route ? fieldRow("Véhicule de service", vehicle) : null),
+            ready ? spot(entry, "depot", route ? "Dépôt ([E] : commencer / terminer)" : "Dépôt, au centre de la zone de récolte") : null,
+            route ? spot(entry, "spawn", "Sortie du véhicule (dans le sens de départ)") : null);
     };
 
     root.replaceChildren(h("div", { class: "content interim-page" }, othersHead("Métiers d'intérim"),
         h("div", { class: "scroll others-editor" },
             h("div", { class: "card" }, h("p", { class: "hint-line", style: "margin:0" },
-                "Les joueurs prennent ces métiers au Job Center (page Job Center). Tournées (Livreur, Facteur, Éboueur) : placez-vous au dépôt puis « Définir position », et de même pour la sortie du véhicule. Les arrêts sont tirés au hasard sur les routes de la carte ; la paie va sur le compte bancaire à la fin de la tournée.")),
+                "Les joueurs prennent ces métiers au Job Center (page Job Center). Tournées : placez-vous au dépôt puis « Définir position », et de même pour la sortie du véhicule. Récoltes (Mineur, Pêcheur, Chasseur) : le dépôt est le centre de la zone (carrière, bord de l'eau, forêt). La paie va sur le compte bancaire à la fin de la mission.")),
             st.data.jobs.map(card))));
 }
 

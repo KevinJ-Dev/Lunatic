@@ -650,7 +650,7 @@ pointList({ prefix = 'jobcenters', kvp = 'job_centers', global = 'lunaticJobCent
 -- KVP 'interim_jobs', diffusé dans GlobalState.lunaticInterim ({ [id] = réglages }) ; ce qui manque vient de la config du jeu.
 ---------------------------------------------------------------------
 
-local INTERIM_LIMITS = { salary = 100000, stops = 15 }
+local INTERIM_LIMITS = { salary = 100000, stops = 50 } -- stops : arrêts d'une tournée, ou quantité à récolter
 local interimSaved = GetResourceKvpString('interim_jobs')
 local interimSettings = interimSaved and json.decode(interimSaved) or {}
 GlobalState.lunaticInterim = interimSettings
@@ -703,7 +703,7 @@ Panel.actions['interim.save'] = function(src, actor, data)
             if not salary then
                 return Panel.fail(('%s : salaire de 0 à %d.'):format(job.label, INTERIM_LIMITS.salary))
             elseif not stops then
-                return Panel.fail(('%s : de 1 à %d arrêts.'):format(job.label, INTERIM_LIMITS.stops))
+                return Panel.fail(('%s : de 1 à %d (arrêts ou quantité).'):format(job.label, INTERIM_LIMITS.stops))
             elseif not vehicle or (vehicle ~= '' and not vehicle:match('^[%w_]+$')) then
                 return Panel.fail(('%s : modèle de véhicule invalide.'):format(job.label))
             end
