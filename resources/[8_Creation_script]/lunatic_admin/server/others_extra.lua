@@ -643,5 +643,6 @@ end
 pointList({ prefix = 'hospitals', kvp = 'hospitals', global = 'lunaticHospitals', defaults = 'getDefaultHospitals', name = 'Hôpitaux', item = 'Hôpital' })
 pointList({ prefix = 'offices', kvp = 'document_offices', global = 'lunaticDocumentOffices', defaults = 'getDefaultOffices', name = 'Guichets', item = 'Guichet', ped = true })
 pointList({ prefix = 'banks', kvp = 'banks', global = 'lunaticBanks', defaults = 'getDefaultBanks', resource = 'lunatic_bank', name = 'Agences bancaires', item = 'Agence' })
+pointList({ prefix = 'jobcenters', kvp = 'job_centers', global = 'lunaticJobCenters', defaults = 'getDefaultCenters', resource = 'lunatic_interim', name = 'Job Centers', item = 'Job Center' })
 
-print('[lunatic_admin] Modules Ascenseurs, Heal Items, Tarifs mécano, Zone AFK, Création perso, Hôpitaux, Guichets et Banques chargés.')
+print('[lunatic_admin] Modules Ascenseurs, Heal Items, Tarifs mécano, Zone AFK, Création perso, Hôpitaux, Guichets, Banques et Job Centers chargés.')

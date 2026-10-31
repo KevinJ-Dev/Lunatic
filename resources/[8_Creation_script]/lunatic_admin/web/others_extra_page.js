@@ -542,8 +542,12 @@ const POINT_PAGES = {
         title: "Banques", item: "Agence", placeholder: "Fleeca Legion Square", spot: "Guichet ([E])", toggle: "Ouverte aux joueurs", saved: "Agences bancaires enregistrées.",
         hint: "Au guichet, les joueurs consultent leur compte (IBAN, historique, analyse), retirent, déposent et font des virements. Blips des agences : tuile Blips.",
     },
+    jobcenters: {
+        title: "Job Center", item: "Job Center", placeholder: "Job Center", spot: "Comptoir ([E])", toggle: "Ouvert aux joueurs", saved: "Job Centers enregistrés.",
+        hint: "Les joueurs y choisissent un métier d'intérim (Mineur, Éboueur, Pilote…). Images et logos des métiers : tuile Images, catégorie Job Center. Tenues : en jeu, au comptoir (staff).",
+    },
 };
-const pointStates = { hospitals: { data: null, draft: null, saved: "" }, offices: { data: null, draft: null, saved: "" }, banks: { data: null, draft: null, saved: "" } };
+const pointStates = { hospitals: { data: null, draft: null, saved: "" }, offices: { data: null, draft: null, saved: "" }, banks: { data: null, draft: null, saved: "" }, jobcenters: { data: null, draft: null, saved: "" } };
 
 function renderPoints(root, kind) {
     if (pointStates[kind].data && root.querySelector(`.points-page-${kind}`)) return;
@@ -554,6 +558,7 @@ function renderPoints(root, kind) {
 const renderHospitals = (root) => renderPoints(root, "hospitals");
 const renderOffices = (root) => renderPoints(root, "offices");
 const renderBanks = (root) => renderPoints(root, "banks");
+const renderJobCenters = (root) => renderPoints(root, "jobcenters");
 
 async function loadPoints(kind) {
     const res = await nui("action", { action: `${kind}.get`, payload: {} }).catch(() => null);

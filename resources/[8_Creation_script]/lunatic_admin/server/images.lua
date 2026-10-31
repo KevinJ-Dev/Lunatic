@@ -12,6 +12,7 @@ local CATEGORIES = {
     { id = 'header', label = 'Headers', size = '800 × 240 px (format 10:3)' },
     { id = 'notification', label = 'Notifications', size = '128 × 128 px, PNG transparent' },
     { id = 'character', label = 'Création perso', size = '1200 × 300 px (format 4:1)' },
+    { id = 'interim', label = 'Job Center', size = '800 × 300 px (image), 128 × 128 px (logo)' },
     { id = 'other', label = 'Autres', size = 'Libre' },
 }
 
@@ -22,6 +23,29 @@ local SLOTS = {
     { key = 'tablet_logo', category = 'header', label = 'Logo de la tablette illégale', description = 'En haut à gauche de la tablette des crews (vide : pas de logo)', default = '', size = '256 × 256 px, PNG transparent' },
     { key = 'fuel_banner', category = 'banner', label = 'Bannière de la pompe à essence', description = 'En-tête du panneau des pompes à essence (vide : LTD rouge)', default = '', size = '680 × 180 px (format 4:1)' },
     { key = 'quick_banner', category = 'banner', label = 'Bannière du menu rapide staff', description = 'En-tête du menu rapide (F9) et de ses fenêtres de saisie (vide : dégradé violet)', default = '', size = '680 × 180 px (format 4:1)' },
+    -- Job Center (lunatic_interim) : image et logo de chaque métier d'intérim
+    { key = 'interim_canadair', category = 'interim', label = "Job Center : Pilote de Canadair", description = 'Image de la fiche du métier (vide : couleur du métier)', default = '', size = '800 × 300 px' },
+    { key = 'interim_logo_canadair', category = 'interim', label = "Job Center : logo Pilote de Canadair", description = 'Logo dans la grille du Job Center (vide : initiales sur la couleur du métier)', default = '', size = '128 × 128 px, PNG transparent' },
+    { key = 'interim_pilot', category = 'interim', label = "Job Center : Pilote d'avion", description = 'Image de la fiche du métier (vide : couleur du métier)', default = '', size = '800 × 300 px' },
+    { key = 'interim_logo_pilot', category = 'interim', label = "Job Center : logo Pilote d'avion", description = 'Logo dans la grille du Job Center (vide : initiales sur la couleur du métier)', default = '', size = '128 × 128 px, PNG transparent' },
+    { key = 'interim_garbage', category = 'interim', label = "Job Center : Éboueur", description = 'Image de la fiche du métier (vide : couleur du métier)', default = '', size = '800 × 300 px' },
+    { key = 'interim_logo_garbage', category = 'interim', label = "Job Center : logo Éboueur", description = 'Logo dans la grille du Job Center (vide : initiales sur la couleur du métier)', default = '', size = '128 × 128 px, PNG transparent' },
+    { key = 'interim_miner', category = 'interim', label = "Job Center : Mineur", description = 'Image de la fiche du métier (vide : couleur du métier)', default = '', size = '800 × 300 px' },
+    { key = 'interim_logo_miner', category = 'interim', label = "Job Center : logo Mineur", description = 'Logo dans la grille du Job Center (vide : initiales sur la couleur du métier)', default = '', size = '128 × 128 px, PNG transparent' },
+    { key = 'interim_delivery', category = 'interim', label = "Job Center : Livreur", description = 'Image de la fiche du métier (vide : couleur du métier)', default = '', size = '800 × 300 px' },
+    { key = 'interim_logo_delivery', category = 'interim', label = "Job Center : logo Livreur", description = 'Logo dans la grille du Job Center (vide : initiales sur la couleur du métier)', default = '', size = '128 × 128 px, PNG transparent' },
+    { key = 'interim_hunter', category = 'interim', label = "Job Center : Chasseur", description = 'Image de la fiche du métier (vide : couleur du métier)', default = '', size = '800 × 300 px' },
+    { key = 'interim_logo_hunter', category = 'interim', label = "Job Center : logo Chasseur", description = 'Logo dans la grille du Job Center (vide : initiales sur la couleur du métier)', default = '', size = '128 × 128 px, PNG transparent' },
+    { key = 'interim_fuel', category = 'interim', label = "Job Center : Pompiste", description = 'Image de la fiche du métier (vide : couleur du métier)', default = '', size = '800 × 300 px' },
+    { key = 'interim_logo_fuel', category = 'interim', label = "Job Center : logo Pompiste", description = 'Logo dans la grille du Job Center (vide : initiales sur la couleur du métier)', default = '', size = '128 × 128 px, PNG transparent' },
+    { key = 'interim_gopostal', category = 'interim', label = "Job Center : Facteur (GoPostal)", description = 'Image de la fiche du métier (vide : couleur du métier)', default = '', size = '800 × 300 px' },
+    { key = 'interim_logo_gopostal', category = 'interim', label = "Job Center : logo Facteur (GoPostal)", description = 'Logo dans la grille du Job Center (vide : initiales sur la couleur du métier)', default = '', size = '128 × 128 px, PNG transparent' },
+    { key = 'interim_tram', category = 'interim', label = "Job Center : Conducteur de tramway", description = 'Image de la fiche du métier (vide : couleur du métier)', default = '', size = '800 × 300 px' },
+    { key = 'interim_logo_tram', category = 'interim', label = "Job Center : logo Conducteur de tramway", description = 'Logo dans la grille du Job Center (vide : initiales sur la couleur du métier)', default = '', size = '128 × 128 px, PNG transparent' },
+    { key = 'interim_train', category = 'interim', label = "Job Center : Conducteur de train", description = 'Image de la fiche du métier (vide : couleur du métier)', default = '', size = '800 × 300 px' },
+    { key = 'interim_logo_train', category = 'interim', label = "Job Center : logo Conducteur de train", description = 'Logo dans la grille du Job Center (vide : initiales sur la couleur du métier)', default = '', size = '128 × 128 px, PNG transparent' },
+    { key = 'interim_fisher', category = 'interim', label = "Job Center : Pêcheur", description = 'Image de la fiche du métier (vide : couleur du métier)', default = '', size = '800 × 300 px' },
+    { key = 'interim_logo_fisher', category = 'interim', label = "Job Center : logo Pêcheur", description = 'Logo dans la grille du Job Center (vide : initiales sur la couleur du métier)', default = '', size = '128 × 128 px, PNG transparent' },
 }
 
 local MUGSHOT_MAX = 200000          -- taille maximale d'une photo encodée (caractères)
