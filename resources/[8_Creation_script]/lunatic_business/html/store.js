@@ -1,16 +1,29 @@
 "use strict";
 
 // Magasins d'articles (LTD, Ammunation…) : catalogue, recherche, panier par quantités, paiement en liquide ou par carte.
+// Mode « catalog » : catalogue de vente d'une entreprise (doc Vision « Catalogues ») : la carte, des onglets s'il y en a
+// plusieurs, un choix avec le total ; pas de paiement ici, le client demande à un employé de le servir.
 // La page n'affiche que ce que le serveur envoie ; il revérifie prix, permis, place et solde à l'achat.
 // $, h et nui viennent de app.js.
 
 let shopData = null;
-let basket = {};      // article -> quantité
+let basket = {};      // article (clé) -> quantité
 let buying = false;
+let shopTab = "all";  // catalogue affiché (mode catalog)
 
 const shopMoney = (n) => `${Math.round(n).toLocaleString("fr-FR")} ${shopData.currency || "$"}`;
 const shopImage = (name) => `nui://ox_inventory/web/images/${name}.png`;
-const shopItem = (name) => shopData.items.find((i) => i.item === name);
+const shopKey = (i) => i.key || i.item;
+const shopItem = (key) => shopData.items.find((i) => shopKey(i) === key);
+const isCatalog = () => shopData && shopData.mode === "catalog";
+
+// Catalogues de vente -> liste d'articles (une clé par ligne : le même objet peut figurer dans deux catalogues)
+function catalogItems(catalogs) {
+    return (catalogs || []).flatMap((c) => c.lines.map((l) => ({
+        key: `${c.id}:${l.id}`, catalog: String(c.id), item: l.item, label: l.label, count: l.count || 1,
+        price: l.price, weight: (l.weight || 0) * (l.count || 1), description: l.description,
+    })));
+}
 const shopWeight = (grams) => (grams >= 1000 ? `${(grams / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg` : `${grams} g`);
 
 function shopToast(text) {
@@ -22,9 +35,11 @@ function shopToast(text) {
 }
 
 function openStore(msg) {
+    if (msg.mode === "catalog") msg.items = catalogItems(msg.catalogs);
     shopData = msg;
     basket = {};
     buying = false;
+    shopTab = "all";
     const theme = msg.theme || {};
     const banner = $("storeBanner");
     $("store").style.setProperty("--store", theme.color || "");
@@ -32,20 +47,33 @@ function openStore(msg) {
     banner.classList.toggle("with-image", !!msg.header);
     $("storeTitle").textContent = theme.title || msg.label;
     $("storeTitle").style.color = theme.textColor || "";
-    $("storeSub").textContent = theme.title ? msg.label : theme.sub || "";
+    $("storeSub").textContent = isCatalog() ? theme.sub || "" : theme.title ? msg.label : theme.sub || "";
+    $("storeLogo").classList.toggle("hidden", !msg.logo);
+    if (msg.logo) $("storeLogo").src = msg.logo;
+    $("storeToolsTitle").textContent = isCatalog() ? "Catalogues" : "Catalogue";
     $("storeSearch").value = "";
     $("store").classList.remove("hidden");
     paintStore();
 }
 
+// Onglets : un par catalogue de vente, s'il y en a plusieurs
+function paintStoreTabs() {
+    const catalogs = isCatalog() ? shopData.catalogs : [];
+    $("storeTabs").classList.toggle("hidden", catalogs.length < 2);
+    if (catalogs.length < 2) return;
+    const tabs = [{ id: "all", label: "Tout" }, ...catalogs.map((c) => ({ id: String(c.id), label: c.label }))];
+    $("storeTabs").replaceChildren(...tabs.map((t) => h("button", { class: t.id === shopTab ? "on" : "", onclick: () => { shopTab = t.id; paintStore(); } }, t.label)));
+}
+
 function paintStore() {
+    paintStoreTabs();
     paintStoreGrid();
     paintStoreCart();
 }
 
 function paintStoreGrid() {
     const q = $("storeSearch").value.trim().toLowerCase();
-    const list = shopData.items.filter((i) => !q || i.label.toLowerCase().includes(q));
+    const list = shopData.items.filter((i) => (!q || i.label.toLowerCase().includes(q)) && (shopTab === "all" || i.catalog === shopTab));
     const scroll = $("storeGrid").scrollTop;
     $("storeGrid").replaceChildren(...(list.length ? list.map((i) => {
         const img = h("img", { src: shopImage(i.item), alt: "" });
@@ -53,23 +81,26 @@ function paintStoreGrid() {
         return h("button", {
             class: `store-item${i.locked ? " locked" : ""}`, title: i.locked ? `Permis requis : ${i.license}` : i.description || i.label,
             onclick: () => addToBasket(i, 1),
-        }, i.locked ? h("span", { class: "lock" }, "Permis") : null, basket[i.item] ? h("span", { class: "qty" }, `×${basket[i.item]}`) : null,
+        }, i.locked ? h("span", { class: "lock" }, "Permis") : i.count > 1 ? h("span", { class: "count" }, `par ${i.count}`) : null,
+            basket[shopKey(i)] ? h("span", { class: "qty" }, `×${basket[shopKey(i)]}`) : null,
             img, h("small", null, i.label), h("i", null, i.price > 0 ? shopMoney(i.price) : "Gratuit"));
-    }) : [h("p", { class: "store-empty" }, shopData.items.length ? "Aucun article trouvé." : "Ce magasin n'a rien à vendre pour le moment.")]));
+    }) : [h("p", { class: "store-empty" }, shopData.items.length ? "Aucun article trouvé." : isCatalog() ? "Rien à la carte pour le moment." : "Ce magasin n'a rien à vendre pour le moment.")]));
     $("storeGrid").scrollTop = scroll;
 }
 
 function addToBasket(item, delta) {
     if (item.locked) return shopToast(`Permis requis : ${item.license}.`);
-    const next = (basket[item.item] || 0) + delta;
+    const key = shopKey(item);
+    const next = (basket[key] || 0) + delta;
     if (next > (shopData.max || 50)) return shopToast(`${shopData.max || 50} au maximum par article.`);
-    if (next <= 0) delete basket[item.item];
-    else basket[item.item] = next;
+    if (next <= 0) delete basket[key];
+    else basket[key] = next;
     paintStore();
 }
 
 function paintStoreCart() {
-    const lines = Object.entries(basket).map(([name, count]) => ({ item: shopItem(name), count })).filter((l) => l.item);
+    const lines = Object.entries(basket).map(([key, count]) => ({ item: shopItem(key), count })).filter((l) => l.item);
+    if (isCatalog()) return paintCatalogCart(lines);
     const total = lines.reduce((sum, l) => sum + l.item.price * l.count, 0);
     const weight = lines.reduce((sum, l) => sum + (l.item.weight || 0) * l.count, 0);
     $("storeCart").replaceChildren(...[
@@ -84,6 +115,23 @@ function paintStoreCart() {
             lines.length ? h("button", { class: "store-btn", disabled: buying, onclick: () => buyBasket("money") }, total > 0 ? "Payer en liquide" : "Prendre") : null,
             lines.length && total > 0 ? h("button", { class: "store-btn", disabled: buying, onclick: () => buyBasket("bank") }, "Payer par carte") : null,
             h("button", { class: "store-btn ghost", onclick: closeStoreView }, "Quitter le magasin")),
+    ].filter(Boolean));
+}
+
+// Mode catalog : le choix du client et son total, à montrer à un employé (la commande en ligne arrive ensuite)
+function paintCatalogCart(lines) {
+    const total = lines.reduce((sum, l) => sum + l.item.price * l.count, 0);
+    $("storeCart").replaceChildren(...[
+        h("div", { class: "store-cart-head" }, h("span", null, lines.length ? "Votre choix" : "Touchez un article pour le choisir"), h("b", null, shopMoney(total))),
+        lines.length ? h("div", { class: "store-lines" }, lines.map((l) => h("div", { class: "store-line" },
+            h("span", null, `${l.item.count > 1 ? `${l.item.count} × ` : ""}${l.item.label}`), h("i", null, shopMoney(l.item.price * l.count)),
+            h("div", { class: "store-step" },
+                h("button", { title: "Retirer un", onclick: () => addToBasket(l.item, -1) }, "−"), h("b", null, String(l.count)),
+                h("button", { title: "Ajouter un", onclick: () => addToBasket(l.item, 1) }, "+"))))) : null,
+        h("p", { class: "store-note" }, "Demandez à un employé de préparer votre choix et de vous servir."),
+        h("div", { class: "store-pay" },
+            shopData.equipment ? h("button", { class: "store-btn ghost", onclick: () => { $("store").classList.add("hidden"); shopData = null; nui("catalogEquipment"); } }, "Équipement (membres)") : null,
+            h("button", { class: `store-btn ghost`, style: shopData.equipment ? "" : "grid-column: 1 / -1", onclick: closeStoreView }, "Fermer le catalogue")),
     ].filter(Boolean));
 }
 
@@ -125,7 +173,18 @@ window.addEventListener("message", (event) => {
     }
 });
 
-// ---------- Aperçu navigateur (index.html#store) ----------
+// ---------- Aperçu navigateur (index.html#store, index.html#catalog) ----------
+
+if (!inGame && location.hash.includes("catalog")) {
+    window.postMessage({
+        action: "storeOpen", mode: "catalog", label: "Burger Shot", currency: "$", max: 50, header: null, logo: null, equipment: true,
+        theme: { color: "#d3122a", title: "Burger Shot", sub: "Catalogue" },
+        catalogs: [
+            { id: 1, label: "Menus", lines: [{ id: 1, item: "burger", label: "Bleeder", price: 18 }, { id: 2, item: "burger", label: "Heart Stopper", price: 25 }, { id: 3, item: "sandwich", label: "Wrap poulet", price: 14 }] },
+            { id: 2, label: "Boissons", lines: [{ id: 4, item: "cola", label: "eCola", price: 6 }, { id: 5, item: "water", label: "Eau", price: 4, count: 2 }] },
+        ],
+    }, "*");
+}
 
 if (!inGame && location.hash.includes("store")) {
     window.postMessage({

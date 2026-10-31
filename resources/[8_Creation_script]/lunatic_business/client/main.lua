@@ -333,9 +333,19 @@ end
 ---------------------------------------------------------------------
 
 local catalogs = {}
+local saleJobs = {} -- métiers qui ont un catalogue de vente : leur point Catalogue est visible par tous
 
 local function loadCatalogs(value)
     catalogs = type(value) == 'table' and value or {}
+    saleJobs = {}
+
+    for _, catalog in pairs(catalogs) do
+        if catalog.kind == 'sale' and #(catalog.lines or {}) > 0 then
+            for job in pairs(catalog.jobs or {}) do
+                saleJobs[job] = true
+            end
+        end
+    end
 end
 
 AddStateBagChangeHandler('lunaticCatalogs', 'global', function(_, _, value)
@@ -497,6 +507,8 @@ local function openCraft(point)
     lib.showContext('lb_craft')
 end
 
+local openSaleCatalog -- défini avec les magasins (même écran)
+
 local handlers = {
     management = function(point)
         if not playerJob or playerJob.grade_name ~= 'boss' then
@@ -513,7 +525,7 @@ local handlers = {
     end,
     wardrobe = openWardrobe,
     catalog = function(point)
-        openCatalogList(point, { equipment = true })
+        openSaleCatalog(point)
     end,
     armory = function(point)
         openCatalogList(point, { equipment = true })
@@ -605,9 +617,9 @@ refreshStructureBlips = function()
     end
 end
 
--- Sonnette : visible par tous ; le reste par les membres
+-- Sonnette : visible par tous ; Catalogue : par tous si l'entreprise a un catalogue de vente ; le reste par les membres
 local function visible(point)
-    return point.type == 'doorbell' or (playerJob ~= nil and playerJob.name == point.job)
+    return point.type == 'doorbell' or (point.type == 'catalog' and saleJobs[point.job] == true) or (playerJob ~= nil and playerJob.name == point.job)
 end
 
 ---------------------------------------------------------------------
@@ -1440,7 +1452,7 @@ end
 -- Magasins d'articles (LTD, Ammunation…) : catalogue et panier dans la page, achat vérifié par le serveur
 ---------------------------------------------------------------------
 
-local store = nil -- magasin ouvert : { target }
+local store = nil -- magasin ouvert : { target }, ou catalogue de vente : { catalog = point }
 
 -- Image d'en-tête : lien direct, ou clé de la tuile Images du panel
 local function headerImage(value)
@@ -1486,8 +1498,55 @@ local function openStore(target)
     })
 end
 
+-- Catalogue de vente d'une entreprise : même écran que les magasins, en mode « catalogue » (le client choisit,
+-- un employé le sert). Membre de l'entreprise : accès à son équipement depuis l'écran, ou directement s'il n'y a rien à la carte.
+openSaleCatalog = function(point)
+    if store or rental then
+        return
+    end
+
+    local info = lib.callback.await('lunatic_business:catalogOpen', false, point.id)
+
+    if failed(info) then
+        return
+    end
+
+    local equipment = info.member and #catalogsFor(point.job, { equipment = true }) > 0
+    local articles = 0
+
+    for _, catalog in ipairs(info.catalogs) do
+        articles = articles + #catalog.lines
+    end
+
+    if articles == 0 then
+        if equipment then
+            return openCatalogList(point, { equipment = true })
+        end
+
+        return notify('Rien à la carte pour le moment.', 'info')
+    end
+
+    store = { catalog = point }
+    SetNuiFocus(true, true)
+    SendNUIMessage({
+        action = 'storeOpen', mode = 'catalog', label = info.label, catalogs = info.catalogs, max = info.max, equipment = equipment,
+        currency = GlobalState.lunaticCurrency or '$', header = headerImage(info.banner), logo = headerImage(info.logo),
+        theme = { color = info.color, title = info.label, sub = 'Catalogue' },
+    })
+end
+
+RegisterNUICallback('catalogEquipment', function(_, cb)
+    cb({})
+    local point = store and store.catalog
+    closeStore()
+
+    if point then
+        openCatalogList(point, { equipment = true })
+    end
+end)
+
 RegisterNUICallback('storeBuy', function(data, cb)
-    if not store then
+    if not store or not store.target then
         return cb({ ok = false, error = 'Magasin fermé.' })
     end
 

@@ -589,7 +589,7 @@ RegisterNetEvent('lunatic_business:useCustom', function(pointId)
 end)
 
 ---------------------------------------------------------------------
--- Catalogues des structures : équipement (membres, payé par la société), craft (membres)
+-- Catalogues des structures : équipement (membres, payé par la société), craft (membres), vente (clients)
 -- Les catalogues viennent de lunatic_admin (GlobalState.lunaticCatalogs) : les prix ne viennent jamais du client.
 ---------------------------------------------------------------------
 
@@ -606,6 +606,44 @@ local function findLine(job, catalogId, lineId)
         end
     end
 end
+
+-- Catalogue de vente (doc Vision « Catalogues ») : la carte de l'entreprise, au point Catalogue, visible par tous.
+-- Lecture seule ici : le client choisit puis demande aux employés de le servir.
+lib.callback.register('lunatic_business:catalogOpen', function(src, pointId)
+    local xPlayer, point, err = check(src, pointId, 'catalog', { member = false })
+
+    if not xPlayer then
+        return fail(err)
+    end
+
+    local list = {}
+
+    for _, catalog in pairs(GlobalState.lunaticCatalogs or {}) do
+        if catalog.kind == 'sale' and catalog.jobs and catalog.jobs[point.job] then
+            local lines = {}
+
+            for _, line in ipairs(catalog.lines or {}) do
+                local item = ox:Items(line.item)
+
+                if item then
+                    lines[#lines + 1] = { id = line.id, item = line.item, label = item.label or line.item, description = item.description, count = line.count, price = line.price, weight = item.weight }
+                end
+            end
+
+            list[#list + 1] = { id = catalog.id, label = catalog.label, lines = lines }
+        end
+    end
+
+    table.sort(list, function(a, b) return a.label < b.label end)
+
+    local ok, structure = pcall(function() return exports.lunatic_admin:getStructure(point.job) end)
+    structure = ok and type(structure) == 'table' and structure or {}
+
+    return {
+        ok = true, label = jobLabel(point.job), banner = structure.banner or '', logo = structure.logo or '', color = structure.color,
+        catalogs = list, member = xPlayer.getJob().name == point.job, max = Config.MaxPurchase,
+    }
+end)
 
 local function itemLabel(name)
     local item = ox:Items(name)
