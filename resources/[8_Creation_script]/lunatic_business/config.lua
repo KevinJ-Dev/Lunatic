@@ -34,6 +34,7 @@ Config.StoreThemes = {
     ammunation = { color = '#2b2b2e', title = 'AMMU-NATION' },
     vangelico = { color = '#141210', title = 'VANGELICO', textColor = '#d9b45a' },
     skateshop = { color = '#1f6fd1', title = 'SKATE SHOP' },
+    resources = { color = '#3f7d3a', sub = 'Ressources' }, -- le nom du magasin en grand (Blé, Viandes…), l'image d'en-tête derrière
 }
 
 -- Location de véhicules

@@ -1503,7 +1503,7 @@ lib.callback.register('lunatic_business:storeOpen', function(src, slug, index)
 
         if item then
             items[#items + 1] = {
-                item = entry.item, label = item.label, price = entry.price, weight = item.weight or 0, description = item.description,
+                item = entry.item, label = item.label, price = entry.price, count = entry.count or 1, weight = (item.weight or 0) * (entry.count or 1), description = item.description,
                 license = entry.license and licenseLabel(entry.license) or nil, locked = entry.license ~= nil and not owned[entry.license],
             }
         end
@@ -1552,9 +1552,11 @@ lib.callback.register('lunatic_business:storeBuy', function(src, slug, index, ca
             end
         end
 
-        lines[#lines + 1] = { item = name, count = amount, label = item.label, price = entry.price * amount }
+        -- amount lots de entry.count objets, au prix du lot
+        local given = amount * (entry.count or 1)
+        lines[#lines + 1] = { item = name, count = given, label = item.label, price = entry.price * amount }
         total = total + entry.price * amount
-        weight = weight + (item.weight or 0) * amount
+        weight = weight + (item.weight or 0) * given
     end
 
     if #lines == 0 then

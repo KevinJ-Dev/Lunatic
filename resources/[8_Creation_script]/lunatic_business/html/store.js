@@ -108,7 +108,7 @@ function paintStoreCart() {
     $("storeCart").replaceChildren(...[
         h("div", { class: "store-cart-head" }, h("span", null, lines.length ? `Panier · ${shopWeight(weight)}` : "Panier vide"), h("b", null, shopMoney(total))),
         lines.length ? h("div", { class: "store-lines" }, lines.map((l) => h("div", { class: "store-line" },
-            h("span", null, l.item.label), h("i", null, shopMoney(l.item.price * l.count)),
+            h("span", null, `${l.item.count > 1 ? `${l.item.count * l.count} × ` : ""}${l.item.label}`), h("i", null, shopMoney(l.item.price * l.count)),
             h("div", { class: "store-step" },
                 h("button", { title: "Retirer un", onclick: () => addToBasket(l.item, -1) }, "−"), h("b", null, String(l.count)),
                 h("button", { title: "Ajouter un", onclick: () => addToBasket(l.item, 1) }, "+"))))) : null,

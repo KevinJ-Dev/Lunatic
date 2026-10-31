@@ -63,7 +63,7 @@
 .shop-field > label { color: var(--muted); font-size: 12.5px; }
 .blip-row { display: grid; grid-template-columns: repeat(3, 110px); gap: 8px; }
 .shop-job-add { width: 200px; height: 32px; font-size: 12.5px; }
-.shop-item-row { grid-template-columns: 40px minmax(0, 1fr) 180px 140px auto; min-height: 52px; }
+.shop-item-row { grid-template-columns: 40px minmax(0, 1fr) 180px 86px 140px auto; min-height: 52px; }
 .shop-item-row select.input { height: 34px; font-size: 12.5px; }
 
 /* Tuile Illégal */

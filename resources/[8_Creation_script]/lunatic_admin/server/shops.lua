@@ -11,7 +11,7 @@ for _, entry in ipairs(Config.ShopCategories) do
     CATEGORIES[entry.id] = entry
 end
 
-local LIMITS = { items = 200, locations = 50, price = 10000000 }
+local LIMITS = { items = 200, locations = 50, price = 10000000, lot = 1000 }
 
 ---@type table<number, table> magasins par id
 local shops = {}
@@ -66,7 +66,8 @@ local function load()
         local shop = shops[tonumber(row.shop_id)]
 
         if shop then
-            shop.items[#shop.items + 1] = { item = row.item, price = tonumber(row.price), license = row.license ~= '' and row.license or nil }
+            -- count : quantité donnée par achat (lot), le prix est celui du lot
+            shop.items[#shop.items + 1] = { item = row.item, price = tonumber(row.price), license = row.license ~= '' and row.license or nil, count = tonumber(row.count) or 1 }
         end
     end
 
@@ -203,6 +204,8 @@ table.insert(Panel.readyHooks, function()
             ADD COLUMN IF NOT EXISTS `company_share` INT NOT NULL DEFAULT 30
     ]])
     MySQL.query.await("ALTER TABLE `lunatic_shops` ADD COLUMN IF NOT EXISTS `vehicle_type` VARCHAR(16) NOT NULL DEFAULT 'car'")
+    -- Articles vendus par lots (Ressources : « Bacon x2 »)
+    MySQL.query.await('ALTER TABLE `lunatic_shop_items` ADD COLUMN IF NOT EXISTS `count` INT NOT NULL DEFAULT 1')
 
     -- Interactions : PNJ, rayon, blip par emplacement
     MySQL.query.await([[
@@ -317,7 +320,7 @@ Panel.actions['shops.info'] = function(_, actor, data)
 
     for _, entry in ipairs(shop.items) do
         local item = ox:Items(entry.item)
-        items[#items + 1] = { item = entry.item, price = entry.price, license = entry.license, label = item and item.label or entry.item, missing = item == nil }
+        items[#items + 1] = { item = entry.item, price = entry.price, license = entry.license, count = entry.count or 1, label = item and item.label or entry.item, missing = item == nil }
     end
 
     local licenseList, jobList = {}, {}
@@ -463,13 +466,16 @@ Panel.actions['shops.save'] = function(src, actor, data)
         end
 
         local license = type(entry.license) == 'string' and entry.license ~= '' and entry.license or nil
+        local lot = number(entry.count == nil and 1 or entry.count, 1, LIMITS.lot, true)
 
         if license and not licenses[license] then
             return Panel.fail(('Article %d : permis inconnu.'):format(index))
+        elseif not lot then
+            return Panel.fail(('Article %d : lot de 1 à %d.'):format(index, LIMITS.lot))
         end
 
-        queries[#queries + 1] = { query = 'INSERT INTO `lunatic_shop_items` (`shop_id`, `item`, `price`, `license`, `position`) VALUES (?, ?, ?, ?, ?)',
-            values = { shop.id, entry.item, price, license or '', index } }
+        queries[#queries + 1] = { query = 'INSERT INTO `lunatic_shop_items` (`shop_id`, `item`, `price`, `license`, `count`, `position`) VALUES (?, ?, ?, ?, ?, ?)',
+            values = { shop.id, entry.item, price, license or '', lot, index } }
     end
 
     if not MySQL.transaction.await(queries) then

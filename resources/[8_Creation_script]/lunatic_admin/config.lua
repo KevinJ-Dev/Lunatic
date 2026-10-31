@@ -175,6 +175,7 @@ Config.ShopCategories = {
     { id = 'skateshop', label = 'Skateshop', kind = 'items', blip = { sprite = 59, color = 5 } },
     { id = 'tattoo', label = 'Tattoo', kind = 'tattoo', blip = { sprite = 75, color = 1 } },
     { id = 'wholesale', label = 'Grossistes', kind = 'buyback', blip = { sprite = 478, color = 66 } }, -- points de revente des récoltes
+    { id = 'resources', label = 'Ressources', kind = 'items', blip = { sprite = 52, color = 25 } }, -- ingrédients des entreprises (fermes, boucheries…), vendus par lots
 } -- montant maximum d'une opération staff sur un compte de société
 
 -- Interactions (tuile Interactions : PNJ, rayon et blip de chaque emplacement)

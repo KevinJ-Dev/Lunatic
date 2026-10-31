@@ -78,7 +78,7 @@ async function loadShopList() {
 
 // Partie de la fiche enregistrée par « Enregistrer » (les emplacements sont enregistrés tout de suite)
 function shopSnapshot(d) {
-    return JSON.stringify([d.label, d.slug, d.blip, d.header || "", d.jobs, (d.items || []).map((e) => [e.item, e.price, e.license || null]), d.defaultPrice || 0, d.maxPeriods || 4, d.accountJob || "", d.companyShare ?? 30, d.vehicleType || "car"]);
+    return JSON.stringify([d.label, d.slug, d.blip, d.header || "", d.jobs, (d.items || []).map((e) => [e.item, e.price, e.license || null, e.count || 1]), d.defaultPrice || 0, d.maxPeriods || 4, d.accountJob || "", d.companyShare ?? 30, d.vehicleType || "car"]);
 }
 
 // Image d'un véhicule : celle du panel, sinon la photo officielle des véhicules du jeu (docs FiveM)
@@ -271,12 +271,16 @@ function shopForm() {
         price.addEventListener("input", () => { entry.price = Number(price.value || 0); });
         const license = h("select", { class: "input" }, licenseOptions(entry.license));
         license.addEventListener("change", () => { entry.license = license.value || null; });
-        // Grossiste : pas de permis, le prix est celui payé au joueur
-        if (buyback) license.style.visibility = "hidden";
+        // Lot : quantité donnée par achat, le prix est celui du lot (ex. Ressources : « Bacon x2 »)
+        const lot = h("input", { class: "input mono", type: "number", min: "1", max: "1000", title: "Quantité donnée par achat (le prix est celui du lot)", value: String(entry.count || 1) });
+        lot.addEventListener("input", () => { entry.count = Math.max(1, Math.floor(Number(lot.value) || 1)); });
+        // Grossiste : pas de permis ni de lot, le prix est celui payé au joueur
+        if (buyback) { license.style.visibility = "hidden"; lot.style.visibility = "hidden"; }
         return h("div", { class: "row shop-item-row" },
             itemImage(entry.item),
             h("div", { class: "who" }, h("b", null, entry.item, entry.missing ? h("span", { class: "badge ban", style: "margin-left:6px" }, "objet inconnu") : null), h("span", null, entry.label)),
             license,
+            h("label", { class: "salary shop-lot" }, h("span", { class: "muted" }, "×"), lot),
             h("label", { class: "salary" }, price, h("span", { class: "muted" }, currencySymbol())),
             h("button", { class: "btn small ghost", title: "Retirer", onclick: () => { d.items.splice(i, 1); paintShopCategory(); } }, icon("i-x")));
     });
@@ -300,7 +304,7 @@ function shopForm() {
         id: d.id, label: d.label.trim(), slug: d.slug.trim(), blipSprite: d.blip.sprite, blipColor: d.blip.color, blipScale: d.blip.scale,
         blipLabel: (d.blip.label || "").trim(), header: (d.header || "").trim(), jobs: d.jobs, defaultPrice: d.defaultPrice || 0, maxPeriods: d.maxPeriods || 4,
         accountJob: d.accountJob || "", companyShare: d.companyShare ?? 30, vehicleType: d.vehicleType || "car",
-        items: d.items.map((e) => ({ item: e.item, price: e.price, license: e.license || null })),
+        items: d.items.map((e) => ({ item: e.item, price: e.price, license: e.license || null, count: e.count || 1 })),
     }, "Magasin enregistré.");
         if (res) shopState.saved = snapshot;
         paintUnsaved();
@@ -419,7 +423,7 @@ async function openAddShopItem() {
             const name = input.value.trim();
             if (!known.has(name)) return toast(`L'objet « ${name} » n'existe pas dans ox_inventory.`, "error");
             if (shopState.draft.items.some((e) => e.item === name)) return toast("Cet objet est déjà dans le magasin.", "error");
-            shopState.draft.items.push({ item: name, label: known.get(name), price: Math.max(0, Math.floor(Number(price.value) || 0)), license: null });
+            shopState.draft.items.push({ item: name, label: known.get(name), price: Math.max(0, Math.floor(Number(price.value) || 0)), license: null, count: 1 });
             close();
             paintShopCategory();
         });
