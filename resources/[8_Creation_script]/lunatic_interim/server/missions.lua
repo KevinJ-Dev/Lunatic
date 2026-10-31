@@ -37,6 +37,13 @@ local function deleteVehicle(mission)
         end
     end
 
+    -- Rame (tramway, train) : motrice et voitures
+    for _, car in ipairs(mission and mission.cars or {}) do
+        if DoesEntityExist(car) then
+            DeleteEntity(car)
+        end
+    end
+
     for netId in pairs(mission and mission.animals or {}) do
         local animal = NetworkGetEntityFromNetworkId(netId)
 
@@ -139,6 +146,10 @@ local function stop(src, message, kind)
 
     if not mission then
         return
+    end
+
+    if mission.rail then
+        TriggerClientEvent('lunatic_interim:railEnded', src)
     end
 
     if mission.task == 'hunt' then
@@ -308,9 +319,9 @@ lib.callback.register('lunatic_interim:missionStop', function(src, index)
     local mission = missions[src]
     local coords = pedCoords(src)
 
-    if not mission or tonumber(index) ~= mission.index or not mission.stops[mission.index] then
+    if not mission or not mission.stops or tonumber(index) ~= mission.index or not mission.stops[mission.index] then
         return fail('Arrêt introuvable.')
-    elseif not DoesEntityExist(mission.vehicle) then
+    elseif not mission.rail and not DoesEntityExist(mission.vehicle) then
         stop(src, 'Le véhicule de service a disparu : tournée arrêtée.', 'error')
         return fail('Véhicule disparu.')
     end
@@ -322,8 +333,10 @@ lib.callback.register('lunatic_interim:missionStop', function(src, index)
         return fail("Vous n'êtes pas à l'arrêt.")
     elseif os.time() - mission.last < rules.stopSeconds then
         return fail('Trop rapide : prenez le temps de faire le travail.')
-    elseif #(GetEntityCoords(mission.vehicle) - coords) > 60.0 then
+    elseif not mission.rail and #(GetEntityCoords(mission.vehicle) - coords) > 60.0 then
         return fail('Le véhicule de service est trop loin.')
+    elseif mission.rail and not InRailCab(src) then
+        return fail('Validez la gare depuis la cabine.')
     elseif mission.trailer and (not DoesEntityExist(mission.trailer) or #(GetEntityCoords(mission.trailer) - target) > rules.reach) then
         return fail('Amenez la citerne jusqu\u{2019}à la station.')
     end
@@ -348,6 +361,15 @@ lib.callback.register('lunatic_interim:missionFinish', function(src)
         elseif not coords or #(coords - mission.depot) > rules.finish then
             return fail('Rendez-vous au dépôt.')
         end
+    elseif mission.rail then
+        -- Rame : fin à la dernière gare (ou au départ)
+        local last = mission.stops[#mission.stops]
+
+        if mission.index <= #mission.stops then
+            return fail(('Service pas fini : %d / %d gares.'):format(mission.index - 1, #mission.stops))
+        elseif not coords or (#(coords - last) > rules.finish and #(coords - mission.depot) > rules.finish) then
+            return fail('Terminez le service en gare.')
+        end
     elseif mission.index <= #mission.stops then
         return fail(('Tournée pas finie : %d / %d arrêts.'):format(mission.index - 1, #mission.stops))
     elseif not coords or #(coords - mission.depot) > rules.finish then
@@ -368,6 +390,7 @@ lib.callback.register('lunatic_interim:missionFinish', function(src)
     end
 
     log(src, 'interim.mission', mission.label, { salary = mission.salary, stops = mission.gather and mission.quota or #mission.stops })
+    TriggerClientEvent('lunatic_interim:railEnded', src)
     return { ok = true, salary = mission.salary }
 end)
 
@@ -463,6 +486,74 @@ lib.callback.register('lunatic_interim:gather', function(src, netId)
     return { ok = true, count = mission.count, quota = mission.quota, done = mission.count >= mission.quota }
 end)
 
+---------------------------------------------------------------------
+-- Tramway et train : la rame est créée par le client (le serveur ne peut pas en créer) ; gares du panel, dans l'ordre
+---------------------------------------------------------------------
+
+local RAIL_MODELS = {}
+
+for _, model in ipairs(Config.TrainModels) do
+    RAIL_MODELS[joaat(model)] = true
+end
+
+-- Le joueur est dans une rame (modèle de train connu)
+function InRailCab(src)
+    local vehicle = GetVehiclePedIsIn(GetPlayerPed(src), false)
+    return vehicle ~= 0 and RAIL_MODELS[GetEntityModel(vehicle)] == true
+end
+
+lib.callback.register('lunatic_interim:railStart', function(src)
+    local job = InterimOf(src)
+    local settings = job and JobSettings(job.id)
+    local coords = pedCoords(src)
+
+    if not job or job.kind ~= 'rail' then
+        return fail("Votre métier n'est pas un métier du rail.")
+    elseif not settings.enabled then
+        return fail('Ce métier est fermé pour le moment.')
+    elseif not settings.depot or #settings.stations < 1 then
+        return fail('Départ ou gares pas encore réglés : prévenez le staff.')
+    elseif missions[src] then
+        return fail('Vous avez déjà une mission en cours.')
+    elseif not coords or #(coords - vec(settings.depot)) > 8.0 then
+        return fail('Rendez-vous au point de départ.')
+    end
+
+    -- Gares dans l'ordre de la ligne, autant que demandé (dans la limite de celles placées)
+    local stops = {}
+
+    for index = 1, math.min(settings.stops, #settings.stations) do
+        stops[index] = vec(settings.stations[index])
+    end
+
+    missions[src] = {
+        rail = true, job = job.id, label = job.label, task = job.task, stops = stops, index = 1, last = os.time(),
+        salary = settings.salary, depot = vec(settings.depot),
+    }
+
+    return { ok = true, task = job.task, stops = stops, depot = settings.depot, variation = job.variation, maxSpeed = job.maxSpeed, direction = job.direction ~= false }
+end)
+
+-- Voitures de la rame créée par le client : retirées à la fin (ou à la déconnexion)
+RegisterNetEvent('lunatic_interim:railCars', function(netIds)
+    local src = source
+    local mission = missions[src]
+
+    if not mission or not mission.rail or mission.cars or type(netIds) ~= 'table' then
+        return
+    end
+
+    mission.cars = {}
+
+    for index, netId in ipairs(netIds) do
+        local car = index <= 30 and tonumber(netId) and NetworkGetEntityFromNetworkId(netId) or 0
+
+        if car ~= 0 and DoesEntityExist(car) and RAIL_MODELS[GetEntityModel(car)] then
+            mission.cars[#mission.cars + 1] = car
+        end
+    end
+end)
+
 lib.callback.register('lunatic_interim:missionCancel', function(src)
     if not missions[src] then
         return fail("Vous n'avez pas de tournée en cours.")
@@ -478,7 +569,7 @@ CreateThread(function()
         Wait(5000)
 
         for src, mission in pairs(missions) do
-            if not mission.gather and (not DoesEntityExist(mission.vehicle) or GetVehicleEngineHealth(mission.vehicle) <= 0) then
+            if not mission.gather and not mission.rail and (not DoesEntityExist(mission.vehicle) or GetVehicleEngineHealth(mission.vehicle) <= 0) then
                 stop(src, 'Le véhicule de service est hors d\u{2019}usage : tournée arrêtée, sans paie.', 'error')
             end
         end

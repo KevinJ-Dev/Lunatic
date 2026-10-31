@@ -48,7 +48,7 @@ function JobSettings(id)
 
     return {
         enabled = saved.enabled ~= false, salary = tonumber(saved.salary) or job.salary, stops = tonumber(saved.stops) or job.stops or 5,
-        vehicle = saved.vehicle or job.vehicle, depot = saved.depot, spawn = saved.spawn,
+        vehicle = saved.vehicle or job.vehicle, depot = saved.depot, spawn = saved.spawn, stations = type(saved.stations) == 'table' and saved.stations or {},
     }
 end
 

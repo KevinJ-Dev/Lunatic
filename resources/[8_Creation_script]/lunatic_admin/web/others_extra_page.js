@@ -649,7 +649,7 @@ function paintInterim() {
             const saved = (st.data.settings || {})[job.id] || {};
             jobs[job.id] = {
                 enabled: saved.enabled !== false, salary: saved.salary ?? job.salary, stops: saved.stops ?? job.stops, vehicle: saved.vehicle ?? job.vehicle ?? "",
-                depot: saved.depot || null, spawn: saved.spawn || null,
+                depot: saved.depot || null, spawn: saved.spawn || null, stations: (saved.stations || []).slice(),
             };
         }
         st.draft = { key: "interim", jobs };
@@ -680,18 +680,28 @@ function paintInterim() {
         const entry = d.jobs[job.id];
         const vehicle = h("input", { class: "input mono", maxlength: "40", placeholder: job.vehicle || "modèle", value: entry.vehicle || "" });
         vehicle.addEventListener("input", () => { entry.vehicle = vehicle.value.trim(); });
-        const ready = job.kind === "route" || job.kind === "gather";
+        const ready = job.kind === "route" || job.kind === "gather" || job.kind === "rail";
         const route = job.kind === "route";
+        const rail = job.kind === "rail";
+        // Gares (tramway, train) : placées sur la voie, dans l'ordre de la ligne
+        const stations = rail ? h("div", { class: "interim-stations" },
+            entry.stations.map((station, index) => {
+                const row = spot(entry.stations, index, `Gare ${index + 1}`);
+                row.append(h("button", { class: "btn small ghost", title: "Retirer", onclick: () => { entry.stations.splice(index, 1); paintInterim(); } }, icon("i-trash")));
+                return row;
+            }),
+            h("button", { class: "btn small", onclick: () => { if (entry.stations.length >= 20) return toast("20 gares au maximum.", "error"); entry.stations.push(null); paintInterim(); } }, icon("i-plus"), "Ajouter une gare")) : null;
         return h("div", { class: "card creator-spawn" },
             h("div", { class: "creator-spawn-head" }, h("b", null, `${job.label} · ${job.company}`),
                 ready ? null : h("span", { class: "badge muted" }, "missions à venir"),
                 h("div", { class: "creator-spawn-toggle" }, draftToggle(entry, "enabled", "Actif", "Proposé au Job Center"))),
             h("div", { class: "event-form-row" },
                 fieldRow(`Salaire par mission (${currencySymbol()})`, number(entry, "salary", 0, 100000)),
-                ready ? fieldRow(route ? "Arrêts par tournée" : "Quantité à récolter", number(entry, "stops", 1, route ? 15 : 50)) : null,
+                ready ? fieldRow(route ? "Arrêts par tournée" : rail ? "Gares à desservir" : "Quantité à récolter", number(entry, "stops", 1, route ? 15 : rail ? 20 : 50)) : null,
                 route ? fieldRow("Véhicule de service", vehicle) : null),
-            ready ? spot(entry, "depot", route ? "Dépôt ([E] : commencer / terminer)" : "Dépôt, au centre de la zone de récolte") : null,
-            route ? spot(entry, "spawn", "Sortie du véhicule (dans le sens de départ)") : null);
+            ready ? spot(entry, "depot", route ? "Dépôt ([E] : commencer / terminer)" : rail ? "Départ ([E]), debout sur la voie" : "Dépôt, au centre de la zone de récolte") : null,
+            route ? spot(entry, "spawn", "Sortie du véhicule (dans le sens de départ)") : null,
+            stations);
     };
 
     root.replaceChildren(h("div", { class: "content interim-page" }, othersHead("Métiers d'intérim"),

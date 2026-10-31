@@ -8,6 +8,7 @@ Config = {}
 -- panel (Autres → Métiers d'intérim), comme le salaire, le dépôt et la sortie du véhicule. task : façon de faire chaque
 -- arrêt (Config.Tasks) ; vtype : type du véhicule pour le serveur (automobile, plane…) ; trailer : remorque attelée.
 -- kind = 'gather' : récolte dans la zone autour du dépôt (pas de véhicule) ; stops = quantité à récolter.
+-- kind = 'rail' : conduite d'une rame (variation du jeu) du départ aux gares placées dans le panel, dans leur ordre.
 -- Ancien fonctionnement : métiers ESX « interim_<id> », repris en second métier à la connexion (voir server/main.lua)
 Config.JobPrefix = 'interim_'
 Config.Jobs = {
@@ -27,9 +28,9 @@ Config.Jobs = {
         missions = { 'Récupère le camion-citerne à la raffinerie.', 'Ravitaille les stations-service indiquées.', 'Ramène la citerne vide pour être payé.' } },
     { id = 'gopostal', label = 'Facteur', company = 'GoPostal', color = '#d6336c', salary = 240, duration = 10, participants = '1 personne', kind = 'route', task = 'parcel', vehicle = 'boxville2', stops = 6,
         missions = { 'Récupère ton fourgon GoPostal au centre de tri.', 'Distribue le courrier dans les boîtes aux lettres.', 'Rends le fourgon au centre pour être payé.' } },
-    { id = 'tram', label = 'Conducteur de tramway', company = 'LS Transit', color = '#0ca678', salary = 300, duration = 12, participants = '1 personne',
+    { id = 'tram', label = 'Conducteur de tramway', company = 'LS Transit', color = '#0ca678', salary = 300, duration = 12, participants = '1 personne', kind = 'rail', task = 'tram', variation = 26, maxSpeed = 16.0, stops = 3,
         missions = { 'Prends les commandes du tramway au dépôt.', 'Dessers les arrêts de la ligne sans retard.', 'Ramène le tramway au dépôt pour être payé.' } },
-    { id = 'train', label = 'Conducteur de train', company = 'Freight Train Co.', color = '#495057', salary = 380, duration = 15, participants = '1 personne',
+    { id = 'train', label = 'Conducteur de train', company = 'Freight Train Co.', color = '#495057', salary = 380, duration = 15, participants = '1 personne', kind = 'rail', task = 'train', variation = 18, maxSpeed = 25.0, stops = 3,
         missions = { 'Monte dans la locomotive en gare de marchandises.', 'Livre les wagons aux gares de la ligne.', 'Termine ta tournée pour encaisser ta paie.' } },
     { id = 'fisher', label = 'Pêcheur', company = 'Pêcheries de Paleto', color = '#1098ad', salary = 260, duration = 12, participants = '1 personne', kind = 'gather', task = 'fish', stops = 8,
         missions = { 'Prends ta canne et rejoins un spot de pêche.', 'Pêche le plus de poissons possible.', 'Revends ta pêche au marché aux poissons.' } },
@@ -61,6 +62,13 @@ Config.Tasks = {
     fish = { radius = 150.0, gatherSeconds = 8, finish = 10.0 },                  -- au bord de l'eau (ponton, plage)
     hunt = { radius = 450.0, gatherSeconds = 8, finish = 10.0, animals = 4 },     -- en forêt
 }
+
+-- Tramway et train : gares validées à l'arrêt (reach), temps minimum entre deux gares ; fin à la dernière gare
+Config.Tasks.tram = { reach = 60.0, stopSeconds = 30, finish = 80.0 }
+Config.Tasks.train = { reach = 80.0, stopSeconds = 45, finish = 100.0 }
+
+-- Modèles à charger avant de créer une rame (métro : variation 26 sur les builds récents ; fret seul : 18)
+Config.TrainModels = { 'freight', 'freightcar', 'freightcar2', 'freightcont1', 'freightcont2', 'freightgrain', 'tankercar', 'metrotrain' }
 
 -- Chasseur : fusil prêté pendant la mission (repris à la fin), sans effet sur les joueurs (dégâts annulés par le serveur)
 Config.HuntWeapon = { weapon = 'WEAPON_MUSKET', ammo = 'ammo-musket', count = 20 }

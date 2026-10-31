@@ -708,9 +708,23 @@ Panel.actions['interim.save'] = function(src, actor, data)
                 return Panel.fail(('%s : modèle de véhicule invalide.'):format(job.label))
             end
 
+            -- Tramway, train : gares placées sur la voie, dans l'ordre de la ligne (20 au plus)
+            local stations = {}
+
+            for index, point in ipairs(type(entry.stations) == 'table' and entry.stations or {}) do
+                local spot = index <= 20 and position(point)
+
+                if not spot then
+                    return Panel.fail(('%s : gare %d sans position valide.'):format(job.label, index))
+                end
+
+                stations[#stations + 1] = spot
+            end
+
             result[id] = {
                 enabled = entry.enabled ~= false, salary = salary, stops = stops, vehicle = vehicle ~= '' and vehicle or nil,
                 depot = entry.depot and position(entry.depot) or nil, spawn = entry.spawn and position(entry.spawn) or nil,
+                stations = #stations > 0 and stations or nil,
             }
             count = count + 1
         end

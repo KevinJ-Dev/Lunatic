@@ -4,7 +4,8 @@
 --   Pompiste : citerne attelée, stations-service à ravitailler ;
 --   Pilote : escales sur les aérodromes (se poser, s'arrêter, valider) ;
 --   Canadair : écoper en rasant l'eau, puis larguer sur les feux ;
---   Mineur, Pêcheur, Chasseur : récolte d'un quota dans la zone autour du dépôt (rochers, pêche face à l'eau, gibier).
+--   Mineur, Pêcheur, Chasseur : récolte d'un quota dans la zone autour du dépôt (rochers, pêche face à l'eau, gibier) ;
+--   Tramway, Train : rame conduite (Z / S) du départ aux gares du panel, arrêt complet pour valider chaque gare.
 -- Le serveur valide chaque étape et paie à la fin.
 
 local mission = nil -- tournée { task, netId, trailerNetId, stops, index, bags, carrying, prop, pile, blip, water, loaded, fire }
@@ -35,7 +36,7 @@ end
 -- Métier d'intérim du joueur (second métier, statebag interimJob) avec une tournée, et ses réglages
 local function routeJob()
     local job = JobById(LocalPlayer.state.interimJob)
-    job = job and (job.kind == 'route' or job.kind == 'gather') and job or nil
+    job = job and (job.kind == 'route' or job.kind == 'gather' or job.kind == 'rail') and job or nil
     return job, job and JobSettings(job.id) or nil
 end
 
@@ -393,6 +394,28 @@ local function startGather()
     notify(GATHER_BRIEFS[mission.task]:format(mission.quota), 'success')
 end
 
+---------------------------------------------------------------------
+-- Tramway et train : rame de mission (le serveur ne peut pas en créer), conduite au clavier
+---------------------------------------------------------------------
+
+local train = nil -- motrice de la rame en cours
+
+local function deleteTrain()
+    if train and DoesEntityExist(train) then
+        DeleteMissionTrain(train)
+    end
+
+    train = nil
+
+    for _, model in ipairs(Config.TrainModels) do
+        SetModelAsNoLongerNeeded(joaat(model))
+    end
+end
+
+RegisterNetEvent('lunatic_interim:railEnded', function()
+    deleteTrain()
+end)
+
 local function missionDone()
     if mission.gather then
         return mission.count >= mission.quota
@@ -408,7 +431,7 @@ local function setStopBlip()
     end
 
     local _, settings = routeJob()
-    local target = mission.stops[mission.index] or (settings and settings.depot)
+    local target = mission.stops[mission.index] or (not mission.rail and settings and settings.depot)
 
     if not target then
         return
@@ -420,7 +443,7 @@ local function setStopBlip()
     SetBlipRoute(mission.blip, true)
     SetBlipRouteColour(mission.blip, 27)
     BeginTextCommandSetBlipName('STRING')
-    AddTextComponentSubstringPlayerName(mission.stops[mission.index] and ('Arrêt %d / %d'):format(mission.index, #mission.stops) or 'Retour au dépôt')
+    AddTextComponentSubstringPlayerName(mission.stops[mission.index] and ((mission.rail and 'Gare %d / %d' or 'Arrêt %d / %d')):format(mission.index, #mission.stops) or 'Retour au dépôt')
     EndTextCommandSetBlipName(mission.blip)
 end
 
@@ -435,6 +458,10 @@ local function endMission(message, kind)
 
     if mission.gather then
         clearGather()
+    end
+
+    if mission.rail then
+        deleteTrain()
     end
 
     if mission.blip then
@@ -453,6 +480,104 @@ RegisterNetEvent('lunatic_interim:missionEnded', function(message, kind)
     endMission(message, kind)
 end)
 
+local function enterCab()
+    if train and DoesEntityExist(train) then
+        SetPedIntoVehicle(PlayerPedId(), train, -1)
+    end
+end
+
+local function startRail()
+    local result = lib.callback.await('lunatic_interim:railStart', false)
+
+    if not result or not result.ok then
+        return notify(result and result.error or 'Service impossible.', 'error')
+    end
+
+    for _, model in ipairs(Config.TrainModels) do
+        if not lib.requestModel(joaat(model), 10000) then
+            lib.callback.await('lunatic_interim:missionCancel', false)
+            return notify('Rame indisponible, réessayez.', 'error')
+        end
+    end
+
+    local depot = result.depot
+    train = CreateMissionTrain(result.variation, depot.x, depot.y, depot.z, result.direction, true, true)
+
+    if not train or train == 0 or not DoesEntityExist(train) then
+        train = nil
+        lib.callback.await('lunatic_interim:missionCancel', false)
+        return notify('Pas de voie ici : le départ doit être placé sur les rails.', 'error')
+    end
+
+    SetTrainSpeed(train, 0.0)
+    SetTrainCruiseSpeed(train, 0.0)
+    enterCab()
+
+    -- Motrice et voitures, pour que le serveur les retire à la fin
+    local cars = { NetworkGetNetworkIdFromEntity(train) }
+
+    for index = 1, 30 do
+        local car = GetTrainCarriage(train, index)
+
+        if not car or car == 0 then
+            break
+        end
+
+        cars[#cars + 1] = NetworkGetNetworkIdFromEntity(car)
+    end
+
+    TriggerServerEvent('lunatic_interim:railCars', cars)
+
+    mission = { rail = true, task = result.task, netId = cars[1], stops = result.stops, index = 1, speed = 0.0, maxSpeed = result.maxSpeed or 16.0 }
+    setStopBlip()
+    notify(('Service de %d gares : Z pour accélérer, S pour freiner (puis reculer). Arrêtez-vous à chaque gare pour la valider.'):format(#mission.stops), 'success')
+end
+
+-- Vitesse affichée en bas de l'écran pendant la conduite
+local function drawSpeed(speed)
+    SetTextFont(4)
+    SetTextScale(0.0, 0.5)
+    SetTextColour(255, 255, 255, 220)
+    SetTextOutline()
+    SetTextCentre(true)
+    BeginTextCommandDisplayText('STRING')
+    AddTextComponentSubstringPlayerName(('%d km/h'):format(math.floor(math.abs(speed) * 3.6 + 0.5)) .. (speed < -0.1 and ' (arrière)' or ''))
+    EndTextCommandDisplayText(0.5, 0.9)
+end
+
+-- Conduite : Z accélère, S freine puis recule ; on ne descend qu'à l'arrêt
+CreateThread(function()
+    while true do
+        local wait = 500
+
+        if mission and mission.rail and train then
+            if not DoesEntityExist(train) then
+                lib.callback.await('lunatic_interim:missionCancel', false)
+                endMission('La rame a disparu : service arrêté, sans paie.', 'error')
+            elseif GetVehiclePedIsIn(PlayerPedId(), false) == train then
+                wait = 0
+                local step = GetFrameTime()
+
+                if IsControlPressed(0, 71) then
+                    mission.speed = math.min(mission.maxSpeed, mission.speed + 2.0 * step)
+                elseif IsControlPressed(0, 72) then
+                    mission.speed = math.max(-mission.maxSpeed / 3, mission.speed - 4.0 * step)
+                end
+
+                SetTrainCruiseSpeed(train, mission.speed)
+                SetTrainSpeed(train, mission.speed)
+                drawSpeed(mission.speed)
+
+                if math.abs(mission.speed) > 0.5 then
+                    DisableControlAction(0, 75, true)
+                end
+            end
+        end
+
+        Wait(wait)
+    end
+end)
+
 local BRIEFS = {
     parcel = 'Tournée de %d arrêts : prenez un colis à l\u{2019}arrière du véhicule et livrez-le à chaque arrêt.',
     garbage = 'Tournée de %d arrêts : ramassez les sacs à chaque arrêt et jetez-les dans la benne.',
@@ -464,6 +589,8 @@ local BRIEFS = {
 local function startMission(job, settings)
     if job.kind == 'gather' then
         return startGather()
+    elseif job.kind == 'rail' then
+        return startRail()
     end
 
     notify('Préparation de la tournée…', 'info')
@@ -532,7 +659,21 @@ local function stopDone()
     mission.index = result.index
     mission.bags = Config.Route.garbageBags
     setStopBlip()
-    notify(result.done and 'Tournée terminée : retournez au dépôt avec le véhicule.' or ('Arrêt fait. Suivant : %d / %d.'):format(mission.index, #mission.stops), 'success')
+    if mission.rail then
+        notify(result.done and 'Dernière gare desservie : [E] pour terminer le service.' or ('Gare desservie. Suivante : %d / %d.'):format(mission.index, #mission.stops), 'success')
+    else
+        notify(result.done and 'Tournée terminée : retournez au dépôt avec le véhicule.' or ('Arrêt fait. Suivant : %d / %d.'):format(mission.index, #mission.stops), 'success')
+    end
+end
+
+local function finishMission()
+    local result = lib.callback.await('lunatic_interim:missionFinish', false)
+
+    if result and result.ok then
+        endMission(result.salary > 0 and ('Mission terminée : %d $ versés sur votre compte.'):format(result.salary) or 'Mission terminée.', 'success')
+    else
+        notify(result and result.error or 'Impossible de terminer.', 'error')
+    end
 end
 
 ---------------------------------------------------------------------
@@ -583,18 +724,10 @@ CreateThread(function()
                     if not mission then
                         text, action = ('[E] %s (%s)'):format(job.kind == 'gather' and 'Commencer la mission' or 'Commencer la tournée', job.label), function() startMission(job, settings) end
                     elseif missionDone() then
-                        text, action = mission.gather and '[E] Terminer la mission' or '[E] Terminer la tournée', function()
-                            local result = lib.callback.await('lunatic_interim:missionFinish', false)
-
-                            if result and result.ok then
-                                endMission(result.salary > 0 and ('Tournée terminée : %d $ versés sur votre compte.'):format(result.salary) or 'Tournée terminée.', 'success')
-                            else
-                                notify(result and result.error or 'Impossible de terminer.', 'error')
-                            end
-                        end
+                        text, action = mission.gather and '[E] Terminer la mission' or '[E] Terminer la tournée', finishMission
                     else
                         text, action = '[E] Abandonner la tournée', function()
-                            local answer = lib.alertDialog({ header = 'Abandonner la tournée ?', content = 'Le véhicule est rendu, la tournée n\u{2019}est pas payée.', centered = true, cancel = true, labels = { confirm = 'Abandonner', cancel = 'Continuer' } })
+                            local answer = lib.alertDialog({ header = 'Abandonner la tournée ?', content = mission.rail and 'La rame est rendue, le service n\u{2019}est pas payé.' or 'Le véhicule est rendu, la tournée n\u{2019}est pas payée.', centered = true, cancel = true, labels = { confirm = 'Abandonner', cancel = 'Continuer' } })
 
                             if answer == 'confirm' then
                                 lib.callback.await('lunatic_interim:missionCancel', false)
@@ -686,6 +819,22 @@ CreateThread(function()
             end
         end
 
+        -- Rame : remonter en cabine, terminer à la dernière gare
+        if mission and mission.rail and train and DoesEntityExist(train) then
+            local inCab = GetVehiclePedIsIn(ped, false) == train
+
+            if not inCab and onFoot and #(coords - GetEntityCoords(train)) <= 8.0 then
+                wait = 0
+                text, action = '[E] Reprendre les commandes', enterCab
+            elseif inCab and missionDone() and math.abs(GetEntitySpeed(train)) < 1.0 then
+                local last = mission.stops[#mission.stops]
+
+                if last and #(coords - vector3(last.x, last.y, last.z)) <= TaskSettings(mission.task).finish - 10.0 then
+                    text, action = '[E] Terminer le service', finishMission
+                end
+            end
+        end
+
         -- Arrêt en cours
         local stop = mission and mission.stops and mission.stops[mission.index]
 
@@ -696,9 +845,9 @@ CreateThread(function()
 
             local air = mission.task == 'flight' or mission.task == 'water'
 
-            if distance < (air and 1500.0 or 80.0) then
+            if distance < (air and 1500.0 or mission.rail and 400.0 or 80.0) then
                 wait = 0
-                local size = air and 40.0 or mission.task == 'fuel' and 6.0 or 1.0
+                local size = air and 40.0 or mission.rail and 10.0 or mission.task == 'fuel' and 6.0 or 1.0
                 DrawMarker(1, target.x, target.y, target.z - 0.98, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, size, size, air and 2.0 or 0.3, 255, 200, 80, 140, false, false, 2, false, nil, nil, false)
 
                 if mission.task == 'garbage' then
@@ -728,6 +877,11 @@ CreateThread(function()
 
             local vehicleNow = GetVehiclePedIsIn(ped, false)
             local inMission = vehicleNow ~= 0 and vehicleNow == missionVehicle()
+
+            -- Tramway, train : rame arrêtée à la gare, depuis la cabine
+            if mission.rail and train and GetVehiclePedIsIn(ped, false) == train and distance <= TaskSettings(mission.task).reach - 10.0 and math.abs(GetEntitySpeed(train)) < 1.0 then
+                text, action = '[E] Valider la gare', stopDone
+            end
 
             -- Pilote : posé, à l'arrêt, sur l'aérodrome
             if mission.task == 'flight' and inMission and distance <= TaskSettings('flight').reach and not IsEntityInAir(vehicleNow) and GetEntitySpeed(vehicleNow) < 3.0 then
