@@ -120,6 +120,14 @@ select option:checked { background: var(--accent); color: #fff; }
 .wardrobe-item img { max-width: 70px; max-height: 66px; object-fit: contain; }
 .wardrobe-shirt { width: 54px; height: 54px; margin-top: 6px; background: var(--store, var(--accent)); clip-path: polygon(30% 4%, 40% 12%, 60% 12%, 70% 4%, 100% 22%, 88% 44%, 78% 38%, 78% 100%, 22% 100%, 22% 38%, 12% 44%, 0 22%); }
 .wardrobe-take { width: 100%; }
+/* Garage : même panneau ; vignettes des véhicules plus larges */
+.garage { position: fixed; inset: 0; }
+.garage .garage-grid { grid-template-columns: repeat(2, 1fr); padding-top: 12px; }
+.garage-item { grid-template-rows: 78px auto; }
+.garage-item img { max-width: 100%; max-height: 74px; object-fit: contain; }
+.garage-item.on { border-color: var(--store, var(--accent)); background: #ffffff1a; background: color-mix(in srgb, var(--store, var(--accent)) 22%, transparent); }
+.garage-item:disabled { opacity: .45; cursor: default; }
+.garage-go { width: 100%; }
 .wardrobe-boss .store-btn { padding: 0 6px; }
 .store-btn.danger { border-color: #ff4d5e; background: #ff4d5e; color: #fff; }
 .wardrobe-form { display: grid; gap: 8px; }

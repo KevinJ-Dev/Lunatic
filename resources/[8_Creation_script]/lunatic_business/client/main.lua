@@ -677,9 +677,97 @@ local function storeVehicle(point)
     end
 end
 
+-- Garage (doc Vision) : écran à gauche (html/garage.js), véhicule choisi posé à la sortie et filmé (aperçu local,
+-- invisible des autres). « Sortir le véhicule » le fait sortir pour de vrai (serveur) ; au volant, [E] le range.
+
+local garage = nil -- { point, data, vehicle, cam, heading, distance, height, token }
+
+local function garageCamera()
+    if not garage or not garage.cam then
+        return
+    end
+
+    local spawn = garage.data.spawn
+    local target = vector3(spawn.x, spawn.y, spawn.z + garage.height)
+
+    if garage.vehicle and DoesEntityExist(garage.vehicle) then
+        target = GetEntityCoords(garage.vehicle) + vector3(0.0, 0.0, garage.height)
+    end
+
+    local h, p = math.rad(garage.heading), math.rad(18.0)
+    local position = target + vector3(-math.sin(h) * math.cos(p) * garage.distance, math.cos(h) * math.cos(p) * garage.distance, math.sin(p) * garage.distance)
+    SetCamCoord(garage.cam, position.x, position.y, position.z)
+    PointCamAtCoord(garage.cam, target.x, target.y, target.z)
+end
+
+local function deleteGaragePreview()
+    if garage and garage.vehicle and DoesEntityExist(garage.vehicle) then
+        DeleteEntity(garage.vehicle)
+    end
+
+    if garage then
+        garage.vehicle = nil
+    end
+end
+
+-- Véhicule choisi posé à la sortie, phares allumés ; caméra reculée selon sa taille
+local function previewGarageVehicle(offer)
+    garage.token = garage.token + 1
+    local token = garage.token
+    local model = joaat(offer.model)
+    deleteGaragePreview()
+
+    if not IsModelInCdimage(model) or not lib.requestModel(model, 10000) then
+        return
+    end
+
+    if not garage or token ~= garage.token then
+        SetModelAsNoLongerNeeded(model)
+        return
+    end
+
+    local spawn = garage.data.spawn
+    local vehicle = CreateVehicle(model, spawn.x, spawn.y, spawn.z, spawn.h or 0.0, false, false)
+    SetModelAsNoLongerNeeded(model)
+    SetVehicleOnGroundProperly(vehicle)
+    FreezeEntityPosition(vehicle, true)
+    SetEntityInvincible(vehicle, true)
+    SetEntityCollision(vehicle, false, false)
+    SetVehicleDirtLevel(vehicle, 0.0)
+    SetVehicleLights(vehicle, 2)
+    SetVehicleNumberPlateText(vehicle, 'SERVICE')
+    garage.vehicle = vehicle
+
+    local min, max = GetModelDimensions(model)
+    garage.distance = math.max(4.5, #(max - min) * 1.15)
+    garage.height = math.max(0.3, (max.z - min.z) * 0.15)
+    garageCamera()
+end
+
+local function closeGarage()
+    if not garage then
+        return
+    end
+
+    deleteGaragePreview()
+
+    if garage.cam then
+        RenderScriptCams(false, true, 400, true, true)
+        DestroyCam(garage.cam, false)
+    end
+
+    garage = nil
+    SetNuiFocus(false, false)
+    SendNUIMessage({ action = 'garageClose' })
+end
+
 handlers.garage = function(point)
     if IsPedInAnyVehicle(PlayerPedId(), false) then
         return storeVehicle(point)
+    end
+
+    if garage then
+        return
     end
 
     local data = lib.callback.await('lunatic_business:garage', false, point.id)
@@ -688,32 +776,98 @@ handlers.garage = function(point)
         return
     end
 
-    local options = {}
+    local spawn = data.spawn
+    garage = { point = point, data = data, heading = (spawn.h or 0.0) + 150.0, distance = 6.0, height = 0.3, token = 0 }
+    garage.cam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
+    SetCamFov(garage.cam, 45.0)
+    garageCamera()
+    RenderScriptCams(true, true, 500, true, true)
 
-    if data.out then
-        options[#options + 1] = { title = ('Ranger : %s'):format(data.out), description = 'Le véhicule doit être près du garage.', icon = 'warehouse', onSelect = function() storeVehicle(point) end }
-    end
+    local vehicles = {}
 
     for _, vehicle in ipairs(data.vehicles) do
-        options[#options + 1] = {
-            title = vehicle.label, description = vehicle.model, icon = 'car', disabled = data.out ~= nil,
-            onSelect = function()
-                local result = lib.callback.await('lunatic_business:garageTake', false, point.id, vehicle.id)
-
-                if not failed(result) then
-                    notify(('%s sorti (plaque %s).'):format(result.label, result.plate), 'success')
-                end
-            end,
-        }
+        vehicles[#vehicles + 1] = { id = vehicle.id, label = vehicle.label, model = vehicle.model }
     end
 
-    if #options == 0 then
-        options[1] = { title = 'Aucun véhicule', description = 'Rien pour votre grade dans ce garage (parc réglé par le staff).', disabled = true }
-    end
+    SetNuiFocus(true, true)
+    SendNUIMessage({
+        action = 'garageOpen', garage = {
+            label = data.label, point = point.label, vehicles = vehicles, out = data.out,
+            header = headerImage(data.banner), logo = headerImage(data.logo), color = data.color,
+        },
+    })
 
-    lib.registerContext({ id = 'lb_garage', title = ('%s · %s'):format(point.label, data.label), options = options })
-    lib.showContext('lb_garage')
+    -- Premier véhicule montré d'office
+    if data.vehicles[1] and not data.out then
+        previewGarageVehicle(data.vehicles[1])
+    end
 end
+
+local function garageOffer(id)
+    for _, vehicle in ipairs(garage and garage.data.vehicles or {}) do
+        if vehicle.id == tonumber(id) then
+            return vehicle
+        end
+    end
+end
+
+RegisterNUICallback('garagePreview', function(data, cb)
+    cb({})
+    local offer = garageOffer(data.id)
+
+    if offer then
+        CreateThread(function() previewGarageVehicle(offer) end)
+    end
+end)
+
+-- Glisser à droite du panneau : la caméra tourne autour du véhicule
+RegisterNUICallback('garageRotate', function(data, cb)
+    cb({})
+
+    if garage then
+        garage.heading = garage.heading - (tonumber(data.dx) or 0) * 0.4
+        garageCamera()
+    end
+end)
+
+RegisterNUICallback('garageTake', function(data, cb)
+    local point = garage and garage.point
+
+    if not point then
+        return cb({ ok = false, error = 'Garage fermé.' })
+    end
+
+    -- L'aperçu laisse la place au vrai véhicule
+    deleteGaragePreview()
+    local result = lib.callback.await('lunatic_business:garageTake', false, point.id, tonumber(data.id))
+    cb(result or { ok = false, error = 'Sortie impossible.' })
+
+    if result and result.ok then
+        closeGarage()
+        notify(('%s sorti (plaque %s).'):format(result.label, result.plate), 'success')
+    end
+end)
+
+RegisterNUICallback('garageStore', function(_, cb)
+    local point = garage and garage.point
+    cb({})
+    closeGarage()
+
+    if point then
+        storeVehicle(point)
+    end
+end)
+
+RegisterNUICallback('garageClose', function(_, cb)
+    cb({})
+    closeGarage()
+end)
+
+AddEventHandler('onResourceStop', function(resource)
+    if resource == GetCurrentResourceName() then
+        closeGarage()
+    end
+end)
 
 RegisterNetEvent('lunatic_business:ringed', function(data)
     notify(('%s sonne à %s (%s). Point GPS ajouté.'):format(data.name, data.job, data.label), 'info')

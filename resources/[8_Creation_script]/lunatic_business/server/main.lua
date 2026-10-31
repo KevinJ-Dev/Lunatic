@@ -2209,7 +2209,14 @@ lib.callback.register('lunatic_business:garage', function(src, pointId)
     end
 
     local out = serviceVehicleOf(src)
-    return { ok = true, label = jobLabel(point.job), vehicles = fleetFor(xPlayer, point), out = out and out.label or nil }
+    local found, structure = pcall(function() return exports.lunatic_admin:getStructure(point.job) end)
+    structure = found and type(structure) == 'table' and structure or {}
+
+    -- spawn : là où le véhicule sortira (aperçu posé au même endroit par le client)
+    return {
+        ok = true, label = jobLabel(point.job), vehicles = fleetFor(xPlayer, point), out = out and out.label or nil, spawn = spawnOf(point),
+        banner = structure.banner or '', logo = structure.logo or '', color = structure.color,
+    }
 end)
 
 lib.callback.register('lunatic_business:garageTake', function(src, pointId, vehicleId)

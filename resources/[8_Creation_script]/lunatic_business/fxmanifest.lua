@@ -29,6 +29,7 @@ files {
     'html/app.js',
     'html/store.js',
     'html/wardrobe.js',
+    'html/garage.js',
     'html/fonts/*.woff2',
 }
 
