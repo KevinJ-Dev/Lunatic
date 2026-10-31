@@ -1,6 +1,7 @@
 -- Lot E3 : catalogues des structures (onglet Catalogues de la fiche d'une entreprise ou d'un service public).
 --   equipment : équipement des membres selon leur grade, payé par le compte de la société (prix 0 = gratuit)
 --   craft     : recettes de fabrication des membres (ingrédients consommés)
+--   sale      : carte de l'entreprise pour les clients (doc Vision « Catalogues »), au point Catalogue, visible par tous
 -- Un catalogue peut être partagé entre plusieurs structures (ex. armurerie commune à la police).
 -- Droits : la permission de la tuile (Entreprises / Services publics) d'une des structures rattachées.
 -- Tout est diffusé dans GlobalState.lunaticCatalogs (lu par lunatic_business).
@@ -8,7 +9,7 @@
 
 Catalogs = {}
 
-local KINDS = { equipment = 'Équipement', craft = 'Craft' }
+local KINDS = { equipment = 'Équipement', craft = 'Craft', sale = 'Vente' }
 local LIMITS = { count = 1000, price = 10000000, grade = 50, duration = 600, ingredients = 10, lines = 200 }
 
 ---@type table<number, table> catalogues par id
@@ -100,7 +101,7 @@ local function load()
     catalogs = {}
 
     -- Les anciennes boutiques (type shop) sont remplacées par les magasins automatiques
-    for _, row in ipairs(MySQL.query.await("SELECT * FROM `lunatic_catalogs` WHERE `kind` IN ('equipment', 'craft')") or {}) do
+    for _, row in ipairs(MySQL.query.await("SELECT * FROM `lunatic_catalogs` WHERE `kind` IN ('equipment', 'craft', 'sale')") or {}) do
         catalogs[tonumber(row.id)] = { id = tonumber(row.id), label = row.label, kind = row.kind, createdBy = row.created_by, lines = {}, jobs = {} }
     end
 
@@ -345,7 +346,8 @@ Panel.actions['catalogs.saveLine'] = function(src, actor, data)
     local craft = catalog.kind == 'craft'
     local count = wholeNumber(data.count, 1, LIMITS.count)
     local price = craft and 0 or wholeNumber(data.price, 0, LIMITS.price)
-    local minGrade = wholeNumber(data.minGrade, 0, LIMITS.grade)
+    -- Vente : pour les clients, pas de grade
+    local minGrade = catalog.kind == 'sale' and 0 or wholeNumber(data.minGrade, 0, LIMITS.grade)
     local duration = craft and wholeNumber(data.duration, 1, LIMITS.duration) or 5
 
     if not count or not price or not minGrade or not duration then

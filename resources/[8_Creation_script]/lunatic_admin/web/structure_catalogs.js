@@ -2,13 +2,14 @@
 
 // ====================================================================
 //  lunatic_admin — lot E3 : onglet Catalogues de la fiche d'une structure
-//  Équipement (membres selon le grade, payé par la société) et Craft (recettes).
+//  Équipement (membres selon le grade, payé par la société), Craft (recettes) et Vente (carte pour les clients).
 //  Utilisé par web/structures.js ; les magasins automatiques sont dans web/shops.js.
 // ====================================================================
 
 const CATALOG_KINDS = [
     { value: "equipment", label: "Équipement", help: "Membres seulement, aux points Catalogue et Armurerie, selon un grade minimum. Payé par le compte de la société (prix 0 = gratuit)." },
     { value: "craft", label: "Craft", help: "Recettes des membres au point Craft : ingrédients consommés, objet fabriqué après la durée indiquée." },
+    { value: "sale", label: "Vente", help: "Carte de l'entreprise pour les clients, au point Catalogue (visible par tous) : articles et prix de vente. Le client choisit, puis demande aux employés de le servir." },
 ];
 const catalogKindLabel = (kind) => (CATALOG_KINDS.find((k) => k.value === kind) || {}).label || kind;
 
@@ -129,13 +130,14 @@ function structureCatalogsCard(info, doAct) {
     return h("div", null, header, linked.map((c) => catalogCard(info, c, doAct)));
 }
 
-// Équipement : il faut un point Catalogue ou Armurerie ; Craft : un point Craft
+// Équipement : il faut un point Catalogue ou Armurerie ; Craft : un point Craft ; Vente : un point Catalogue
 function catalogProblems(info, c) {
     const problems = [];
     const types = new Set((info.points || []).map((p) => p.type));
     if (!c.lines.length) problems.push("catalogue vide");
     if (c.kind === "craft" && !types.has("craft")) problems.push("aucun point Craft placé");
-    if (c.kind !== "craft" && !types.has("catalog") && !types.has("armory")) problems.push("aucun point Catalogue ou Armurerie placé");
+    if (c.kind === "equipment" && !types.has("catalog") && !types.has("armory")) problems.push("aucun point Catalogue ou Armurerie placé");
+    if (c.kind === "sale" && !types.has("catalog")) problems.push("aucun point Catalogue placé");
     const unknown = c.lines.filter((l) => l.missing).length;
     if (unknown) problems.push(`${unknown} objet${unknown > 1 ? "s" : ""} inconnu${unknown > 1 ? "s" : ""}`);
     return problems;
@@ -222,11 +224,12 @@ function renameStructureCatalog(c, doAct) {
     input.focus();
 }
 
-// Article (équipement) ou recette (craft)
+// Article (équipement ou vente) ou recette (craft)
 async function openCatalogLine(c, line, doAct) {
     const items = await loadCatalogItems();
     const known = new Set(items.map((i) => i.name));
     const craft = c.kind === "craft";
+    const sale = c.kind === "sale";
 
     const item = itemPicker(items, line && line.item);
     const count = h("input", { class: "input mono", type: "number", min: "1", value: String(line ? line.count : 1) });
@@ -251,9 +254,9 @@ async function openCatalogLine(c, line, doAct) {
         h("div", { class: "field" }, h("label", null, craft ? "Objet fabriqué" : "Objet"), item),
         h("div", { class: "event-form-row" },
             h("div", { class: "field" }, h("label", null, craft ? "Quantité fabriquée" : "Quantité donnée"), count),
-            craft ? h("div", { class: "field" }, h("label", null, "Durée (secondes)"), duration) : h("div", { class: "field" }, h("label", null, "Prix pour la société ($)"), price)),
-        h("div", { class: "field" }, h("label", null, "Grade minimum (0 = tous les membres)"), grade),
-    ];
+            craft ? h("div", { class: "field" }, h("label", null, "Durée (secondes)"), duration) : h("div", { class: "field" }, h("label", null, sale ? "Prix de vente au client ($)" : "Prix pour la société ($)"), price)),
+        sale ? null : h("div", { class: "field" }, h("label", null, "Grade minimum (0 = tous les membres)"), grade),
+    ].filter(Boolean);
     if (craft) {
         fields.push(h("div", { class: "field" }, h("label", null, "Ingrédients consommés"), ingredientList,
             h("button", { class: "btn small ghost", style: "justify-self:start", onclick: () => {
