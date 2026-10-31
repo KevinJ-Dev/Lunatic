@@ -110,3 +110,8 @@ end)
 AddEventHandler('playerDropped', function()
     sessions[source] = nil
 end)
+
+-- Stations-service (config), pour d'autres scripts : livraisons du pompiste d'intérim (lunatic_interim)
+exports('getFuelStations', function()
+    return Config.FuelStations
+end)

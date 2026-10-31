@@ -283,3 +283,8 @@ CreateThread(function()
 end)
 
 -- Blips des stations : gérés par la tuile Blips du panel (lunatic_admin)
+
+-- Stations-service (config), pour d'autres scripts : livraisons du pompiste d'intérim (lunatic_interim)
+exports('getFuelStations', function()
+    return Config.FuelStations
+end)

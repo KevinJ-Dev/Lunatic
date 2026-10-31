@@ -5,13 +5,14 @@ Config = {}
 -- minutes, participants = texte affiché. color : pastille si pas de logo.
 -- Image et logo de chaque métier : tuile Images du panel (Job Center).
 -- kind = 'route' : tournée (dépôt, véhicule, arrêts), jouable ; vehicle et stops : valeurs par défaut, réglables dans le
--- panel (Autres → Métiers d'intérim), comme le salaire, le dépôt et la sortie du véhicule.
+-- panel (Autres → Métiers d'intérim), comme le salaire, le dépôt et la sortie du véhicule. task : façon de faire chaque
+-- arrêt (Config.Tasks) ; vtype : type du véhicule pour le serveur (automobile, plane…) ; trailer : remorque attelée.
 -- Ancien fonctionnement : métiers ESX « interim_<id> », repris en second métier à la connexion (voir server/main.lua)
 Config.JobPrefix = 'interim_'
 Config.Jobs = {
-    { id = 'canadair', label = 'Pilote de Canadair', company = 'San Andreas Air Fire', color = '#e5484d', salary = 450, duration = 15, participants = '1 personne',
+    { id = 'canadair', label = 'Pilote de Canadair', company = 'San Andreas Air Fire', color = '#e5484d', salary = 450, duration = 15, participants = '1 personne', kind = 'route', task = 'water', vehicle = 'dodo', vtype = 'plane', stops = 3,
         missions = { "Décolle avec le Canadair depuis l'aérodrome.", 'Écope de l\u{2019}eau sur un lac ou en mer.', 'Largue l\u{2019}eau sur les feux signalés.' } },
-    { id = 'pilot', label = "Pilote d'avion", company = 'Adios Airlines', color = '#f5b301', salary = 400, duration = 12, participants = '1 personne',
+    { id = 'pilot', label = "Pilote d'avion", company = 'Adios Airlines', color = '#f5b301', salary = 400, duration = 12, participants = '1 personne', kind = 'route', task = 'flight', vehicle = 'velum2', vtype = 'plane', stops = 2,
         missions = { "Récupère un avion au terminal de l'aéroport.", 'Effectue un vol de transport vers une autre piste.', 'Atterris en toute sécurité pour encaisser ta paie.' } },
     { id = 'garbage', label = 'Éboueur', company = 'Hobo', color = '#2f9e44', salary = 300, duration = 15, participants = '1 à 4 personnes', kind = 'route', task = 'garbage', vehicle = 'trash', stops = 5,
         missions = { 'Récupère un camion poubelle au dépôt des éboueurs.', 'Parcours la ville pour vider les bacs à ordures.', 'Dépose les déchets à la décharge et reçois ta rémunération.' } },
@@ -21,7 +22,7 @@ Config.Jobs = {
         missions = { 'Charge ta camionnette au dépôt.', 'Livre les colis aux adresses indiquées.', 'Rapporte la camionnette pour être payé.' } },
     { id = 'hunter', label = 'Chasseur', company = 'Sport de plein air', color = '#5c7a29', salary = 320, duration = 15, participants = '1 personne',
         missions = { 'Prends ton fusil et rejoins la zone de chasse.', 'Traque et abats le gibier autorisé.', 'Dépèce les animaux et revends la viande.' } },
-    { id = 'fuel', label = 'Pompiste', company = 'Globe Oil', color = '#1c7ed6', salary = 340, duration = 12, participants = '1 personne',
+    { id = 'fuel', label = 'Pompiste', company = 'Globe Oil', color = '#1c7ed6', salary = 340, duration = 12, participants = '1 personne', kind = 'route', task = 'fuel', vehicle = 'phantom', trailer = 'tanker', stops = 3,
         missions = { 'Récupère le camion-citerne à la raffinerie.', 'Ravitaille les stations-service indiquées.', 'Ramène la citerne vide pour être payé.' } },
     { id = 'gopostal', label = 'Facteur', company = 'GoPostal', color = '#d6336c', salary = 240, duration = 10, participants = '1 personne', kind = 'route', task = 'parcel', vehicle = 'boxville2', stops = 6,
         missions = { 'Récupère ton fourgon GoPostal au centre de tri.', 'Distribue le courrier dans les boîtes aux lettres.', 'Rends le fourgon au centre pour être payé.' } },
@@ -45,3 +46,20 @@ Config.ServerDistance = 6.0 -- revérifié par le serveur
 -- stopSeconds = temps minimum entre deux arrêts (vérifié par le serveur), reach = distance pour livrer, garbageBags = sacs
 -- à ramasser par arrêt (Éboueur)
 Config.Route = { minDistance = 400.0, maxDistance = 2500.0, gap = 250.0, stopSeconds = 15, reach = 8.0, garbageBags = 2 }
+
+-- Réglages propres à chaque façon de faire un arrêt (ils remplacent ceux de Config.Route) ; finish = distance au dépôt
+-- pour terminer (avion : posé près du hangar, sans descendre)
+Config.Tasks = {
+    parcel = { finish = 10.0 },
+    garbage = { reach = 30.0, finish = 10.0 },
+    fuel = { reach = 45.0, stopSeconds = 25, gap = 300.0, finish = 15.0, fillSeconds = 12 },       -- stations de lunatic_gameplay
+    flight = { reach = 150.0, stopSeconds = 60, minDistance = 1500.0, finish = 150.0 },              -- aérodromes ci-dessous
+    water = { reach = 220.0, stopSeconds = 30, minDistance = 800.0, maxDistance = 3500.0, gap = 600.0, finish = 150.0, loadSeconds = 5 },
+}
+
+-- Escales du pilote : pistes de la carte (le panel ne les règle pas encore)
+Config.Airports = {
+    { label = 'Aéroport international de Los Santos', x = -1336.0, y = -2434.0, z = 13.9 },
+    { label = 'Aérodrome de Sandy Shores', x = 1716.0, y = 3255.0, z = 41.1 },
+    { label = 'McKenzie Field (Grapeseed)', x = 2133.0, y = 4782.0, z = 40.9 },
+}

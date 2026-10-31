@@ -21,6 +21,21 @@ function JobById(id)
     end
 end
 
+-- Réglages d'une façon de faire les arrêts : Config.Route complété par Config.Tasks[task]
+function TaskSettings(task)
+    local settings = {}
+
+    for key, value in pairs(Config.Route) do
+        settings[key] = value
+    end
+
+    for key, value in pairs(Config.Tasks[task] or {}) do
+        settings[key] = value
+    end
+
+    return settings
+end
+
 -- Réglages d'un métier : ceux du panel (Autres → Métiers d'intérim, GlobalState.lunaticInterim), sinon la config
 function JobSettings(id)
     local job = JobById(id)

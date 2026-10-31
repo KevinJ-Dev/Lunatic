@@ -1,8 +1,12 @@
--- Tournées d'intérim côté client (Livreur, Facteur, Éboueur) : dépôt ([E] commencer / terminer / abandonner), arrêts tirés
--- au hasard sur les routes, colis à prendre à l'arrière du véhicule et à porter à l'arrêt (Livreur, Facteur), sacs à
--- ramasser à l'arrêt et à jeter dans la benne (Éboueur). Le serveur valide chaque étape et paie à la fin.
+-- Tournées d'intérim côté client : dépôt ([E] commencer / terminer / abandonner), puis selon le métier :
+--   Livreur, Facteur : arrêts au hasard sur les routes, colis pris à l'arrière du véhicule et porté à l'arrêt ;
+--   Éboueur : sacs à ramasser à l'arrêt et à jeter dans la benne ;
+--   Pompiste : citerne attelée, stations-service à ravitailler ;
+--   Pilote : escales sur les aérodromes (se poser, s'arrêter, valider) ;
+--   Canadair : écoper en rasant l'eau, puis larguer sur les feux.
+-- Le serveur valide chaque étape et paie à la fin.
 
-local mission = nil -- { task, netId, stops, index, bags, carrying, prop, pile, blip }
+local mission = nil -- { task, netId, trailerNetId, stops, index, bags, carrying, prop, pile, blip, water, loaded, fire }
 local depotBlip, depotBlipJob = nil, nil
 local shown = false
 
@@ -132,8 +136,8 @@ end
 ---------------------------------------------------------------------
 
 -- Point au bord d'une route, entre min et max mètres du dépôt et à plus de gap des autres arrêts (trottoir si possible)
-local function roadStop(depot, chosen)
-    local route = Config.Route
+local function roadStop(depot, chosen, rules)
+    local route = rules or Config.Route
 
     for _ = 1, 40 do
         local angle = math.random() * math.pi * 2
@@ -168,6 +172,81 @@ local function roadStop(depot, chosen)
     end
 end
 
+-- Arrêts sur des lieux fixes : stations-service (Pompiste) ou aérodromes (Pilote), tirés au hasard
+local function fixedStops(task, depot, count, rules)
+    local places = task == 'flight' and Config.Airports or (GetResourceState('lunatic_gameplay') == 'started' and exports.lunatic_gameplay:getFuelStations()) or {}
+    local pool, stops = {}, {}
+
+    for _, place in ipairs(places) do
+        local distance = #(vector2(place.x, place.y) - vector2(depot.x, depot.y))
+
+        if distance >= (task == 'flight' and rules.minDistance or 300.0) then
+            pool[#pool + 1] = { x = place.x, y = place.y, z = place.z }
+        end
+    end
+
+    if #pool == 0 then
+        return nil
+    end
+
+    for _ = 1, count do
+        local pick
+
+        -- Escales : jamais deux fois de suite le même aérodrome ; stations : chacune une fois si possible
+        for _ = 1, 20 do
+            pick = pool[math.random(#pool)]
+            local previous = stops[#stops]
+            local used = false
+
+            for _, other in ipairs(stops) do
+                if other == pick then
+                    used = true
+                end
+            end
+
+            if not (previous and previous == pick) and (task == 'flight' or not used or #stops >= #pool) then
+                break
+            end
+        end
+
+        stops[#stops + 1] = pick
+    end
+
+    return stops
+end
+
+local function trailerEntity()
+    if not mission or not mission.trailerNetId or not NetworkDoesNetworkIdExist(mission.trailerNetId) then
+        return 0
+    end
+
+    return NetworkGetEntityFromNetworkId(mission.trailerNetId)
+end
+
+-- Canadair : feu visible à l'arrêt en cours (effet local), éteint au largage
+local function startFire(stop)
+    if mission.fire then
+        return
+    end
+
+    RequestNamedPtfxAsset('core')
+    local timeout = GetGameTimer() + 3000
+
+    while not HasNamedPtfxAssetLoaded('core') and GetGameTimer() < timeout do
+        Wait(10)
+    end
+
+    UseParticleFxAssetNextCall('core')
+    mission.fire = StartParticleFxLoopedAtCoord('fire_wrecked_plane_cockpit', stop.x, stop.y, stop.z, 0.0, 0.0, 0.0, 6.0, false, false, false, false)
+end
+
+local function stopFire()
+    if mission and mission.fire then
+        StopParticleFxLooped(mission.fire, false)
+        mission.fire = nil
+    end
+end
+
 local function setStopBlip()
     if mission.blip then
         RemoveBlip(mission.blip)
@@ -198,6 +277,7 @@ local function endMission(message, kind)
 
     dropCarried()
     removePile()
+    stopFire()
 
     if mission.blip then
         RemoveBlip(mission.blip)
@@ -215,18 +295,38 @@ RegisterNetEvent('lunatic_interim:missionEnded', function(message, kind)
     endMission(message, kind)
 end)
 
+local BRIEFS = {
+    parcel = 'Tournée de %d arrêts : prenez un colis à l\u{2019}arrière du véhicule et livrez-le à chaque arrêt.',
+    garbage = 'Tournée de %d arrêts : ramassez les sacs à chaque arrêt et jetez-les dans la benne.',
+    fuel = 'Tournée de %d stations : amenez la citerne jusqu\u{2019}à chaque station, puis ravitaillez-la depuis la citerne.',
+    flight = 'Vol de %d escales : posez-vous sur chaque aérodrome, arrêtez l\u{2019}avion, puis validez l\u{2019}escale.',
+    water = '%d feux à éteindre : écopez en rasant l\u{2019}eau (lac ou mer), puis larguez au-dessus de chaque feu.',
+}
+
 local function startMission(job, settings)
     notify('Préparation de la tournée…', 'info')
-    local stops = {}
+    local rules = TaskSettings(job.task)
+    local stops
 
-    for _ = 1, settings.stops do
-        local point = roadStop(settings.depot, stops)
+    if job.task == 'fuel' or job.task == 'flight' then
+        stops = fixedStops(job.task, settings.depot, settings.stops, rules)
+    else
+        stops = {}
 
-        if not point then
-            return notify('Impossible de préparer la tournée ici, réessayez.', 'error')
+        for _ = 1, settings.stops do
+            local point = roadStop(settings.depot, stops, rules)
+
+            if not point then
+                stops = nil
+                break
+            end
+
+            stops[#stops + 1] = point
         end
+    end
 
-        stops[#stops + 1] = point
+    if not stops then
+        return notify('Impossible de préparer la tournée ici, réessayez.', 'error')
     end
 
     local result = lib.callback.await('lunatic_interim:missionStart', false, stops)
@@ -235,11 +335,27 @@ local function startMission(job, settings)
         return notify(result and result.error or 'Tournée impossible.', 'error')
     end
 
-    mission = { task = result.task, netId = result.netId, stops = result.stops, index = 1, bags = result.bags }
+    mission = { task = result.task, netId = result.netId, trailerNetId = result.trailerNetId, stops = result.stops, index = 1, bags = result.bags, water = 0.0 }
     setStopBlip()
-    notify(job.task == 'garbage'
-        and ('Tournée de %d arrêts : ramassez les sacs à chaque arrêt et jetez-les dans la benne.'):format(#stops)
-        or ('Tournée de %d arrêts : prenez un colis à l\u{2019}arrière du véhicule et livrez-le à chaque arrêt.'):format(#stops), 'success')
+    notify((BRIEFS[result.task] or BRIEFS.parcel):format(#stops), 'success')
+
+    -- Pompiste : la citerne est attelée au camion dès que les deux sont là
+    if result.trailerNetId then
+        CreateThread(function()
+            local timeout = GetGameTimer() + 5000
+
+            while mission and GetGameTimer() < timeout do
+                local truck, trailer = missionVehicle(), trailerEntity()
+
+                if truck ~= 0 and trailer ~= 0 and DoesEntityExist(truck) and DoesEntityExist(trailer) then
+                    AttachVehicleToTrailer(truck, trailer, 1.0)
+                    break
+                end
+
+                Wait(100)
+            end
+        end)
+    end
 end
 
 local function stopDone()
@@ -250,6 +366,7 @@ local function stopDone()
     end
 
     removePile()
+    stopFire()
     mission.index = result.index
     mission.bags = Config.Route.garbageBags
     setStopBlip()
@@ -292,12 +409,15 @@ CreateThread(function()
         if job and settings.depot then
             local depot = vector3(settings.depot.x, settings.depot.y, settings.depot.z)
             local distance = #(coords - depot)
+            -- Avion de retour : on termine posé près du hangar, sans descendre
+            local flying = mission and job.vtype == 'plane' and not onFoot
+            local reach = flying and 40.0 or 2.5
 
-            if distance < 30.0 then
+            if distance < (flying and 200.0 or 30.0) then
                 wait = 0
-                DrawMarker(1, depot.x, depot.y, depot.z - 0.98, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.2, 1.2, 0.3, 150, 80, 255, 110, false, false, 2, false, nil, nil, false)
+                DrawMarker(1, depot.x, depot.y, depot.z - 0.98, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, flying and 8.0 or 1.2, flying and 8.0 or 1.2, 0.3, 150, 80, 255, 110, false, false, 2, false, nil, nil, false)
 
-                if distance <= 2.5 then
+                if distance <= reach and (not flying or mission.index > #mission.stops) then
                     if not mission then
                         text, action = ('[E] Commencer la tournée (%s)'):format(job.label), function() startMission(job, settings) end
                     elseif mission.index > #mission.stops then
@@ -332,12 +452,72 @@ CreateThread(function()
             local distance = #(coords - target)
             local vehicle = missionVehicle()
 
-            if distance < 80.0 then
+            local air = mission.task == 'flight' or mission.task == 'water'
+
+            if distance < (air and 1500.0 or 80.0) then
                 wait = 0
-                DrawMarker(1, target.x, target.y, target.z - 0.98, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.3, 255, 200, 80, 140, false, false, 2, false, nil, nil, false)
+                local size = air and 40.0 or mission.task == 'fuel' and 6.0 or 1.0
+                DrawMarker(1, target.x, target.y, target.z - 0.98, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, size, size, air and 2.0 or 0.3, 255, 200, 80, 140, false, false, 2, false, nil, nil, false)
 
                 if mission.task == 'garbage' then
                     placePile(target)
+                elseif mission.task == 'water' then
+                    startFire(target)
+                end
+            end
+
+            -- Pompiste : à pied près de la citerne, à la station
+            if mission.task == 'fuel' and onFoot then
+                local trailer = trailerEntity()
+
+                if trailer ~= 0 and DoesEntityExist(trailer) and #(coords - GetEntityCoords(trailer)) <= 6.0 and #(GetEntityCoords(trailer) - target) <= TaskSettings('fuel').reach - 5.0 then
+                    text, action = '[E] Ravitailler la station', function()
+                        local done = lib.progressBar({
+                            duration = TaskSettings('fuel').fillSeconds * 1000, label = 'Remplissage des cuves…', canCancel = true,
+                            disable = { move = true, car = true, combat = true }, anim = { dict = 'timetable@gardener@filling_can', clip = 'gar_ig_5_filling_can' },
+                        })
+
+                        if done then
+                            stopDone()
+                        end
+                    end
+                end
+            end
+
+            local vehicleNow = GetVehiclePedIsIn(ped, false)
+            local inMission = vehicleNow ~= 0 and vehicleNow == missionVehicle()
+
+            -- Pilote : posé, à l'arrêt, sur l'aérodrome
+            if mission.task == 'flight' and inMission and distance <= TaskSettings('flight').reach and not IsEntityInAir(vehicleNow) and GetEntitySpeed(vehicleNow) < 3.0 then
+                text, action = '[E] Valider l\u{2019}escale', stopDone
+            end
+
+            -- Canadair : écopage en rasant l'eau, largage au-dessus du feu
+            if mission.task == 'water' and inMission then
+                local rules = TaskSettings('water')
+
+                if not mission.loaded and IsEntityInWater(vehicleNow) and GetEntitySpeed(vehicleNow) > 8.0 then
+                    wait = 0
+                    mission.water = mission.water + GetFrameTime()
+
+                    if mission.water >= rules.loadSeconds then
+                        mission.loaded, mission.water = true, 0.0
+                        notify('Réservoir plein : direction le feu.', 'success')
+                    end
+                end
+
+                local high = GetEntityHeightAboveGround(vehicleNow)
+
+                -- Assez près et assez bas pour rester dans la distance vérifiée par le serveur
+                if mission.loaded and #(vector2(coords.x, coords.y) - vector2(target.x, target.y)) <= rules.reach - 70.0 and high < 100.0 then
+                    text, action = '[E] Larguer l\u{2019}eau', function()
+                        local position = GetEntityCoords(missionVehicle())
+                        RequestNamedPtfxAsset('core')
+                        UseParticleFxAssetNextCall('core')
+                        StartParticleFxNonLoopedAtCoord('exp_water', position.x, position.y, position.z - 3.0, 0.0, 0.0, 0.0, 6.0, false, false, false)
+                        mission.loaded = false
+                        stopDone()
+                    end
                 end
             end
 
@@ -346,7 +526,7 @@ CreateThread(function()
                 dropCarried()
             end
 
-            if onFoot and vehicle ~= 0 and DoesEntityExist(vehicle) then
+            if onFoot and (mission.task == 'parcel' or mission.task == 'garbage') and vehicle ~= 0 and DoesEntityExist(vehicle) then
                 local rear = vehicleRear(vehicle)
                 local nearRear = #(coords - rear) <= 2.5
 
