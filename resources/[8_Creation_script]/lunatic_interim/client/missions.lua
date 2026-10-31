@@ -3,10 +3,12 @@
 --   Éboueur : sacs à ramasser à l'arrêt et à jeter dans la benne ;
 --   Pompiste : citerne attelée, stations-service à ravitailler ;
 --   Pilote : escales sur les aérodromes (se poser, s'arrêter, valider) ;
---   Canadair : écoper en rasant l'eau, puis larguer sur les feux.
+--   Canadair : écoper en rasant l'eau, puis larguer sur les feux ;
+--   Mineur, Pêcheur, Chasseur : récolte d'un quota dans la zone autour du dépôt (rochers, pêche face à l'eau, gibier).
 -- Le serveur valide chaque étape et paie à la fin.
 
-local mission = nil -- { task, netId, trailerNetId, stops, index, bags, carrying, prop, pile, blip, water, loaded, fire }
+local mission = nil -- tournée { task, netId, trailerNetId, stops, index, bags, carrying, prop, pile, blip, water, loaded, fire }
+                    -- ou récolte { gather, task, count, quota, zone, radius, rocks, animals, zoneBlip, blip }
 local depotBlip, depotBlipJob = nil, nil
 local shown = false
 
@@ -33,7 +35,8 @@ end
 -- Métier d'intérim du joueur (second métier, statebag interimJob) avec une tournée, et ses réglages
 local function routeJob()
     local job = JobById(LocalPlayer.state.interimJob)
-    return job and job.kind == 'route' and job or nil, job and JobSettings(job.id) or nil
+    job = job and (job.kind == 'route' or job.kind == 'gather') and job or nil
+    return job, job and JobSettings(job.id) or nil
 end
 
 local function missionVehicle()
@@ -247,6 +250,157 @@ local function stopFire()
     end
 end
 
+---------------------------------------------------------------------
+-- Récoltes : rochers (Mineur), pêche face à l'eau (Pêcheur), gibier (Chasseur)
+---------------------------------------------------------------------
+
+local ROCK, PICKAXE = 'prop_rock_4_c', 'prop_tool_pickaxe'
+local ANIMALS = { 'a_c_deer', 'a_c_boar' }
+
+-- Point au sol dans un disque (le sol doit être chargé : près du joueur)
+local function groundPoint(center, minRadius, maxRadius, zone, zoneRadius)
+    for _ = 1, 20 do
+        local angle, distance = math.random() * math.pi * 2, minRadius + math.random() * (maxRadius - minRadius)
+        local x, y = center.x + math.cos(angle) * distance, center.y + math.sin(angle) * distance
+
+        if not zone or #(vector2(x, y) - vector2(zone.x, zone.y)) <= zoneRadius then
+            local found, z = GetGroundZFor_3dCoord(x, y, center.z + 60.0, false)
+
+            if found and math.abs(z - center.z) < 50.0 then
+                return vector3(x, y, z)
+            end
+        end
+    end
+end
+
+local function spawnRock()
+    local spot = groundPoint(mission.zone, 5.0, mission.radius - 10.0)
+    local model = joaat(ROCK)
+
+    if not spot or not lib.requestModel(model, 5000) then
+        return
+    end
+
+    local rock = CreateObject(model, spot.x, spot.y, spot.z, false, false, false)
+    SetModelAsNoLongerNeeded(model)
+    PlaceObjectOnGroundProperly(rock)
+    FreezeEntityPosition(rock, true)
+    mission.rocks[#mission.rocks + 1] = rock
+end
+
+-- Gibier à 60-150 m du joueur, dans la zone ; enregistré par le serveur pour être reconnu au dépeçage
+local function spawnAnimal()
+    local spot = groundPoint(GetEntityCoords(PlayerPedId()), 60.0, 150.0, mission.zone, mission.radius)
+    local model = joaat(ANIMALS[math.random(#ANIMALS)])
+
+    if not spot or not lib.requestModel(model, 5000) then
+        return
+    end
+
+    local animal = CreatePed(28, model, spot.x, spot.y, spot.z, math.random(0, 359) + 0.0, true, true)
+    SetModelAsNoLongerNeeded(model)
+    TaskWanderStandard(animal, 10.0, 10)
+    mission.animals[#mission.animals + 1] = animal
+    TriggerServerEvent('lunatic_interim:animal', NetworkGetNetworkIdFromEntity(animal))
+end
+
+-- Pêcheur : de l'eau devant soi, en contrebas
+local function facingWater(ped)
+    local from = GetOffsetFromEntityInWorldCoords(ped, 0.0, 0.0, 0.5)
+    local to = GetOffsetFromEntityInWorldCoords(ped, 0.0, 10.0, -4.0)
+    return TestProbeAgainstWater(from.x, from.y, from.z, to.x, to.y, to.z) == true
+end
+
+local function clearGather()
+    for _, rock in ipairs(mission.rocks or {}) do
+        if DoesEntityExist(rock) then
+            DeleteEntity(rock)
+        end
+    end
+
+    for _, animal in ipairs(mission.animals or {}) do
+        if DoesEntityExist(animal) and NetworkHasControlOfEntity(animal) then
+            DeleteEntity(animal)
+        end
+    end
+
+    if mission.zoneBlip then
+        RemoveBlip(mission.zoneBlip)
+    end
+end
+
+local function depotRoute(depot)
+    if mission.blip then
+        RemoveBlip(mission.blip)
+    end
+
+    mission.blip = AddBlipForCoord(depot.x, depot.y, depot.z)
+    SetBlipSprite(mission.blip, 50)
+    SetBlipColour(mission.blip, 27)
+    SetBlipRoute(mission.blip, true)
+    BeginTextCommandSetBlipName('STRING')
+    AddTextComponentSubstringPlayerName('Retour au dépôt')
+    EndTextCommandSetBlipName(mission.blip)
+end
+
+local GATHER_LABELS = { mine = 'Minerais', fish = 'Poissons', hunt = 'Gibier' }
+
+local function gathered(netId)
+    local result = lib.callback.await('lunatic_interim:gather', false, netId)
+
+    if not result or not result.ok then
+        notify(result and result.error or 'Récolte refusée.', 'error')
+        return false
+    end
+
+    mission.count = result.count
+
+    if result.done then
+        depotRoute(mission.zone)
+        notify(('%s : %d / %d. Quota atteint : retournez au dépôt.'):format(GATHER_LABELS[mission.task], result.count, result.quota), 'success')
+    else
+        notify(('%s : %d / %d.'):format(GATHER_LABELS[mission.task], result.count, result.quota), 'success')
+    end
+
+    return true
+end
+
+local GATHER_BRIEFS = {
+    mine = 'Minez %d fois les rochers de la carrière (zone sur la carte), puis revenez au dépôt.',
+    fish = 'Pêchez %d poissons au bord de l\u{2019}eau dans la zone, puis revenez au dépôt.',
+    hunt = 'Ramenez %d gibiers : abattez-les avec votre arme dans la zone, dépecez-les, puis revenez au dépôt.',
+}
+
+local function startGather()
+    local result = lib.callback.await('lunatic_interim:gatherStart', false)
+
+    if not result or not result.ok then
+        return notify(result and result.error or 'Mission impossible.', 'error')
+    end
+
+    local zone = vector3(result.depot.x, result.depot.y, result.depot.z)
+    mission = { gather = true, task = result.task, count = 0, quota = result.quota, zone = zone, radius = result.radius, rocks = {}, animals = {}, maxRocks = result.rocks or 5, maxAnimals = result.animals or 4 }
+    mission.zoneBlip = AddBlipForRadius(zone.x, zone.y, zone.z, result.radius)
+    SetBlipColour(mission.zoneBlip, 27)
+    SetBlipAlpha(mission.zoneBlip, 90)
+
+    if mission.task == 'mine' then
+        for _ = 1, mission.maxRocks do
+            spawnRock()
+        end
+    end
+
+    notify(GATHER_BRIEFS[mission.task]:format(mission.quota), 'success')
+end
+
+local function missionDone()
+    if mission.gather then
+        return mission.count >= mission.quota
+    end
+
+    return mission.index > #mission.stops
+end
+
 local function setStopBlip()
     if mission.blip then
         RemoveBlip(mission.blip)
@@ -279,6 +433,10 @@ local function endMission(message, kind)
     removePile()
     stopFire()
 
+    if mission.gather then
+        clearGather()
+    end
+
     if mission.blip then
         RemoveBlip(mission.blip)
     end
@@ -304,6 +462,10 @@ local BRIEFS = {
 }
 
 local function startMission(job, settings)
+    if job.kind == 'gather' then
+        return startGather()
+    end
+
     notify('Préparation de la tournée…', 'info')
     local rules = TaskSettings(job.task)
     local stops
@@ -417,11 +579,11 @@ CreateThread(function()
                 wait = 0
                 DrawMarker(1, depot.x, depot.y, depot.z - 0.98, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, flying and 8.0 or 1.2, flying and 8.0 or 1.2, 0.3, 150, 80, 255, 110, false, false, 2, false, nil, nil, false)
 
-                if distance <= reach and (not flying or mission.index > #mission.stops) then
+                if distance <= reach and (not flying or missionDone()) then
                     if not mission then
-                        text, action = ('[E] Commencer la tournée (%s)'):format(job.label), function() startMission(job, settings) end
-                    elseif mission.index > #mission.stops then
-                        text, action = '[E] Terminer la tournée', function()
+                        text, action = ('[E] %s (%s)'):format(job.kind == 'gather' and 'Commencer la mission' or 'Commencer la tournée', job.label), function() startMission(job, settings) end
+                    elseif missionDone() then
+                        text, action = mission.gather and '[E] Terminer la mission' or '[E] Terminer la tournée', function()
                             local result = lib.callback.await('lunatic_interim:missionFinish', false)
 
                             if result and result.ok then
@@ -444,8 +606,88 @@ CreateThread(function()
             end
         end
 
+        -- Récolte en cours
+        if mission and mission.gather and not missionDone() and #(coords - mission.zone) <= mission.radius + 20.0 then
+            wait = 0
+
+            if mission.task == 'mine' then
+                local nearest, index = nil, nil
+
+                for i, rock in ipairs(mission.rocks) do
+                    if DoesEntityExist(rock) and #(coords - GetEntityCoords(rock)) <= 2.5 then
+                        nearest, index = rock, i
+                    end
+                end
+
+                if nearest and onFoot then
+                    text, action = '[E] Miner', function()
+                        local done = lib.progressBar({
+                            duration = TaskSettings('mine').gatherSeconds * 1000, label = 'Extraction…', canCancel = true,
+                            disable = { move = true, car = true, combat = true },
+                            anim = { dict = 'melee@large_wpn@streamed_core', clip = 'ground_attack_on_spot' },
+                            prop = { model = PICKAXE, bone = 57005, pos = vec3(0.18, -0.02, -0.02), rot = vec3(350.0, 100.0, 140.0) },
+                        })
+
+                        if done and gathered() then
+                            DeleteEntity(nearest)
+                            table.remove(mission.rocks, index)
+
+                            if not missionDone() then
+                                spawnRock()
+                            end
+                        end
+                    end
+                end
+            elseif mission.task == 'fish' then
+                if onFoot and not IsPedSwimming(ped) and facingWater(ped) then
+                    text, action = '[E] Pêcher', function()
+                        local done = lib.progressBar({
+                            duration = TaskSettings('fish').gatherSeconds * 1000, label = 'Ça mord ?', canCancel = true,
+                            disable = { move = true, car = true, combat = true }, anim = { scenario = 'WORLD_HUMAN_STAND_FISHING' },
+                        })
+
+                        ClearPedTasks(PlayerPedId())
+
+                        if done and lib.skillCheck({ 'easy', 'medium' }, { 'e' }) then
+                            gathered()
+                        elseif done then
+                            notify('Le poisson s\u{2019}est échappé.', 'error')
+                        end
+                    end
+                end
+            elseif mission.task == 'hunt' then
+                -- Gibier entretenu autour du joueur ; un animal abattu à côté se dépèce
+                for i = #mission.animals, 1, -1 do
+                    if not DoesEntityExist(mission.animals[i]) then
+                        table.remove(mission.animals, i)
+                    end
+                end
+
+                if #mission.animals < mission.maxAnimals and GetGameTimer() > (mission.nextAnimal or 0) then
+                    mission.nextAnimal = GetGameTimer() + 3000
+                    spawnAnimal()
+                end
+
+                for _, animal in ipairs(mission.animals) do
+                    if IsEntityDead(animal) and #(coords - GetEntityCoords(animal)) <= 2.5 and onFoot then
+                        text, action = '[E] Dépecer', function()
+                            local done = lib.progressBar({
+                                duration = TaskSettings('hunt').gatherSeconds * 1000, label = 'Dépeçage…', canCancel = true,
+                                disable = { move = true, car = true, combat = true }, anim = { dict = 'amb@medic@standing@kneel@base', clip = 'base' },
+                            })
+
+                            if done then
+                                gathered(NetworkGetNetworkIdFromEntity(animal))
+                            end
+                        end
+                        break
+                    end
+                end
+            end
+        end
+
         -- Arrêt en cours
-        local stop = mission and mission.stops[mission.index]
+        local stop = mission and mission.stops and mission.stops[mission.index]
 
         if stop then
             local target = vector3(stop.x, stop.y, stop.z)

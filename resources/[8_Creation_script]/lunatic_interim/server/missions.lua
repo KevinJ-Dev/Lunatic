@@ -3,8 +3,10 @@
 -- vérifiés selon le métier (routes au hasard, stations-service, aérodromes). Chaque arrêt est validé sur place (position,
 -- temps minimum, véhicule pas loin) ; au retour au dépôt avec le véhicule, la paie part sur son compte bancaire.
 -- Véhicule détruit, métier d'intérim changé ou déconnexion : la tournée s'arrête, sans paie.
+-- Récoltes (Mineur, Pêcheur, Chasseur) : quota à récolter dans la zone autour du dépôt, compté ici (pas d'objet
+-- d'inventaire), puis paie au dépôt. Chaque récolte est contrôlée : zone, temps minimum, gibier vraiment abattu.
 
-local missions = {} -- joueur -> { job, label, task, vehicle, trailer, stops, index, last, salary, depot }
+local missions = {} -- joueur -> tournée { job, label, task, vehicle, trailer, stops, index, last, salary, depot } ou récolte { gather = true, count, quota… }
 
 local function fail(message)
     return { ok = false, error = message }
@@ -27,10 +29,19 @@ local function pedCoords(src)
     return ped ~= 0 and GetEntityCoords(ped) or nil
 end
 
+-- Fin de mission : véhicule, remorque et gibier encore en vie retirés
 local function deleteVehicle(mission)
     for _, entity in ipairs({ mission and mission.vehicle, mission and mission.trailer }) do
         if entity and DoesEntityExist(entity) then
             DeleteEntity(entity)
+        end
+    end
+
+    for netId in pairs(mission and mission.animals or {}) do
+        local animal = NetworkGetEntityFromNetworkId(netId)
+
+        if animal ~= 0 and DoesEntityExist(animal) then
+            DeleteEntity(animal)
         end
     end
 end
@@ -239,6 +250,12 @@ lib.callback.register('lunatic_interim:missionFinish', function(src)
 
     if not xPlayer or not mission then
         return fail("Vous n'avez pas de tournée en cours.")
+    elseif mission.gather then
+        if mission.count < mission.quota then
+            return fail(('Récolte pas finie : %d / %d.'):format(mission.count, mission.quota))
+        elseif not coords or #(coords - mission.depot) > rules.finish then
+            return fail('Rendez-vous au dépôt.')
+        end
     elseif mission.index <= #mission.stops then
         return fail(('Tournée pas finie : %d / %d arrêts.'):format(mission.index - 1, #mission.stops))
     elseif not coords or #(coords - mission.depot) > rules.finish then
@@ -254,8 +271,96 @@ lib.callback.register('lunatic_interim:missionFinish', function(src)
         xPlayer.addAccountMoney('bank', mission.salary, ("Mission d'intérim : %s"):format(mission.label))
     end
 
-    log(src, 'interim.mission', mission.label, { salary = mission.salary, stops = #mission.stops })
+    log(src, 'interim.mission', mission.label, { salary = mission.salary, stops = mission.gather and mission.quota or #mission.stops })
     return { ok = true, salary = mission.salary }
+end)
+
+---------------------------------------------------------------------
+-- Récoltes : Mineur (rochers), Pêcheur (au bord de l'eau), Chasseur (gibier)
+---------------------------------------------------------------------
+
+lib.callback.register('lunatic_interim:gatherStart', function(src)
+    local job = InterimOf(src)
+    local settings = job and JobSettings(job.id)
+    local coords = pedCoords(src)
+
+    if not job or job.kind ~= 'gather' then
+        return fail("Votre métier n'a pas de récolte.")
+    elseif not settings.enabled then
+        return fail('Ce métier est fermé pour le moment.')
+    elseif not settings.depot then
+        return fail('Dépôt pas encore réglé : prévenez le staff.')
+    elseif missions[src] then
+        return fail('Vous avez déjà une mission en cours.')
+    elseif not coords or #(coords - vec(settings.depot)) > 6.0 then
+        return fail('Rendez-vous au dépôt.')
+    end
+
+    local rules = TaskSettings(job.task)
+    missions[src] = {
+        gather = true, job = job.id, label = job.label, task = job.task, count = 0, quota = settings.stops, last = os.time(),
+        salary = settings.salary, depot = vec(settings.depot), animals = {},
+    }
+
+    return { ok = true, task = job.task, quota = settings.stops, radius = rules.radius, depot = settings.depot, rocks = rules.rocks, animals = rules.animals }
+end)
+
+-- Chasseur : gibier apparu par le client, enregistré pour être reconnu (et retiré à la fin)
+RegisterNetEvent('lunatic_interim:animal', function(netId)
+    local mission = missions[source]
+    netId = tonumber(netId)
+
+    if mission and mission.gather and mission.task == 'hunt' and netId then
+        local count = 0
+
+        for _ in pairs(mission.animals) do
+            count = count + 1
+        end
+
+        if count < 12 then
+            mission.animals[netId] = true
+        end
+    end
+end)
+
+lib.callback.register('lunatic_interim:gather', function(src, netId)
+    local mission = missions[src]
+    local coords = pedCoords(src)
+
+    if not mission or not mission.gather then
+        return fail("Vous n'avez pas de récolte en cours.")
+    elseif mission.count >= mission.quota then
+        return fail('Quota atteint : retournez au dépôt.')
+    end
+
+    local rules = TaskSettings(mission.task)
+
+    if not coords or #(coords - mission.depot) > rules.radius + 20.0 then
+        return fail('Vous êtes sorti de la zone de travail.')
+    elseif os.time() - mission.last < rules.gatherSeconds then
+        return fail('Trop rapide : prenez le temps de faire le travail.')
+    end
+
+    -- Chasseur : un animal de sa chasse, abattu, juste à côté
+    if mission.task == 'hunt' then
+        netId = tonumber(netId)
+        local animal = netId and mission.animals[netId] and NetworkGetEntityFromNetworkId(netId) or 0
+
+        if animal == 0 or not DoesEntityExist(animal) or GetEntityType(animal) ~= 1 then
+            return fail('Animal introuvable.')
+        elseif GetEntityHealth(animal) > 0 then
+            return fail("L\u{2019}animal n\u{2019}est pas abattu.")
+        elseif #(GetEntityCoords(animal) - coords) > 5.0 then
+            return fail('Approchez-vous de l\u{2019}animal.')
+        end
+
+        mission.animals[netId] = nil
+        DeleteEntity(animal)
+    end
+
+    mission.count = mission.count + 1
+    mission.last = os.time()
+    return { ok = true, count = mission.count, quota = mission.quota, done = mission.count >= mission.quota }
 end)
 
 lib.callback.register('lunatic_interim:missionCancel', function(src)
@@ -273,7 +378,7 @@ CreateThread(function()
         Wait(5000)
 
         for src, mission in pairs(missions) do
-            if not DoesEntityExist(mission.vehicle) or GetVehicleEngineHealth(mission.vehicle) <= 0 then
+            if not mission.gather and (not DoesEntityExist(mission.vehicle) or GetVehicleEngineHealth(mission.vehicle) <= 0) then
                 stop(src, 'Le véhicule de service est hors d\u{2019}usage : tournée arrêtée, sans paie.', 'error')
             end
         end

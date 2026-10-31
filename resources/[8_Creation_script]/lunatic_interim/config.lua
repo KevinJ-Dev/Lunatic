@@ -7,6 +7,7 @@ Config = {}
 -- kind = 'route' : tournée (dépôt, véhicule, arrêts), jouable ; vehicle et stops : valeurs par défaut, réglables dans le
 -- panel (Autres → Métiers d'intérim), comme le salaire, le dépôt et la sortie du véhicule. task : façon de faire chaque
 -- arrêt (Config.Tasks) ; vtype : type du véhicule pour le serveur (automobile, plane…) ; trailer : remorque attelée.
+-- kind = 'gather' : récolte dans la zone autour du dépôt (pas de véhicule) ; stops = quantité à récolter.
 -- Ancien fonctionnement : métiers ESX « interim_<id> », repris en second métier à la connexion (voir server/main.lua)
 Config.JobPrefix = 'interim_'
 Config.Jobs = {
@@ -16,11 +17,11 @@ Config.Jobs = {
         missions = { "Récupère un avion au terminal de l'aéroport.", 'Effectue un vol de transport vers une autre piste.', 'Atterris en toute sécurité pour encaisser ta paie.' } },
     { id = 'garbage', label = 'Éboueur', company = 'Hobo', color = '#2f9e44', salary = 300, duration = 15, participants = '1 à 4 personnes', kind = 'route', task = 'garbage', vehicle = 'trash', stops = 5,
         missions = { 'Récupère un camion poubelle au dépôt des éboueurs.', 'Parcours la ville pour vider les bacs à ordures.', 'Dépose les déchets à la décharge et reçois ta rémunération.' } },
-    { id = 'miner', label = 'Mineur', company = 'LS Mining', color = '#a0784a', salary = 280, duration = 10, participants = '1 personne',
+    { id = 'miner', label = 'Mineur', company = 'LS Mining', color = '#a0784a', salary = 280, duration = 10, participants = '1 personne', kind = 'gather', task = 'mine', stops = 10,
         missions = { 'Prends ton équipement et descends dans la mine.', 'Récolte un maximum de minerais.', 'Remonte à la surface pour être payé.' } },
     { id = 'delivery', label = 'Livreur', company = 'Post OP', color = '#e8590c', salary = 260, duration = 10, participants = '1 personne', kind = 'route', task = 'parcel', vehicle = 'boxville4', stops = 5,
         missions = { 'Charge ta camionnette au dépôt.', 'Livre les colis aux adresses indiquées.', 'Rapporte la camionnette pour être payé.' } },
-    { id = 'hunter', label = 'Chasseur', company = 'Sport de plein air', color = '#5c7a29', salary = 320, duration = 15, participants = '1 personne',
+    { id = 'hunter', label = 'Chasseur', company = 'Sport de plein air', color = '#5c7a29', salary = 320, duration = 15, participants = '1 personne', kind = 'gather', task = 'hunt', stops = 5,
         missions = { 'Prends ton fusil et rejoins la zone de chasse.', 'Traque et abats le gibier autorisé.', 'Dépèce les animaux et revends la viande.' } },
     { id = 'fuel', label = 'Pompiste', company = 'Globe Oil', color = '#1c7ed6', salary = 340, duration = 12, participants = '1 personne', kind = 'route', task = 'fuel', vehicle = 'phantom', trailer = 'tanker', stops = 3,
         missions = { 'Récupère le camion-citerne à la raffinerie.', 'Ravitaille les stations-service indiquées.', 'Ramène la citerne vide pour être payé.' } },
@@ -30,7 +31,7 @@ Config.Jobs = {
         missions = { 'Prends les commandes du tramway au dépôt.', 'Dessers les arrêts de la ligne sans retard.', 'Ramène le tramway au dépôt pour être payé.' } },
     { id = 'train', label = 'Conducteur de train', company = 'Freight Train Co.', color = '#495057', salary = 380, duration = 15, participants = '1 personne',
         missions = { 'Monte dans la locomotive en gare de marchandises.', 'Livre les wagons aux gares de la ligne.', 'Termine ta tournée pour encaisser ta paie.' } },
-    { id = 'fisher', label = 'Pêcheur', company = 'Pêcheries de Paleto', color = '#1098ad', salary = 260, duration = 12, participants = '1 personne',
+    { id = 'fisher', label = 'Pêcheur', company = 'Pêcheries de Paleto', color = '#1098ad', salary = 260, duration = 12, participants = '1 personne', kind = 'gather', task = 'fish', stops = 8,
         missions = { 'Prends ta canne et rejoins un spot de pêche.', 'Pêche le plus de poissons possible.', 'Revends ta pêche au marché aux poissons.' } },
 }
 
@@ -55,6 +56,10 @@ Config.Tasks = {
     fuel = { reach = 45.0, stopSeconds = 25, gap = 300.0, finish = 15.0, fillSeconds = 12 },       -- stations de lunatic_gameplay
     flight = { reach = 150.0, stopSeconds = 60, minDistance = 1500.0, finish = 150.0 },              -- aérodromes ci-dessous
     water = { reach = 220.0, stopSeconds = 30, minDistance = 800.0, maxDistance = 3500.0, gap = 600.0, finish = 150.0, loadSeconds = 5 },
+    -- Récoltes : radius = zone autour du dépôt, gatherSeconds = temps minimum entre deux récoltes (vérifié par le serveur)
+    mine = { radius = 80.0, gatherSeconds = 5, finish = 10.0, rocks = 5 },        -- placez le dépôt dans la carrière
+    fish = { radius = 150.0, gatherSeconds = 8, finish = 10.0 },                  -- au bord de l'eau (ponton, plage)
+    hunt = { radius = 450.0, gatherSeconds = 8, finish = 10.0, animals = 4 },     -- en forêt ; arme personnelle
 }
 
 -- Escales du pilote : pistes de la carte (le panel ne les règle pas encore)
