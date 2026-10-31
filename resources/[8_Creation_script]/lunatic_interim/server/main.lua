@@ -101,11 +101,16 @@ lib.callback.register('lunatic_interim:open', function(src, index)
     local jobs = {}
 
     for _, entry in ipairs(Config.Jobs) do
-        jobs[#jobs + 1] = {
-            id = entry.id, label = entry.label, company = entry.company, color = entry.color, salary = entry.salary, duration = entry.duration,
-            participants = entry.participants, missions = entry.missions,
-            outfit = model and outfits[entry.id] and outfits[entry.id][model] or nil,
-        }
+        local settings = JobSettings(entry.id)
+
+        -- Métier désactivé dans le panel : plus proposé (sauf à celui qui l'a déjà, pour le quitter)
+        if settings.enabled or (current and current.id == entry.id) then
+            jobs[#jobs + 1] = {
+                id = entry.id, label = entry.label, company = entry.company, color = entry.color, salary = settings.salary, duration = entry.duration,
+                participants = entry.participants, missions = entry.missions,
+                outfit = model and outfits[entry.id] and outfits[entry.id][model] or nil,
+            }
+        end
     end
 
     return {
@@ -121,7 +126,7 @@ lib.callback.register('lunatic_interim:accept', function(src, index, id)
 
     if not xPlayer or not nearCenter(src, index) then
         return fail('Trop loin du Job Center.')
-    elseif not job then
+    elseif not job or not JobSettings(job.id).enabled then
         return fail('Métier introuvable.')
     elseif not ESX.DoesJobExist(jobName(job), 0) then
         return fail('Ce métier n\u{2019}est pas encore prêt (redémarrez la ressource).')
@@ -185,6 +190,17 @@ end)
 -- Pour le panel (Autres → Job Center) et les missions à venir
 exports('getDefaultCenters', function()
     return Config.Centers
+end)
+
+-- Fiches des métiers pour le panel (Autres → Métiers d'intérim) : valeurs par défaut de la config
+exports('getJobDefinitions', function()
+    local list = {}
+
+    for _, job in ipairs(Config.Jobs) do
+        list[#list + 1] = { id = job.id, label = job.label, company = job.company, salary = job.salary, kind = job.kind, vehicle = job.vehicle, stops = job.stops or 5 }
+    end
+
+    return list
 end)
 
 exports('getInterimJob', function(src)
