@@ -83,7 +83,23 @@ end
 
 -- exports.lunatic_clothing:startStaffDressing(source, persist, back) : habillage libre homme / femme, ouvert par le staff
 -- (lunatic_admin : fiche joueur → Apparence, persist = true ; lunatic_interim : tenues d'intérim, back = 'interim').
--- Rien n'est écrit ici : l'apparence validée est enregistrée par illenium-appearance comme dans son propre menu.
+-- persist : à la validation, l'apparence d'avant est sauvegardée (5 dernières par personnage) puis remplacée.
+local BACKUPS = 5
+local dressing = {} -- joueur -> true pendant un habillage staff à enregistrer
+
+MySQL.ready(function()
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `lunatic_clothing_backups` (
+            `id` BIGINT NOT NULL AUTO_INCREMENT,
+            `identifier` VARCHAR(64) NOT NULL,
+            `skin` LONGTEXT NOT NULL,
+            `saved_at` BIGINT NOT NULL,
+            PRIMARY KEY (`id`),
+            KEY `idx_lunatic_clothing_backups_owner` (`identifier`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ]])
+end)
+
 exports('startStaffDressing', function(src, persist, back)
     src = tonumber(src)
 
@@ -91,7 +107,54 @@ exports('startStaffDressing', function(src, persist, back)
         return false
     end
 
+    dressing[src] = persist == true or nil
     TriggerClientEvent('lunatic_clothing:staffDressing', src, persist == true, type(back) == 'string' and back or nil)
+    return true
+end)
+
+-- Validation d'un habillage staff à enregistrer : sauvegarde de l'apparence d'avant, puis la nouvelle (comme illenium-appearance)
+lib.callback.register('lunatic_clothing:staffSave', function(src, appearance)
+    local xPlayer = ESX.GetPlayerFromId(src)
+
+    if not dressing[src] or not xPlayer then
+        return { ok = false, error = 'Habillage non autorisé.' }
+    elseif type(appearance) ~= 'table' or (appearance.model ~= 'mp_m_freemode_01' and appearance.model ~= 'mp_f_freemode_01') then
+        return { ok = false, error = 'Apparence invalide.' }
+    end
+
+    dressing[src] = nil
+    local identifier = xPlayer.identifier
+    local previous = MySQL.scalar.await('SELECT `skin` FROM `users` WHERE `identifier` = ?', { identifier })
+
+    if previous and previous ~= '' then
+        MySQL.insert.await('INSERT INTO `lunatic_clothing_backups` (`identifier`, `skin`, `saved_at`) VALUES (?, ?, ?)', { identifier, previous, os.time() })
+        MySQL.update.await([[
+            DELETE FROM `lunatic_clothing_backups` WHERE `identifier` = ? AND `id` NOT IN (
+                SELECT `id` FROM (SELECT `id` FROM `lunatic_clothing_backups` WHERE `identifier` = ? ORDER BY `id` DESC LIMIT ?) AS `kept`)
+        ]], { identifier, identifier, BACKUPS })
+    end
+
+    MySQL.update.await('UPDATE `users` SET `skin` = ? WHERE `identifier` = ?', { json.encode(appearance), identifier })
+    return { ok = true }
+end)
+
+-- exports.lunatic_clothing:restorePreviousAppearance(source) : remet la dernière apparence sauvegardée (et la retire)
+exports('restorePreviousAppearance', function(src)
+    local xPlayer = ESX.GetPlayerFromId(tonumber(src) or 0)
+
+    if not xPlayer then
+        return false, "Ce joueur n'est plus connecté."
+    end
+
+    local row = MySQL.single.await('SELECT `id`, `skin` FROM `lunatic_clothing_backups` WHERE `identifier` = ? ORDER BY `id` DESC LIMIT 1', { xPlayer.identifier })
+
+    if not row then
+        return false, 'Aucune apparence précédente sauvegardée.'
+    end
+
+    MySQL.update.await('UPDATE `users` SET `skin` = ? WHERE `identifier` = ?', { row.skin, xPlayer.identifier })
+    MySQL.update.await('DELETE FROM `lunatic_clothing_backups` WHERE `id` = ?', { row.id })
+    TriggerClientEvent('illenium-appearance:client:reloadSkin', xPlayer.source, true)
     return true
 end)
 
@@ -307,4 +370,5 @@ end)
 AddEventHandler('playerDropped', function()
     sessions[source] = nil
     imageRequests[source] = nil
+    dressing[source] = nil
 end)

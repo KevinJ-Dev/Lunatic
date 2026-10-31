@@ -5,6 +5,7 @@
 local appearance = exports['illenium-appearance']
 local center = nil -- { index, data, original, cam, dressed }
 local lastIndex = nil -- dernier comptoir ouvert (retour après l'habillage staff)
+local beforeDressing = nil -- apparence complète (sexe compris) avant l'habillage staff, remise en fermant le Job Center
 local shown = false
 
 local function notify(message, kind)
@@ -67,9 +68,14 @@ local function close(keep)
         return
     end
 
-    -- Staff habillé pour une tenue d'intérim (homme ou femme) : son vrai personnage revient
+    -- Staff habillé pour une tenue d'intérim (homme ou femme) : son vrai personnage revient, tel qu'avant l'habillage
     if not keep and center.dressed then
-        TriggerEvent('illenium-appearance:client:reloadSkin', true)
+        if beforeDressing then
+            appearance:setPlayerAppearance(beforeDressing)
+            beforeDressing = nil
+        else
+            TriggerEvent('illenium-appearance:client:reloadSkin', true)
+        end
     elseif not keep and center.original then
         applyOutfit(center.original)
     end
@@ -189,6 +195,11 @@ RegisterNUICallback('dress', function(_, cb)
 
     if not dressed and original then
         applyOutfit(original)
+    end
+
+    -- Premier habillage : le personnage complet est gardé pour être remis en fermant le Job Center
+    if not dressed then
+        beforeDressing = appearance:getPedAppearance(PlayerPedId())
     end
 
     local result = lib.callback.await('lunatic_interim:dress', false, index) or { ok = false, error = 'Habillage indisponible.' }

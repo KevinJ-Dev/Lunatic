@@ -778,8 +778,13 @@ RegisterNUICallback('buy', function(data, cb)
         closeShop(false)
 
         if persist then
-            TriggerServerEvent('illenium-appearance:server:saveAppearance', appearance)
-            notify('Apparence enregistrée.', 'success')
+            local saved = lib.callback.await('lunatic_clothing:staffSave', false, appearance)
+
+            if saved and saved.ok then
+                notify("Apparence enregistrée (l'ancienne est sauvegardée : bouton « Apparence d'avant » du panel).", 'success')
+            else
+                notify(saved and saved.error or 'Enregistrement impossible.', 'error')
+            end
         end
 
         if back == 'interim' then
