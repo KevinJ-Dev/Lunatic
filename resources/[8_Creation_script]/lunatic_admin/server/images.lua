@@ -23,7 +23,8 @@ local SLOTS = {
     { key = 'tablet_logo', category = 'header', label = 'Logo de la tablette illégale', description = 'En haut à gauche de la tablette des crews (vide : pas de logo)', default = '', size = '256 × 256 px, PNG transparent' },
     { key = 'fuel_banner', category = 'banner', label = 'Bannière de la pompe à essence', description = 'En-tête du panneau des pompes à essence (vide : LTD rouge)', default = '', size = '680 × 180 px (format 4:1)' },
     { key = 'quick_banner', category = 'banner', label = 'Bannière du menu rapide staff', description = 'En-tête du menu rapide (F9) et de ses fenêtres de saisie (vide : dégradé violet)', default = '', size = '680 × 180 px (format 4:1)' },
-    -- Job Center (lunatic_interim) : image et logo de chaque métier d'intérim
+    -- Job Center (lunatic_interim) : bannière du panneau, puis image et logo de chaque métier d'intérim
+    { key = 'jobcenter_banner', category = 'interim', label = 'Bannière du Job Center', description = 'En-tête du panneau du Job Center (vide : bandeau Job Center / Intérim)', default = '', size = '800 × 190 px' },
     { key = 'interim_canadair', category = 'interim', label = "Job Center : Pilote de Canadair", description = 'Image de la fiche du métier (vide : couleur du métier)', default = '', size = '800 × 300 px' },
     { key = 'interim_logo_canadair', category = 'interim', label = "Job Center : logo Pilote de Canadair", description = 'Logo dans la grille du Job Center (vide : initiales sur la couleur du métier)', default = '', size = '128 × 128 px, PNG transparent' },
     { key = 'interim_pilot', category = 'interim', label = "Job Center : Pilote d'avion", description = 'Image de la fiche du métier (vide : couleur du métier)', default = '', size = '800 × 300 px' },

@@ -401,7 +401,8 @@ Panel.actions['player.careZone'] = function(src, actor, data)
     return { ok = true, silent = true, count = count }
 end
 
--- Ouvre chez le joueur le menu complet d'illenium-appearance (gratuit, comme /pedmenu)
+-- Ouvre chez le joueur l'habillage staff des magasins de vêtements (lunatic_clothing : tout le catalogue, gratuit, homme
+-- ou femme) ; la tenue validée est enregistrée sur son personnage. Sans lunatic_clothing : menu d'illenium-appearance.
 Panel.actions['player.appearance'] = function(src, actor, data)
     local target, err = check(src, actor, data, 'players.appearance', { protect = true })
 
@@ -409,14 +410,19 @@ Panel.actions['player.appearance'] = function(src, actor, data)
         return err
     end
 
-    if GetResourceState('illenium-appearance') ~= 'started' then
-        return Panel.fail("illenium-appearance n'est pas démarré.")
+    local dressed = GetResourceState('lunatic_clothing') == 'started'
+        and pcall(function() return exports.lunatic_clothing:startStaffDressing(target, true) end)
+
+    if not dressed then
+        if GetResourceState('illenium-appearance') ~= 'started' then
+            return Panel.fail("Ni lunatic_clothing ni illenium-appearance ne sont démarrés.")
+        end
+
+        TriggerClientEvent('illenium-appearance:client:openClothingShopMenu', target, true)
     end
 
-    TriggerClientEvent('illenium-appearance:client:openClothingShopMenu', target, true)
-
     if target ~= src then
-        Panel.notify(target, "Le staff vous a ouvert le menu d'apparence : modifiez puis enregistrez.", 'info')
+        Panel.notify(target, "Le staff vous a ouvert l'habillage : choisissez la tenue (homme ou femme) puis validez.", 'info')
     end
 
     Logs.add(src, 'player.appearance', Staff.displayName(target), { serverId = target })
