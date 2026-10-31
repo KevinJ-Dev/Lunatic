@@ -1,30 +1,46 @@
--- Job Center (doc Vision « Jobs de farm ») côté serveur : métiers ESX d'intérim créés s'ils manquent, fiche des métiers,
--- accepter (métier ESX « interim_<id> », grade 0) ou quitter (sans emploi), tenues de travail enregistrées par le staff.
--- Les missions de chaque métier arrivent dans les parties suivantes (paiement à la mission).
+-- Job Center (doc Vision « Jobs de farm ») côté serveur. L'intérim est un second métier, à part du métier ESX : on garde
+-- son poste fixe (Burger Shot, LSPD…) et on peut prendre en plus un métier d'intérim. Il est enregistré par personnage
+-- (table lunatic_interim_players) et partagé par le statebag du joueur « interimJob » (id du métier, nil sinon).
+-- Fiche des métiers, accepter / quitter, tenues de travail enregistrées par le staff (homme et femme).
 
 local MODELS = { [`mp_m_freemode_01`] = 'm', [`mp_f_freemode_01`] = 'f' }
-local UNEMPLOYED = 'unemployed'
 
 local outfits = {} -- id du métier -> { m = tenue, f = tenue }
 
-local function jobName(job)
-    return Config.JobPrefix .. job.id
-end
-
 -- Métier d'intérim du joueur (fiche de la config), nil sinon
-local function interimOf(xPlayer)
-    local name = xPlayer.getJob().name
+function InterimOf(src)
+    return JobById(Player(src).state.interimJob)
+end
 
-    for _, job in ipairs(Config.Jobs) do
-        if jobName(job) == name then
-            return job
-        end
-    end
+local function setInterim(src, id)
+    Player(src).state:set('interimJob', id, true)
+    TriggerEvent('lunatic_interim:changed', src, id)
 end
 
 ---------------------------------------------------------------------
--- Base de données : métiers ESX et tenues
+-- Base de données
 ---------------------------------------------------------------------
+
+local function loadPlayer(src)
+    local xPlayer = ESX.GetPlayerFromId(src)
+
+    if not xPlayer then
+        return
+    end
+
+    local id = MySQL.scalar.await('SELECT `job` FROM `lunatic_interim_players` WHERE `identifier` = ?', { xPlayer.identifier })
+
+    -- Ancien fonctionnement (métier ESX « interim_<id> ») : repris en métier d'intérim, le joueur redevient sans emploi
+    local old = JobById(xPlayer.getJob().name:match('^' .. Config.JobPrefix .. '(.+)$') or '')
+
+    if old then
+        id = old.id
+        MySQL.update.await('INSERT INTO `lunatic_interim_players` (`identifier`, `job`, `since`) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `job` = VALUES(`job`)', { xPlayer.identifier, id, os.time() })
+        xPlayer.setJob('unemployed', 0)
+    end
+
+    Player(src).state:set('interimJob', JobById(id) and id or nil, true)
+end
 
 MySQL.ready(function()
     MySQL.query.await([[
@@ -36,32 +52,29 @@ MySQL.ready(function()
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ]])
 
+    -- Métier d'intérim de chaque personnage (second métier, à part du métier ESX)
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `lunatic_interim_players` (
+            `identifier` VARCHAR(64) NOT NULL,
+            `job` VARCHAR(30) NOT NULL,
+            `since` BIGINT NOT NULL,
+            PRIMARY KEY (`identifier`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ]])
+
     for _, row in ipairs(MySQL.query.await('SELECT `job`, `model`, `outfit` FROM `lunatic_interim_outfits`') or {}) do
         outfits[row.job] = outfits[row.job] or {}
         outfits[row.job][row.model] = json.decode(row.outfit)
     end
 
-    -- Métiers ESX manquants : un grade « Intérimaire » (nom technique boss, comme tous les métiers du Pôle emploi), paie à 0
-    local created = 0
-
-    for _, job in ipairs(Config.Jobs) do
-        local name = jobName(job)
-
-        if not MySQL.scalar.await('SELECT 1 FROM `jobs` WHERE `name` = ?', { name }) then
-            MySQL.insert.await('INSERT INTO `jobs` (`name`, `label`, `whitelisted`) VALUES (?, ?, 0)', { name, job.label })
-            created = created + 1
-        end
-
-        if not MySQL.scalar.await('SELECT 1 FROM `job_grades` WHERE `job_name` = ? LIMIT 1', { name }) then
-            MySQL.insert.await("INSERT INTO `job_grades` (`job_name`, `grade`, `name`, `label`, `salary`, `skin_male`, `skin_female`) VALUES (?, 0, 'boss', 'Intérimaire', 0, '{}', '{}')", { name })
-            created = created + 1
-        end
+    -- Joueurs déjà connectés (redémarrage de la ressource)
+    for _, xPlayer in pairs(ESX.GetExtendedPlayers()) do
+        loadPlayer(xPlayer.source)
     end
+end)
 
-    if created > 0 then
-        ESX.RefreshJobs()
-        print(('[lunatic_interim] Métiers d\u{2019}intérim créés ou complétés : %d ligne(s).'):format(created))
-    end
+AddEventHandler('esx:playerLoaded', function(src)
+    loadPlayer(src)
 end)
 
 ---------------------------------------------------------------------
@@ -96,7 +109,7 @@ lib.callback.register('lunatic_interim:open', function(src, index)
     end
 
     local model = MODELS[GetEntityModel(GetPlayerPed(src))]
-    local current = interimOf(xPlayer)
+    local current = InterimOf(src)
     local job = xPlayer.getJob()
     local jobs = {}
 
@@ -115,8 +128,8 @@ lib.callback.register('lunatic_interim:open', function(src, index)
 
     return {
         ok = true, jobs = jobs, model = model, staff = isStaff(src), current = current and current.id or nil,
-        -- Métier actuel hors intérim (entreprise, service public…) : le joueur est prévenu qu'il le quitte en acceptant
-        otherJob = not current and job.name ~= UNEMPLOYED and job.label or nil,
+        -- Poste fixe (entreprise, service public…) : il est gardé, l'intérim s'ajoute
+        mainJob = job.name ~= 'unemployed' and job.label or nil,
     }
 end)
 
@@ -128,13 +141,13 @@ lib.callback.register('lunatic_interim:accept', function(src, index, id)
         return fail('Trop loin du Job Center.')
     elseif not job or not JobSettings(job.id).enabled then
         return fail('Métier introuvable.')
-    elseif not ESX.DoesJobExist(jobName(job), 0) then
-        return fail('Ce métier n\u{2019}est pas encore prêt (redémarrez la ressource).')
     end
 
-    local previous = xPlayer.getJob().label
-    xPlayer.setJob(jobName(job), 0)
-    log(src, 'interim.accept', job.label, { previous = previous })
+    local previous = InterimOf(src)
+    MySQL.update.await('INSERT INTO `lunatic_interim_players` (`identifier`, `job`, `since`) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `job` = VALUES(`job`), `since` = VALUES(`since`)',
+        { xPlayer.identifier, job.id, os.time() })
+    setInterim(src, job.id)
+    log(src, 'interim.accept', job.label, { previous = previous and previous.label or nil })
 
     local model = MODELS[GetEntityModel(GetPlayerPed(src))]
     return { ok = true, label = job.label, outfit = model and outfits[job.id] and outfits[job.id][model] or nil }
@@ -142,20 +155,21 @@ end)
 
 lib.callback.register('lunatic_interim:quit', function(src, index)
     local xPlayer = ESX.GetPlayerFromId(src)
-    local current = xPlayer and interimOf(xPlayer)
+    local current = InterimOf(src)
 
     if not xPlayer or not nearCenter(src, index) then
         return fail('Trop loin du Job Center.')
     elseif not current then
-        return fail('Vous n\u{2019}avez pas de métier d\u{2019}intérim.')
+        return fail("Vous n'avez pas de métier d'intérim.")
     end
 
-    xPlayer.setJob(UNEMPLOYED, 0)
+    MySQL.update.await('DELETE FROM `lunatic_interim_players` WHERE `identifier` = ?', { xPlayer.identifier })
+    setInterim(src, nil)
     log(src, 'interim.quit', current.label, nil)
     return { ok = true, label = current.label }
 end)
 
--- Staff (permission Autres) : la tenue portée devient celle du métier, pour le modèle du personnage
+-- Staff (permission Autres) : la tenue portée devient celle du métier, pour le modèle du personnage (homme ou femme)
 lib.callback.register('lunatic_interim:saveOutfit', function(src, index, id, outfit)
     local job = JobById(id)
     local model = MODELS[GetEntityModel(GetPlayerPed(src))]
@@ -187,7 +201,21 @@ lib.callback.register('lunatic_interim:saveOutfit', function(src, index, id, out
     return { ok = true, model = model }
 end)
 
--- Pour le panel (Autres → Job Center) et les missions à venir
+-- Staff : habillage libre (lunatic_clothing, homme ou femme) avant d'enregistrer une tenue ; retour au Job Center ensuite
+lib.callback.register('lunatic_interim:dress', function(src, index)
+    if not isStaff(src) then
+        return fail("Vous n'avez pas la permission.")
+    elseif not nearCenter(src, index) then
+        return fail('Trop loin du Job Center.')
+    elseif GetResourceState('lunatic_clothing') ~= 'started' then
+        return fail("lunatic_clothing n'est pas démarré.")
+    end
+
+    local ok = pcall(function() exports.lunatic_clothing:startStaffDressing(src, false, 'interim') end)
+    return ok and { ok = true } or fail('Habillage indisponible.')
+end)
+
+-- Pour le panel (Autres → Job Center) et les missions
 exports('getDefaultCenters', function()
     return Config.Centers
 end)
@@ -204,7 +232,5 @@ exports('getJobDefinitions', function()
 end)
 
 exports('getInterimJob', function(src)
-    local xPlayer = ESX.GetPlayerFromId(src)
-    local job = xPlayer and interimOf(xPlayer)
-    return job and job.id or nil
+    return Player(tonumber(src) or 0).state.interimJob
 end)

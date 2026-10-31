@@ -37,11 +37,4 @@ function JobSettings(id)
     }
 end
 
--- Métier d'intérim d'un nom de métier ESX (« interim_garbage » -> fiche Éboueur), nil sinon
-function JobFromName(name)
-    if type(name) ~= 'string' or name:sub(1, #Config.JobPrefix) ~= Config.JobPrefix then
-        return nil
-    end
 
-    return JobById(name:sub(#Config.JobPrefix + 1))
-end

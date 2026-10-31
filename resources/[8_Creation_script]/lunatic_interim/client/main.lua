@@ -3,7 +3,8 @@
 -- Blip : tuile Blips du panel (Pôle emploi).
 
 local appearance = exports['illenium-appearance']
-local center = nil -- { index, data, original, cam }
+local center = nil -- { index, data, original, cam, dressed }
+local lastIndex = nil -- dernier comptoir ouvert (retour après l'habillage staff)
 local shown = false
 
 local function notify(message, kind)
@@ -38,7 +39,10 @@ local function view(data)
         }
     end
 
-    return { jobs = jobs, current = data.current, otherJob = data.otherJob, staff = data.staff, model = data.model, currency = GlobalState.lunaticCurrency or '$' }
+    return {
+        jobs = jobs, current = data.current, mainJob = data.mainJob, staff = data.staff, model = data.model, currency = GlobalState.lunaticCurrency or '$',
+        banner = imageOf('jobcenter_banner'),
+    }
 end
 
 -- Caméra face au personnage, décalée pour qu'il apparaisse à droite du panneau
@@ -63,7 +67,10 @@ local function close(keep)
         return
     end
 
-    if not keep and center.original then
+    -- Staff habillé pour une tenue d'intérim (homme ou femme) : son vrai personnage revient
+    if not keep and center.dressed then
+        TriggerEvent('illenium-appearance:client:reloadSkin', true)
+    elseif not keep and center.original then
         applyOutfit(center.original)
     end
 
@@ -78,7 +85,7 @@ local function close(keep)
     SendNUIMessage({ action = 'close' })
 end
 
-local function open(index)
+local function open(index, dressed)
     local data = lib.callback.await('lunatic_interim:open', false, index)
 
     if not data or not data.ok then
@@ -87,7 +94,8 @@ local function open(index)
 
     local ped = PlayerPedId()
     FreezeEntityPosition(ped, true)
-    center = { index = index, data = data, original = currentOutfit() }
+    lastIndex = index
+    center = { index = index, data = data, original = currentOutfit(), dressed = dressed }
     center.cam = startCamera()
     SetNuiFocus(true, true)
     SendNUIMessage({ action = 'open', center = view(data) })
@@ -167,6 +175,37 @@ end)
 RegisterNUICallback('close', function(_, cb)
     cb({})
     close(false)
+end)
+
+-- Staff : habillage libre (lunatic_clothing, homme ou femme), puis retour au comptoir pour enregistrer la tenue
+RegisterNUICallback('dress', function(_, cb)
+    if not center then
+        return cb({ ok = false, error = 'Job Center fermé.' })
+    end
+
+    -- Tenue d'un métier essayée : on repart de la tenue portée en ouvrant le Job Center
+    local index, dressed, original = center.index, center.dressed, center.original
+    close(true)
+
+    if not dressed and original then
+        applyOutfit(original)
+    end
+
+    local result = lib.callback.await('lunatic_interim:dress', false, index) or { ok = false, error = 'Habillage indisponible.' }
+    cb(result)
+
+    if not result.ok then
+        notify(result.error, 'error')
+    end
+end)
+
+-- Tenue validée dans l'habillage : retour au comptoir, la tenue portée est prête à être enregistrée
+AddEventHandler('lunatic_interim:dressed', function()
+    if lastIndex and not center then
+        Wait(300)
+        open(lastIndex, true)
+        notify('Tenue prête : « Enregistrer ma tenue » sur le métier voulu. Fermer le Job Center vous rend votre personnage.', 'info')
+    end
 end)
 
 -- Comptoir : [E]

@@ -1,11 +1,12 @@
 Config = {}
 
--- Métiers d'intérim (doc Vision « Jobs de farm ») : un métier ESX « interim_<id> » chacun, créé au démarrage s'il manque
--- (un seul grade « Intérimaire », paie ESX à 0 : on est payé à la mission). salary = gain d'une mission (affiché au
--- Job Center), duration = durée approximative en minutes, participants = texte affiché. color : pastille si pas de logo.
+-- Métiers d'intérim (doc Vision « Jobs de farm ») : second métier, à part du métier ESX (on garde son poste fixe).
+-- On est payé à la mission. salary = gain d'une mission (affiché au Job Center), duration = durée approximative en
+-- minutes, participants = texte affiché. color : pastille si pas de logo.
 -- Image et logo de chaque métier : tuile Images du panel (Job Center).
 -- kind = 'route' : tournée (dépôt, véhicule, arrêts), jouable ; vehicle et stops : valeurs par défaut, réglables dans le
 -- panel (Autres → Métiers d'intérim), comme le salaire, le dépôt et la sortie du véhicule.
+-- Ancien fonctionnement : métiers ESX « interim_<id> », repris en second métier à la connexion (voir server/main.lua)
 Config.JobPrefix = 'interim_'
 Config.Jobs = {
     { id = 'canadair', label = 'Pilote de Canadair', company = 'San Andreas Air Fire', color = '#e5484d', salary = 450, duration = 15, participants = '1 personne',

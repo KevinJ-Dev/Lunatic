@@ -80,7 +80,7 @@ end
 
 lib.callback.register('lunatic_interim:missionStart', function(src, list)
     local xPlayer = ESX.GetPlayerFromId(src)
-    local job = xPlayer and JobFromName(xPlayer.getJob().name)
+    local job = xPlayer and InterimOf(src)
     local settings = job and JobSettings(job.id)
     local coords = pedCoords(src)
 
@@ -209,12 +209,12 @@ CreateThread(function()
     end
 end)
 
--- Métier changé en cours de tournée
-AddEventHandler('esx:setJob', function(src, job)
+-- Métier d'intérim quitté ou changé en cours de tournée
+AddEventHandler('lunatic_interim:changed', function(src, id)
     local mission = missions[src]
 
-    if mission and (not job or job.name ~= Config.JobPrefix .. mission.job) then
-        stop(src, 'Vous avez changé de métier : tournée arrêtée.', 'info')
+    if mission and id ~= mission.job then
+        stop(src, 'Vous avez changé de métier d’intérim : tournée arrêtée.', 'info')
     end
 end)
 

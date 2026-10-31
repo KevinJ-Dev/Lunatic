@@ -49,6 +49,9 @@ const jobOf = (id) => data.jobs.find((j) => j.id === id);
 function open(payload) {
     data = payload;
     busy = false;
+    // Bannière réglable (tuile Images : Job Center), sinon le bandeau Job Center / Intérim
+    $("brand").style.backgroundImage = data.banner ? `linear-gradient(90deg, #000a, #0003), url("${data.banner}")` : "";
+    $("brand").classList.toggle("with-image", !!data.banner);
     $("center").classList.remove("hidden");
     select(data.current || data.jobs[0].id);
 }
@@ -76,13 +79,15 @@ function paintSheet() {
         actions.push(h("div", { class: "current" }, "✓ Votre métier actuel"));
         actions.push(h("button", { class: "btn ghost", disabled: busy, onclick: quit }, "Quitter le métier"));
     } else {
-        if (data.current) actions.push(h("p", { class: "note" }, `Vous quitterez votre métier d'intérim actuel (${jobOf(data.current).label}).`));
-        else if (data.otherJob) actions.push(h("p", { class: "note" }, `Vous quitterez votre métier actuel : ${data.otherJob}.`));
+        if (data.current) actions.push(h("p", { class: "note" }, `Il remplacera votre métier d'intérim actuel (${jobOf(data.current).label}).`));
+        if (data.mainJob) actions.push(h("p", { class: "note ok" }, `Votre poste fixe (${data.mainJob}) est conservé : l'intérim s'y ajoute.`));
         actions.push(h("button", { class: "btn", disabled: busy, onclick: accept }, "Accepter le métier"));
     }
-    if (data.staff && data.model) {
-        actions.push(h("button", { class: "btn ghost small", disabled: busy, title: "La tenue que vous portiez en ouvrant le Job Center devient celle du métier", onclick: saveOutfit },
-            `Staff : enregistrer ma tenue (${data.model === "f" ? "femme" : "homme"})${job.hasOutfit ? " · déjà réglée" : ""}`));
+    if (data.staff) {
+        actions.push(h("div", { class: "staff-row" },
+            h("button", { class: "btn ghost small", disabled: busy, title: "Magasin de vêtements libre, homme ou femme ; validez pour revenir ici", onclick: dress }, "Staff : habiller (homme / femme)"),
+            data.model ? h("button", { class: "btn ghost small", disabled: busy, title: "La tenue que vous portiez en ouvrant le Job Center devient celle du métier", onclick: saveOutfit },
+                `Enregistrer ma tenue (${data.model === "f" ? "femme" : "homme"})${job.hasOutfit ? " · déjà réglée" : ""}`) : null));
     }
 
     $("sheet").replaceChildren(
@@ -141,6 +146,13 @@ async function saveOutfit() {
     if (res && res.center) data = Object.assign(res.center, { current: data.current });
     paintSheet();
     toast(res && res.ok ? "Tenue du métier enregistrée." : (res && res.error) || "Enregistrement impossible.");
+}
+
+async function dress() {
+    if (busy) return;
+    hide();
+    const res = await nui("dress");
+    if (res && !res.ok && res.error) toast(res.error);
 }
 
 function hide() {

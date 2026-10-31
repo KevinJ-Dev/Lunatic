@@ -31,6 +31,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .brand div { display: grid; line-height: 1; }
 .brand b { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
 .brand b:last-child { color: var(--accent-2); }
+.brand.with-image { min-height: 96px; background-size: cover; background-position: center; }
 .sticker { padding: 6px 14px; border: 2px solid var(--accent); border-radius: 999px; color: var(--accent-2); font-weight: 700; transform: rotate(-4deg); }
 .close { position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 8px; background: var(--box); color: var(--muted); }
 .close:hover { color: var(--ink); }
@@ -50,6 +51,8 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .card .value.money { color: #5fd3a0; font-weight: 700; }
 .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .note { margin: 0; color: #f2c26b; font-size: 12px; line-height: 1.5; }
+.note.ok { color: #5fd3a0; }
+.staff-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .actions { display: grid; gap: 8px; margin-top: auto; }
 .btn { height: 42px; border-radius: 12px; background: var(--accent); color: #fff; font-weight: 700; }
 .btn:hover:not(:disabled) { filter: brightness(1.1); }

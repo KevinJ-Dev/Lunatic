@@ -26,10 +26,9 @@ local function hidePrompt()
     end
 end
 
--- Métier d'intérim du joueur avec une tournée, et ses réglages
+-- Métier d'intérim du joueur (second métier, statebag interimJob) avec une tournée, et ses réglages
 local function routeJob()
-    local data = ESX.GetPlayerData()
-    local job = data and data.job and JobFromName(data.job.name)
+    local job = JobById(LocalPlayer.state.interimJob)
     return job and job.kind == 'route' and job or nil, job and JobSettings(job.id) or nil
 end
 
