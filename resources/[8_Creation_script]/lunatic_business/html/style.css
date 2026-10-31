@@ -104,6 +104,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .store-tabs button { height: 28px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: #ffffff08; color: var(--muted); font-size: 12px; font-weight: 600; }
 .store-tabs button.on { border-color: transparent; background: var(--store, var(--accent)); color: #fff; }
 .store-note { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.store-foot { display: flex; gap: 6px; }
+.store-foot .store-btn { flex: 1; height: 32px; padding: 0 10px; font-size: 12px; }
+.store-status { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: #ffffff0a; font-weight: 600; }
+.store-status i { width: 9px; height: 9px; border-radius: 50%; background: #f2c26b; animation: store-pulse 1.4s ease-in-out infinite; }
+.store-status.taken i { background: #5fd3a0; }
+@keyframes store-pulse { 50% { opacity: .35; } }
 .store-item .count { position: absolute; top: 4px; left: 4px; padding: 0 5px; border-radius: 5px; background: #ffffff1f; font-size: 10px; font-weight: 700; }
 .store-banner b { font-size: 32px; font-weight: 700; line-height: 1; letter-spacing: -.01em; text-shadow: 0 2px 10px #0005; }
 .store-banner small { margin-top: 4px; color: #ffffffcc; font-size: 11.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }

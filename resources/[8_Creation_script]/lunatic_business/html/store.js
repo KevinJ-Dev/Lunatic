@@ -2,7 +2,8 @@
 
 // Magasins d'articles (LTD, Ammunation…) : catalogue, recherche, panier par quantités, paiement en liquide ou par carte.
 // Mode « catalog » : catalogue de vente d'une entreprise (doc Vision « Catalogues ») : la carte, des onglets s'il y en a
-// plusieurs, un choix avec le total ; pas de paiement ici, le client demande à un employé de le servir.
+// plusieurs, un choix avec le total, puis « Commander » (liquide ou carte) : les employés sont prévenus, l'un d'eux prend
+// la commande et sert le client, qui paie à ce moment-là. Le suivi de la commande remplace le panier.
 // La page n'affiche que ce que le serveur envoie ; il revérifie prix, permis, place et solde à l'achat.
 // $, h et nui viennent de app.js.
 
@@ -90,6 +91,7 @@ function paintStoreGrid() {
 
 function addToBasket(item, delta) {
     if (item.locked) return shopToast(`Permis requis : ${item.license}.`);
+    if (isCatalog() && shopData.order) return shopToast("Commande en cours : annulez-la pour en passer une autre.");
     const key = shopKey(item);
     const next = (basket[key] || 0) + delta;
     if (next > (shopData.max || 50)) return shopToast(`${shopData.max || 50} au maximum par article.`);
@@ -118,8 +120,20 @@ function paintStoreCart() {
     ].filter(Boolean));
 }
 
-// Mode catalog : le choix du client et son total, à montrer à un employé (la commande en ligne arrive ensuite)
+// Boutons du bas en mode catalog : équipement et commandes pour les membres, fermeture pour tous
+function catalogFooter() {
+    const leave = (action) => () => { $("store").classList.add("hidden"); shopData = null; nui(action); };
+    const buttons = [
+        shopData.equipment ? h("button", { class: "store-btn ghost", onclick: leave("catalogEquipment") }, "Équipement") : null,
+        shopData.member ? h("button", { class: "store-btn ghost", onclick: leave("catalogOrders") }, "Commandes") : null,
+        h("button", { class: "store-btn ghost", onclick: closeStoreView }, "Fermer"),
+    ].filter(Boolean);
+    return h("div", { class: "store-foot" }, buttons);
+}
+
+// Mode catalog : le choix du client et son total, puis la commande ; une commande en cours remplace le panier
 function paintCatalogCart(lines) {
+    if (shopData.order) return paintCatalogOrder();
     const total = lines.reduce((sum, l) => sum + l.item.price * l.count, 0);
     $("storeCart").replaceChildren(...[
         h("div", { class: "store-cart-head" }, h("span", null, lines.length ? "Votre choix" : "Touchez un article pour le choisir"), h("b", null, shopMoney(total))),
@@ -128,11 +142,60 @@ function paintCatalogCart(lines) {
             h("div", { class: "store-step" },
                 h("button", { title: "Retirer un", onclick: () => addToBasket(l.item, -1) }, "−"), h("b", null, String(l.count)),
                 h("button", { title: "Ajouter un", onclick: () => addToBasket(l.item, 1) }, "+"))))) : null,
-        h("p", { class: "store-note" }, "Demandez à un employé de préparer votre choix et de vous servir."),
-        h("div", { class: "store-pay" },
-            shopData.equipment ? h("button", { class: "store-btn ghost", onclick: () => { $("store").classList.add("hidden"); shopData = null; nui("catalogEquipment"); } }, "Équipement (membres)") : null,
-            h("button", { class: `store-btn ghost`, style: shopData.equipment ? "" : "grid-column: 1 / -1", onclick: closeStoreView }, "Fermer le catalogue")),
+        lines.length ? h("div", { class: "store-wallet" }, h("span", null, `Liquide : ${shopMoney(shopData.cash || 0)}`), h("span", null, `Banque : ${shopMoney(shopData.bank || 0)}`)) : null,
+        lines.length ? h("div", { class: "store-pay" },
+            h("button", { class: "store-btn", disabled: buying, style: total > 0 ? "" : "grid-column: 1 / -1", onclick: () => orderBasket("money") }, total > 0 ? "Commander · liquide" : "Commander"),
+            total > 0 ? h("button", { class: "store-btn", disabled: buying, onclick: () => orderBasket("bank") }, "Commander · carte") : null)
+            : h("p", { class: "store-note" }, "Choisissez vos articles puis commandez : un employé les prépare et vous sert. Vous payez au service."),
+        catalogFooter(),
     ].filter(Boolean));
+}
+
+// Suivi de la commande en cours
+function paintCatalogOrder() {
+    const order = shopData.order;
+    $("storeCart").replaceChildren(...[
+        h("div", { class: "store-cart-head" }, h("span", null, `Commande n°${order.id} · ${order.account === "bank" ? "carte" : "liquide"}`), h("b", null, shopMoney(order.total))),
+        h("div", { class: `store-status${order.status === "taken" ? " taken" : ""}` }, h("i"), h("span", null, order.statusLabel)),
+        h("div", { class: "store-lines" }, order.lines.map((l) => h("div", { class: "store-line" },
+            h("span", null, `${l.qty * l.count} × ${l.label}`), h("i", null, shopMoney(l.price * l.qty)), h("span")))),
+        h("p", { class: "store-note" }, "Restez près du comptoir : l'employé vous servira, vous paierez à ce moment-là."),
+        h("div", { class: "store-pay" }, h("button", { class: "store-btn ghost", style: "grid-column: 1 / -1", disabled: buying, onclick: cancelOrder }, "Annuler la commande")),
+        catalogFooter(),
+    ]);
+}
+
+async function orderBasket(account) {
+    if (buying) return;
+    buying = true;
+    paintStoreCart();
+    const res = inGame ? await nui("catalogOrder", { cart: basket, account }) : { ok: true, order: demoOrder(account) };
+    buying = false;
+    if (!res || !res.ok) {
+        paintStoreCart();
+        return shopToast((res && res.error) || "Commande impossible.");
+    }
+    basket = {};
+    shopData.order = res.order;
+    paintStore();
+}
+
+async function cancelOrder() {
+    if (buying) return;
+    buying = true;
+    const res = inGame ? await nui("catalogCancel") : { ok: true };
+    buying = false;
+    if (!res || !res.ok) return shopToast((res && res.error) || "Annulation impossible.");
+    shopData.order = null;
+    shopToast("Commande annulée.");
+    paintStore();
+}
+
+// Aperçu : commande fictive à partir du panier
+function demoOrder(account) {
+    const lines = Object.entries(basket).map(([key, qty]) => ({ item: shopItem(key), qty })).filter((l) => l.item)
+        .map((l) => ({ label: l.item.label, count: l.item.count, qty: l.qty, price: l.item.price }));
+    return { id: 7, account, lines, total: lines.reduce((s, l) => s + l.price * l.qty, 0), status: "pending", statusLabel: "En attente d'un employé" };
 }
 
 async function buyBasket(account) {
@@ -167,6 +230,10 @@ document.addEventListener("keydown", (e) => {
 window.addEventListener("message", (event) => {
     const msg = event.data || {};
     if (msg.action === "storeOpen") openStore(msg);
+    if (msg.action === "catalogOrder" && isCatalog()) {
+        shopData.order = msg.order || null;
+        paintStore();
+    }
     if (msg.action === "storeClose") {
         shopData = null;
         $("store").classList.add("hidden");
@@ -177,7 +244,7 @@ window.addEventListener("message", (event) => {
 
 if (!inGame && location.hash.includes("catalog")) {
     window.postMessage({
-        action: "storeOpen", mode: "catalog", label: "Burger Shot", currency: "$", max: 50, header: null, logo: null, equipment: true,
+        action: "storeOpen", mode: "catalog", label: "Burger Shot", currency: "$", max: 50, header: null, logo: null, equipment: true, member: true, cash: 120, bank: 4200,
         theme: { color: "#d3122a", title: "Burger Shot", sub: "Catalogue" },
         catalogs: [
             { id: 1, label: "Menus", lines: [{ id: 1, item: "burger", label: "Bleeder", price: 18 }, { id: 2, item: "burger", label: "Heart Stopper", price: 25 }, { id: 3, item: "sandwich", label: "Wrap poulet", price: 14 }] },

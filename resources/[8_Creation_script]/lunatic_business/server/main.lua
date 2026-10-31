@@ -639,9 +639,13 @@ lib.callback.register('lunatic_business:catalogOpen', function(src, pointId)
     local ok, structure = pcall(function() return exports.lunatic_admin:getStructure(point.job) end)
     structure = ok and type(structure) == 'table' and structure or {}
 
+    local order = OrderOf(src)
+
     return {
         ok = true, label = jobLabel(point.job), banner = structure.banner or '', logo = structure.logo or '', color = structure.color,
         catalogs = list, member = xPlayer.getJob().name == point.job, max = Config.MaxPurchase,
+        cash = xPlayer.getAccount('money').money, bank = xPlayer.getAccount('bank').money,
+        order = order and order.job == point.job and OrderView(order) or nil,
     }
 end)
 
@@ -649,6 +653,298 @@ local function itemLabel(name)
     local item = ox:Items(name)
     return item and item.label or name
 end
+
+---------------------------------------------------------------------
+-- Commandes du catalogue de vente : le client commande, un employé la prend, prépare les articles (craft, stockage)
+-- et la sert ; il doit les avoir sur lui. Le client paie au service (liquide ou carte), l'argent va au compte de la société.
+---------------------------------------------------------------------
+
+local orders = {} -- id -> { id, job, client, clientName, lines, total, account, status, employee, employeeName, createdAt }
+local lastOrderId = 0
+local STATUS = { pending = "En attente d'un employé", taken = 'En préparation' }
+
+function OrderOf(src)
+    for _, order in pairs(orders) do
+        if order.client == src then
+            return order
+        end
+    end
+end
+
+function OrderView(order, viewer)
+    local lines = {}
+
+    for _, line in ipairs(order.lines) do
+        lines[#lines + 1] = { label = line.label, count = line.count, qty = line.qty, price = line.price }
+    end
+
+    return {
+        id = order.id, company = jobLabel(order.job), client = order.clientName, lines = lines, total = order.total, account = order.account,
+        status = order.status, statusLabel = order.status == 'taken' and ('En préparation par %s'):format(order.employeeName) or STATUS.pending,
+        employee = order.employeeName, mine = viewer ~= nil and order.employee == viewer, age = os.time() - order.createdAt,
+    }
+end
+
+local function membersOf(job)
+    local list = {}
+
+    for _, member in pairs(ESX.GetExtendedPlayers()) do
+        if member.getJob().name == job then
+            list[#list + 1] = member.source
+        end
+    end
+
+    return list
+end
+
+-- Prévient le client (et met à jour son catalogue s'il est ouvert)
+local function tellClient(order, message, kind, closed)
+    TriggerClientEvent('lunatic_business:orderUpdate', order.client, not closed and OrderView(order) or nil, message, kind)
+end
+
+-- Articles et quantités totales d'une commande
+local function needsOf(order)
+    local needs = {}
+
+    for _, line in ipairs(order.lines) do
+        needs[line.item] = (needs[line.item] or 0) + line.count * line.qty
+    end
+
+    return needs
+end
+
+lib.callback.register('lunatic_business:orderPlace', function(src, pointId, cart, account)
+    local xPlayer, point, err = check(src, pointId, 'catalog', { member = false })
+
+    if not xPlayer then
+        return fail(err)
+    elseif OrderOf(src) then
+        return fail('Vous avez déjà une commande en cours.')
+    elseif type(cart) ~= 'table' then
+        return fail('Votre choix est vide.')
+    end
+
+    local lines, total = {}, 0
+
+    for key, qty in pairs(cart) do
+        if #lines >= Config.MaxCartLines then
+            return fail("Trop d'articles différents.")
+        end
+
+        local catalogId, lineId = tostring(key):match('^(%d+):(%d+)$')
+        local catalog, line = findLine(point.job, catalogId, lineId)
+        qty = tonumber(qty)
+
+        if not line or catalog.kind ~= 'sale' or not qty or qty ~= math.floor(qty) or qty < 1 or qty > Config.MaxPurchase then
+            return fail('Article introuvable : rouvrez le catalogue.')
+        end
+
+        lines[#lines + 1] = { item = line.item, label = itemLabel(line.item), count = line.count, qty = qty, price = line.price }
+        total = total + line.price * qty
+    end
+
+    if #lines == 0 then
+        return fail('Votre choix est vide.')
+    end
+
+    account = account == 'bank' and 'bank' or 'money'
+
+    if xPlayer.getAccount(account).money < total then
+        return fail(account == 'bank' and 'Solde bancaire insuffisant.' or "Vous n'avez pas assez de liquide.")
+    end
+
+    local members = membersOf(point.job)
+
+    if #members == 0 then
+        return fail('Aucun employé en service pour le moment.')
+    end
+
+    lastOrderId = lastOrderId + 1
+    local order = { id = lastOrderId, job = point.job, client = src, clientName = xPlayer.getName(), lines = lines, total = total, account = account, status = 'pending', createdAt = os.time() }
+    orders[order.id] = order
+
+    for _, member in ipairs(members) do
+        TriggerClientEvent('lunatic_business:orderNew', member, { id = order.id, client = order.clientName, articles = #lines, total = total })
+    end
+
+    GameLog('companies', 'info', src, 'company.order', jobLabel(point.job), { total = total, articles = #lines })
+    return { ok = true, order = OrderView(order) }
+end)
+
+lib.callback.register('lunatic_business:orderCancel', function(src)
+    local order = OrderOf(src)
+
+    if not order then
+        return fail('Aucune commande en cours.')
+    end
+
+    orders[order.id] = nil
+
+    if order.employee then
+        notify(order.employee, ('%s a annulé sa commande n°%d.'):format(order.clientName, order.id), 'info')
+    end
+
+    return { ok = true }
+end)
+
+-- Employés : commandes de leur structure
+lib.callback.register('lunatic_business:orders', function(src)
+    local xPlayer = ESX.GetPlayerFromId(src)
+    local job = xPlayer and xPlayer.getJob().name
+    local list = {}
+
+    for _, order in pairs(orders) do
+        if order.job == job then
+            list[#list + 1] = OrderView(order, src)
+        end
+    end
+
+    table.sort(list, function(a, b) return a.id < b.id end)
+    return { ok = true, orders = list, company = job and jobLabel(job) or '' }
+end)
+
+-- Commande de la structure de l'employé
+local function memberOrder(src, id)
+    local xPlayer = ESX.GetPlayerFromId(src)
+    local order = orders[tonumber(id) or -1]
+
+    if not xPlayer or not order or xPlayer.getJob().name ~= order.job then
+        return nil, nil, 'Commande introuvable.'
+    end
+
+    return xPlayer, order
+end
+
+lib.callback.register('lunatic_business:orderTake', function(src, id)
+    local xPlayer, order, err = memberOrder(src, id)
+
+    if not xPlayer then
+        return fail(err)
+    elseif order.status == 'taken' and order.employee ~= src then
+        return fail(('Déjà prise par %s.'):format(order.employeeName))
+    end
+
+    order.status, order.employee, order.employeeName = 'taken', src, xPlayer.getName()
+    tellClient(order, ('%s prépare votre commande.'):format(order.employeeName), 'info')
+    return { ok = true, order = OrderView(order, src) }
+end)
+
+lib.callback.register('lunatic_business:orderRelease', function(src, id)
+    local xPlayer, order, err = memberOrder(src, id)
+
+    if not xPlayer then
+        return fail(err)
+    elseif order.employee ~= src then
+        return fail("Ce n'est pas votre commande.")
+    end
+
+    order.status, order.employee, order.employeeName = 'pending', nil, nil
+    tellClient(order, "Votre commande attend un autre employé.", 'info')
+    return { ok = true }
+end)
+
+-- Service : l'employé a les articles sur lui, le client est à côté, peut tout porter et payer
+lib.callback.register('lunatic_business:orderServe', function(src, id)
+    local xPlayer, order, err = memberOrder(src, id)
+
+    if not xPlayer then
+        return fail(err)
+    elseif order.employee ~= src then
+        return fail("Prenez la commande avant de la servir.")
+    end
+
+    local client = ESX.GetPlayerFromId(order.client)
+
+    if not client then
+        orders[order.id] = nil
+        return fail('Le client est parti : commande annulée.')
+    end
+
+    local ped, clientPed = GetPlayerPed(src), GetPlayerPed(order.client)
+
+    if ped == 0 or clientPed == 0 or #(GetEntityCoords(ped) - GetEntityCoords(clientPed)) > Config.ServeDistance then
+        return fail(('Approchez-vous de %s pour le servir.'):format(order.clientName))
+    end
+
+    local needs, weight = needsOf(order), 0
+
+    for item, amount in pairs(needs) do
+        if (ox:Search(src, 'count', item) or 0) < amount then
+            return fail(('Il vous manque : %d × %s.'):format(amount, itemLabel(item)))
+        end
+
+        if not ox:CanCarryItem(order.client, item, amount) then
+            return fail(('%s ne peut pas porter : %s.'):format(order.clientName, itemLabel(item)))
+        end
+
+        local data = ox:Items(item)
+        weight = weight + (data and data.weight or 0) * amount
+    end
+
+    if not ox:CanCarryWeight(order.client, weight) then
+        return fail(('%s est trop chargé pour tout prendre.'):format(order.clientName))
+    end
+
+    local company = jobLabel(order.job)
+
+    if order.total > 0 then
+        if client.getAccount(order.account).money < order.total then
+            tellClient(order, order.account == 'bank' and 'Paiement refusé : solde bancaire insuffisant.' or "Paiement refusé : pas assez de liquide.", 'error')
+            return fail(('%s ne peut pas payer (%s).'):format(order.clientName, order.account == 'bank' and 'carte refusée' or 'pas assez de liquide'))
+        end
+
+        client.removeAccountMoney(order.account, order.total, ('Commande : %s'):format(company))
+        Account.add(order.job, order.total, ('Commande de %s'):format(order.clientName), xPlayer.getName())
+    end
+
+    for item, amount in pairs(needs) do
+        ox:RemoveItem(src, item, amount)
+        ox:AddItem(order.client, item, amount)
+    end
+
+    orders[order.id] = nil
+    tellClient(order, ('Commande servie par %s%s.'):format(xPlayer.getName(), order.total > 0 and (' : %d $ payés'):format(order.total) or ''), 'success', true)
+    GameLog('companies', 'success', src, 'company.orderServed', company, { client = order.clientName, total = order.total, account = order.account })
+
+    return { ok = true, total = order.total }
+end)
+
+-- Commandes trop anciennes : annulées
+CreateThread(function()
+    while true do
+        Wait(60000)
+        local limit = os.time() - Config.OrderTimeout * 60
+
+        for id, order in pairs(orders) do
+            if order.createdAt < limit then
+                orders[id] = nil
+                tellClient(order, 'Votre commande a expiré : personne ne l’a servie.', 'error', true)
+
+                if order.employee then
+                    notify(order.employee, ('Commande n°%d de %s expirée.'):format(order.id, order.clientName), 'info')
+                end
+            end
+        end
+    end
+end)
+
+-- Client parti : commande annulée ; employé parti : sa commande retourne en attente
+AddEventHandler('playerDropped', function()
+    local src = source
+
+    for id, order in pairs(orders) do
+        if order.client == src then
+            orders[id] = nil
+
+            if order.employee then
+                notify(order.employee, ('%s est parti : commande n°%d annulée.'):format(order.clientName, order.id), 'info')
+            end
+        elseif order.employee == src then
+            order.status, order.employee, order.employeeName = 'pending', nil, nil
+            tellClient(order, "L'employé est parti : votre commande attend quelqu'un d'autre.", 'info')
+        end
+    end
+end)
 
 lib.callback.register('lunatic_business:buy', function(src, pointId, catalogId, lineId, quantity)
     local point = points[tonumber(pointId) or -1]

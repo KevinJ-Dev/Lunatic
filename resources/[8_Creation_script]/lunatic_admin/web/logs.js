@@ -169,6 +169,8 @@ const ACTION_LABELS = {
     "company.recruit": "a recruté chez",
     "company.deposit": "a déposé sur le compte de",
     "company.withdraw": "a retiré du compte de",
+    "company.order": "a passé une commande chez",
+    "company.orderServed": "a servi une commande chez",
     "vehicle.rent": "a loué",
     "vehicle.rent_return": "a rendu",
     "vehicle.service_out": "a sorti",

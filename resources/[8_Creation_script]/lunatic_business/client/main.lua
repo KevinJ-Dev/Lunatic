@@ -1530,10 +1530,131 @@ openSaleCatalog = function(point)
     SetNuiFocus(true, true)
     SendNUIMessage({
         action = 'storeOpen', mode = 'catalog', label = info.label, catalogs = info.catalogs, max = info.max, equipment = equipment,
+        member = info.member, cash = info.cash, bank = info.bank, order = info.order,
         currency = GlobalState.lunaticCurrency or '$', header = headerImage(info.banner), logo = headerImage(info.logo),
         theme = { color = info.color, title = info.label, sub = 'Catalogue' },
     })
 end
+
+---------------------------------------------------------------------
+-- Commandes : le client commande depuis le catalogue ; les employés les prennent et les servent (/commandes)
+---------------------------------------------------------------------
+
+local openOrders
+
+local function orderAction(name, order)
+    local result = lib.callback.await('lunatic_business:' .. name, false, order.id)
+
+    if not failed(result) then
+        if name == 'orderServe' then
+            notify(('Commande n°%d servie%s.'):format(order.id, result.total > 0 and (' : %s versés à la société'):format(money(result.total)) or ''), 'success')
+        elseif name == 'orderTake' then
+            notify(('Commande n°%d prise : préparez les articles puis servez %s.'):format(order.id, order.client), 'success')
+        end
+    end
+
+    openOrders()
+end
+
+local function orderMenu(order)
+    local options = {
+        { title = order.statusLabel, description = ('%s · %s (%s)'):format(order.client, money(order.total), order.account == 'bank' and 'carte' or 'liquide'), icon = 'receipt', readOnly = true },
+    }
+
+    for _, line in ipairs(order.lines) do
+        options[#options + 1] = { title = ('%d × %s'):format(line.qty * line.count, line.label), description = money(line.price * line.qty), icon = 'box', readOnly = true }
+    end
+
+    if order.mine then
+        options[#options + 1] = { title = ('Servir %s'):format(order.client), description = 'Articles sur vous, client à côté : il paie et reçoit tout', icon = 'hand-holding', onSelect = function() orderAction('orderServe', order) end }
+        options[#options + 1] = { title = 'Libérer la commande', description = "Un autre employé pourra la prendre", icon = 'rotate-left', onSelect = function() orderAction('orderRelease', order) end }
+    else
+        options[#options + 1] = { title = 'Prendre la commande', description = order.employee and ('Prise par %s'):format(order.employee) or 'Vous la préparez et la servez', icon = 'hand', onSelect = function() orderAction('orderTake', order) end }
+    end
+
+    lib.registerContext({ id = 'lb_order', title = ('Commande n°%d'):format(order.id), menu = 'lb_orders', options = options })
+    lib.showContext('lb_order')
+end
+
+openOrders = function()
+    local result = lib.callback.await('lunatic_business:orders', false)
+
+    if failed(result) then
+        return
+    end
+
+    if #result.orders == 0 then
+        return notify('Aucune commande en cours.', 'info')
+    end
+
+    local options = {}
+
+    for _, order in ipairs(result.orders) do
+        local articles = 0
+
+        for _, line in ipairs(order.lines) do
+            articles = articles + line.qty
+        end
+
+        options[#options + 1] = {
+            title = ('N°%d · %s'):format(order.id, order.client),
+            description = ('%d article%s · %s · %s · il y a %d min'):format(articles, articles > 1 and 's' or '', money(order.total), order.mine and 'prise par vous' or order.employee and ('prise par %s'):format(order.employee) or 'en attente', math.floor(order.age / 60)),
+            icon = order.mine and 'utensils' or order.employee and 'user-clock' or 'bell',
+            iconColor = order.mine and '#5fd3a0' or nil,
+            onSelect = function() orderMenu(order) end,
+        }
+    end
+
+    lib.registerContext({ id = 'lb_orders', title = ('Commandes · %s'):format(result.company), options = options })
+    lib.showContext('lb_orders')
+end
+
+RegisterCommand('commandes', function()
+    openOrders()
+end, false)
+
+-- Employés : nouvelle commande
+RegisterNetEvent('lunatic_business:orderNew', function(info)
+    PlaySoundFrontend(-1, 'Text_Arrive_Tone', 'Phone_SoundSet_Default', true)
+    notify(('Nouvelle commande n°%d de %s : %d article%s, %s. Tapez /commandes.'):format(info.id, info.client, info.articles, info.articles > 1 and 's' or '', money(info.total)), 'info')
+end)
+
+-- Client : commande prise, servie, expirée… (catalogue mis à jour s'il est ouvert)
+RegisterNetEvent('lunatic_business:orderUpdate', function(order, message, kind)
+    if message then
+        notify(message, kind)
+    end
+
+    if store and store.catalog then
+        SendNUIMessage({ action = 'catalogOrder', order = order })
+    end
+end)
+
+RegisterNUICallback('catalogOrder', function(data, cb)
+    local point = store and store.catalog
+
+    if not point then
+        return cb({ ok = false, error = 'Catalogue fermé.' })
+    end
+
+    local result = lib.callback.await('lunatic_business:orderPlace', false, point.id, type(data.cart) == 'table' and data.cart or {}, data.account)
+    cb(result or { ok = false, error = 'Commande impossible.' })
+
+    if result and result.ok then
+        notify('Commande envoyée aux employés : attendez qu’on vous serve.', 'success')
+    end
+end)
+
+RegisterNUICallback('catalogCancel', function(_, cb)
+    local result = lib.callback.await('lunatic_business:orderCancel', false)
+    cb(result or { ok = false, error = 'Annulation impossible.' })
+end)
+
+RegisterNUICallback('catalogOrders', function(_, cb)
+    cb({})
+    closeStore()
+    openOrders()
+end)
 
 RegisterNUICallback('catalogEquipment', function(_, cb)
     cb({})

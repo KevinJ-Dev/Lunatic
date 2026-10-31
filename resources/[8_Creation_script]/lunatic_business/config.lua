@@ -20,6 +20,8 @@ Config.HistorySize = 30            -- lignes d'historique affichées
 -- Catalogues
 Config.MaxPurchase = 50            -- quantité maximale par achat (par article dans le panier des magasins)
 Config.MaxCartLines = 30           -- articles différents dans un même panier
+Config.OrderTimeout = 15           -- minutes avant qu'une commande non servie soit annulée
+Config.ServeDistance = 3.0         -- l'employé sert le client à moins de cette distance
 -- Magasins d'articles (LTD, Ammunation…) : couleur de la bannière par catégorie de la tuile Catalogues, et nom affiché en
 -- grand (l'image d'en-tête du magasin, si elle est réglée, passe derrière). Catégorie absente : couleur du panel.
 Config.StoreThemes = {
